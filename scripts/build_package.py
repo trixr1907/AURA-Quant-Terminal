@@ -128,6 +128,7 @@ def smoke_test(extract_dir: Path) -> int:
         [sys.executable, "-m", "unittest", "tests/test_launcher.py"],
         [sys.executable, "-m", "unittest", "tests/test_research_cleanup.py"],
         ["node", "tests/test_radar_progressive.js"],
+        ["node", "tests/test_autobot_entry_gate.js"],
         ["node", "tests/test_engine_full.js"],
         [sys.executable, "tests/reference_backtest.py"],
         [sys.executable, "-m", "unittest", "tests/test_relay_full.py"],
