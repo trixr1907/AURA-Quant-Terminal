@@ -38,7 +38,7 @@ AURA verwendet ab `1.0.0` Semantic Versioning (`MAJOR.MINOR.PATCH`). Die Datei `
 - `MINOR` (`1.1.0`): rückwärtskompatible neue Funktion.
 - `MAJOR` (`2.0.0`): inkompatible Änderung an Verhalten, Datenformat oder öffentlicher Schnittstelle.
 
-Jedes veröffentlichte Update muss die Version erhöhen, den Release-Check bestehen und als Git-Tag `v<Version>` markiert werden. Der Release-Check blockiert fehlende oder inkonsistente `MAJOR.MINOR.PATCH`-Versionen.
+Jedes veröffentlichte Update muss die Version erhöhen, den Release-Check bestehen, als Git-Tag `v<Version>` markiert und zusätzlich als GitHub Release veröffentlicht werden. Der GitHub Release enthält das geprüfte `symbiose.zip` als Download-Artefakt. Der Release-Check blockiert fehlende oder inkonsistente `MAJOR.MINOR.PATCH`-Versionen.
 
 ## Start
 
