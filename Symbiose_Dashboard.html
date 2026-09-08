@@ -681,7 +681,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <div id="radarlist"></div>
 </aside>
 
-<footer><b>AURA Quant Terminal v1.0.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3184,14 +3184,56 @@ async function loadBtcMarketContext() {
 // ============================================================================
 //  SIGNAL-RADAR: Multi-Timeframe Matrix (15m, 1h, 4h, 1d) über alle Top-Coins
 // ============================================================================
+const RADAR_CACHE_KEY = 'aura-action-radar-cache-v1';
+const RADAR_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
+
+function radarSnapshotPayload(rows, progress) {
+  return {
+    savedAt: Date.now(),
+    rows: Array.isArray(rows) ? rows : [],
+    progress: progress && typeof progress === 'object' ? { ...progress, scanning: false } : null
+  };
+}
+
+function persistRadarSnapshot(rows, progress) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  try { localStorage.setItem(RADAR_CACHE_KEY, JSON.stringify(radarSnapshotPayload(rows, progress))); } catch (_) {}
+}
+
+function restoreRadarSnapshot(symbols, maxAgeMs = RADAR_CACHE_MAX_AGE_MS) {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(RADAR_CACHE_KEY) || 'null');
+    if (!snapshot || !Array.isArray(snapshot.rows) || !snapshot.rows.length || !Number.isFinite(snapshot.savedAt)) return null;
+    if (Date.now() - snapshot.savedAt > maxAgeMs) return null;
+    const allowed = new Set(Array.isArray(symbols) ? symbols : []);
+    const rows = snapshot.rows.filter(row => row && row.symbol && (!allowed.size || allowed.has(row.symbol)));
+    if (!rows.length) return null;
+    return {
+      rows: rankRadarCandidates(rows, 'all'),
+      progress: snapshot.progress || { done: rows.length, total: rows.length, scanning: false, skipped: 0 }
+    };
+  } catch (_) { return null; }
+}
+
 const RADAR_CONCURRENCY = 6;
 const RADAR_TFS = ['15m', '1h', '4h', '1d'];
 
 async function loadRadar() {
   const radarGen = App.radarGen = (App.radarGen || 0) + 1;
   const coins = universeSymbols();
-  App.radarProgress = App.radarProgress || { done: 0, total: coins.length, scanning: true, skipped: 0 };
-  App.radarMap = App.radarMap || new Map();
+  if (!App.data.radar || !App.data.radar.length) {
+    const restored = restoreRadarSnapshot(coins);
+    if (restored) {
+      App.data.radar = restored.rows;
+      App.radarMap = new Map(restored.rows.map(row => [row.symbol, row]));
+      App.radarProgress = { ...restored.progress, done: restored.rows.length, total: coins.length, scanning: false };
+      renderRadar();
+      renderHero();
+      return;
+    }
+  }
+  App.radarProgress = { done: 0, total: coins.length, scanning: true, skipped: 0 };
+  App.radarMap = new Map();
 
   // BTC context: use pre-loaded context or fetch once
   if (App.data.btcRegime == null && App.symbol !== 'BTCUSDT') {
@@ -3279,6 +3321,7 @@ async function loadRadar() {
     };
     renderRadar();
     renderHero();
+    if (!App.radarProgress.scanning) persistRadarSnapshot(App.data.radar, App.radarProgress);
     if (start + RADAR_BATCH_SIZE < coins.length) {
       await new Promise(res => setTimeout(res, RADAR_BATCH_DELAY_MS));
     }
@@ -5976,6 +6019,26 @@ function collectAutobotCandidates(radar) {
   return radar.flatMap(item => Array.isArray(item?.rows) ? item.rows : [item]).filter(Boolean);
 }
 
+function autobotSignalStrength(candidate) {
+  if (!candidate || !candidate.bestInfo) return -Infinity;
+  const info = candidate.bestInfo;
+  const score = Number(info.score);
+  const directionalScore = info.dir === -1 ? 100 - score : score;
+  const quality = Number.isFinite(+info.quality) ? +info.quality : 0;
+  const aligned = Number.isFinite(+candidate.aligned) ? +candidate.aligned : 0;
+  const rankScore = Number.isFinite(+candidate.rankScore) ? +candidate.rankScore : 0;
+  if (!Number.isFinite(directionalScore)) return -Infinity;
+  return directionalScore * 100 + quality * 10 + aligned + rankScore / 100000;
+}
+
+function sortAutobotCandidates(candidates) {
+  return (candidates || []).slice().sort((a, b) => {
+    const strengthDelta = autobotSignalStrength(b) - autobotSignalStrength(a);
+    if (strengthDelta) return strengthDelta;
+    return String(a?.symbol || '').localeCompare(String(b?.symbol || ''));
+  });
+}
+
 function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   const rejected = { accepted: false, dir: 0, tf: null, score: null };
   if (!candidate || candidate.executable !== true || !candidate.bestInfo || candidate.bestInfo.tradeable !== true) return rejected;
@@ -6328,7 +6391,8 @@ const Autobot = {
 
     // The Autobot consumes only fully ranked Action Radar rows. Without complete
     // MTF/regime evidence it must wait instead of manufacturing a candidate.
-    const candidates = collectAutobotCandidates(App.data.radar);
+    // Evaluate every currently valid row in deterministic overall-strength order.
+    const candidates = sortAutobotCandidates(collectAutobotCandidates(App.data.radar));
     if (!candidates.length) return;
 
     const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
@@ -6336,6 +6400,9 @@ const Autobot = {
     for (const c of candidates) {
       if (this.trades.length >= this.maxOpenTrades) break;
       if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) continue;
+
+      const universeRow = (App.universe || []).find(row => row && row.symbol === c.symbol);
+      if (this.min24hVol > 0 && (!universeRow || !Number.isFinite(+universeRow.vol) || +universeRow.vol < this.min24hVol)) continue;
 
       const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
       if (!candidateGate.accepted) continue;
