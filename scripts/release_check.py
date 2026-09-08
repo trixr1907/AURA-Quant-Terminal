@@ -329,6 +329,9 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_radar_sorting.js"])
     add(check("radar smart sorting", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_autobot_entry_gate.js"])
+    add(check("autobot entry gate", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
 
     # 1c. Live trade tracker
     rc, out, err = run(["node", "tests/test_live_trade_tracker.js"])

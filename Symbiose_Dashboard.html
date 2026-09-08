@@ -681,7 +681,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <div id="radarlist"></div>
 </aside>
 
-<footer><b>AURA Quant Terminal v1.0.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -5969,6 +5969,19 @@ const SyncEngine = {
 // ============================================================================
 const AUTOBOT_KEY = 'aura-autobot-state-v2';
 
+function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
+  const rejected = { accepted: false, dir: 0, tf: null, score: null };
+  if (!candidate || candidate.executable !== true || !candidate.bestInfo || candidate.bestInfo.tradeable !== true) return rejected;
+  if (!Number.isFinite(candidate.aligned) || candidate.aligned < mtfNeed) return rejected;
+  const info = candidate.bestInfo;
+  const score = Number(info.score);
+  const dir = info.dir === 1 ? 1 : info.dir === -1 ? -1 : 0;
+  if (info.status !== 'ready' || !Number.isFinite(score) || !dir) return rejected;
+  const shortThreshold = 100 - minScore;
+  if ((dir === 1 && score < minScore) || (dir === -1 && score > shortThreshold)) return rejected;
+  return { accepted: true, dir, tf: candidate.bestTF || '1h', score };
+}
+
 const Autobot = {
   enabled: false,
   initialEquity: 10000,
@@ -6306,68 +6319,54 @@ const Autobot = {
   async scanAndExecuteOpportunities() {
     if (this.trades.length >= this.maxOpenTrades) return;
 
-    // Collect candidate pool from Action Radar or Top Universe
-    let candidates = [];
-    if (App.data.radar && Array.isArray(App.data.radar)) {
-      candidates = App.data.radar.flatMap(g => g.rows || []);
-    }
-
-    // Fallback: If Radar is still loading, scan top 10 universe symbols directly
-    if (!candidates.length) {
-      const topSymbols = universeSymbols().slice(0, 10);
-      for (const sym of topSymbols) {
-        if (this.trades.some(x => x.coin === sym)) continue;
-        try {
-          const k1h = await fetchKlines(sym, '1h', 100);
-          if (k1h && k1h.candles && k1h.candles.length >= 50) {
-            const A = analyze(k1h.candles);
-            if (A && A.last) {
-              candidates.push({
-                symbol: sym,
-                avgScore: A.last.score,
-                mtfDir: A.last.score >= 50 ? 1 : -1,
-                aligned: 3,
-                tfScores: { '1h': { score: A.last.score, dir: A.last.score >= 50 ? 1 : -1 } }
-              });
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
+    // The Autobot consumes only fully ranked Action Radar rows. Without complete
+    // MTF/regime evidence it must wait instead of manufacturing a candidate.
+    const candidates = (App.data.radar && Array.isArray(App.data.radar))
+      ? App.data.radar.flatMap(g => g.rows || [])
+      : [];
     if (!candidates.length) return;
 
     const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
-    const shortThreshold = 100 - this.minScore;
 
     for (const c of candidates) {
       if (this.trades.length >= this.maxOpenTrades) break;
       if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) continue;
 
-      // EXPERT QUANT FILTER:
-      // 1. Score >= minScore (e.g. 78) for Long OR <= shortThreshold (e.g. 22) for Short
-      // 2. MTF Aligned >= mtfNeed (e.g. 3/4 timeframes)
-      // 3. BTC Macro Confluence Gate
-      const isLong = c.avgScore >= this.minScore && (c.mtfDir === 1 || !c.mtfDir) && (c.aligned || 3) >= this.mtfNeed;
-      const isShort = c.avgScore <= shortThreshold && (c.mtfDir === -1 || !c.mtfDir) && (c.aligned || 3) >= this.mtfNeed;
-
-      if (!isLong && !isShort) continue;
+      const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
+      if (!candidateGate.accepted) continue;
 
       // Macro Confluence Gate
       if (this.btcFilter && btcBias.available) {
-        if (isLong && btcBias.regime === -1) continue;
-        if (isShort && btcBias.regime === 1) continue;
+        if (candidateGate.dir === 1 && btcBias.regime === -1) continue;
+        if (candidateGate.dir === -1 && btcBias.regime === 1) continue;
       }
 
-      // Precision execution parameters
+      // Re-fetch the radar-selected timeframe immediately before entry and apply
+      // the same score, squeeze, regime and ADX gates to prevent stale entries.
       try {
-        const kdata = await fetchKlines(c.symbol, '1h', 100);
+        const kdata = await fetchKlines(c.symbol, candidateGate.tf, 200);
         if (!kdata || !kdata.candles || kdata.candles.length < 40) continue;
         const A = analyze(kdata.candles);
-        if (!A || !A.n) continue;
-
-        const dir = isLong ? 1 : -1;
+        if (!A || !A.n || !A.last) continue;
+        const freshRegime = regimeOf(A);
         const lastPrice = kdata.candles[kdata.candles.length - 1].c;
+        const freshGate = classifyRadarTf({
+          score: A.last.score,
+          dir: A.last.dir,
+          regime: freshRegime.reg,
+          isSqz: freshRegime.isSqz,
+          adx: A.last.adx,
+          atrPct: lastPrice > 0 ? (A.last.atr / lastPrice * 100) : 0
+        });
+        const freshCandidate = evaluateAutobotCandidate({
+          executable: freshGate.tradeable,
+          bestInfo: { ...freshGate, score: A.last.score, dir: A.last.dir },
+          aligned: c.aligned,
+          bestTF: candidateGate.tf
+        }, this.minScore, this.mtfNeed);
+        if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) continue;
+
+        const dir = freshCandidate.dir;
         const atr = A.last.atr || (lastPrice * 0.015);
         const slDist = Math.max(lastPrice * 0.005, atr * 1.5);
         const sl = dir === 1 ? (lastPrice - slDist) : (lastPrice + slDist);
@@ -6414,7 +6413,8 @@ const Autobot = {
           openedAt: Date.now(),
           beActive: false,
           scaledOut: false,
-          score: Math.round(c.avgScore),
+          score: Math.round(freshCandidate.score),
+          signalTf: freshCandidate.tf,
           timeStopBars: optTimeStop.bars,
           maxHoldHours: optTimeStop.hours,
           timeStopReason: optTimeStop.reason
@@ -6423,7 +6423,7 @@ const Autobot = {
         this.trades.push(newTrade);
         tradePrices[c.symbol] = lastPrice;
 
-        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Score: ${Math.round(c.avgScore)} | Margin: ${margin} USDT | Time-Stop: ${optTimeStop.bars} Bars / ${optTimeStop.hours}h | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Margin: ${margin} USDT | Time-Stop: ${optTimeStop.bars} Bars / ${optTimeStop.hours}h | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
         this.save();
         this.render();
         break; // 1 trade per scan tick
