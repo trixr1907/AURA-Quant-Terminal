@@ -117,6 +117,12 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn('child_env["PYTHONIOENCODING"] = "utf-8"', script)
         self.assertIn('encoding="utf-8"', script)
 
+    def test_proxmox_deployer_avoids_early_exit_pipe_checks(self):
+        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        self.assertNotIn('"http://${ip}:${PORT}/" | grep -q', script)
+        self.assertIn('curl -fsS --max-time 10 -o "$probe_dir/dashboard.html"', script)
+        self.assertIn('grep -q "AURA" "$probe_dir/dashboard.html"', script)
+
     def test_proxmox_batch_runs_from_its_own_directory_and_fails_closed(self):
         script = (ROOT / "PROXMOX_DEPLOY.bat").read_text(encoding="utf-8")
         self.assertIn('cd /d "%~dp0"', script)

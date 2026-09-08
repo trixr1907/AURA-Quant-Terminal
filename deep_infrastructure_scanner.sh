@@ -102,18 +102,24 @@ verify_vm_deployment() {
     qm guest exec "$vmid" -- docker logs --tail 50 aura-terminal >&2 || true
     return 1
   fi
-  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/serving" | grep -q '"ok": true'; then
+  local probe_dir
+  probe_dir=$(mktemp -d)
+  if ! curl -fsS --max-time 10 -o "$probe_dir/serving.json" "http://${ip}:${PORT}/serving" || ! grep -q '"ok": true' "$probe_dir/serving.json"; then
     echo -e "${RD}[FEHLER] Externer Healthcheck http://${ip}:${PORT}/serving fehlgeschlagen.${CL}" >&2
+    rm -rf "$probe_dir"
     return 1
   fi
-  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/" | grep -q "AURA"; then
+  if ! curl -fsS --max-time 10 -o "$probe_dir/dashboard.html" "http://${ip}:${PORT}/" || ! grep -q "AURA" "$probe_dir/dashboard.html"; then
     echo -e "${RD}[FEHLER] Dashboard ist extern nicht erreichbar.${CL}" >&2
+    rm -rf "$probe_dir"
     return 1
   fi
-  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/tutorial" | grep -q "AURA"; then
+  if ! curl -fsS --max-time 10 -o "$probe_dir/tutorial.html" "http://${ip}:${PORT}/tutorial" || ! grep -q "AURA" "$probe_dir/tutorial.html"; then
     echo -e "${RD}[FEHLER] Tutorial ist extern nicht erreichbar.${CL}" >&2
+    rm -rf "$probe_dir"
     return 1
   fi
+  rm -rf "$probe_dir"
   echo -e "${GN}[OK] Container gesund; Dashboard, Tutorial und Healthcheck extern erreichbar.${CL}"
 }
 
