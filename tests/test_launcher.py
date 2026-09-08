@@ -117,6 +117,13 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn('child_env["PYTHONIOENCODING"] = "utf-8"', script)
         self.assertIn('encoding="utf-8"', script)
 
+    def test_proxmox_batch_runs_from_its_own_directory_and_fails_closed(self):
+        script = (ROOT / "PROXMOX_DEPLOY.bat").read_text(encoding="utf-8")
+        self.assertIn('cd /d "%~dp0"', script)
+        self.assertGreaterEqual(script.count("if errorlevel 1"), 4)
+        self.assertIn("scp deep_infrastructure_scanner.sh", script)
+        self.assertIn("scp -r data", script)
+
     def test_proxmox_deployer_configures_lan_state_and_verifies_health(self):
         script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         self.assertIn("-e AURA_ALLOWED_HOSTS='$SEL_IP'", script)
