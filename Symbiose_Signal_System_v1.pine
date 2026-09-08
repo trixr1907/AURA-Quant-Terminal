@@ -5,7 +5,7 @@
 //  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
 //  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
 //  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
-//  AURA v1.0.3 — Confluence Trading Signal System (Pine Script v6)
+//  AURA v1.0.4 — Confluence Trading Signal System (Pine Script v6)
 // ============================================================================
 //  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
 //          2) Confluence-Scoring (0-100, gewichtet, Signal ab 75/25)

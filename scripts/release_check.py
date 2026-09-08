@@ -341,6 +341,18 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_autobot_selection.js"])
     add(check("autobot strongest selection", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_radar_refresh_cycle.js"])
+    add(check("radar refresh lifecycle", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_autobot_timeframe_edge.js"])
+    add(check("autobot strongest timeframe", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_autobot_statistical_edge.js"])
+    add(check("autobot statistical edge", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_release_notes_overlay.js"])
+    add(check("release notes overlay", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
 
     # 1c. Live trade tracker
     rc, out, err = run(["node", "tests/test_live_trade_tracker.js"])

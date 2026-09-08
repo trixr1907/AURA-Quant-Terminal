@@ -123,6 +123,10 @@ async def run_case(port: int, chromium: str | None = None) -> dict:
         await page.route("**/*", route_handler)
         await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         await page.wait_for_selector("#chart", timeout=15_000)
+        await page.evaluate("""() => {
+          const btn = document.getElementById('release-notes-ok');
+          if (btn) btn.click();
+        }""")
 
         title = await page.title()
         assert "AURA" in title.upper(), title
