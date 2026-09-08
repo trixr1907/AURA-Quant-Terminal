@@ -1832,16 +1832,14 @@ async function jfetch(url, ms) {
 const BITGET_BASE = 'https://api.bitget.com';
 const BITGET_TF = { '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D' };
 
-// Lokaler Relay: umgeht die CORS-Preflight-Blockade (Bitget antwortet auf
-// OPTIONS mit 403 → Browser bricht ab → "NetworkError"). Der Relay läuft standardmäßig
-// auf 127.0.0.1:8787, signiert dort mit deinen Keys (aus Umgebungsvariablen) und
-// das Dashboard spricht ihn gleichen Ursprungs an, wenn es darüber geladen wurde.
-function isLocalRelayOrigin(loc = (typeof location !== 'undefined' ? location : null)) {
-  return !!loc && /^https?:$/.test(String(loc.protocol || '')) &&
-    /^(127\.0\.0\.1|localhost)$/.test(String(loc.hostname || ''));
+// Use the same-origin relay whenever the dashboard is HTTP-served (localhost,
+// LAN IP, DNS, or reverse proxy). Standalone file mode retains direct public API
+// access and can optionally reach a relay on localhost.
+function isRelayServedOrigin(loc = (typeof location !== 'undefined' ? location : null)) {
+  return !!loc && /^https?:$/.test(String(loc.protocol || '')) && !!String(loc.hostname || '');
 }
 function relayBase() {
-  if (isLocalRelayOrigin()) return '';
+  if (isRelayServedOrigin()) return '';
   return 'http://127.0.0.1:8787';
 }
 // Zentraler Relay-Aufruf: gibt bei Fehlern die verständliche API-Meldung durch
@@ -1856,7 +1854,7 @@ async function relayCall(endpoint, payload) {
   return j;
 }
 async function bgGet(path) {
-  if (isLocalRelayOrigin()) return await relayCall('/api/public', { method: 'GET', path });
+  if (isRelayServedOrigin()) return await relayCall('/api/public', { method: 'GET', path });
   return await jfetch(BITGET_BASE + path);
 }
 

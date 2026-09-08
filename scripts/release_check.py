@@ -317,6 +317,9 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_websocket_generation.js"])
     add(check("websocket generation guard", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_relay_origin.js"])
+    add(check("relay origin selection", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
 
     # 1d. SMC Sessions & Killzones (Single Source of Truth)
     rc, out, err = run(["node", "tests/test_smc_sessions.js"])
