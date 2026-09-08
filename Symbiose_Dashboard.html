@@ -684,15 +684,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.4?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.5?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update macht die automatische Auswahl strenger und verhindert, dass der laufende Radar-Scan beim normalen 60-Sekunden-Update von vorn beginnt.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt einen kontinuierlichen Rolling Scan für das gesamte Universum und macht die Einstiegs-Validierung des Autobots lückenlos zuverlässig.</p>
     <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
-      <li><b>Radar bleibt stabil:</b> Der laufende oder fertige Full-Universe-Scan wird bei normalen Dashboard-Updates nicht mehr zurückgesetzt.</li>
-      <li><b>Stärkster gültiger Timeframe:</b> Der Autobot wählt je Asset den stärksten tatsächlich handelbaren READY-Timeframe – beim INJ-Beispiel also 4h statt 1h.</li>
-      <li><b>Edge ist Pflicht:</b> Vor jedem Paper-Entry wird auf dem ausgewählten Timeframe ein frischer Walk-Forward-Test gerechnet. Ohne positiven OOS-Erwartungswert gibt es keinen Trade.</li>
-      <li><b>Deine Einstellungen gelten weiter:</b> Min-Score, MTF-Anzahl, Mindestvolumen, BTC-Filter, Risiko, Hebel und maximale Positionen bleiben zusätzliche harte Grenzen.</li>
+      <li><b>Kontinuierlicher Rolling Scan:</b> Nach Abschluss der 764 Assets bleibt das Universum vollständig erhalten. Neue Daten werden im Hintergrund laufend und lückenlos aktualisiert, ohne jemals auf 0 zurückzuspringen.</li>
+      <li><b>Zuverlässiger Autobot-Einstieg:</b> Der Autobot prüft jetzt sowohl das gesamte Radar als auch die frischen Live-Kerzen fehlerfrei und findet berechtigte Setups sofort nach dem Start.</li>
+      <li><b>Stärkster Timeframe:</b> Der Autobot wählt je Asset automatisch den stärksten tatsächlich handelbaren READY-Timeframe (z. B. 4h statt 1h).</li>
+      <li><b>Statistischer Edge-Filter:</b> Vor jedem Einstieg wird auf dem gewählten Timeframe eine Walk-Forward-Validierung gerechnet – nur Trades mit mathematischem Vorteil werden ausgeführt.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -701,7 +701,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.0.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.5</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3246,23 +3246,42 @@ function restoreRadarSnapshot(symbols, maxAgeMs = RADAR_CACHE_MAX_AGE_MS) {
 
 const RADAR_CONCURRENCY = 6;
 const RADAR_TFS = ['15m', '1h', '4h', '1d'];
+const RADAR_CYCLE_DELAY_MS = 25000;
 
-async function loadRadar() {
+async function loadRadar(options = {}) {
   const radarGen = App.radarGen = (App.radarGen || 0) + 1;
   const coins = universeSymbols();
+  if (typeof clearTimeout !== 'undefined' && App.radarTimer) {
+    clearTimeout(App.radarTimer);
+    App.radarTimer = null;
+  }
+
   if (!App.data.radar || !App.data.radar.length) {
     const restored = restoreRadarSnapshot(coins);
     if (restored) {
       App.data.radar = restored.rows;
       App.radarMap = new Map(restored.rows.map(row => [row.symbol, row]));
-      App.radarProgress = { ...restored.progress, done: restored.rows.length, total: coins.length, scanning: false };
+      App.radarProgress = { ...restored.progress, done: restored.rows.length, total: coins.length, scanning: false, isRolling: false };
       renderRadar();
       renderHero();
+      if (!options.singleCycle) {
+        const cooldown = Number.isFinite(options.cycleDelayMs)
+          ? options.cycleDelayMs
+          : (typeof RADAR_CYCLE_DELAY_MS !== 'undefined' ? RADAR_CYCLE_DELAY_MS : 25000);
+        if (cooldown > 0 && typeof setTimeout !== 'undefined') {
+          App.radarTimer = setTimeout(() => {
+            if (radarGen === App.radarGen) loadRadar({ rolling: true }).catch(e => console.warn('Radar rolling error:', e));
+          }, cooldown);
+          if (App.radarTimer && typeof App.radarTimer.unref === 'function') App.radarTimer.unref();
+        }
+      }
       return;
     }
   }
-  App.radarProgress = { done: 0, total: coins.length, scanning: true, skipped: 0 };
-  App.radarMap = new Map();
+
+  if (!App.radarMap) App.radarMap = new Map();
+  if (!App.data.radar) App.data.radar = [];
+  const isRolling = options.rolling || (App.radarMap.size >= coins.length && App.data.radar && App.data.radar.length > 0);
 
   // BTC context: use pre-loaded context or fetch once
   if (App.data.btcRegime == null && App.symbol !== 'BTCUSDT') {
@@ -3331,8 +3350,18 @@ async function loadRadar() {
     };
   }
 
-  // Publish and sort after every batch with persistent map across refresh cycles
   let scannedCount = 0;
+  App.radarProgress = {
+    done: isRolling ? App.radarMap.size : 0,
+    updatedInCycle: 0,
+    total: coins.length,
+    scanning: true,
+    skipped: App.radarProgress?.skipped || 0,
+    cycle: (App.radarProgress?.cycle || 0) + 1,
+    isRolling
+  };
+  renderRadar();
+
   for (let start = 0; start < coins.length; start += RADAR_BATCH_SIZE) {
     while (App.radarPaused && radarGen === App.radarGen) await new Promise(res => App.radarPauseWaiters.push(res));
     const batch = coins.slice(start, start + RADAR_BATCH_SIZE);
@@ -3343,16 +3372,45 @@ async function loadRadar() {
     const allResults = Array.from(App.radarMap.values());
     App.data.radar = rankRadarCandidates(allResults, 'all');
     App.radarProgress = {
-      done: scannedCount,
+      done: isRolling ? coins.length : scannedCount,
+      updatedInCycle: scannedCount,
       total: coins.length,
-      scanning: scannedCount < coins.length,
-      skipped: allResults.filter(r => r.skipReason === 'no_volume').length
+      scanning: true,
+      skipped: allResults.filter(r => r.skipReason === 'no_volume').length,
+      cycle: App.radarProgress.cycle,
+      isRolling
     };
     renderRadar();
     renderHero();
-    if (!App.radarProgress.scanning) persistRadarSnapshot(App.data.radar, App.radarProgress);
+    persistRadarSnapshot(App.data.radar, App.radarProgress);
     if (start + RADAR_BATCH_SIZE < coins.length) {
-      await new Promise(res => setTimeout(res, RADAR_BATCH_DELAY_MS));
+      const delay = Number.isFinite(options.batchDelayMs) ? options.batchDelayMs : RADAR_BATCH_DELAY_MS;
+      if (delay > 0) await new Promise(res => setTimeout(res, delay));
+    }
+  }
+
+  App.radarProgress = {
+    done: coins.length,
+    updatedInCycle: coins.length,
+    total: coins.length,
+    scanning: false,
+    skipped: Array.from(App.radarMap.values()).filter(r => r.skipReason === 'no_volume').length,
+    cycle: App.radarProgress.cycle,
+    isRolling: false
+  };
+  renderRadar();
+  renderHero();
+  persistRadarSnapshot(App.data.radar, App.radarProgress);
+
+  if (!options.singleCycle) {
+    const cooldown = Number.isFinite(options.cycleDelayMs)
+      ? options.cycleDelayMs
+      : (typeof RADAR_CYCLE_DELAY_MS !== 'undefined' ? RADAR_CYCLE_DELAY_MS : 25000);
+    if (cooldown > 0 && typeof setTimeout !== 'undefined') {
+      App.radarTimer = setTimeout(() => {
+        if (radarGen === App.radarGen) loadRadar({ rolling: true }).catch(e => console.warn('Radar rolling error:', e));
+      }, cooldown);
+      if (App.radarTimer && typeof App.radarTimer.unref === 'function') App.radarTimer.unref();
     }
   }
 }
@@ -3407,11 +3465,20 @@ function renderRadar() {
   const progress = App.radarProgress || { done: 0, total: universeSymbols().length, scanning: false, skipped: 0 };
   const nEl = $('radar-n'); if (nEl) nEl.textContent = progress.total;
   const progressBar = $('radar-progress-bar');
-  if (progressBar) progressBar.style.width = (progress.total ? progress.done / progress.total * 100 : 0).toFixed(1) + '%';
+  if (progressBar) {
+    const frac = progress.total ? ((progress.isRolling ? (progress.updatedInCycle || 0) : progress.done) / progress.total * 100) : 0;
+    progressBar.style.width = Math.min(100, Math.max(0, frac)).toFixed(1) + '%';
+  }
   const progressCopy = $('radar-progress-copy');
-  if (progressCopy) progressCopy.textContent = progress.scanning
-    ? `${progress.done}/${progress.total} analysiert · ${progress.skipped} ohne Volumen übersprungen`
-    : `${progress.done} analysiert · Scan abgeschlossen`;
+  if (progressCopy) {
+    if (progress.scanning) {
+      progressCopy.textContent = progress.isRolling
+        ? `Live-Update: ${progress.updatedInCycle || 0}/${progress.total} aktualisiert · Vollständiges Universum aktiv`
+        : `${progress.done}/${progress.total} analysiert · ${progress.skipped} ohne Volumen übersprungen`;
+    } else {
+      progressCopy.textContent = `${progress.done} analysiert · Universum aktuell (Rolling Scan)`;
+    }
+  }
   const all = App.data.radar;
   let ok = all.filter(r => isFinite(r.avgScore) || (r.tfScores && Object.values(r.tfScores).some(v => isFinite(v.score))));
 
@@ -6096,9 +6163,26 @@ function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   const rejected = { accepted: false, dir: 0, tf: null, score: null };
   if (!candidate || candidate.executable !== true) return rejected;
   if (!Number.isFinite(candidate.aligned) || candidate.aligned < mtfNeed) return rejected;
-  const strongest = selectAutobotTimeframe(candidate, minScore);
-  if (!strongest) return rejected;
-  return { accepted: true, dir: strongest.dir, tf: strongest.tf, score: strongest.score };
+
+  // 1. Radar row with multi-timeframe matrix
+  if (candidate.tfScores && typeof candidate.tfScores === 'object') {
+    const strongest = selectAutobotTimeframe(candidate, minScore);
+    if (!strongest) return rejected;
+    return { accepted: true, dir: strongest.dir, tf: strongest.tf, score: strongest.score };
+  }
+
+  // 2. Direct / fresh candidate object with bestInfo
+  if (candidate.bestInfo && typeof candidate.bestInfo === 'object') {
+    const info = candidate.bestInfo;
+    const score = Number(info.score);
+    const dir = Number(info.dir);
+    if (info.status !== 'ready' || info.tradeable !== true || !Number.isFinite(score) || !dir) return rejected;
+    const shortThreshold = 100 - minScore;
+    if ((dir === 1 && score < minScore) || (dir === -1 && score > shortThreshold)) return rejected;
+    return { accepted: true, dir, tf: candidate.bestTF || '1h', score };
+  }
+
+  return rejected;
 }
 
 function evaluateAutobotEdge(stats, minSamples = 5) {
@@ -6475,7 +6559,7 @@ const Autobot = {
       // Re-fetch the radar-selected timeframe immediately before entry and apply
       // the same score, squeeze, regime and ADX gates to prevent stale entries.
       try {
-        const kdata = await fetchKlines(c.symbol, candidateGate.tf, 200);
+        const kdata = await fetchKlines(c.symbol, candidateGate.tf, 1000);
         if (!kdata || !kdata.candles || kdata.candles.length < 40) continue;
         const A = analyze(kdata.candles);
         if (!A || !A.n || !A.last) continue;
@@ -6746,7 +6830,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.0.4');
+  showReleaseNotesOnce('1.0.5');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

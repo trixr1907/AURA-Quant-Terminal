@@ -136,6 +136,8 @@ def smoke_test(extract_dir: Path) -> int:
         ["node", "tests/test_autobot_timeframe_edge.js"],
         ["node", "tests/test_autobot_statistical_edge.js"],
         ["node", "tests/test_release_notes_overlay.js"],
+        ["node", "tests/test_autobot_revalidation_object.js"],
+        ["node", "tests/test_radar_continuous_cycle.js"],
         ["node", "tests/test_engine_full.js"],
         [sys.executable, "tests/reference_backtest.py"],
         [sys.executable, "-m", "unittest", "tests/test_relay_full.py"],

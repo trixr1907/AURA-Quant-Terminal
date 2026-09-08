@@ -1,11 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title AURA v1.0.4 - Smart Start
+title AURA v1.0.5 - Smart Start
 color 0A
 
 echo ========================================================
-echo        AURA v1.0.4 - Smart Start
+echo        AURA v1.0.5 - Smart Start
 echo ========================================================
 echo Pruefe und installiere fehlende Abhaengigkeiten sicher ...
 echo.
