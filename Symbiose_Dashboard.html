@@ -681,7 +681,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <div id="radarlist"></div>
 </aside>
 
-<footer><b>AURA Quant Terminal v1.0.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -5969,6 +5969,13 @@ const SyncEngine = {
 // ============================================================================
 const AUTOBOT_KEY = 'aura-autobot-state-v2';
 
+function collectAutobotCandidates(radar) {
+  if (!Array.isArray(radar)) return [];
+  // Current radar state is a flat ranked array. Keep grouped input support for
+  // persisted/older clients, but never manufacture candidates from missing data.
+  return radar.flatMap(item => Array.isArray(item?.rows) ? item.rows : [item]).filter(Boolean);
+}
+
 function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   const rejected = { accepted: false, dir: 0, tf: null, score: null };
   if (!candidate || candidate.executable !== true || !candidate.bestInfo || candidate.bestInfo.tradeable !== true) return rejected;
@@ -6321,9 +6328,7 @@ const Autobot = {
 
     // The Autobot consumes only fully ranked Action Radar rows. Without complete
     // MTF/regime evidence it must wait instead of manufacturing a candidate.
-    const candidates = (App.data.radar && Array.isArray(App.data.radar))
-      ? App.data.radar.flatMap(g => g.rows || [])
-      : [];
+    const candidates = collectAutobotCandidates(App.data.radar);
     if (!candidates.length) return;
 
     const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);

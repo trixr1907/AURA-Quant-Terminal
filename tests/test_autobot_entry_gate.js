@@ -30,7 +30,7 @@ function extractFunction(name) {
 
 const context = { Number };
 vm.createContext(context);
-vm.runInContext(`${extractFunction('evaluateAutobotCandidate')}\nthis.evaluateAutobotCandidate = evaluateAutobotCandidate;`, context);
+vm.runInContext(`${extractFunction('collectAutobotCandidates')}\n${extractFunction('evaluateAutobotCandidate')}\nthis.collectAutobotCandidates = collectAutobotCandidates; this.evaluateAutobotCandidate = evaluateAutobotCandidate;`, context);
 
 const readyLong = {
   symbol: 'READYUSDT',
@@ -41,6 +41,17 @@ const readyLong = {
   bestTF: '4h',
   bestInfo: { score: 84, dir: 1, status: 'ready', tradeable: true },
 };
+
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(context.collectAutobotCandidates([readyLong]))),
+  [readyLong],
+  'ranked radar rows must remain available to the Autobot',
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(context.collectAutobotCandidates([{ label: 'Hot', rows: [readyLong] }]))),
+  [readyLong],
+  'legacy grouped radar rows must remain compatible',
+);
 
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.evaluateAutobotCandidate(readyLong, 78, 3))),
@@ -63,6 +74,8 @@ const scanStart = html.indexOf('async scanAndExecuteOpportunities()');
 const scanEnd = html.indexOf('\n  render() {', scanStart);
 assert(scanStart >= 0 && scanEnd > scanStart, 'Autobot scan source not found');
 const scanSource = html.slice(scanStart, scanEnd);
+assert(!scanSource.includes('.flatMap(g => g.rows || [])'), 'flat ranked radar rows must not be discarded');
+assert(scanSource.includes('collectAutobotCandidates(App.data.radar)'), 'Autobot must consume the current flat radar state');
 assert(!scanSource.includes('aligned: 3'), 'missing radar evidence must never receive synthetic 3/4 alignment');
 assert(!scanSource.includes('(c.aligned || 3)'), 'zero/missing MTF alignment must never default to a passing value');
 assert(scanSource.includes('classifyRadarTf('), 'entry must revalidate the latest timeframe against radar gates');
