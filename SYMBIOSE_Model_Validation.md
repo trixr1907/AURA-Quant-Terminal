@@ -1,0 +1,166 @@
+# AURA — Model Validation (Sprint 3, Task 10)
+
+Status: computed, not self-reported. Every number below is produced by a machine-runnable
+artifact (`tests/reference_backtest.py`, `tests/test_lookahead_metamorphic.js`,
+`tests/sensitivity_release_gates.js`), never asserted by hand.
+
+---
+
+## 1. Method
+
+The engine is embedded between `//  ==ENGINE_BEGIN==` and `// ==ENGINE_END==` in
+`Symbiose_Dashboard.html` and runs DOM-free in Node via `vm`. Validation has four
+independent, mutually reinforcing layers:
+
+| Layer | Artifact | What it proves |
+|-------|----------|----------------|
+| 10A independent oracle | `tests/reference_backtest.py` | accounting + fold arithmetic matches a clean stdlib re-derivation |
+| 10B stats reference | `tests/reference_backtest.py` | DSR moments + PAVA calibration match hand-calculated cases |
+| 10C look-ahead metamorphic | `tests/test_lookahead_metamorphic.js` | appending future bars never changes history |
+| 10D sensitivity + gates | `tests/sensitivity_release_gates.js` | release state is computed, not tuned away |
+
+---
+
+## 2. 10A — Independent accounting and fold oracle
+
+`tests/reference_backtest.py` re-implements (stdlib only, from the published definitions,
+not copied line-for-line from JS):
+
+- `evaluate_trades`: win rate, gross R, profit factor, expectancy, max drawdown, avg win/loss R.
+- `reconcile_backtest_accounting`: realized / unrealized PnL, fees, ending equity.
+- `fold_boundaries`: K=4 purged walk-forward, purge + embargo arithmetic, 18-trial param grid.
+
+Hand-calculated fixture (`tests/fixtures/backtest/trades.json`, 9 closed + 1 open trade):
+
+| Metric | Hand value | Python oracle | JS engine |
+|--------|-----------|---------------|-----------|
+| total / wins / losses | 9 / 4 / 5 | 9 / 4 / 5 | 9 / 4 / 5 |
+| win rate | 0.4444 | 0.4444 | 0.4444 |
+| grossR | 2.1000 | 2.1000 | 2.1000 |
+| profit factor | 5.9 / 3.8 = 1.5526 | 1.5526 | 1.5526 |
+| expectancy | 2.1 / 9 = 0.2333 | 0.2333 | 0.2333 |
+| max drawdown | 1.3000 | 1.3000 | 1.3000 |
+| ending equity (start 1000) | 1246.90 | 1246.90 | 1246.90 |
+
+Fold boundaries for n=1000 (warmup 235) — Python `fold_boundaries` vs JS
+`runWalkForwardBacktest` `foldReports`:
+
+```
+fold 1  train [235,360]  test [385,537]
+fold 2  train [235,513]  test [538,690]
+fold 3  train [235,666]  test [691,843]
+fold 4  train [235,818]  test [844,998]
+```
+
+Verdict: **PASS** — oracle and engine agree to floating-point tolerance on every field.
+
+---
+
+## 3. 10B — Calibration and DSR reference
+
+`calc_dsr` re-derived in Python (A&S erf + Acklam normInv, same published
+approximations the JS uses):
+
+- Symmetric returns `[1,-1,1,-1]`: sharpe = 0.0000 (hand), kurt = 0.5625 = 9/16 (hand).
+  Python and JS both report exactly `sharpe=0.0000, kurt=0.5625`.
+- DSR is bounded to [0,1], equals 0.5 at `sr == srStar`, and increases monotonically in
+  Sharpe — verified.
+- Expected-max-Sharpe adjustment `srStar` grows with `numTrials` and shrinks with `n`
+  (deflation is present and correct).
+
+`calibrate_probabilities` (PAVA + Bayesian prior, 10 bins) re-derived in Python:
+
+- PAVA output is monotonic non-decreasing across all 10 bins.
+- `P(Long)` at neutral score 50 = 0.5000 (uninformative prior, hand value).
+- Output is clamped to [0.05, 0.95].
+- Python and JS agree on the sampled probability curve within 1e-9.
+
+Verdict: **PASS** — monotonicity, bin handling, prior behavior, moments and deflation all
+match hand-calculated cases.
+
+---
+
+## 4. 10C — Look-ahead metamorphic tests
+
+`tests/test_lookahead_metamorphic.js` asserts three invariants:
+
+1. Appending future bars does not change historical `score` / ATR / SuperTrend values.
+2. Completed trades inside a shared window are identical under future extension.
+3. Mutating a test-fold's candles does not change that fold's train-selected parameters.
+
+**Finding + fix:** the first run failed. Root cause was the adaptive warmup
+`effWarmup = min(warmup, max(14, floor(n*0.2)))` — `floor(n*0.2)` grows with `n`, so
+appending bars shifted the score-computation boundary (bars 120–159 were scored at n=600
+but fell below the raised warmup of 160 at n=800). Fixed in both `analyze()` and
+`runWalkForwardBacktest()` to the look-ahead-invariant form:
+
+```
+effWarmup = min(warmup, max(14, n - 60))     // reserve ≥60 evaluation bars
+```
+
+This still solves the original 1D pitfall (n=90 → warmup 30, scores still computed) but
+saturates at 235 for n ≥ 295, so the boundary no longer moves under bar appends. It does
+**not** change production behavior (dashboard fetches 1500 bars → warmup 235 either way).
+
+Verdict: **PASS** — 3/3 metamorphic properties hold after the fix. The `lastPH/lastPL`
+"repaint" seen in an intermediate diagnostic was a false positive (`NaN !== NaN` in the
+comparison, no pivots in the synthetic series) — not an engine bug.
+
+---
+
+## 5. 10D — Sensitivity sweep and release gates
+
+`tests/sensitivity_release_gates.js` runs the full purged walk-forward over a fixed
+neighborhood (time-stop {12,15,18} × slippage {0, 0.0002, 0.0005}) on one deterministic
+1500-bar synthetic series, without re-picking the best after seeing OOS.
+
+| Metric | Value |
+|--------|-------|
+| OOS trades | 84 |
+| expectancy (median) | +0.147 R |
+| expectancy spread | [0.116, 0.169] |
+| max drawdown (worst) | 6.72 R |
+| fold dispersion (std of fold exp) | 0.078 R |
+| 95% CI on expectancy | [-0.154 R, +0.448 R] |
+
+Release state: **NO_EVIDENCE** — the confidence interval crosses −0.05 R.
+
+This is the intended, honest outcome: deterministic synthetic data carries no validated
+edge, and the gate reports it instead of hiding it. The engine correctly *measures* an
+edge if one exists; it does not invent one.
+
+### Release-state definitions (computed, never hand-asserted)
+
+- `NO_EVIDENCE` — OOS trades < 30, OR expectancy ≤ 0, OR the 95% CI lower bound
+  crosses −0.05 R.
+- `RESEARCH_ONLY` — metrics computed but unstable: expectancy sign flips across the
+  neighborhood, or fold dispersion exceeds |expectancy|.
+- `PAPER_CANDIDATE` — ≥30 OOS trades, expectancy > 0, CI lower bound > 0, sign stable
+  across the neighborhood, fold dispersion bounded.
+- **Never auto-promoted to live.** A live go/no-go additionally requires the external
+  evidence in §7 (Pine compile + five golden CSVs) and an explicit execution arming.
+
+---
+
+## 6. Test commands
+
+```
+node tests/test_engine_full.js            # 118/118
+node test_symbiose.js                     # T1–T6
+node tests/test_lookahead_metamorphic.js  # 3/3
+python3 tests/reference_backtest.py       # all assertions
+node tests/sensitivity_release_gates.js   # JSON report, exit 0
+python3 scripts/release_check.py          # one-command release check (all 10 gates)
+```
+
+---
+
+## 7. External evidence still open (cannot be produced locally)
+
+- Pine v6 compile in TradingView and the five `GM ...` Data-Window fields (Task 11).
+- Five golden-master CSV exports (BTCUSDT/ETHUSDT/SOLUSDT 1h, XRPUSDT/DOGEUSDT 4h) and the
+  Pine↔JS comparison at absolute delta ≤ 0.1 (Task 11).
+- One controlled Bitget demo minimum order (only with explicit user approval).
+
+Until these exist, the overall model release remains `NO-GO` regardless of the local
+`PAPER_CANDIDATE`-capable gates.

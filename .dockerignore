@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+node_modules
+android-apk
+dist
+*.zip
+*.apk
+.env
+.release_verdict.json

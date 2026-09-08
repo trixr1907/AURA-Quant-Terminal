@@ -1,0 +1,796 @@
+// ============================================================================
+//  ███████╗██╗   ██╗███╗   ███╗██████╗  ██████╗ ███████╗███████╗
+//  ██╔════╝╚██╗ ██╔╝████╗ ████║██╔══██╗██╔═══██╗██╔════╝██╔════╝
+//  ███████╗ ╚████╔╝ ██╔████╔██║██████╔╝██║   ██║███████╗█████╗
+//  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
+//  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
+//  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
+//  AURA v1.4 — Confluence Trading Signal System (Pine Script v6)
+// ============================================================================
+//  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
+//          2) Confluence-Scoring (0-100, gewichtet, Signal ab 75/25)
+//          3) Risk Management (Entry, ATR-Stop, dynTP1 [1R-2R] / 1:3 / 1:5)
+//          4) Multi-Timeframe (15m / 1H / 4H / Daily, >= 3 von 4 aligned)
+//          5) Marktkontext (Regime-Filter, Liquiditätspools, Fear & Greed)
+//
+//  v1.4 NEU:
+//   - Dynamischer TP1: opposing FVG / EQH / EQL im [1R,2R]-Fenster
+//   - SuperTrend-Trailing: aktiv nach TP1-Hit ODER Score > 85 (sofort)
+//   - Time-Stop: nach 15 Bars bei rNet <= 0 (alert + Veto)
+//   - Makro-Veto/Multiplier: Funding Z>2.5 / OI-Spike kann bis 25P abziehen
+//   - JS/Pine mathematische Parität: identische Schwellen und Gewichte
+//
+//  HINWEIS ZU FEAR & GREED: TradingView-Pine kann KEINE externen REST-APIs
+//  abfragen. Der Index wird deshalb als Input gepflegt (Zahlenwert 0-100) und
+//  kann via Webhook/Alert-Payload (z. B. über einen Bot) live injiziert werden.
+//  Das Web-Dashboard nutzt die echte Alternative.me-API (minutengenau).
+//
+//  BITGET-VERSION: Um TradingView-Kurse möglichst nah an Bitget zu halten,
+//  das Chart-Symbol auf den Bitget-Feed umstellen (z. B. BITGET:BTCUSDT).
+//  Die Positionsgröße wird zusätzlich in BITGET-KONTRAKTEN ausgegeben —
+//  dafür die Kontraktgröße (ctVal) des Symbols eintragen (Bitget-API:
+//  /api/v2/mix/market/contracts -> sizeMultiplier, z. B. 0.0001 bei BTCUSDT).
+//
+//  WICHTIG MTF: Die Bestätigung nutzt dieselbe volle Scoring-Engine wie die
+//  Chart-Ebene, aber ausschließlich über ta.*-Built-ins (kein var-State, kein
+//  Repaint-Leck in request.security, lookahead_off). Die Chart-Ebene nutzt die
+//  volle Engine inkl. Swing-Struktur, FVG und Orderflow mit var-State. Alle
+//  ta.*-Zustandsfunktionen werden GLOBAL berechnet (v6 Lazy-Evaluation-Falle) —
+//  einzige Ausnahme ist der request.security-Kontext (f_mtf), wo ta.* erlaubt ist.
+// ============================================================================
+//@version=6
+indicator("AURA — Confluence Signal-System", "AURA", overlay=true, max_bars_back=500, max_boxes_count=64, max_labels_count=96, max_lines_count=32, dynamic_requests=false)
+
+// ============================================================================
+//  EINGABEN
+// ============================================================================
+grpT = "1) Multi-Timeframe (MTF)"
+mtfT1  = input.string("15",  "MTF 1",  options=["1", "3", "5", "15", "30", "60", "240", "1D", "1W"], group=grpT)
+mtfT2  = input.string("60",  "MTF 2",  options=["1", "3", "5", "15", "30", "60", "240", "1D", "1W"], group=grpT)
+mtfT3  = input.string("240", "MTF 3",  options=["1", "3", "5", "15", "30", "60", "240", "1D", "1W"], group=grpT)
+mtfT4  = input.string("1D",  "MTF 4",  options=["1", "3", "5", "15", "30", "60", "240", "1D", "1W"], group=grpT)
+mtfNeed = input.int(3, "Erforderliche übereinstimmende TFs", minval=1, maxval=4, group=grpT)
+
+grpI = "2) Indikator-Parameter"
+emaF   = input.int(20,  "EMA fast",                  group=grpI)
+emaM   = input.int(50,  "EMA mid",                   group=grpI)
+emaS   = input.int(200, "EMA slow",                  group=grpI)
+bbLen  = input.int(20,  "Bollinger-Band Länge",      group=grpI)
+bbMul  = input.float(2.0, "Bollinger Multiplikator", group=grpI)
+rsiLen = input.int(14,  "RSI Länge",                 group=grpI)
+adxLen = input.int(14,  "ADX Länge",                 group=grpI)
+atrLen = input.int(14,  "ATR Länge (Risk)",          group=grpI)
+atrSl  = input.float(1.5, "Stop-Loss ATR-Multiplikator", group=grpI)
+stLen  = input.int(10,  "SuperTrend ATR-Länge",      group=grpI)
+stMul  = input.float(3.0, "SuperTrend Faktor",       group=grpI)
+pivotL = input.int(5,   "Swing-Pivot Lookback", minval=2, maxval=12, group=grpI)
+
+grpS = "3) Signal-Schwellen & Gates"
+thLong     = input.float(75.0, "Long-Schwelle (Score >=)", minval=50, maxval=95, step=1, group=grpS)
+thShort    = input.float(25.0, "Short-Schwelle (Score <=)", minval=5, maxval=50, step=1, group=grpS)
+regimeGate = input.bool(true, "Regime-Gate (Trendfolge nur in Bull/Bear)", group=grpS)
+showFVG    = input.bool(true, "FVG-Zonen zeichnen",                group=grpS)
+showStr    = input.bool(true, "BOS/CHoCH Labels zeichnen",         group=grpS)
+showHeat   = input.bool(true, "Score-Heatmap (Hintergrund)",       group=grpS)
+
+grpR = "4) Risk Management"
+riskPct    = input.float(1.0, "Risiko pro Trade (%)", minval=0.1, maxval=5.0, step=0.1, group=grpR)
+equity     = input.float(10000.0, "Konto-Größe (USDT)", minval=100, step=100, group=grpR)
+ctValB     = input.float(0.0001, "Bitget Kontraktgröße (ctVal)", minval=0.000001, step=0.0001, tooltip="sizeMultiplier aus der Bitget-API (z. B. BTCUSDT: 0.0001, ETHUSDT: 0.01). Nur für die Kontrakt-Anzeige.", group=grpR)
+timeStopN  = input.int(15, "Time-Stop (Bars, 0 = aus)", minval=0, maxval=100, group=grpR)
+
+grpF = "5) Makro & Crypto-Native Edge"
+inFG          = input.float(50.0, "Fear & Greed Index (0-100)", minval=0, maxval=100, step=1, tooltip="Manuell pflegbar oder per Webhook injiziert. Dashboard nutzt die Live-API (alternative.me).", group=grpF)
+inFundingBias = input.float(0.0, "Funding Bias (-100..+100)", minval=-100.0, maxval=100.0, step=1.0, tooltip="Funding-Rate Z-Score Bias aus Webhook/API (-100 = überfüllte Longs/Short-Bias, +100 = überfüllte Shorts/Long-Bias).", group=grpF)
+inFundingZ    = input.float(0.0, "Funding Z-Score (Extremwert > 2.5 = Veto-Bereich)", minval=-5.0, maxval=5.0, step=0.1, tooltip="Z-Score der Funding Rate. |Z| > 2.5 aktiviert den Makro-Veto-Multiplier (bis 25P Abzug).", group=grpF)
+inOIBias      = input.float(0.0, "OI Bias (-100..+100)", minval=-100.0, maxval=100.0, step=1.0, tooltip="Open Interest Quadrant Bias (-100..+100).", group=grpF)
+inOISpike     = input.bool(false, "OI-Spike aktiv (Topping-Warnung)", tooltip="Aktiviert wenn OI-Quadrant = 'OI-Spike / Topping-Warnung'.", group=grpF)
+inBasisBias   = input.float(0.0, "Perp Basis Bias (-100..+100)", minval=-100.0, maxval=100.0, step=1.0, tooltip="Perp-Basis / Premium Bias (-100..+100).", group=grpF)
+inCalibP      = input.float(50.0, "Kalibrierte P(Long) % (aus Webhook)", minval=0.0, maxval=100.0, step=0.5, tooltip="Empirische Out-of-Sample Gewinnwahrscheinlichkeit P(Long) in % aus dem Walk-Forward-Backtest.", group=grpF)
+
+// ============================================================================
+//  HILFSFUNKTIONEN
+// ============================================================================
+f_clamp(x, lo, hi) =>
+    math.max(lo, math.min(hi, x))
+
+// Entscheidung: Score (0-100) -> Richtung (+1 bull, -1 bear, 0 neutral)
+f_dirOf(s) =>
+    s > 55.0 ? 1 : s < 45.0 ? -1 : 0
+
+f_fgLabel(f) =>
+    f >= 75 ? "Extreme Greed" : f >= 55 ? "Greed" : f > 45 ? "Neutral" : f > 25 ? "Fear" : "Extreme Fear"
+
+// Stärke-Label aus Score & Richtung — bewusst als if/else (keine
+// mehrzeiligen Ternary-Ketten, die in Pine nicht fortgesetzt werden dürfen)
+f_strength(s, d) =>
+    string lbl = "—"
+    if d == 1
+        lbl := s >= 94.0 ? "ULTRA" : s >= 87.0 ? "STRONG" : s >= 80.0 ? "MEDIUM" : "WEAK"
+    else if d == -1
+        lbl := s <= 6.0 ? "ULTRA" : s <= 13.0 ? "STRONG" : s <= 20.0 ? "MEDIUM" : "WEAK"
+    lbl
+
+// Dynamic TP1: find closest opposing level in [1R, 2R) and clamp to it.
+// dir=1 -> bearish FVG bottom / EQH in [entry+1R, entry+2R)
+// dir=-1 -> bullish FVG top / EQL in (entry-2R, entry-1R]
+// Returns TP1 price (float). No look-ahead: all inputs are current-bar confirmed state.
+f_dynTP1(dir, entry, r, fAct, fDir, fTop, fBot, eqhLv, eqlLv) =>
+    float tp1 = dir == 1 ? entry + 2.0 * r : entry - 2.0 * r
+    float best = na
+    float bestR = na
+    if dir == 1
+        float minR = entry + 1.0 * r
+        float maxR = entry + 2.0 * r
+        if not na(eqhLv) and eqhLv >= minR and eqhLv < maxR
+            float rm = (eqhLv - entry) / r
+            best := eqhLv
+            bestR := rm
+        if fAct and fDir == -1 and fBot >= minR and fBot < maxR
+            float rm = (fBot - entry) / r
+            if na(bestR) or rm < bestR
+                best := fBot
+                bestR := rm
+    else
+        float minR = entry - 2.0 * r
+        float maxR = entry - 1.0 * r
+        if not na(eqlLv) and eqlLv <= maxR and eqlLv > minR
+            float rm = (entry - eqlLv) / r
+            best := eqlLv
+            bestR := rm
+        if fAct and fDir == 1 and fTop <= maxR and fTop > minR
+            float rm = (entry - fTop) / r
+            if na(bestR) or rm < bestR
+                best := fTop
+                bestR := rm
+    na(best) ? tp1 : best
+
+// ============================================================================
+//  EBENE 1 — INDIKATOREN (Chart-Timeframe, volle Engine)
+//  Alle ta.*-Aufrufe GLOBAL — niemals in Bedingungen (v6 Lazy-Evaluation!)
+// ============================================================================
+emaFast = ta.ema(close, emaF)
+emaMid  = ta.ema(close, emaM)
+emaSlow = ta.ema(close, emaS)
+
+rsiV   = ta.rsi(close, rsiLen)
+rsiLo  = ta.lowest(rsiV, rsiLen)
+rsiHi  = ta.highest(rsiV, rsiLen)
+srsiRaw = (rsiHi - rsiLo) > 0 ? (rsiV - rsiLo) / (rsiHi - rsiLo) * 100.0 : 50.0
+srsiK  = ta.sma(srsiRaw, 3)
+srsiD  = ta.sma(srsiK, 3)
+
+[macdLine, macdSig, macdHist] = ta.macd(close, 12, 26, 9)
+[diPlus, diMinus, adxV] = ta.dmi(adxLen, adxLen)
+
+bbMid   = ta.sma(close, bbLen)
+bbStd   = ta.stdev(close, bbLen)
+bbUp    = bbMid + bbMul * bbStd
+bbDn    = bbMid - bbMul * bbStd
+bbWidth = bbMid > 0 ? (bbUp - bbDn) / bbMid : 0.0
+
+kcMid   = ta.ema(close, 20)
+kcUp    = kcMid + 2.0 * ta.atr(10)
+kcDn    = kcMid - 2.0 * ta.atr(10)
+kcWidth = kcMid > 0 ? (kcUp - kcDn) / kcMid : 0.0
+
+atrR = ta.atr(atrLen)
+
+// --- SuperTrend (10, 3.0) — eigene Implementierung (braucht var-State) ---
+stAtr  = ta.atr(stLen)
+stMid  = (high + low) / 2.0
+stUp   = stMid + stMul * stAtr
+stDn   = stMid - stMul * stAtr
+var float stFUp = na
+var float stFDn = na
+var float stLine = na
+var int stDir = 1
+stFUp := na(stFUp[1]) ? stUp : (stUp < stFUp[1] or close[1] > stFUp[1]) ? stUp : stFUp[1]
+stFDn := na(stFDn[1]) ? stDn : (stDn > stFDn[1] or close[1] < stFDn[1]) ? stDn : stFDn[1]
+stLine := na(stLine[1]) ? stFDn : stLine[1] == stFUp[1] ? (close > stFUp ? stFDn : stFUp) : (close < stFDn ? stFUp : stFDn)
+stDir  := stLine[1] != stLine ? (close > stLine ? 1 : -1) : stDir[1]
+
+// --- OBV + VWAP (täglich verankert) ---
+var float obv = 0.0
+obv := nz(obv[1]) + (close > close[1] ? volume : close < close[1] ? -volume : 0.0)
+emaObv = ta.ema(obv, 20)
+
+var float vwpyPv = 0.0
+var float vwpyVv = 0.0
+newDay = timeframe.change("1D")
+vwpyPv := newDay ? hlc3 * volume : vwpyPv + hlc3 * volume
+vwpyVv := newDay ? volume : vwpyVv + volume
+vwapD  = vwpyVv > 0.0 ? vwpyPv / vwpyVv : hlc3
+
+// --- Volume Delta / CVD (Approximation über Bar-Range-Position) ---
+barRange = high - low
+volDelta = barRange > 0.0 ? volume * (2.0 * close - high - low) / barRange : 0.0
+var float cvd = 0.0
+cvd := nz(cvd[1]) + volDelta
+emaCvd = ta.ema(cvd, 20)
+smaVol = ta.sma(volume, 20)
+
+// --- Swing Highs/Lows (Pivots, 5/5 bestätigt) ---
+ph = ta.pivothigh(pivotL, pivotL)
+pl = ta.pivotlow(pivotL, pivotL)
+
+// ============================================================================
+//  MARKTSTRUKTUR — BOS / CHoCH / FVG / Liquiditätspools
+// ============================================================================
+var float lastPH = na
+var float lastPL = na
+var int structTrend = 1
+
+var int bosBullAgo = 99
+var int bosBearAgo = 99
+var int chBullAgo  = 99
+var int chBearAgo  = 99
+
+var array<float> phPool = array.new<float>(0)
+var array<float> plPool = array.new<float>(0)
+
+var float fvgTop = na
+var float fvgBot = na
+var int fvgDir = 0
+var bool fvgAct = false
+var int fvgAge = 99
+var array<box> fvgBoxes = array.new<box>(0)
+var array<label> strLabels = array.new<label>(0)
+
+// --- Level-Breaks: stateless berechnet (kein ta.crossover in Bedingungen) ---
+bullBreakCl = not na(lastPH) and close > lastPH and close[1] <= lastPH
+bearBreakCl = not na(lastPL) and close < lastPL and close[1] >= lastPL
+
+// --- Counter hochzählen (vor Ereignisbehandlung, damit Ereignis-Bar = 0) ---
+bosBullAgo := bosBullAgo < 99 ? bosBullAgo + 1 : bosBullAgo
+bosBearAgo := bosBearAgo < 99 ? bosBearAgo + 1 : bosBearAgo
+chBullAgo  := chBullAgo  < 99 ? chBullAgo  + 1 : chBullAgo
+chBearAgo  := chBearAgo  < 99 ? chBearAgo  + 1 : chBearAgo
+
+// --- Ereignisse: neue bestätigte Pivots (Hoch-/Tief-Sequenz => BOS) ---
+if not na(ph)
+    prevPH = lastPH
+    lastPH := ph
+    array.push(phPool, ph)
+    if array.size(phPool) > 8
+        array.shift(phPool)
+    if not na(prevPH) and structTrend == 1 and ph > prevPH
+        bosBullAgo := 0
+
+if not na(pl)
+    prevPL = lastPL
+    lastPL := pl
+    array.push(plPool, pl)
+    if array.size(plPool) > 8
+        array.shift(plPool)
+    if not na(prevPL) and structTrend == -1 and pl < prevPL
+        bosBearAgo := 0
+
+// --- Level-Breaks: BOS (Trendrichtung) / CHoCH (gegen Trend) ---
+if bullBreakCl
+    if structTrend == -1
+        structTrend := 1
+        chBullAgo := 0
+    else
+        bosBullAgo := 0
+if bearBreakCl
+    if structTrend == 1
+        structTrend := -1
+        chBearAgo := 0
+    else
+        bosBearAgo := 0
+
+// --- Fair Value Gaps (3-Kerzen-Regel) ---
+fvBull = low > high[2]
+fvBear = high < low[2]
+
+if showFVG and fvBull
+    fvgTop := low
+    fvgBot := high[2]
+    fvgDir := 1
+    fvgAct := true
+    fvgAge := 0
+    b = box.new(bar_index, fvgTop, bar_index + 25, fvgBot, border_color=color.new(#22d3ee, 40), bgcolor=color.new(#22d3ee, 88), border_width=1)
+    array.push(fvgBoxes, b)
+    if array.size(fvgBoxes) > 30
+        oldB = array.shift(fvgBoxes)
+        box.delete(oldB)
+else if showFVG and fvBear
+    fvgTop := low[2]
+    fvgBot := high
+    fvgDir := -1
+    fvgAct := true
+    fvgAge := 0
+    b = box.new(bar_index, fvgTop, bar_index + 25, fvgBot, border_color=color.new(#f43f5e, 40), bgcolor=color.new(#f43f5e, 88), border_width=1)
+    array.push(fvgBoxes, b)
+    if array.size(fvgBoxes) > 30
+        oldB = array.shift(fvgBoxes)
+        box.delete(oldB)
+else if fvgAct
+    fvgAge := fvgAge < 99 ? fvgAge + 1 : fvgAge
+    if fvgDir == 1 and low <= fvgBot
+        fvgAct := false
+    if fvgDir == -1 and high >= fvgTop
+        fvgAct := false
+
+// --- Liquiditäts-Pools: Equal Highs / Equal Lows (mit Preislevel für dynTP1) ---
+eqhFound = false
+eqlFound = false
+float eqhLvl = na
+float eqlLvl = na
+if array.size(phPool) >= 2
+    for i = 0 to array.size(phPool) - 2
+        for j = i + 1 to array.size(phPool) - 1
+            aP = array.get(phPool, i)
+            bP = array.get(phPool, j)
+            if math.abs(aP - bP) <= 0.35 * atrR and aP > close and bP > close
+                eqhFound := true
+                eqhLvl := (aP + bP) / 2.0
+if array.size(plPool) >= 2
+    for i = 0 to array.size(plPool) - 2
+        for j = i + 1 to array.size(plPool) - 1
+            aP = array.get(plPool, i)
+            bP = array.get(plPool, j)
+            if math.abs(aP - bP) <= 0.35 * atrR and aP < close and bP < close
+                eqlFound := true
+                eqlLvl := (aP + bP) / 2.0
+
+// ============================================================================
+//  EBENE 5a — MARKT-REGIME (Bull / Bear / Sideways + Squeeze)
+// ============================================================================
+regimeV  = close > emaSlow and emaMid > emaSlow ? 1 : close < emaSlow and emaMid < emaSlow ? -1 : 0
+squeezeV = bbWidth < kcWidth
+regimeTxt = regimeV == 1 ? "BULL" : regimeV == -1 ? "BEAR" : (squeezeV ? "SIDEWAYS·SQZ" : "SIDEWAYS")
+// ============================================================================
+//  EBENE 4 — MULTI-TIMEFRAME (volle JS-Paritäts-Engine, repaint-sicher)
+//  Berechnet exakt denselben Trend/Momentum/Volumen/Struktur-Score wie Ebene 2.
+//  Pivots werden erst nach pivotL rechten Bars bestätigt; request.security läuft
+//  zusätzlich mit lookahead_off, daher werden keine zukünftigen Bars eingeblendet.
+// ============================================================================
+f_mtf() =>
+    e20  = ta.ema(close, emaF)
+    e50  = ta.ema(close, emaM)
+    e200 = ta.ema(close, emaS)
+    r1   = ta.rsi(close, rsiLen)
+    rLo1 = ta.lowest(r1, rsiLen)
+    rHi1 = ta.highest(r1, rsiLen)
+    sr1  = (rHi1 - rLo1) > 0.0 ? (r1 - rLo1) / (rHi1 - rLo1) * 100.0 : 50.0
+    srK1 = ta.sma(sr1, 3)
+    [dp1, dm1, adxT] = ta.dmi(adxLen, adxLen)
+    [m1, s1, h1] = ta.macd(close, 12, 26, 9)
+    [st1, stDirRaw1] = ta.supertrend(stMul, stLen)
+    stDir1 = close > st1 ? 1 : -1
+    obv1 = ta.cum(close > close[1] ? volume : close < close[1] ? -volume : 0.0)
+    eObv1 = ta.ema(obv1, 20)
+    // Stateless session VWAP (ta.vwap). No `var` state inside request.security —
+    // `var` is illegal in Pine function bodies and would repaint in the MTF context.
+    vwap1 = ta.vwap(hlc3)
+    range1 = high - low
+    delta1 = range1 > 0.0 ? volume * (2.0 * close - high - low) / range1 : 0.0
+    cvd1 = ta.cum(delta1)
+    eCvd1 = ta.ema(cvd1, 20)
+    smaV1 = ta.sma(volume, 20)
+    ph1 = ta.pivothigh(pivotL, pivotL)
+    pl1 = ta.pivotlow(pivotL, pivotL)
+    lastPH1 = ta.valuewhen(not na(ph1), ph1, 0)
+    prevPH1 = ta.valuewhen(not na(ph1), ph1, 1)
+    lastPL1 = ta.valuewhen(not na(pl1), pl1, 0)
+    prevPL1 = ta.valuewhen(not na(pl1), pl1, 1)
+    bosBull1 = not na(ph1) and not na(prevPH1) and ph1 > prevPH1
+    bosBear1 = not na(pl1) and not na(prevPL1) and pl1 < prevPL1
+    bullBreak1 = not na(lastPH1) and close > lastPH1 and close[1] <= lastPH1
+    bearBreak1 = not na(lastPL1) and close < lastPL1 and close[1] >= lastPL1
+    struct1 = ta.valuewhen(bullBreak1 or bearBreak1, bullBreak1 ? 1 : -1, 0)
+    struct1 := na(struct1) ? 1 : struct1
+    bosBullAgo1 = nz(ta.barssince(bosBull1 or (bullBreak1 and struct1 == 1)), 99)
+    bosBearAgo1 = nz(ta.barssince(bosBear1 or (bearBreak1 and struct1 == -1)), 99)
+    chBullAgo1 = nz(ta.barssince(bullBreak1 and struct1[1] == -1), 99)
+    chBearAgo1 = nz(ta.barssince(bearBreak1 and struct1[1] == 1), 99)
+    fvgBull1 = low > high[2]
+    fvgBear1 = high < low[2]
+    lastFvgDir1 = ta.valuewhen(fvgBull1 or fvgBear1, fvgBull1 ? 1 : -1, 0)
+    lastFvgTop1 = ta.valuewhen(fvgBull1 or fvgBear1, fvgBull1 ? low : low[2], 0)
+    lastFvgBot1 = ta.valuewhen(fvgBull1 or fvgBear1, fvgBull1 ? high[2] : high, 0)
+    fvgActive1 = lastFvgDir1 == 1 ? low > lastFvgBot1 : lastFvgDir1 == -1 ? high < lastFvgTop1 : false
+    atr1 = ta.atr(atrLen)
+    eqh1 = not na(lastPH1) and not na(prevPH1) and math.abs(lastPH1 - prevPH1) <= 0.35 * atr1 and lastPH1 > close and prevPH1 > close
+    eql1 = not na(lastPL1) and not na(prevPL1) and math.abs(lastPL1 - prevPL1) <= 0.35 * atr1 and lastPL1 < close and prevPL1 < close
+    trend1 = f_clamp(50.0 + (close > e20 ? 8.0 : -8.0) + (e20 > e50 ? 8.0 : -8.0) + (e50 > e200 ? 7.0 : -7.0) + (stDir1 == 1 ? 12.0 : -12.0) + (adxT >= 25.0 ? (e20 > e50 ? 8.0 : -8.0) : (adxT < 18.0 ? -3.0 : 0.0)), 0.0, 100.0)
+    mom1 = f_clamp(50.0 + f_clamp((r1 - 50.0) * 1.5, -30.0, 30.0) + (m1 > s1 ? 12.0 : -12.0) + (h1 > 0.0 ? 8.0 : -8.0) + f_clamp((srK1 - 50.0) * 0.8, -20.0, 20.0), 0.0, 100.0)
+    vol1 = f_clamp(50.0 + (obv1 > eObv1 ? 15.0 : -15.0) + (close > vwap1 ? 10.0 : -10.0) + f_clamp((volume / (smaV1 > 0.0 ? smaV1 : volume) - 1.0) * 20.0, -10.0, 10.0) * (close > open ? 1.0 : -1.0) + (cvd1 > eCvd1 ? 10.0 : -10.0), 0.0, 100.0)
+    str1 = f_clamp(50.0 + (bosBullAgo1 <= 6 ? 15.0 : bosBearAgo1 <= 6 ? -15.0 : 0.0) + (chBullAgo1 <= 6 ? 10.0 : chBearAgo1 <= 6 ? -10.0 : 0.0) + (fvgActive1 and lastFvgDir1 == 1 and close > lastFvgTop1 ? 10.0 : fvgActive1 and lastFvgDir1 == -1 and close < lastFvgBot1 ? -10.0 : 0.0) + (eqh1 ? 7.0 : eql1 ? -7.0 : 0.0) + (struct1 == 1 ? 8.0 : -8.0), 0.0, 100.0)
+    score1 = f_clamp(0.30 * trend1 + 0.25 * mom1 + 0.25 * vol1 + 0.20 * str1, 0.0, 100.0)
+    [score1, f_dirOf(score1)]
+
+[mtfS1, mtfD1] = request.security(syminfo.tickerid, mtfT1, f_mtf(), lookahead=barmerge.lookahead_off)
+[mtfS2, mtfD2] = request.security(syminfo.tickerid, mtfT2, f_mtf(), lookahead=barmerge.lookahead_off)
+[mtfS3, mtfD3] = request.security(syminfo.tickerid, mtfT3, f_mtf(), lookahead=barmerge.lookahead_off)
+[mtfS4, mtfD4] = request.security(syminfo.tickerid, mtfT4, f_mtf(), lookahead=barmerge.lookahead_off)
+
+alignedBull = (mtfD1 == 1 ? 1 : 0) + (mtfD2 == 1 ? 1 : 0) + (mtfD3 == 1 ? 1 : 0) + (mtfD4 == 1 ? 1 : 0)
+alignedBear = (mtfD1 == -1 ? 1 : 0) + (mtfD2 == -1 ? 1 : 0) + (mtfD3 == -1 ? 1 : 0) + (mtfD4 == -1 ? 1 : 0)
+
+// ============================================================================
+//  EBENE 2 — CONFLUENCE-SCORING (Gewichtung: Trend 30 / Mom 25 / Vol 25 / Str 20)
+// ============================================================================
+trendScore = 50.0
+trendScore += close > emaFast ? 8.0 : -8.0
+trendScore += emaFast > emaMid ? 8.0 : -8.0
+trendScore += emaMid > emaSlow ? 7.0 : -7.0
+trendScore += stDir == 1 ? 12.0 : -12.0
+trendScore += adxV >= 25.0 ? (emaFast > emaMid ? 8.0 : -8.0) : (adxV < 18.0 ? -3.0 : 0.0)
+trendScore := f_clamp(trendScore, 0.0, 100.0)
+
+momScore = 50.0
+momScore += f_clamp((rsiV - 50.0) * 1.5, -30.0, 30.0)
+momScore += macdLine > macdSig ? 12.0 : -12.0
+momScore += macdHist > 0.0 ? 8.0 : -8.0
+momScore += f_clamp((srsiK - 50.0) * 0.8, -20.0, 20.0)
+momScore := f_clamp(momScore, 0.0, 100.0)
+
+volScore = 50.0
+volScore += obv > emaObv ? 15.0 : -15.0
+volScore += close > vwapD ? 10.0 : -10.0
+volScore += f_clamp((volume / (smaVol > 0 ? smaVol : volume) - 1.0) * 20.0, -10.0, 10.0) * (close > open ? 1.0 : -1.0)
+volScore += cvd > emaCvd ? 10.0 : -10.0
+volScore := f_clamp(volScore, 0.0, 100.0)
+
+strScore = 50.0
+strScore += bosBullAgo <= 6 ? 15.0 : bosBearAgo <= 6 ? -15.0 : 0.0
+strScore += chBullAgo <= 6 ? 10.0 : chBearAgo <= 6 ? -10.0 : 0.0
+strScore += fvgAct and fvgDir == 1 and close > fvgTop ? 10.0 : fvgAct and fvgDir == -1 and close < fvgBot ? -10.0 : 0.0
+strScore += eqhFound ? 7.0 : eqlFound ? -7.0 : 0.0
+strScore += structTrend == 1 ? 8.0 : -8.0
+strScore := f_clamp(strScore, 0.0, 100.0)
+
+// --- Gesamtscore (gewichtet, 0-100) ---
+coreScore = f_clamp(0.30 * trendScore + 0.25 * momScore + 0.25 * volScore + 0.20 * strScore, 0.0, 100.0)
+
+// ============================================================================
+//  EBENE 5b — MAKRO-VETO/MULTIPLIER (v1.4: Parität zu JS macroAdjust())
+//
+//  Schwellen identisch mit JS SYM-Konstanten:
+//    wFunding=0.10, wOI=0.10, wBasis=0.03
+//    macroCap=25 (statt vorher 4)
+//    fundingExtreme: |Z| > 2.5  => cap erweitert auf ±25
+//    oiSpike: OI-Quadrant "Topping"  => cap auf ±25
+//
+//  Veto: Score erreichte thLong/thShort durch coreScore, wird aber durch
+//  extreme Makro-Korrektur wieder unter die Schwelle gedrückt.
+// ============================================================================
+fgAdj       = f_clamp((inFG - 50.0) * 0.08, -4.0, 4.0)
+mtfBonus    = alignedBull >= 4 or alignedBear >= 4 ? 2.0 : alignedBull >= 3 or alignedBear >= 3 ? 1.0 : 0.0
+
+fundingExtreme = math.abs(inFundingZ) > 2.5
+float fundAdj = 0.0
+if fundingExtreme
+    fundAdj := f_clamp(inFundingBias * 0.10, -25.0, 25.0)
+else
+    fundAdj := f_clamp(inFundingBias * 0.10, -10.0, 10.0)
+
+float oiAdj = 0.0
+if inOISpike
+    oiAdj := f_clamp(inOIBias * 0.10, -25.0, 25.0)
+else
+    oiAdj := f_clamp(inOIBias * 0.10, -10.0, 10.0)
+
+basisAdj   = f_clamp(inBasisBias * 0.03, -3.0, 3.0)
+macroAdj   = f_clamp(fundAdj + oiAdj, -25.0, 25.0)
+
+totalScore = f_clamp(coreScore + (coreScore >= 50.0 ? fgAdj : -fgAdj) + macroAdj + basisAdj + mtfBonus, 0.0, 100.0)
+
+// Makro-Veto: schwaches technisches Signal (knapp über Schwelle) trifft extremes Makro
+weakTechLong  = coreScore >= thLong and coreScore < 85.0
+weakTechShort = coreScore <= thShort and coreScore > 15.0
+macroVetoL = weakTechLong  and totalScore < thLong
+macroVetoS = weakTechShort and totalScore > thShort
+
+dirMain = f_dirOf(totalScore)
+strengthLbl = f_strength(totalScore, dirMain)
+
+// ============================================================================
+//  SIGNAL-LOGIK (Gates: Score-Schwelle + MTF >= 3 von 4 aligned + Regime-Gate)
+//  Makro-Veto unterdrückt Signal wenn technisches Confluence zu schwach.
+// ============================================================================
+regimeLongOk  = not regimeGate or (regimeV == 1 and not squeezeV)
+regimeShortOk = not regimeGate or (regimeV == -1 and not squeezeV)
+
+longSig  = totalScore >= thLong and alignedBull >= mtfNeed and regimeLongOk and not macroVetoL
+shortSig = totalScore <= thShort and alignedBear >= mtfNeed and regimeShortOk and not macroVetoS
+regimeBlocked = regimeGate and ((totalScore >= thLong and not regimeLongOk) or (totalScore <= thShort and not regimeShortOk))
+
+// ============================================================================
+//  EBENE 3 — RISK MANAGEMENT (Entry / SL / dynTP1 [1R-2R] / 1:3 / 1:5)
+// ============================================================================
+entryPx = close
+riskAmt = equity * riskPct / 100.0
+
+// Stop-Loss: Struktur-Level, wenn es NÄHER am Entry liegt als der 1.5×ATR-Stop
+// (sonst ATR-Kappe); Mindestabstand 0.5×ATR zum Entry.
+lngSL_t = entryPx - atrSl * atrR
+if not na(lastPL) and lastPL - 0.25 * atrR > lngSL_t
+    lngSL_t := lastPL - 0.25 * atrR
+lngSL = math.min(entryPx - 0.5 * atrR, lngSL_t)
+shtSL_t = entryPx + atrSl * atrR
+if not na(lastPH) and lastPH + 0.25 * atrR < shtSL_t
+    shtSL_t := lastPH + 0.25 * atrR
+shtSL = math.max(entryPx + 0.5 * atrR, shtSL_t)
+
+lngR = entryPx - lngSL
+shtR = shtSL - entryPx
+rAct = math.max(lngR, shtR)
+
+// --- DYNAMISCHER TP1 (v1.4): opposing FVG / EQH / EQL im [1R, 2R]-Fenster ---
+// Kein Look-ahead: alle Inputs sind close-basiert und am aktuellen Bar bestätigt.
+lngTP1 = f_dynTP1(1,  entryPx, lngR, fvgAct, fvgDir, fvgTop, fvgBot, eqhLvl, eqlLvl)
+shtTP1 = f_dynTP1(-1, entryPx, shtR, fvgAct, fvgDir, fvgTop, fvgBot, eqhLvl, eqlLvl)
+
+lngTP2 = entryPx + 3.0 * lngR
+lngTP3 = entryPx + 5.0 * lngR
+shtTP2 = entryPx - 3.0 * shtR
+shtTP3 = entryPx - 5.0 * shtR
+
+lngSize = lngR > 0.0 ? riskAmt / lngR : 0.0
+shtSize = shtR > 0.0 ? riskAmt / shtR : 0.0
+
+showLong  = longSig and lngR > 0.0
+showShort = shortSig and shtR > 0.0
+
+// --- Runner-Modus: sofort aktiv bei Score > 85, sonst erst nach TP1 ---
+runnerUltraL = showLong  and totalScore >= 85.0
+runnerUltraS = showShort and totalScore <= 15.0
+
+// ============================================================================
+//  TRADE-STATE (var) — SuperTrend-Trailing + Time-Stop (v1.4)
+//  Vorwärts-only: kein Repaint. Alle Level werden beim Entry eingefroren.
+// ============================================================================
+var int   trDir    = 0
+var float trEntry  = na
+var float trStop   = na
+var float trR      = na
+var float trTP1    = na
+var int   trBars   = 0
+var bool  trTrail  = false
+var bool  trTP1Hit = false
+
+// Entry: neuer Trade wenn Signal-Richtung wechselt
+newLong  = showLong  and trDir != 1
+newShort = showShort and trDir != -1
+
+if newLong
+    trDir    := 1
+    trEntry  := close
+    trStop   := lngSL
+    trR      := lngR
+    trTP1    := lngTP1
+    trBars   := 0
+    trTrail  := runnerUltraL
+    trTP1Hit := false
+
+if newShort
+    trDir    := -1
+    trEntry  := close
+    trStop   := shtSL
+    trR      := shtR
+    trTP1    := shtTP1
+    trBars   := 0
+    trTrail  := runnerUltraS
+    trTP1Hit := false
+
+// Bar-Counter (erst nach Entry-Bar zählen)
+if trDir != 0
+    trBars := trBars + 1
+
+// TP1-Touch -> Trail aktivieren + SL auf Breakeven ziehen
+tp1TouchNow = trDir == 1 and high >= trTP1 and not trTP1Hit
+if tp1TouchNow
+    trTP1Hit := true
+    trTrail  := true
+    trStop   := math.max(trStop, trEntry)   // SL -> Breakeven
+
+tp1TouchShNow = trDir == -1 and low <= trTP1 and not trTP1Hit
+if tp1TouchShNow
+    trTP1Hit := true
+    trTrail  := true
+    trStop   := math.min(trStop, trEntry)   // SL -> Breakeven
+
+// SuperTrend-Trailing: Stop nachziehen wenn Runner aktiv
+if trDir == 1 and trTrail and not na(stLine)
+    trStop := math.max(trStop, stLine)
+if trDir == -1 and trTrail and not na(stLine)
+    trStop := math.min(trStop, stLine)
+
+// Trail-Exit (StDir-Flip während Trail aktiv)
+trailExit = trDir == 1 and trTrail and trTP1Hit and stDir == -1
+trailExitS = trDir == -1 and trTrail and trTP1Hit and stDir == 1
+
+// rNet: unrealisierte R seit Entry (für Time-Stop-Berechnung, fee-frei — Pine kennt keine fees)
+float rNet = na
+if trDir == 1 and trR > 0.0
+    rNet := (close - trEntry) / trR
+else if trDir == -1 and trR > 0.0
+    rNet := (trEntry - close) / trR
+
+// Time-Stop: nach N Bars bei rNet <= 0 (Kapital-Effizienz)
+timeStopActive = timeStopN > 0 and trDir != 0 and trBars >= timeStopN and not na(rNet) and rNet <= 0.0
+
+// Wenn Time-Stop oder Trail-Exit auslöst -> Trade-State zurücksetzen
+if timeStopActive or trailExit or trailExitS
+    trDir    := 0
+    trEntry  := na
+    trStop   := na
+    trR      := na
+    trTP1    := na
+    trBars   := 0
+    trTrail  := false
+    trTP1Hit := false
+
+// ============================================================================
+//  CHART-VISUALISIERUNG — EMAs, SuperTrend, BB, VWAP, Signale, Heatmap
+// ============================================================================
+plot(emaFast, "EMA 20", color=color.new(#22d3ee, 0), linewidth=1)
+plot(emaMid,  "EMA 50", color=color.new(#f59e0b, 0), linewidth=2)
+plot(emaSlow, "EMA 200", color=color.new(#a855f7, 0), linewidth=2)
+plot(stLine, "SuperTrend", color=stDir == 1 ? color.new(#22c55e, 0) : color.new(#ef4444, 0), linewidth=3, style=plot.style_linebr)
+plot(bbUp, "BB Upper", color=color.new(#94a3b8, 75), linewidth=1)
+plot(bbDn, "BB Lower", color=color.new(#94a3b8, 75), linewidth=1)
+plot(vwapD, "VWAP (Tag)", color=color.new(#e2e8f0, 40), linewidth=1, style=plot.style_circles)
+
+// Signal-Pfeile
+plotshape(showLong, "Long Signal", shape.triangleup, location.belowbar, color.new(#22c55e, 0), size=size.small, text="L", textcolor=color.new(#22c55e, 0))
+plotshape(showShort, "Short Signal", shape.triangledown, location.abovebar, color.new(#ef4444, 0), size=size.small, text="S", textcolor=color.new(#ef4444, 0))
+
+// Time-Stop Marker
+plotshape(timeStopActive, "Time-Stop Exit", shape.xcross, location.abovebar, color.new(#f59e0b, 0), size=size.tiny, text="T", textcolor=color.new(#f59e0b, 0))
+
+// Score-Heatmap
+hg = color.new(#22c55e, int(math.max(70.0, 92.0 - (totalScore - thLong) * 2.0)))
+hs = color.new(#ef4444, int(math.max(70.0, 92.0 - (thShort - totalScore) * 2.0)))
+bgcolor(showHeat and totalScore >= thLong ? hg : showHeat and totalScore <= thShort ? hs : na)
+
+// Data Window diagnostics for Pine↔JS Golden-Master comparison. These plots do
+// not render on the chart and do not alter signal state.
+plot(trendScore, "GM Trend Score", display=display.data_window)
+plot(momScore, "GM Momentum Score", display=display.data_window)
+plot(volScore, "GM Volume Score", display=display.data_window)
+plot(strScore, "GM Structure Score", display=display.data_window)
+plot(coreScore, "GM Core Score", display=display.data_window)
+plot(macroAdj, "GM Macro Adjustment", display=display.data_window)
+plot(totalScore, "GM Total Score", display=display.data_window)
+plot(math.max(alignedBull, alignedBear), "GM MTF Aligned", display=display.data_window)
+plot(regimeV, "GM Regime (-1/0/1)", display=display.data_window)
+plot(showLong ? 1 : 0, "GM Long Gate", display=display.data_window)
+plot(showShort ? 1 : 0, "GM Short Gate", display=display.data_window)
+plot(atrR, "GM ATR", display=display.data_window)
+plot(showLong ? lngR : showShort ? shtR : na, "GM Stop Distance", display=display.data_window)
+plot(showLong ? lngSize : showShort ? shtSize : 0, "GM Position Size", display=display.data_window)
+plot(showLong ? lngSize / ctValB : showShort ? shtSize / ctValB : 0, "GM Contracts", display=display.data_window)
+
+// BOS/CHoCH-Labels
+if showStr and bosBullAgo == 0
+    lbl = label.new(bar_index, high, "BOS ▲", style=label.style_label_down, color=color.new(#22c55e, 20), textcolor=color.new(#22c55e, 0), size=size.tiny)
+    array.push(strLabels, lbl)
+    if array.size(strLabels) > 40
+        oldL = array.shift(strLabels)
+        label.delete(oldL)
+if showStr and bosBearAgo == 0
+    lbl = label.new(bar_index, low, "BOS ▼", style=label.style_label_up, color=color.new(#ef4444, 20), textcolor=color.new(#ef4444, 0), size=size.tiny)
+    array.push(strLabels, lbl)
+    if array.size(strLabels) > 40
+        oldL = array.shift(strLabels)
+        label.delete(oldL)
+if showStr and chBullAgo == 0
+    lbl = label.new(bar_index, high, "CHoCH ▲", style=label.style_label_down, color=color.new(#f59e0b, 20), textcolor=color.new(#f59e0b, 0), size=size.tiny)
+    array.push(strLabels, lbl)
+    if array.size(strLabels) > 40
+        oldL = array.shift(strLabels)
+        label.delete(oldL)
+if showStr and chBearAgo == 0
+    lbl = label.new(bar_index, low, "CHoCH ▼", style=label.style_label_up, color=color.new(#f59e0b, 20), textcolor=color.new(#f59e0b, 0), size=size.tiny)
+    array.push(strLabels, lbl)
+    if array.size(strLabels) > 40
+        oldL = array.shift(strLabels)
+        label.delete(oldL)
+
+// ============================================================================
+//  DASHBOARD-TABLE (Score, Signal, SL/TP, MTF-Status, Position-Size, v1.4 Extras)
+// ============================================================================
+var table dash = table.new(position.top_right, 2, 28, border_width=1, border_color=color.new(#334155, 0), frame_width=1, frame_color=color.new(#334155, 0))
+
+f_hdr(ro, tx, vl) =>
+    table.cell(dash, 0, ro, tx, text_color=color.new(#0b1220, 0), text_size=size.small, bgcolor=color.new(#38bdf8, 0))
+    table.cell(dash, 1, ro, vl, text_color=color.new(#0b1220, 0), text_size=size.small, bgcolor=color.new(#38bdf8, 0), text_halign=text.align_right)
+
+f_cell(ro, tx, vl, tc, bg) =>
+    table.cell(dash, 0, ro, tx, text_color=color.new(#94a3b8, 0), text_size=size.tiny, bgcolor=color.new(#0f172a, 0))
+    table.cell(dash, 1, ro, vl, text_color=tc, text_size=size.tiny, bgcolor=bg, text_halign=text.align_right)
+
+f_hdr(0, "AURA v1.4", syminfo.ticker + " · " + timeframe.period)
+
+sClr = totalScore >= thLong ? color.new(#4ade80, 0) : totalScore <= thShort ? color.new(#f87171, 0) : color.new(#e2e8f0, 0)
+sigClr = showLong ? color.new(#4ade80, 0) : showShort ? color.new(#f87171, 0) : (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#64748b, 0)
+bgScr = totalScore >= thLong ? color.new(#22c55e, 82) : totalScore <= thShort ? color.new(#ef4444, 82) : color.new(#334155, 75)
+
+mtfTxt = str.tostring(mtfT1) + ":" + str.tostring(mtfS1, "#.#") + (mtfD1 == 1 ? "▲" : mtfD1 == -1 ? "▼" : "—") + " · " + str.tostring(mtfT2) + ":" + str.tostring(mtfS2, "#.#") + (mtfD2 == 1 ? "▲" : mtfD2 == -1 ? "▼" : "—") + " · " + str.tostring(mtfT3) + ":" + str.tostring(mtfS3, "#.#") + (mtfD3 == 1 ? "▲" : mtfD3 == -1 ? "▼" : "—") + " · " + str.tostring(mtfT4) + ":" + str.tostring(mtfS4, "#.#") + (mtfD4 == 1 ? "▲" : mtfD4 == -1 ? "▼" : "—")
+
+// Makro-Status-Text
+macroStatusTxt = fundingExtreme ? "Fund Z=" + str.tostring(inFundingZ, "#.##") + " EXTREM" : inOISpike ? "OI-SPIKE" : "normal"
+vetoTxt = (macroVetoL or macroVetoS) ? " ← VETO" : ""
+
+f_cell(1, "Regime", regimeTxt + " · ADX " + str.tostring(adxV, "#.#"), color.new(#e2e8f0, 0), color.new(#334155, 60))
+f_cell(2, "Score (Core / Total)", str.tostring(coreScore, "#.#") + " / " + str.tostring(totalScore, "#.#") + " · 100", sClr, bgScr)
+f_cell(3, "Signal", showLong ? "LONG · " + strengthLbl : showShort ? "SHORT · " + strengthLbl : (macroVetoL or macroVetoS) ? "MAKRO-VETO" : regimeBlocked ? "REGIME-BLOCK" : "KEIN SIGNAL", sigClr, color.new(#1e293b, 0))
+f_cell(4, "P(Long) / P(Win)", str.tostring(inCalibP, "#.#") + "% (OOS Kalibriert)", color.new(#38bdf8, 0), color.new(#1e293b, 0))
+f_cell(5, "Trend / Momentum", str.tostring(trendScore, "#.#") + " / " + str.tostring(momScore, "#.#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(6, "Volumen / Struktur", str.tostring(volScore, "#.#") + " / " + str.tostring(strScore, "#.#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(7, "Makro-Adj / Status", str.tostring(macroAdj, "+#.##;-#.##") + "P · " + macroStatusTxt + vetoTxt, (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : fundingExtreme or inOISpike ? color.new(#f59e0b, 0) : color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(8, "MTF Aligned", str.tostring(math.max(alignedBull, alignedBear)) + " / 4  " + mtfTxt, color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(9, "Fear & Greed", str.tostring(inFG, "#.#") + " · " + f_fgLabel(inFG), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(10, "Struktur", (structTrend == 1 ? "HH/HL · bullisch" : "LL/LH · bärisch") + (fvgAct ? (fvgDir == 1 ? " · FVG▲ aktiv" : " · FVG▼ aktiv") : "") + (eqhFound ? " · EQH↑ " + str.tostring(eqhLvl, "#.####") : eqlFound ? " · EQL↓ " + str.tostring(eqlLvl, "#.####") : ""), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+
+f_cell(11, "Entry", str.tostring(entryPx, "#.####"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(12, "Stop-Loss (1.5×ATR+Struktur)", showLong ? str.tostring(lngSL, "#.####") : showShort ? str.tostring(shtSL, "#.####") : "—", color.new(#f87171, 0), color.new(#1e293b, 0))
+f_cell(13, "TP1 (dyn. [1R–2R] · 50%)", showLong ? str.tostring(lngTP1, "#.####") : showShort ? str.tostring(shtTP1, "#.####") : "—", color.new(#4ade80, 0), color.new(#1e293b, 0))
+f_cell(14, "TP2 (1:3 · Runner)", showLong ? str.tostring(lngTP2, "#.####") : showShort ? str.tostring(shtTP2, "#.####") : "—", color.new(#4ade80, 0), color.new(#1e293b, 0))
+f_cell(15, "TP3 (1:5 · Ref)", showLong ? str.tostring(lngTP3, "#.####") : showShort ? str.tostring(shtTP3, "#.####") : "—", color.new(#4ade80, 0), color.new(#1e293b, 0))
+f_cell(16, "Risk / R", (showLong or showShort) ? str.tostring(rAct, "#.##") : "—", color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(17, "Positionsgröße", showLong ? str.tostring(lngSize, "#.####") + " @ " + str.tostring(lngSize * entryPx, "#,###") + " USDT · " + str.tostring(lngSize / ctValB, "#.##") + " Ktr." : showShort ? str.tostring(shtSize, "#.####") + " @ " + str.tostring(shtSize * entryPx, "#,###") + " USDT · " + str.tostring(shtSize / ctValB, "#.##") + " Ktr." : "—", color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(18, "Leverage (Konto " + str.tostring(equity, "#,###") + ")", showLong ? str.tostring(lngSize * entryPx / equity, "#.##") + "x" : showShort ? str.tostring(shtSize * entryPx / equity, "#.##") + "x" : "—", color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(19, "Risiko pro Trade", str.tostring(riskAmt, "#.##") + " USDT (" + str.tostring(riskPct, "#.##") + "%)", color.new(#f8fafc, 0), color.new(#1e293b, 0))
+f_cell(20, "Regime-Gate Status", regimeGate ? (showLong or showShort ? "FREIGEGEBEN" : regimeBlocked ? "GESPERRT (Regime/SQZ)" : "STANDBY") : "AUS", (showLong or showShort) ? color.new(#4ade80, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
+
+// v1.4 Trailing-State
+trailStatusTxt = trDir != 0 ? (str.tostring(trBars) + " Bars · Runner: " + (trTrail ? "ST-TRAIL" : (trTP1Hit ? "BE-Stop" : "SL-Schutz")) + " · rNet: " + str.tostring(rNet, "+#.##;-#.##") + "R") : "—"
+f_cell(21, "Trade-State (v1.4)", trailStatusTxt, trDir == 1 ? color.new(#4ade80, 0) : trDir == -1 ? color.new(#f87171, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
+f_cell(22, "Time-Stop", str.tostring(timeStopN) + " Bars · " + (timeStopActive ? "AUSLÖSUNG: rNet=" + str.tostring(rNet, "#.##") + "R" : "inaktiv"), timeStopActive ? color.new(#f59e0b, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
+
+f_cell(23, "RSI / StochRSI", str.tostring(rsiV, "#.#") + " / " + str.tostring(srsiK, "#.#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(24, "CVD (kum. Delta)", str.tostring(cvd, "#.##") + (cvd > emaCvd ? " ▲" : " ▼"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(25, "Squeeze", squeezeV ? "AKTIV (BB<KC)" : "nein", squeezeV ? color.new(#f59e0b, 0) : color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(26, "Funding / OI Bias", "F:" + str.tostring(inFundingBias, "#") + " Z:" + str.tostring(inFundingZ, "#.#") + " · OI:" + str.tostring(inOIBias, "#") + " · B:" + str.tostring(inBasisBias, "#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
+f_cell(27, "Letzte Aktualisierung", str.format_time(time_close, "dd.MM HH:mm"), color.new(#64748b, 0), color.new(#1e293b, 0))
+
+// ============================================================================
+//  ALERTS (kompatibel mit Webhook/Bot — JSON-Payload via alert())
+// ============================================================================
+alertcondition(showLong, "AURA: Long Signal", "AURA LONG | Score >= Schwelle & MTF aligned")
+alertcondition(showShort, "AURA: Short Signal", "AURA SHORT | Score <= Schwelle & MTF aligned")
+alertcondition(showLong and strengthLbl == "ULTRA", "AURA: Long ULTRA", "AURA LONG ULTRA (Score >= 94)")
+alertcondition(showShort and strengthLbl == "ULTRA", "AURA: Short ULTRA", "AURA SHORT ULTRA (Score <= 6)")
+alertcondition(bosBullAgo == 0, "AURA: Bullischer BOS", "Marktstruktur: Bullsche BOS")
+alertcondition(bosBearAgo == 0, "AURA: Bärischer BOS", "Marktstruktur: Bärische BOS")
+alertcondition(chBullAgo == 0, "AURA: Bullischer CHoCH", "Marktstruktur: Bullischer CHoCH (Trendwende)")
+alertcondition(chBearAgo == 0, "AURA: Bärischer CHoCH", "Marktstruktur: Bärischer CHoCH (Trendwende)")
+alertcondition(macroVetoL or macroVetoS, "AURA: Makro-Veto", "Makro-Veto aktiv: Funding/OI-Extrem unterdrückt technisches Signal")
+alertcondition(timeStopActive, "AURA: Time-Stop Exit", "Time-Stop ausgelöst: rNet <= 0 nach eingestellter Bar-Anzahl")
+
+tp1TouchL = showLong and high >= lngTP1
+tp1TouchS = showShort and low  <= shtTP1
+alertcondition(tp1TouchL, "AURA: TP1 erreicht (Long)",  "TP1 (dyn. 1–2R) erreicht — Long Position — Runner per ST aktiv")
+alertcondition(tp1TouchS, "AURA: TP1 erreicht (Short)", "TP1 (dyn. 1–2R) erreicht — Short Position — Runner per ST aktiv")
+alertcondition(trailExit or trailExitS, "AURA: SuperTrend Runner Exit", "Runner-Tranche: SuperTrend-Flip — Exit Runner-50%")
+
+if showLong or showShort
+    sDir = showLong ? "LONG" : "SHORT"
+    sSize = showLong ? lngSize : shtSize
+    sSl   = str.tostring(showLong ? lngSL : shtSL, "#.######")
+    sTp1  = str.tostring(showLong ? lngTP1 : shtTP1, "#.######")
+    sTp2  = str.tostring(showLong ? lngTP2 : shtTP2, "#.######")
+    sTp3  = str.tostring(showLong ? lngTP3 : shtTP3, "#.######")
+    sSiz  = str.tostring(sSize, "#.######")
+    sNot  = str.tostring(sSize * entryPx, "#.##")
+    sMtf  = str.tostring(mtfS1, "#.#") + "," + str.tostring(mtfS2, "#.#") + "," + str.tostring(mtfS3, "#.#") + "," + str.tostring(mtfS4, "#.#")
+    sRunnerMode = showLong ? (runnerUltraL ? "INSTANT_ST" : "POST_TP1") : (runnerUltraS ? "INSTANT_ST" : "POST_TP1")
+    // JSON-Payload includes v1.4 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
+    jsn = '{"type":"symbiose.v1.4","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"macro_adj":' + str.tostring(macroAdj, "#.##") + ',"macro_veto":' + (macroVetoL or macroVetoS ? "true" : "false") + ',"regime":"' + regimeTxt + '","fg":' + str.tostring(inFG, "#.#") + ',"entry":' + str.tostring(entryPx, "#.######") + ',"sl":' + sSl + ',"tp1":' + sTp1 + ',"tp1_split":0.5,"tp2":' + sTp2 + ',"tp3":' + sTp3 + ',"runner_split":0.5,"runner_mode":"' + sRunnerMode + '","time_stop_bars":' + str.tostring(timeStopN) + ',"risk_usd":' + str.tostring(riskAmt, "#.##") + ',"size":' + sSiz + ',"notional":' + sNot + ',"mtf":[' + sMtf + '],"mtf_aligned":' + str.tostring(math.max(alignedBull, alignedBear)) + ',"order_type":"limit","force":"post_only"}'
+    alert(jsn, alert.freq_once_per_bar_close)
+
+// ============================================================================
+//  ENDE — AURA v1.4 (Pine v6)
+//  Einstieg: nächster Kerzen-Open als Maker-Limit-Order.
+//  50% bei dyn. TP1 ([1R,2R] · opposing FVG/EQH/EQL), 50% SuperTrend-Runner.
+//  Time-Stop nach N Bars wenn rNet <= 0.
+//  Makro-Veto: Funding Z > 2.5 / OI-Spike kann bis 25P abziehen und schwache
+//  Signale (Score knapp über Schwelle) blockieren.
+//  Kein Finanzratschlag. Handelssystem ohne Gewinngarantie.
+// ============================================================================
