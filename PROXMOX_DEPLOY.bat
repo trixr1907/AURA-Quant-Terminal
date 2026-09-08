@@ -1,5 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
+cd /d "%~dp0"
 title AURA Quant Terminal - Deep Proxmox ^& Homelab Auto-Deployer
 
 echo ===================================================================
@@ -31,16 +32,39 @@ echo.
 echo [1/2] Uebertrage AURA Bundle als komprimiertes Paket nach %REMOTE_USER%@%REMOTE_HOST%...
 echo Bitte gib jetzt das SSH-Passwort ein:
 ssh %REMOTE_USER%@%REMOTE_HOST% "mkdir -p /root/aura_deploy"
+if errorlevel 1 (
+    echo [FEHLER] Das Zielverzeichnis auf Proxmox konnte nicht vorbereitet werden.
+    pause
+    exit /b 1
+)
 
 :: Uebertrage alles in einem einzigen SCP-Aufruf
 scp deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
+if errorlevel 1 (
+    echo [FEHLER] Die AURA-Dateien konnten nicht vollstaendig uebertragen werden.
+    echo Starte diese BAT direkt aus dem entpackten AURA-Projektordner.
+    pause
+    exit /b 1
+)
 scp -r data %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
+if errorlevel 1 (
+    echo [FEHLER] Der data-Ordner konnte nicht uebertragen werden.
+    echo Pruefe, ob der Download vollstaendig entpackt wurde.
+    pause
+    exit /b 1
+)
 
 echo.
 echo [2/2] Starte interaktiven Tiefenscan auf dem Proxmox-Server...
 echo (Bitte ggf. noch 1x das SSH-Passwort eingeben)
 echo.
 ssh -t %REMOTE_USER%@%REMOTE_HOST% "cd /root/aura_deploy && chmod +x deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh && bash deep_infrastructure_scanner.sh"
+if errorlevel 1 (
+    echo.
+    echo [FEHLER] Der Proxmox-Scanner oder das Deployment ist fehlgeschlagen.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ===================================================================
