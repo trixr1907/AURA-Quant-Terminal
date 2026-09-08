@@ -359,8 +359,12 @@ class RelayHandler(BaseHTTPRequestHandler):
         if path == "/api/public":
             # Public Bitget REST passthrough (no auth).
             raw = payload.get("path") or payload.get("url", "")
-            if not isinstance(raw, str) or not raw.startswith("/"):
-                self._send_json({"code": "ERR_BAD_URL", "msg": "Public path must start with /"}, 400)
+            if (
+                not isinstance(raw, str)
+                or not raw.startswith("/api/")
+                or "://" in raw
+            ):
+                self._send_json({"code": "ERR_BAD_URL", "msg": "Public path must be a relative /api/ path"}, 400)
                 return
             base, _, qs = raw.partition("?")
             params = payload.get("params") or {}

@@ -117,6 +117,11 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn('child_env["PYTHONIOENCODING"] = "utf-8"', script)
         self.assertIn('encoding="utf-8"', script)
 
+    def test_tutorial_short_score_bands_match_engine_strength_thresholds(self):
+        tutorial = (ROOT / "SYMBIOSE_Tutorial.html").read_text(encoding="utf-8")
+        self.assertIn("21–25", tutorial)
+        self.assertNotIn("26–25", tutorial)
+
     def test_proxmox_deployer_avoids_early_exit_pipe_checks(self):
         script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         self.assertNotIn('"http://${ip}:${PORT}/" | grep -q', script)
