@@ -99,6 +99,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .tc-btn.danger{color:var(--red2);border-color:rgba(239,68,68,.3)}
 .tc-btn.danger:hover{background:rgba(239,68,68,.15);border-color:var(--red2)}
 
+.copyable-val{cursor:copy;transition:background .15s,color .15s,transform .1s;border-radius:4px;padding:1px 3px;display:inline-block}
+.copyable-val:hover{background:rgba(34,211,238,.18);color:var(--cyn)!important;text-decoration:underline dotted}
+.copyable-val:active{transform:scale(0.96)}
+.copied-flash{background:rgba(34,197,94,.35)!important;color:#22c55e!important;box-shadow:0 0 8px rgba(34,197,94,.5)}
+.tc-coin-link{cursor:pointer;color:#38bdf8;text-decoration:underline;font-weight:900;transition:color .15s}
+.tc-coin-link:hover{color:#a5f3fc;text-shadow:0 0 8px rgba(56,189,248,.6)}
+.copy-tooltip-toast{position:fixed;z-index:99999;background:#0f172a;color:#38bdf8;border:1px solid #38bdf8;font:700 11px var(--mono);padding:4px 9px;border-radius:6px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:toastFade 1.2s forwards}
+@keyframes toastFade{0%{opacity:0;transform:translateY(4px)}15%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}
+
 .trade-history-panel{margin-top:14px;border:1px solid var(--line);border-radius:9px;background:rgba(11,17,27,.55)}
 .trade-history-panel summary{padding:10px 14px;cursor:pointer;color:var(--txt);font-size:10.5px;font-weight:700;display:flex;align-items:center;gap:8px}
 .history-content{padding:12px;border-top:1px solid var(--line)}
@@ -684,15 +693,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.5?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.6?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt einen kontinuierlichen Rolling Scan für das gesamte Universum und macht die Einstiegs-Validierung des Autobots lückenlos zuverlässig.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt eine präzise Timeframe-Skalierung des dynamischen Time-Stops, 1-Klick-Kopieren aller Trade-Parameter in die Zwischenablage und direkten Chart-Fokus per Klick auf das Asset.</p>
     <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
-      <li><b>Kontinuierlicher Rolling Scan:</b> Nach Abschluss der 764 Assets bleibt das Universum vollständig erhalten. Neue Daten werden im Hintergrund laufend und lückenlos aktualisiert, ohne jemals auf 0 zurückzuspringen.</li>
-      <li><b>Zuverlässiger Autobot-Einstieg:</b> Der Autobot prüft jetzt sowohl das gesamte Radar als auch die frischen Live-Kerzen fehlerfrei und findet berechtigte Setups sofort nach dem Start.</li>
-      <li><b>Stärkster Timeframe:</b> Der Autobot wählt je Asset automatisch den stärksten tatsächlich handelbaren READY-Timeframe (z. B. 4h statt 1h).</li>
-      <li><b>Statistischer Edge-Filter:</b> Vor jedem Einstieg wird auf dem gewählten Timeframe eine Walk-Forward-Validierung gerechnet – nur Trades mit mathematischem Vorteil werden ausgeführt.</li>
+      <li><b>Präzise Timeframe-Skalierung des Time-Stops:</b> Der dynamische Walk-Forward-Time-Stop skaliert jetzt exakt mit dem gehandelten Timeframe (z. B. 10 Bars im 15m-Chart = 2.5 Stunden statt starrer 10 Stunden; 10 Bars im 4h-Chart = 40 Stunden).</li>
+      <li><b>1-Klick-Kopieren jedes Werts:</b> Jeder Parameter in aktiven Positionen (Einstieg, Markpreis, Stop-Loss, Take-Profit 1/2/3, Margin, Notional, PnL, ROI, Time-Stop) lässt sich durch Anklicken sofort sauber in die Zwischenablage kopieren.</li>
+      <li><b>Direkter Asset-Fokus & Chart-Wechsel:</b> Klick auf den Coin-Namen einer offenen Position wechselt das Dashboard und den Chart sofort auf dieses Asset im passenden Timeframe.</li>
+      <li><b>Lückenloser Rolling Radar Scan:</b> Hintergrund-Aktualisierung des gesamten Universums bleibt kontinuierlich aktiv.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -701,7 +710,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.0.5</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.6</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2694,6 +2703,33 @@ function fmtDate(ms, tf) {
   return p(d.getDate()) + '.' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
+function tfToMinutes(tf) {
+  if (tf === '15m') return 15;
+  if (tf === '1h') return 60;
+  if (tf === '4h') return 240;
+  if (tf === '1d') return 1440;
+  return 60;
+}
+
+function tfToHours(tf) {
+  return tfToMinutes(tf) / 60;
+}
+
+function formatTimeStopDisplay(bars, tf) {
+  const count = Number.isFinite(+bars) ? +bars : 12;
+  const tfMin = tfToMinutes(tf || '1h');
+  const totalMin = count * tfMin;
+  if (totalMin < 60) return `${count} Bars (${totalMin}m)`;
+  const totalHours = totalMin / 60;
+  if (tf === '1d') {
+    const days = totalHours / 24;
+    return `${count} Bars (${Number(days.toFixed(1))}d)`;
+  }
+  if (totalHours <= 72) return `${count} Bars (${Number(totalHours.toFixed(1))}h)`;
+  const totalDays = totalHours / 24;
+  return `${count} Bars (${Number(totalDays.toFixed(1))}d)`;
+}
+
 function fallbackCopy(text) {
   const ta = document.createElement('textarea');
   ta.value = text;
@@ -2703,6 +2739,48 @@ function fallbackCopy(text) {
   ta.select();
   try { document.execCommand('copy'); } catch (_) {}
   document.body.removeChild(ta);
+}
+
+function copyTextToClipboard(text, el) {
+  if (text == null || text === '') return;
+  const str = String(text).trim();
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(str).catch(() => fallbackCopy(str));
+  } else {
+    fallbackCopy(str);
+  }
+  if (el && typeof document !== 'undefined') {
+    el.classList.add('copied-flash');
+    const tip = document.createElement('span');
+    tip.className = 'copy-tooltip-toast';
+    tip.textContent = `Kopiert: ${str}`;
+    document.body.appendChild(tip);
+    if (typeof el.getBoundingClientRect === 'function') {
+      const rect = el.getBoundingClientRect();
+      tip.style.left = `${Math.max(10, Math.min(window.innerWidth - 180, rect.left + rect.width / 2 - 60))}px`;
+      tip.style.top = `${Math.max(10, rect.top - 28)}px`;
+    }
+    setTimeout(() => {
+      el.classList.remove('copied-flash');
+      if (tip.parentNode) tip.parentNode.removeChild(tip);
+    }, 1200);
+  }
+}
+
+function switchToAsset(symbol, tf) {
+  if (!symbol) return;
+  const targetTf = tf || App.chartTF || '1h';
+  App.symbol = symbol;
+  App.chartTF = targetTf;
+  const sel = $('symsel'); if (sel) sel.value = symbol;
+  const cu = $('symcustom'); if (cu) cu.value = symbol;
+  document.querySelectorAll('#tfgrp button').forEach(b => {
+    b.classList.toggle('on', b.dataset.tf === targetTf);
+  });
+  restart();
+  if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function copySetupToClipboard(customSetup, buttonEl) {
@@ -5560,24 +5638,24 @@ function renderLiveTrades() {
       return `<div class="trade-card">
         <div class="tc-top">
           <div class="tc-badge">
-            <span style="font-size:14px;font-weight:900;color:var(--txt)">${esc(t.coin)}</span>
-            <span class="badge ${t.dir === 1 ? 'grn' : 'red'}" style="font-size:10px;padding:2px 7px">${side.toUpperCase()} ${t.leverage}x</span>
+            <span class="tc-coin-link" data-switch-coin="${esc(t.coin)}" data-switch-tf="${esc(t.signalTf || '1h')}" title="Klicken: Chart & Analyse für ${esc(t.coin)} (${t.signalTf || '1h'}) öffnen" style="font-size:14px">${esc(t.coin)}</span>
+            <span class="badge ${t.dir === 1 ? 'grn' : 'red'} copyable-val" data-copy-val="${side.toUpperCase()} ${t.leverage}x" title="Klicken zum Kopieren" style="font-size:10px;padding:2px 7px">${side.toUpperCase()} ${t.leverage}x</span>
             ${t.beActive ? '<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e;font-size:9px">🛡️ BE AKTIV</span>' : (t.autoBe ? '<span class="badge" style="background:rgba(148,163,184,.1);color:var(--mut);font-size:9px">Auto-BE</span>' : '')}
             ${t.trailSl ? '<span class="badge" style="background:rgba(34,211,238,.15);color:#22d3ee;font-size:9px">📈 Trail-SL</span>' : ''}
-            ${t.realizedPnlGross > 0 ? `<span class="badge" style="background:rgba(34,197,94,.12);color:var(--grn2);font-size:9px">+${t.realizedPnlGross.toFixed(2)} $ realisiert</span>` : ''}
+            ${t.realizedPnlGross > 0 ? `<span class="badge copyable-val" data-copy-val="+${t.realizedPnlGross.toFixed(2)} USDT" title="Klicken zum Kopieren" style="background:rgba(34,197,94,.12);color:var(--grn2);font-size:9px">+${t.realizedPnlGross.toFixed(2)} $ realisiert</span>` : ''}
           </div>
           <div class="tc-pnl">
-            <span class="${pnlClass}" style="font-size:14px;font-weight:900">${pnlStr} Brutto</span>
-            <span class="${pnlClass}" style="font-size:11px;font-weight:700">(${roiStr} · ${rMultipleStr})</span>
+            <span class="${pnlClass} copyable-val" data-copy-val="${pnlStr}" title="Klicken zum Kopieren" style="font-size:14px;font-weight:900">${pnlStr} Brutto</span>
+            <span class="${pnlClass} copyable-val" data-copy-val="${roiStr} · ${rMultipleStr}" title="Klicken zum Kopieren" style="font-size:11px;font-weight:700">(${roiStr} · ${rMultipleStr})</span>
           </div>
         </div>
         <div class="tc-grid">
-          <div class="tc-item"><span>Einstieg / Mark</span><b>${(+t.entry).toFixed(2)} → <span class="${pnlClass}">${(+px).toFixed(2)}</span> <small class="${pnlClass}">(${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%)</small></b></div>
-          <div class="tc-item"><span>Margin / Notional</span><b>${(+(t.remainingMargin || t.margin)).toFixed(2)} $ / ${m.notional.toFixed(2)} $ <small style="color:var(--dim)">(${m.quantity.toFixed(4)} Qty)</small></b></div>
-          <div class="tc-item"><span>Stop-Loss (SL)</span><b style="color:var(--red2)">${(+t.currentSl).toFixed(2)} <small style="color:var(--dim)">(-${m.distSlPct.toFixed(2)}%)</small></b></div>
-          <div class="tc-item"><span>Take-Profit (TP)</span><b style="color:var(--grn2)">${(+t.tp).toFixed(2)} <small style="color:var(--dim)">(+${m.distTpPct.toFixed(2)}%)</small></b></div>
-          <div class="tc-item"><span>Initial-Risiko / R:R</span><b>${m.initialRiskAmount.toFixed(2)} $ <small style="color:var(--dim)">(${((m.initialRiskAmount / (t.remainingMargin || t.margin)) * 100).toFixed(0)}%) · 1:${m.plannedRr.toFixed(1)}</small></b></div>
-          <div class="tc-item"><span>MFE / MAE</span><b><span style="color:var(--grn2)">+${m.mfePriceDiff.toFixed(2)} (${(m.mfeR >= 0 ? '+' : '') + m.mfeR.toFixed(1)}R)</span> / <span style="color:var(--red2)">-${m.maePriceDiff.toFixed(2)} (${m.maeR.toFixed(1)}R)</span></b></div>
+          <div class="tc-item"><span>Einstieg / Mark</span><b><span class="copyable-val" data-copy-val="${(+t.entry).toFixed(2)}" title="Einstieg kopieren">${(+t.entry).toFixed(2)}</span> → <span class="${pnlClass} copyable-val" data-copy-val="${(+px).toFixed(2)}" title="Markpreis kopieren">${(+px).toFixed(2)}</span> <small class="${pnlClass} copyable-val" data-copy-val="${m.priceDiffPct.toFixed(2)}%">(${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%)</small></b></div>
+          <div class="tc-item"><span>Margin / Notional</span><b><span class="copyable-val" data-copy-val="${(+(t.remainingMargin || t.margin)).toFixed(2)}" title="Margin kopieren">${(+(t.remainingMargin || t.margin)).toFixed(2)} $</span> / <span class="copyable-val" data-copy-val="${m.notional.toFixed(2)}" title="Notional kopieren">${m.notional.toFixed(2)} $</span> <small class="copyable-val" data-copy-val="${m.quantity.toFixed(4)}" title="Menge (Qty) kopieren" style="color:var(--dim)">(${m.quantity.toFixed(4)} Qty)</small></b></div>
+          <div class="tc-item"><span>Stop-Loss (SL)</span><b style="color:var(--red2)"><span class="copyable-val" data-copy-val="${(+t.currentSl).toFixed(2)}" title="Stop-Loss kopieren">${(+t.currentSl).toFixed(2)}</span> <small class="copyable-val" data-copy-val="-${m.distSlPct.toFixed(2)}%" title="SL-Abstand kopieren" style="color:var(--dim)">(-${m.distSlPct.toFixed(2)}%)</small></b></div>
+          <div class="tc-item"><span>Take-Profit (TP)</span><b style="color:var(--grn2)"><span class="copyable-val" data-copy-val="${(+t.tp).toFixed(2)}" title="Take-Profit kopieren">${(+t.tp).toFixed(2)}</span> <small class="copyable-val" data-copy-val="+${m.distTpPct.toFixed(2)}%" title="TP-Abstand kopieren" style="color:var(--dim)">(+${m.distTpPct.toFixed(2)}%)</small></b></div>
+          <div class="tc-item"><span>Initial-Risiko / R:R</span><b><span class="copyable-val" data-copy-val="${m.initialRiskAmount.toFixed(2)}" title="Risikobetrag kopieren">${m.initialRiskAmount.toFixed(2)} $</span> <small style="color:var(--dim)">(<span class="copyable-val" data-copy-val="${((m.initialRiskAmount / (t.remainingMargin || t.margin)) * 100).toFixed(0)}%">${((m.initialRiskAmount / (t.remainingMargin || t.margin)) * 100).toFixed(0)}%</span>) · <span class="copyable-val" data-copy-val="1:${m.plannedRr.toFixed(1)}">1:${m.plannedRr.toFixed(1)}</span></small></b></div>
+          <div class="tc-item"><span>MFE / MAE</span><b><span class="copyable-val" data-copy-val="+${m.mfePriceDiff.toFixed(2)}" title="MFE kopieren" style="color:var(--grn2)">+${m.mfePriceDiff.toFixed(2)} (${(m.mfeR >= 0 ? '+' : '') + m.mfeR.toFixed(1)}R)</span> / <span class="copyable-val" data-copy-val="-${m.maePriceDiff.toFixed(2)}" title="MAE kopieren" style="color:var(--red2)">-${m.maePriceDiff.toFixed(2)} (${m.maeR.toFixed(1)}R)</span></b></div>
         </div>
         <div class="tc-track-wrap">
           <div class="tc-track"><div class="tc-track-fill" style="width:${progPct}%;background:${pnlClass === 'grn' ? 'linear-gradient(90deg,#38bdf8,#22c55e)' : '#ef4444'}"></div></div>
@@ -5686,6 +5764,23 @@ function renderLiveTrades() {
     x.splice(idx, 1);
     saveTrades(x);
     renderLiveTrades();
+  });
+
+  el.querySelectorAll('[data-copy-val]').forEach(span => {
+    span.onclick = (e) => {
+      e.stopPropagation();
+      const val = span.getAttribute('data-copy-val');
+      if (val) copyTextToClipboard(val, span);
+    };
+  });
+
+  el.querySelectorAll('[data-switch-coin]').forEach(span => {
+    span.onclick = (e) => {
+      e.stopPropagation();
+      const coin = span.getAttribute('data-switch-coin');
+      const tf = span.getAttribute('data-switch-tf');
+      if (coin) switchToAsset(coin, tf);
+    };
   });
   
   renderTradeHistory();
@@ -5918,16 +6013,18 @@ function bindTradeTracker() {
 async function autoOptimizeTimeStop() { const b=$('auto-timestop'), st=$('timestop-status'); if(!b||!App.data.candles||!App.data.chart){if(st)st.textContent='Nicht verfügbar: erst Candles laden.';return;} b.disabled=true; try { const values=[]; for(let bars=5;bars<=30;bars++){ const wf=runWalkForwardBacktest(App.data.candles,App.data.chart,{makerFee:App.fees.maker,takerFee:App.fees.taker,slippage:App.slippage,timeStopBars:bars}); values.push({bars,dsr:wf.dsr?.dsr??0,exp:wf.stats?.exp??-Infinity}); if(st)st.textContent=`Prüfe ${bars}/30 Bars …`; await new Promise(r=>setTimeout(r,0)); } values.sort((a,b)=>b.dsr-a.dsr||b.exp-a.exp||a.bars-b.bars); const w=values[0]; App.timeStopBars=w.bars; $('timestop').value=w.bars; await loadChartData(); renderAll(); if(st)st.textContent=`Bestes Ergebnis bei ${w.bars} Bars`; } catch(e){if(st)st.textContent='Optimierung fehlgeschlagen: '+String(e.message||e);} finally{b.disabled=false;} }
 
 function optimizeTimeStopForAsset(candles, A, options = {}) {
+  const tf = options.timeframe || '1h';
+  const tfHours = options.timeframeHours || (typeof tfToHours === 'function' ? tfToHours(tf) : 1);
   const fallbackBars = options.fallbackBars || 12;
-  const fallbackHours = options.fallbackHours || fallbackBars;
-  const maxCapHours = options.maxCapHours || 24;
-  const minFloorHours = options.minFloorHours || 3;
-  const tfHours = options.timeframeHours || 1;
+  const fallbackHours = options.fallbackHours || (fallbackBars * tfHours);
+  const maxCapHours = options.maxCapHours || Math.max(36 * tfHours, 24);
+  const minFloorHours = options.minFloorHours || Math.max(0.5, 2 * tfHours);
 
   if (!Array.isArray(candles) || candles.length < 30 || !A || !A.n) {
     return {
       bars: fallbackBars,
-      hours: Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)),
+      hours: Number(Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)).toFixed(2)),
+      timeframe: tf,
       dsr: 0,
       exp: 0,
       reason: 'fallback_insufficient_history'
@@ -5960,7 +6057,8 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
     if (!results.length) {
       return {
         bars: fallbackBars,
-        hours: Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)),
+        hours: Number(Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)).toFixed(2)),
+        timeframe: tf,
         dsr: 0,
         exp: 0,
         reason: 'fallback_empty_results'
@@ -5969,11 +6067,12 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
 
     results.sort((a, b) => (b.score - a.score) || (b.dsr - a.dsr) || (b.exp - a.exp) || (a.bars - b.bars));
     const best = results[0];
-    const calculatedHours = Math.min(maxCapHours, Math.max(minFloorHours, Math.round(best.bars * tfHours)));
+    const calculatedHours = Number(Math.min(maxCapHours, Math.max(minFloorHours, best.bars * tfHours)).toFixed(2));
 
     return {
       bars: best.bars,
       hours: calculatedHours,
+      timeframe: tf,
       dsr: best.dsr,
       exp: best.exp,
       reason: 'walkforward_optimized'
@@ -5981,7 +6080,8 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
   } catch (_) {
     return {
       bars: fallbackBars,
-      hours: Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)),
+      hours: Number(Math.min(maxCapHours, Math.max(minFloorHours, fallbackHours)).toFixed(2)),
+      timeframe: tf,
       dsr: 0,
       exp: 0,
       reason: 'fallback_error'
@@ -6460,10 +6560,11 @@ const Autobot = {
       }
 
       // Autonomous In-Trade Reaction 4: Stagnations Time-Stop (Dynamic Optimizer per Coin)
-      // Uses asset-specific walk-forward optimized holding horizon or fallback
-      const holdHours = (Date.now() - t.openedAt) / 3600000;
-      const maxHoldHours = t.maxHoldHours || this.stagnationHours || 12;
-      if (holdHours > maxHoldHours && !t.beActive && curRoi < -3.0) {
+      // Uses asset-specific walk-forward optimized holding horizon or fallback scaled to timeframe
+      const tfMinutes = typeof tfToMinutes === 'function' ? tfToMinutes(t.signalTf || '1h') : 60;
+      const maxHoldMs = (t.timeStopBars || 12) * tfMinutes * 60000;
+      const elapsedMs = Date.now() - t.openedAt;
+      if (elapsedMs > maxHoldMs && !t.beActive && curRoi < -3.0) {
         this.closeTrade(i, px, 'TIME_STOP_DYNAMIC');
         continue;
       }
@@ -6612,12 +6713,15 @@ const Autobot = {
         // Deduct margin from available equity
         this.equity -= margin;
 
-        // Dynamic Time-Stop Optimization per Asset
+        // Dynamic Time-Stop Optimization per Asset with Timeframe Scaling
+        const tfHours = typeof tfToHours === 'function' ? tfToHours(freshCandidate.tf) : 1;
         const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {
+          timeframe: freshCandidate.tf,
+          timeframeHours: tfHours,
           fallbackBars: this.stagnationHours || 12,
-          fallbackHours: this.stagnationHours || 12,
-          maxCapHours: Math.max(this.stagnationHours || 24, 24),
-          minFloorHours: 3
+          fallbackHours: (this.stagnationHours || 12) * tfHours,
+          maxCapHours: Math.max(36 * tfHours, 24),
+          minFloorHours: 2 * tfHours
         });
 
         const newTrade = {
@@ -6651,7 +6755,8 @@ const Autobot = {
         this.trades.push(newTrade);
         tradePrices[c.symbol] = lastPrice;
 
-        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${optTimeStop.bars} Bars / ${optTimeStop.hours}h | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+        const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
+        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
         this.save();
         this.render();
         break; // 1 trade per scan tick
@@ -6735,36 +6840,55 @@ const Autobot = {
           const distTp1Pct = t.tp1 ? Math.abs(t.tp1 - px) / px * 100 : 0;
           const distTp2Pct = t.tp2 ? Math.abs(t.tp2 - px) / px * 100 : 0;
           const holdTimeFormatted = typeof fmtDuration === 'function' ? fmtDuration(Date.now() - t.openedAt) : `${Math.round((Date.now() - t.openedAt)/60000)} min`;
+          const timeStopDisplay = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(t.timeStopBars || 12, t.signalTf || '1h') : `${t.timeStopBars || 12} Bars`;
 
           return `<div class="trade-card" style="border-color:rgba(168,85,247,.35);margin-bottom:8px">
             <div class="tc-top">
               <div class="tc-badge">
-                <span style="color:#c084fc;font-weight:900">🤖 ${esc(t.coin)}</span>
-                <span class="badge ${t.dir === 1 ? 'grn' : 'red'}" style="font-weight:800">${side} ${t.leverage}x</span>
-                <span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">Score ${t.score || '—'}</span>
+                <span class="tc-coin-link" data-switch-coin="${esc(t.coin)}" data-switch-tf="${esc(t.signalTf || '1h')}" title="Klicken: Chart & Analyse für ${esc(t.coin)} (${t.signalTf || '1h'}) öffnen" style="color:#c084fc">🤖 ${esc(t.coin)}</span>
+                <span class="badge ${t.dir === 1 ? 'grn' : 'red'} copyable-val" data-copy-val="${side} ${t.leverage}x" title="Klicken zum Kopieren" style="font-weight:800">${side} ${t.leverage}x</span>
+                <span class="badge copyable-val" data-copy-val="${t.score || ''}" title="Score kopieren" style="background:rgba(168,85,247,.15);color:#c084fc">Score ${t.score || '—'}</span>
+                <span class="badge copyable-val" data-copy-val="${t.signalTf || '1h'}" title="Timeframe kopieren" style="background:rgba(34,211,238,.15);color:#22d3ee">${t.signalTf || '1h'}</span>
                 ${t.beActive ? '<span class="badge" style="background:rgba(45,212,191,.15);color:var(--grn2)">🛡️ BE AKTIV</span>' : ''}
                 ${t.scaledOut ? '<span class="badge" style="background:rgba(245,158,11,.15);color:var(--amb)">💰 50% GESICHERT</span>' : ''}
               </div>
               <div class="tc-pnl">
-                <span class="${pnlCol}" style="font-size:14px;font-weight:900">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT</span>
-                <small class="${pnlCol}" style="font-size:11px;font-weight:700">(${(roi >= 0 ? '+' : '') + roi.toFixed(1)}% · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R)</small>
+                <span class="${pnlCol} copyable-val" data-copy-val="${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT" title="PnL kopieren" style="font-size:14px;font-weight:900">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT</span>
+                <small class="${pnlCol} copyable-val" data-copy-val="${(roi >= 0 ? '+' : '') + roi.toFixed(1)}% · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R" title="ROI kopieren" style="font-size:11px;font-weight:700">(${(roi >= 0 ? '+' : '') + roi.toFixed(1)}% · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R)</small>
                 <button class="tc-btn" data-copy-ab-idx="${idx}" type="button" style="margin-left:6px;padding:3px 7px;font-size:10px" title="Kopiert Setup-Parameter">📋 Setup</button>
                 <button class="tc-btn danger" data-close-ab-idx="${idx}" type="button" style="margin-left:4px;padding:3px 7px;font-size:10px" title="Autobot Position manuell liquidieren">✕ Schließen</button>
               </div>
             </div>
             <div class="tc-grid">
-              <div class="tc-item"><span>Einstieg / Mark</span><b>${fmtP(t.entry)} / <span class="${pnlCol}">${fmtP(px)}</span></b></div>
-              <div class="tc-item"><span>Margin / Notional</span><b>${t.margin.toFixed(2)} $ / ${t.notional.toFixed(2)} $</b></div>
-              <div class="tc-item"><span>SL (Dynamisch)</span><b style="color:var(--red2)">${fmtP(t.currentSl)} <small style="color:var(--dim)">(-${distSlPct.toFixed(2)}%)</small></b></div>
-              <div class="tc-item"><span>Ziele</span><b>TP1: ${fmtP(t.tp1)} <small style="color:var(--grn2)">(+${distTp1Pct.toFixed(2)}%)</small> | TP2: ${fmtP(t.tp2)}</b></div>
-              <div class="tc-item"><span>Haltedauer / Time-Stop</span><b>${holdTimeFormatted} <small style="color:var(--dim)">(${t.maxHoldHours || 12}h Max)</small></b></div>
-              <div class="tc-item"><span>Status / Edge</span><b>${t.beActive ? '<span style="color:var(--grn2)">Risikofrei (BE)</span>' : '<span style="color:var(--cyn)">Laufend</span>'} · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R</b></div>
+              <div class="tc-item"><span>Einstieg / Mark</span><b><span class="copyable-val" data-copy-val="${fmtP(t.entry)}" title="Einstieg kopieren">${fmtP(t.entry)}</span> / <span class="${pnlCol} copyable-val" data-copy-val="${fmtP(px)}" title="Markpreis kopieren">${fmtP(px)}</span></b></div>
+              <div class="tc-item"><span>Margin / Notional</span><b><span class="copyable-val" data-copy-val="${t.margin.toFixed(2)}" title="Margin kopieren">${t.margin.toFixed(2)} $</span> / <span class="copyable-val" data-copy-val="${t.notional.toFixed(2)}" title="Notional kopieren">${t.notional.toFixed(2)} $</span></b></div>
+              <div class="tc-item"><span>SL (Dynamisch)</span><b style="color:var(--red2)"><span class="copyable-val" data-copy-val="${fmtP(t.currentSl)}" title="Stop-Loss kopieren">${fmtP(t.currentSl)}</span> <small class="copyable-val" data-copy-val="-${distSlPct.toFixed(2)}%" title="SL-Abstand kopieren" style="color:var(--dim)">(-${distSlPct.toFixed(2)}%)</small></b></div>
+              <div class="tc-item"><span>Ziele</span><b>TP1: <span class="copyable-val" data-copy-val="${fmtP(t.tp1)}" title="TP1 kopieren">${fmtP(t.tp1)}</span> <small class="copyable-val" data-copy-val="+${distTp1Pct.toFixed(2)}%" title="TP1-Abstand kopieren" style="color:var(--grn2)">(+${distTp1Pct.toFixed(2)}%)</small> | TP2: <span class="copyable-val" data-copy-val="${fmtP(t.tp2)}" title="TP2 kopieren">${fmtP(t.tp2)}</span></b></div>
+              <div class="tc-item"><span>Haltedauer / Time-Stop</span><b><span class="copyable-val" data-copy-val="${holdTimeFormatted}" title="Haltedauer kopieren">${holdTimeFormatted}</span> <small class="copyable-val" data-copy-val="${timeStopDisplay}" title="Time-Stop kopieren" style="color:var(--dim)">(${timeStopDisplay})</small></b></div>
+              <div class="tc-item"><span>Status / Edge</span><b>${t.beActive ? '<span style="color:var(--grn2)">Risikofrei (BE)</span>' : '<span style="color:var(--cyn)">Laufend</span>'} · <span class="copyable-val" data-copy-val="${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R" title="R-Multiple kopieren">${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R</span></b></div>
             </div>
             <div class="tc-intel be" style="font-size:10.5px;padding:6px 10px;line-height:1.0.05">
-              🤖 <b>Bot Management:</b> Auto-BE bei +1R, 50% Scale-Out bei TP2 (${fmtP(t.tp2)}), Trailing-Stop & Dynamischer Time-Stop (${t.maxHoldHours || 12}h).
+              🤖 <b>Bot Management:</b> Auto-BE bei +1R, 50% Scale-Out bei TP2 (<span class="copyable-val" data-copy-val="${fmtP(t.tp2)}">${fmtP(t.tp2)}</span>), Trailing-Stop & Dynamischer Time-Stop (<span class="copyable-val" data-copy-val="${timeStopDisplay}">${timeStopDisplay}</span>).
             </div>
           </div>`;
         }).join('');
+
+        container.querySelectorAll('[data-copy-val]').forEach(span => {
+          span.onclick = (e) => {
+            e.stopPropagation();
+            const val = span.getAttribute('data-copy-val');
+            if (val) copyTextToClipboard(val, span);
+          };
+        });
+
+        container.querySelectorAll('[data-switch-coin]').forEach(span => {
+          span.onclick = (e) => {
+            e.stopPropagation();
+            const coin = span.getAttribute('data-switch-coin');
+            const tf = span.getAttribute('data-switch-tf');
+            if (coin) switchToAsset(coin, tf);
+          };
+        });
 
         container.querySelectorAll('[data-copy-ab-idx]').forEach(btn => {
           btn.onclick = () => {
@@ -6830,7 +6954,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.0.5');
+  showReleaseNotesOnce('1.0.6');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

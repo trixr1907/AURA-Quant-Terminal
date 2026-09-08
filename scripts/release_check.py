@@ -359,6 +359,12 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_radar_continuous_cycle.js"])
     add(check("radar continuous cycle", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_timestop_timeframe_scaling.js"])
+    add(check("timestop timeframe scaling", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_trade_clickable_data.js"])
+    add(check("trade clickable data", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
 
     # 1c. Live trade tracker
     rc, out, err = run(["node", "tests/test_live_trade_tracker.js"])
