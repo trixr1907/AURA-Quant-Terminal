@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.0.4", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.0.5", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -303,7 +303,7 @@ class RelayHandler(BaseHTTPRequestHandler):
         elif path == "/serving":
             self._send_json({
                 "ok": True,
-                "version": "1.0.4",
+                "version": "1.0.5",
                 "port": PORT,
                 "mode": "quant_research",
             })
@@ -391,7 +391,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.0.4 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.0.5 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()

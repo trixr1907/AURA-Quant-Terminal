@@ -4,7 +4,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
-const start = html.indexOf('async function loadRadar()');
+const start = html.indexOf('async function loadRadar(');
 const end = html.indexOf('\n/** Apply user-selected filtering/sorting', start);
 if (start < 0 || end < 0) throw new Error('loadRadar() source not found');
 const loadRadarSource = html.slice(start, end);

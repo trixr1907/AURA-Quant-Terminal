@@ -60,7 +60,7 @@ class ResearchOnlyCleanupTests(unittest.TestCase):
     def test_time_stop_copy_is_setup_scoped_and_radar_stays_independent(self):
         html = (ROOT / "Symbiose_Dashboard.html").read_text(encoding="utf-8")
         self.assertIn("Gilt nur für das aktuell geladene Setup. Schließt den Trade nach X Bars, falls er im Verlust oder bei ±0 steht (Kapital-Effizienz).", html)
-        radar_start = html.index("async function loadRadar()")
+        radar_start = html.index("async function loadRadar(")
         radar_end = html.index("\nfunction renderRadar()", radar_start)
         radar_source = html[radar_start:radar_end]
         self.assertNotIn("timeStop", radar_source)
