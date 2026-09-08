@@ -25,6 +25,7 @@ from bitget_relay import (
     RelayHandler,
     RelayServer,
     _canonical_request,
+    _parse_allowed_hosts,
     _request,
 )
 
@@ -33,6 +34,14 @@ from bitget_relay import (
 # 1. CANONICAL REQUEST FORMATTING
 # ===========================================================================
 class TestCanonicalRequest(unittest.TestCase):
+    def test_allowed_hosts_parser_includes_loopback_and_configured_lan_host(self):
+        hosts = _parse_allowed_hosts("192.168.8.115, aura.internal")
+        self.assertEqual(hosts, {"127.0.0.1", "localhost", "192.168.8.115", "aura.internal"})
+
+    def test_allowed_hosts_parser_rejects_ports_and_userinfo(self):
+        hosts = _parse_allowed_hosts("192.168.8.115:8787, user@evil.example, valid.example")
+        self.assertEqual(hosts, {"127.0.0.1", "localhost", "valid.example"})
+
     def test_canonical_get_includes_query_in_url(self):
         path, body_bytes, url = _canonical_request("GET", "/api/v2/mix/market/candles", {
             "symbol": "BTCUSDT", "granularity": "1H", "limit": 1000,
@@ -117,9 +126,17 @@ class TestPublicRequest(unittest.TestCase):
             self.assertEqual(r, {})
 
 
-# ===========================================================================
+# ----------------------------------------------------------------------------
 # 3. HTTP SERVER INTEGRATION
-# ===========================================================================
+# ----------------------------------------------------------------------------
+class TestDockerDeploymentContract(unittest.TestCase):
+    def test_compose_configures_lan_host_and_persistent_state(self):
+        compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}", compose)
+        self.assertIn("AURA_STATE_DIR=/var/lib/aura", compose)
+        self.assertIn("aura-state:/var/lib/aura", compose)
+
+
 class TestHTTPServer(unittest.TestCase):
     """Spins up a real HTTPServer in a thread; tests actual HTTP lifecycle."""
 
@@ -249,6 +266,20 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self._get_status("/api/state", {"Origin": origin})
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
+
+    def test_state_route_allows_configured_lan_host_and_origin(self):
+        origin = f"http://192.168.8.115:{self.port}"
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1", "192.168.8.115"}):
+            status, body = self._get_status("/api/state", {"Host": f"192.168.8.115:{self.port}", "Origin": origin})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+
+    def test_state_route_rejects_unconfigured_lan_host(self):
+        origin = f"http://192.168.8.116:{self.port}"
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1", "192.168.8.115"}):
+            status, body = self._get_status("/api/state", {"Host": f"192.168.8.116:{self.port}", "Origin": origin})
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_HOST")
 
     def test_state_route_rejects_malformed_origin(self):
         status, body = self._get_status("/api/state", {"Origin": "http://localhost:evil"})
