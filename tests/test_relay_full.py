@@ -387,6 +387,11 @@ class TestHTTPServer(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body["code"], "ERR_BAD_URL")
 
+    def test_post_public_rejects_non_api_relative_path(self):
+        status, body = self._post_raw("/api/public", b'{"path":"/not-an-api-path"}')
+        self.assertEqual(status, 400)
+        self.assertEqual(body["code"], "ERR_BAD_URL")
+
     def test_post_unknown_route_returns_404_body(self):
         status, body = self._post_raw("/api/nonexistent", b"{}")
         self.assertEqual(status, 404)
