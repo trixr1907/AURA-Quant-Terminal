@@ -1,0 +1,42 @@
+{
+  "BTCUSDT_1h.csv": {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "source": "TradingView/Pine",
+    "export_time": "2026-09-08T00:00:00Z",
+    "sha256": "460a1aee5a7e7939b74e12082726870adcf1d5731801a1f9b3123d29f72fee14",
+    "rows": 14773
+  },
+  "ETHUSDT_1h.csv": {
+    "symbol": "ETHUSDT",
+    "timeframe": "1h",
+    "source": "TradingView/Pine",
+    "export_time": "2026-09-08T00:00:00Z",
+    "sha256": "298c417d267e2e49759a3f34ee5af14911d6a07545e15004b007b71d77dd6f46",
+    "rows": 14773
+  },
+  "SOLUSDT_1h.csv": {
+    "symbol": "SOLUSDT",
+    "timeframe": "1h",
+    "source": "TradingView/Pine",
+    "export_time": "2026-09-08T00:00:00Z",
+    "sha256": "05c8b33d148b1ed2a4f0d0e2f33aaecb8b9262cc2959f7f6a6a5f1db14e5bb9a",
+    "rows": 14773
+  },
+  "XRPUSDT_4h.csv": {
+    "symbol": "XRPUSDT",
+    "timeframe": "4h",
+    "source": "TradingView/Pine",
+    "export_time": "2026-09-08T00:00:00Z",
+    "sha256": "6f2141598ea64cf762148877d92b72c18348bf9fda49b23e4a8c16da942fa465",
+    "rows": 10270
+  },
+  "DOGEUSDT_4h.csv": {
+    "symbol": "DOGEUSDT",
+    "timeframe": "4h",
+    "source": "TradingView/Pine",
+    "export_time": "2026-09-08T00:00:00Z",
+    "sha256": "e18145b07db79bd8d476965e79a8af62b0436fccbf6dd9add7e223366d791721",
+    "rows": 10270
+  }
+}

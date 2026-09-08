@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA v1.4 — Quant-Research-Tutorial</title>
+<style>
+  :root {
+    --bg: #0b1220; --surface: #0f172a; --card: #1e293b;
+    --border: #334155; --txt: #f1f5f9; --mut: #94a3b8;
+    --c1: #22d3ee; --grn: #4ade80; --red: #f87171;
+    --amb: #f59e0b; --pur: #a855f7; --blu: #60a5fa;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--txt);
+    font-family: var(--sans); font-size: 14px; line-height: 1.7;
+    padding: 0 0 80px 0;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    position: sticky; top: 0; z-index: 99;
+    background: rgba(11,18,32,.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 32px; flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--mut); text-decoration: none; font-size: 12px;
+    font-family: var(--mono); padding: 3px 8px; border-radius: 6px;
+    transition: all .15s;
+  }
+  nav a:hover { color: var(--c1); background: rgba(34,211,238,.08); }
+  .nav-logo { color: var(--c1); font-family: var(--mono); font-weight: 800;
+    font-size: 13px; margin-right: 8px; white-space: nowrap; }
+
+  /* ---- LAYOUT ---- */
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2744 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 32px 48px; text-align: center;
+  }
+  .hero h1 { font-size: 32px; font-weight: 800; letter-spacing: -.5px;
+    background: linear-gradient(90deg, var(--c1), var(--grn));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--mut); margin-top: 10px; font-size: 15px; max-width: 640px; margin-inline: auto; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 40px 24px 0; }
+
+  /* ---- SECTIONS ---- */
+  section { margin-bottom: 56px; }
+  h2 {
+    font-size: 20px; font-weight: 700; color: var(--c1);
+    border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    background: var(--c1); color: #000; font-size: 11px; font-weight: 800;
+    width: 22px; height: 22px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  h3 { font-size: 15px; color: var(--txt); font-weight: 700; margin: 24px 0 8px; }
+
+  p { color: var(--mut); margin-bottom: 12px; }
+  p b, li b { color: var(--txt); }
+  p code, li code { font-family: var(--mono); font-size: 12px;
+    background: rgba(34,211,238,.1); color: var(--c1);
+    padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- CARDS ---- */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 16px;
+  }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media(max-width:600px) { .card-grid { grid-template-columns: 1fr; } }
+  .card-grid .card { margin-bottom: 0; }
+
+  /* ---- CHECKLIST ---- */
+  .checklist { list-style: none; padding: 0; margin-bottom: 16px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid rgba(51,65,85,.5);
+    color: var(--mut);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li .icon { flex-shrink: 0; margin-top: 1px; font-size: 16px; }
+  .checklist li b { color: var(--txt); }
+
+  /* ---- SCORE BAR ---- */
+  .score-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .score-label { font-family: var(--mono); font-size: 11px; color: var(--mut);
+    width: 80px; flex-shrink: 0; }
+  .score-bar { flex: 1; height: 6px; background: rgba(51,65,85,.6); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; }
+  .score-val { font-family: var(--mono); font-size: 11px; color: var(--txt); width: 32px; text-align: right; }
+
+  /* ---- BADGES ---- */
+  .badge {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    font-weight: 700; padding: 2px 8px; border-radius: 4px; margin: 0 2px;
+  }
+  .badge-grn { background: rgba(74,222,128,.15); color: var(--grn); border: 1px solid rgba(74,222,128,.3); }
+  .badge-red { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+  .badge-amb { background: rgba(245,158,11,.15); color: var(--amb); border: 1px solid rgba(245,158,11,.3); }
+  .badge-pur { background: rgba(168,85,247,.15); color: var(--pur); border: 1px solid rgba(168,85,247,.3); }
+  .badge-blu { background: rgba(96,165,250,.15); color: var(--blu); border: 1px solid rgba(96,165,250,.3); }
+  .badge-c1  { background: rgba(34,211,238,.12); color: var(--c1);  border: 1px solid rgba(34,211,238,.3); }
+
+  /* ---- FLOW DIAGRAM ---- */
+  .flow {
+    display: flex; flex-direction: column; gap: 0;
+    margin: 16px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  }
+  .flow-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step:hover { background: rgba(34,211,238,.04); }
+  .flow-step .step-n {
+    flex-shrink: 0; font-family: var(--mono); font-size: 12px;
+    font-weight: 800; color: #000; background: var(--c1);
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .flow-step.blocked .step-n { background: var(--red); }
+  .flow-step.warn .step-n { background: var(--amb); }
+  .flow-step .step-body { flex: 1; }
+  .flow-step .step-title { font-weight: 700; color: var(--txt); font-size: 13px; }
+  .flow-step .step-desc { color: var(--mut); font-size: 12px; margin-top: 2px; }
+
+  /* ---- TABLE ---- */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; }
+  th { background: rgba(34,211,238,.1); color: var(--c1); font-family: var(--mono);
+    font-size: 11px; font-weight: 700; padding: 8px 12px; text-align: left; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--mut); vertical-align: top; }
+  td b { color: var(--txt); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(51,65,85,.2); }
+
+  /* ---- CALLOUTS ---- */
+  .callout {
+    border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-body b { display: block; margin-bottom: 3px; font-size: 13px; }
+  .callout-body p { margin: 0; font-size: 13px; }
+  .callout-grn { background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.25); }
+  .callout-red { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); }
+  .callout-amb { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); }
+  .callout-blu { background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.25); }
+  .callout-pur { background: rgba(168,85,247,.08); border: 1px solid rgba(168,85,247,.25); }
+
+  /* ---- MINI-CHART (ascii-style) ---- */
+  .mini-chart {
+    font-family: var(--mono); font-size: 11px; color: var(--mut);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; white-space: pre; overflow-x: auto;
+    margin: 12px 0;
+  }
+  .c-grn { color: var(--grn); }
+  .c-red { color: var(--red); }
+  .c-amb { color: var(--amb); }
+  .c-c1  { color: var(--c1); }
+  .c-pur { color: var(--pur); }
+  .c-mut { color: var(--mut); }
+
+  footer {
+    margin-top: 64px; padding: 24px 32px; border-top: 1px solid var(--border);
+    text-align: center; color: var(--mut); font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">AURA v1.4</span>
+  <a href="#workflow">Workflow</a>
+  <a href="#score">Score</a>
+  <a href="#gates">Gates</a>
+  <a href="#radar">Radar</a>
+  <a href="#exit">Exit-Logik</a>
+  <a href="#macro">Makro</a>
+  <a href="#tradingview">TradingView</a>
+  <a href="#checkliste">Checkliste</a>
+  <a href="#fehler">Fehler</a>
+</nav>
+
+<div class="hero">
+  <h1>AURA v1.4 — Quant-Research-Tutorial</h1>
+  <p>Wie das System Setups entdeckt, Scores und Gates erklärt und Research-Hypothesen reproduzierbar validiert — ohne Ausführungspfad.</p>
+</div>
+
+<main>
+
+<!-- ===== 1. OVERVIEW ===== -->
+<section id="workflow">
+  <h2><span class="num">1</span> Der Gesamtablauf — wie Setups entstehen</h2>
+
+  <p>
+    AURA ist kein einfacher Indikator. Bevor ein Setup als belastbare Research-Hypothese gilt, müssen
+    <b>fünf unabhängige Gates</b> gleichzeitig offen sein. Das reduziert die Kandidatenzahl stark —
+    aber die Setups, die durchkommen, besitzen echte Confluence.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <div class="step-title">Core-Score &ge; 75 (Long) oder &le; 25 (Short)</div>
+        <div class="step-desc">Gewichtetes Scoring von Trend (30%) + Momentum (25%) + Volumen (25%) + Struktur (20%). Rein technisch, ohne Makro.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <div class="step-title">MTF-Gate: &ge; 3 von 4 Timeframes aligned (15m / 1H / 4H / 1D)</div>
+        <div class="step-desc">Alle vier Zeitfenster werden mit identischer Proxy-Engine berechnet. Mindestens 3 müssen in dieselbe Richtung zeigen.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-n">3</div>
+      <div class="step-body">
+        <div class="step-title">Regime-Gate: Bull- oder Bear-Trend (kein Sideways, kein Squeeze)</div>
+        <div class="step-desc">EMA200-Regime + Bollinger/Keltner-Squeeze-Filter. Sideways und SQZ aktiv = kein Trade, egal wie hoch der Score.</div>
+      </div>
+    </div>
+    <div class="flow-step warn">
+      <div class="step-n">4</div>
+      <div class="step-body">
+        <div class="step-title">Makro-Check: kein Veto durch Funding / OI</div>
+        <div class="step-desc">Extremes Funding (Z-Score &gt; 2.5) oder OI-Spike kann bis 25 Punkte abziehen und ein knapp-über-Schwelle-Signal blockieren.</div>
+      </div>
+    </div>
+    <div class="flow-step warn">
+      <div class="step-n">5</div>
+      <div class="step-body">
+        <div class="step-title">BTC-Korrelations-Filter (Altcoins): kein BTC-Block</div>
+        <div class="step-desc">Für alle Nicht-BTC-Assets wird das BTC-Regime geprüft. LINK-LONG bei BTC im Bear-Regime = BTC-Block, kein Auto-Trade.</div>
+      </div>
+    </div>
+    <div class="flow-step" style="background:rgba(74,222,128,.05)">
+      <div class="step-n" style="background:var(--grn)">✓</div>
+      <div class="step-body">
+        <div class="step-title" style="color:var(--grn)">Signal: LONG / SHORT — Kelly berechnet Positionsgröße</div>
+        <div class="step-desc">Nur wenn alle 5 Gates offen sind, wird ein Signal ausgegeben. Kelly-Sizing auf Basis der Out-of-Sample-Gewinnrate aus dem Walk-Forward-Backtest.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-amb">
+    <div class="callout-icon">⚡</div>
+    <div class="callout-body">
+      <b>Frequenz verstehen</b>
+      <p>Auf 1H-BTC erwarte 2–6 Signale pro Woche. Weniger ist normal. Das System ist ein <b>Selektions-Filter</b>, kein Tick-by-Tick-Generator.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 2. SCORE ===== -->
+<section id="score">
+  <h2><span class="num">2</span> Den Score lesen — was bedeuten die Zahlen?</h2>
+
+  <p>
+    Der Dashboard zeigt immer zwei Zahlen: <code>Core / Total</code>.
+    Core ist rein technisch. Total beinhaltet Makro-Adjustments, MTF-Bonus und Fear&amp;Greed.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Bereich</th><th>Signal</th><th>Stärke</th><th>Bedeutung</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-grn">≥ 94</span></td>
+        <td><b>LONG</b></td>
+        <td><span class="badge badge-grn">ULTRA</span></td>
+        <td>Extremer Bull-Confluence. <b>Runner sofort per SuperTrend aktiv</b> (kein Warten auf TP1).</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-grn">87–93</span></td>
+        <td><b>LONG</b></td>
+        <td><span class="badge badge-grn">STRONG</span></td>
+        <td>Hohe Überzeugung. Standard-Exit: 50% bei dynTP1, 50% SuperTrend-Runner nach TP1-Hit.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-grn">80–86</span></td>
+        <td><b>LONG</b></td>
+        <td><span class="badge badge-c1">MEDIUM</span></td>
+        <td>Solid. Kein Ultra-Runner. 15-Bar Time-Stop schützt gegen Seitwärtsbewegung.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-grn">75–79</span></td>
+        <td><b>LONG</b></td>
+        <td><span class="badge badge-amb">WEAK</span></td>
+        <td><b>Vorsicht:</b> Knapp über Schwelle — Makro-Veto wahrscheinlicher. Walk-Forward-Gewinnrate prüfen.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-amb">45–74</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>Kein Signal. System wartet. Nicht traden.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">26–25</span></td>
+        <td><b>SHORT</b></td>
+        <td><span class="badge badge-amb">WEAK</span></td>
+        <td>Knapp — gleiche Vorsicht wie LONG WEAK.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">14–20</span></td>
+        <td><b>SHORT</b></td>
+        <td><span class="badge badge-c1">MEDIUM</span></td>
+        <td>Solid bearish.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">7–13</span></td>
+        <td><b>SHORT</b></td>
+        <td><span class="badge badge-red">STRONG</span></td>
+        <td>Hohe Short-Überzeugung.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">≤ 6</span></td>
+        <td><b>SHORT</b></td>
+        <td><span class="badge badge-red">ULTRA</span></td>
+        <td>Extremer Bear. Runner sofort per SuperTrend aktiv.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Wie setzt sich der Core-Score zusammen?</h3>
+
+  <div class="card">
+    <div class="score-row">
+      <span class="score-label">Trend (30%)</span>
+      <div class="score-bar"><div class="score-fill" style="width:30%;background:var(--c1)"></div></div>
+      <span class="score-val">30%</span>
+    </div>
+    <p style="font-size:12px;margin:4px 0 12px 90px">EMA 20/50/200 Alignment, SuperTrend-Richtung, ADX-Stärke</p>
+
+    <div class="score-row">
+      <span class="score-label">Momentum (25%)</span>
+      <div class="score-bar"><div class="score-fill" style="width:25%;background:#818cf8"></div></div>
+      <span class="score-val">25%</span>
+    </div>
+    <p style="font-size:12px;margin:4px 0 12px 90px">RSI, MACD-Linie vs. Signal, MACD-Histogram, StochRSI %K</p>
+
+    <div class="score-row">
+      <span class="score-label">Volumen (25%)</span>
+      <div class="score-bar"><div class="score-fill" style="width:25%;background:var(--grn)"></div></div>
+      <span class="score-val">25%</span>
+    </div>
+    <p style="font-size:12px;margin:4px 0 12px 90px">OBV vs. EMA, Preis über VWAP, Volumen-Ratio, CVD-Trend</p>
+
+    <div class="score-row">
+      <span class="score-label">Struktur (20%)</span>
+      <div class="score-bar"><div class="score-fill" style="width:20%;background:var(--amb)"></div></div>
+      <span class="score-val">20%</span>
+    </div>
+    <p style="font-size:12px;margin:4px 0 0 90px">BOS/CHoCH (letzte 6 Bars), FVG-Position, EQH/EQL-Level, HH/HL-Trend</p>
+  </div>
+
+  <h3>Was ändert Core → Total?</h3>
+  <div class="card-grid">
+    <div class="card">
+      <b style="color:var(--c1)">+ Addiert werden können</b>
+      <ul style="margin:8px 0 0 16px;font-size:12px;color:var(--mut)">
+        <li><b>+4P</b> max. Fear &amp; Greed (bull: Greed gut, Fear schlecht)</li>
+        <li><b>+2P</b> MTF-Bonus (≥ 4 TFs aligned)</li>
+        <li><b>+1P</b> MTF-Bonus (≥ 3 TFs aligned)</li>
+        <li><b>+25P</b> max. Perp-Basis Bias (positiv)</li>
+        <li><b>+25P</b> max. Funding/OI bei extremen Werten</li>
+      </ul>
+    </div>
+    <div class="card">
+      <b style="color:var(--red)">— Abziehen können</b>
+      <ul style="margin:8px 0 0 16px;font-size:12px;color:var(--mut)">
+        <li><b>−25P</b> Funding Z-Score &gt; 2.5 (extrem crowded)</li>
+        <li><b>−25P</b> OI-Spike (Topping-Warnung)</li>
+        <li><b>−4P</b> Fear &amp; Greed ungünstig</li>
+        <li><b>VETO</b> wenn Total dadurch unter 75 fällt (bei WEAK-Signal)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 3. GATES ===== -->
+<section id="gates">
+  <h2><span class="num">3</span> Die Gates verstehen — wenn kein Signal kommt</h2>
+
+  <p>Das System zeigt im Dashboard einen <b>Block-Grund</b> wenn Score ≥ 75 aber kein Signal vorliegt.
+  Diese Texte sind keine Fehler — sie schützen dich.</p>
+
+  <table>
+    <thead>
+      <tr><th>Block-Meldung</th><th>Bedeutung</th><th>Was tun?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>REGIME-BLOCK: Squeeze</code></td>
+        <td>Bollinger-Band enger als Keltner-Kanal. Volatilitäts-Aufbau imminent. Trend noch nicht entschieden.</td>
+        <td><b>Warten.</b> Nach Breakout steigt das Signal oft stark an. Kein Vorlauf-Trade.</td>
+      </tr>
+      <tr>
+        <td><code>REGIME-BLOCK: Sideways</code></td>
+        <td>EMA 50 und EMA 200 zeigen keinen klaren Trend. Kurs schwingt um Slow-MA.</td>
+        <td><b>Warten.</b> Trending-Confluence-Systeme funktionieren in Ranging-Märkten nicht.</td>
+      </tr>
+      <tr>
+        <td><code>REGIME-BLOCK: Bear blockiert Long</code></td>
+        <td>Core-Score bullish, aber EMA-Struktur bearish. Gegen den Trend traden.</td>
+        <td>Signal ignorieren. Auf Regime-Wechsel (CHoCH) warten.</td>
+      </tr>
+      <tr>
+        <td><code>MTF-Gate offen (2/4)</code></td>
+        <td>Nur 2 von 4 Timeframes aligned. Kein ausreichendes Zeitfenster-Konsens.</td>
+        <td>Warten bis 3/4 aligned. Oft Frage von Stunden.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-pur">MAKRO-VETO</span></td>
+        <td>Core-Score knapp über Schwelle (75–84), aber Funding/OI drückt Total darunter.</td>
+        <td>Kein Trade. Das Veto ist kein Fehler — er sagt dir, dass der technische Confluence von extremem Makro konterkariert wird.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-amb">BTC-Block</span></td>
+        <td>BTC läuft entgegengesetzt zum Altcoin-Signal. Makro-Umfeld passt nicht.</td>
+        <td>Manuell prüfen ob Altcoin-Dekoppelung stattfindet. Im Zweifel: auslassen.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== 4. RADAR ===== -->
+<section id="radar">
+  <h2><span class="num">4</span> Der Signal-Radar — die richtige Nutzung</h2>
+
+  <p>
+    Der Radar scannt <b>25 Top-Bitget-Perps</b> über alle 4 Timeframes gleichzeitig und
+    liefert eine sortierte Liste nach Confluence-Stärke. Das ist der schnellste Weg
+    um zu sehen, <i>wo gerade etwas passiert</i>.
+  </p>
+
+  <h3>Radar-Triage in 3 Schritten</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <div class="step-title">Filter: "Alle TFs" Tab offen lassen (Standard)</div>
+        <div class="step-desc">Zeigt MTF-Konfluenz über alle 4 Zeitfenster. Einzelne TF-Tabs (15m, 1H...) nur zur Diagnose — nicht als Trade-Trigger.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <div class="step-title">Nur BULL oder BEAR Badges beachten — kein NEUTRAL</div>
+        <div class="step-desc">Ein hellgraues NEUTRAL-Badge bedeutet 2/4 oder weniger aligned. Das ist kein Trade-Setup, das ist Lärm.</div>
+      </div>
+    </div>
+    <div class="flow-step warn">
+      <div class="step-n">!</div>
+      <div class="step-body">
+        <div class="step-title">BTC-Block Badge = Warnung, nicht automatisch ausschließen</div>
+        <div class="step-desc">Bei starker Altcoin-Sektorrotation kann ein BTC-Block trotzdem ein Valid-Setup sein — aber dann manuell prüfen, nie Auto-Trade.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-blu">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <b>Pro-Tipp: Auf Score-Divergenz achten</b>
+      <p>Wenn 5+ Assets gleichzeitig BULL-Badges haben und der Radar-Score bei 80+ liegt, ist das oft
+      ein starkes Sektorsignal. BTC als Anker nehmen und mit dem stärksten relativen Setup traden.</p>
+    </div>
+  </div>
+
+  <h3>Was bedeutet der Radar-Score (Zahl rechts)?</h3>
+  <p>
+    Das ist der <b>Durchschnittsscore über alle 4 Timeframes</b> — nicht der Live-Score des aktuellen Charts.
+    Er zeigt zeitfenster-übergreifende Stärke. Klick auf eine Zeile lädt dieses Asset als neues Chart-Symbol.
+  </p>
+</section>
+
+<!-- ===== 5. EXIT ===== -->
+<section id="exit">
+  <h2><span class="num">5</span> Exit-Logik — wie AURA v1.4 Trades beendet</h2>
+
+  <p>
+    Das System arbeitet mit einem <b>50/50-Tranchen-Modell</b>. Kein binäres All-or-Nothing mehr.
+    Das reduziert Max-Drawdown und lässt große Trends laufen.
+  </p>
+
+  <div class="mini-chart"><span class="c-mut">Entry @ 100  ⟵ nächster Kerzen-Open nach Signal</span>
+
+<span class="c-c1">┌─────────────────────────────────────────────┐
+│  Tranche A (50%)          Tranche B (50%)   │
+│  Ziel: dynTP1 [1R–2R]     Ziel: SuperTrend  │
+└─────────────────────────────────────────────┘</span>
+
+<span class="c-mut">SL</span> <span class="c-red">██████ 85.00  (1.5×ATR + Struktur-Stop)</span>
+
+<span class="c-mut">Entry</span>  <span class="c-c1">─────── 100.00</span>
+
+       Nach TP1-Hit:
+       <span class="c-grn">TP1 (dyn)</span> <span class="c-grn">███</span> <span class="c-mut">z.B. 114.00 (1.4R, Opposing Bear FVG)</span>
+         → Tranche A schließt hier (+1.4R netto nach Fee)
+         → SL der Tranche B springt auf Breakeven (Entry)
+
+       Runner (Tranche B) läuft bis SuperTrend flippt:
+       <span class="c-amb">ST-Linie</span>  <span class="c-amb">~~~</span> <span class="c-mut">steigt mit Trend</span>
+       <span class="c-pur">ST-Flip</span>   <span class="c-pur">×</span>  <span class="c-mut">→ Tranche B Exit @ Close</span>
+
+<span class="c-c1">TP2 (1:3)</span> <span class="c-c1">───── 130.00  (Referenz, kein automatischer Exit)</span>
+<span class="c-c1">TP3 (1:5)</span> <span class="c-c1">───── 150.00  (Referenz, kein automatischer Exit)</span></div>
+
+  <h3>dynTP1 — woher kommt das Level?</h3>
+  <p>
+    Das System sucht bei jedem Entry nach dem <b>nächsten Widerstand im [1R, 2R]-Fenster</b>:
+  </p>
+  <ul class="checklist">
+    <li>
+      <span class="icon">🔴</span>
+      <div><b>Opposing FVG (Fair Value Gap)</b> — ein unmitigierter Bärischer FVG, dessen Untergrenze im Bereich 1R–2R über dem Entry liegt. Das System setzt TP1 auf diese Kante statt pauschal auf 2R.</div>
+    </li>
+    <li>
+      <span class="icon">⚡</span>
+      <div><b>EQH (Equal Highs — Liquiditäts-Pool)</b> — wenn erkannte "Double-Top"-Highs in der [1R, 2R]-Zone liegen. Liquidität wird bei EQH oft abgegriffen.</div>
+    </li>
+    <li>
+      <span class="icon">📏</span>
+      <div><b>Fallback 2R</b> — wenn kein Level im Fenster liegt. Immer das konservativere von beiden: Level oder 2R, nie mehr als 2R.</div>
+    </li>
+  </ul>
+
+  <div class="callout callout-grn">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <b>Im Dashboard erkennbar an</b>
+      <p>Die TP1-Zeile zeigt z.B. <code>TP1 dynamisch (Opposing FVG · 1.4R)</code> oder <code>TP1 dynamisch (EQH · 1.8R)</code> statt fix "1:2".</p>
+    </div>
+  </div>
+
+  <h3>Time-Stop — das "Totkapital"-Schutzventil</h3>
+  <p>
+    Nach <b>15 Bars Haltedauer</b> (konfigurierbar) prüft das System: Ist die Position <b>netto im Verlust</b>
+    (Mark-to-Market über beide Tranchen, nach Fees)? Falls ja → sofortiger Exit.
+    Falls die Position positiv ist, läuft sie weiter — kein zwangsweiser Exit bei Gewinnen.
+  </p>
+
+  <div class="callout callout-red">
+    <div class="callout-icon">⛔</div>
+    <div class="callout-body">
+      <b>Was der Time-Stop NICHT ist</b>
+      <p>Kein "nach 15 Kerzen immer raus". Er feuert <b>nur bei rNet ≤ 0</b>. Eine profitable seitwärts laufende
+      Position (z.B. +0.5R) läuft weiter. Er schützt gegen Kapital das in verlierenden Positionen gebunden ist.</p>
+    </div>
+  </div>
+
+  <h3>SuperTrend-Runner — wann aktiv?</h3>
+  <table>
+    <thead><tr><th>Bedingung</th><th>Runner-Start</th><th>Verhalten</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Score 75–84 (WEAK/MEDIUM)</td>
+        <td>Nach TP1-Hit</td>
+        <td>SL springt auf Breakeven. Runner wartet auf SuperTrend-Flip.</td>
+      </tr>
+      <tr>
+        <td>Score ≥ 85 (STRONG/ULTRA)</td>
+        <td><b>Sofort ab Entry</b></td>
+        <td>Kein TP1-Warten. SuperTrend schützt von Anfang an. Höheres Gewinn-Potenzial, aber auch möglicher Early-Exit wenn ST früh kippt.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== 6. MAKRO ===== -->
+<section id="macro">
+  <h2><span class="num">6</span> Makro-Kontext — Funding, OI und Fear&amp;Greed nutzen</h2>
+
+  <p>
+    Die Makro-Daten sind in v1.4 keine bloße Score-Addition mehr — sie können
+    ein Signal <b>physisch blockieren</b> (Veto) oder bis zu 25 Punkte abziehen.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <b style="color:var(--c1)">Funding Rate Z-Score</b>
+      <p style="margin-top:8px;font-size:12px">
+        Misst wie extrem die aktuelle Funding Rate relativ zur Vergangenheit ist.
+        <br><br>
+        <span class="badge badge-grn">Z &lt; 1.5</span> Normal — volle Makro-Gewichtung (±10P max)<br>
+        <span class="badge badge-amb">Z 1.5–2.5</span> Erhöht — Vorsicht bei schwachem Signal<br>
+        <span class="badge badge-red">Z &gt; 2.5</span> Extrem — Cap wird auf ±25P ausgeweitet, VETO wahrscheinlich
+      </p>
+    </div>
+    <div class="card">
+      <b style="color:var(--c1)">Open Interest Spike</b>
+      <p style="margin-top:8px;font-size:12px">
+        Wenn OI-Quadrant = "OI-Spike / Topping-Warnung" aktiv ist, greift derselbe
+        25P-Abzugsmechanismus wie bei extremem Funding.
+        <br><br>
+        <span class="badge badge-red">OI-Spike</span> bei Long-Signal = hohes Kontrahentenrisiko.
+        Das System schützt gegen Long-Setups in überfüllten Märkten.
+      </p>
+    </div>
+  </div>
+
+  <h3>Fear &amp; Greed praktisch lesen</h3>
+  <table>
+    <thead><tr><th>F&amp;G Wert</th><th>Label</th><th>Effekt auf Score</th><th>Praxis</th></tr></thead>
+    <tbody>
+      <tr><td>75–100</td><td>Extreme Greed</td><td>+4P bei Long</td><td>Stärkt Long-Signale, schwächt Short-Signale (conträr)</td></tr>
+      <tr><td>55–74</td><td>Greed</td><td>+2–3P bei Long</td><td>Moderater Rückenwind für Longs</td></tr>
+      <tr><td>45–54</td><td>Neutral</td><td>≈ 0P</td><td>Kein Makro-Edge über Fear&amp;Greed</td></tr>
+      <tr><td>25–44</td><td>Fear</td><td>−2–3P bei Long</td><td>Gegenwind — WEAK-Signale könnten dadurch fallen</td></tr>
+      <tr><td>0–24</td><td>Extreme Fear</td><td>−4P bei Long</td><td>Konträr: guter Short-Verstärker, aber nie alleine traden</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-pur">
+    <div class="callout-icon">🟣</div>
+    <div class="callout-body">
+      <b>Makro-Veto im Dashboard erkennen</b>
+      <p>Signal-Badge wird <b>lila</b> mit Text "MAKRO-VETO". Sub-Zeile zeigt z.B.
+      "Makro -18.5P · Fund Z=2.87 EXTREM ← VETO". Das bedeutet: Core-Score war 77 (über Schwelle),
+      aber Funding/OI hat −18P abgezogen → Total bei 59 → kein Signal.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 8. TRADINGVIEW & PINE ===== -->
+<section id="tradingview">
+  <h2><span class="num">8</span> TradingView &amp; Pine Script v6 — Setup &amp; Golden Master</h2>
+
+  <p>
+    Das Pine Script <code>Symbiose_Signal_System_v1.pine</code> spiegelt die technische Scoring-Engine
+    des Dashboards direkt auf TradingView. Es ist in <b>Pine Script v6</b> geschrieben und enthält
+    spezielle Data-Window-Ausgaben für den Golden-Master-Abgleich.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <b style="color:var(--c1)">1. Script in TradingView einbinden</b>
+      <p style="margin-top:8px;font-size:12px">
+        1. In TradingView unten den <b>Pine-Editor</b> öffnen.<br>
+        2. Den gesamten Inhalt von <code>Symbiose_Signal_System_v1.pine</code> einfügen.<br>
+        3. Auf <b>„In Chart hinzufügen"</b> (Strg+Enter) klicken.<br>
+        4. Prüfen, dass der Compiler fehlerfrei durchläuft.
+      </p>
+    </div>
+    <div class="card">
+      <b style="color:var(--c1)">2. Data Window prüfen</b>
+      <p style="margin-top:8px;font-size:12px">
+        Im TradingView Data Window (Rechte Seitenleiste) erscheinen 5 Kernwerte:<br>
+        • <code>GM Trend Score</code><br>
+        • <code>GM Momentum Score</code><br>
+        • <code>GM Volume Score</code><br>
+        • <code>GM Structure Score</code><br>
+        • <code>GM Core Score</code>
+      </p>
+    </div>
+  </div>
+
+  <h3>Golden-Master Export &amp; Verifikation</h3>
+  <div class="card">
+    <p style="margin-bottom:10px">
+      Um die mathematische Parität zwischen TradingView und dem lokalen Dashboard zu verifizieren:
+    </p>
+    <ul class="checklist">
+      <li>
+        <span class="icon">📊</span>
+        <div><b>5 Datensätze exportieren</b> (Bitget Perpetual Feed, z.B. <code>BITGET:BTCUSDT</code>):<br>
+        BTC 1h, ETH 1h, SOL 1h, XRP 4h, DOGE 4h (jeweils &ge; 500 geschlossene Kerzen + 235 Warmup)
+        nach <code>tests/fixtures/golden/</code> speichern.</div>
+      </li>
+      <li>
+        <span class="icon">⚡</span>
+        <div><b>Vergleich ausführen:</b><br>
+        <code>node tests/compare_pine_js_golden.js tests/fixtures/golden/*.csv</code><br>
+        Standard-Toleranz: absolute Abweichung &le; 0.1 Punkte pro Bar.</div>
+      </li>
+      <li>
+        <span class="icon">🛡️</span>
+        <div><b>Vollständigen Release-Check starten:</b><br>
+        <code>python3 scripts/release_check.py</code> — prüft alle 10 Gates automatisch.</div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 9. CHECKLISTE ===== -->
+<section id="checkliste">
+  <h2><span class="num">9</span> Research-Checkliste — vor jeder Bewertung</h2>
+
+  <p>Prüfe diese Punkte, bevor ein Radar-Kandidat als belastbare Hypothese dokumentiert wird.</p>
+
+  <ul class="checklist">
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>Signal vorhanden?</b> Dashboard zeigt "LONG · STRONG" oder "SHORT · MEDIUM" etc. Kein KEIN SIGNAL, kein REGIME-BLOCK, kein MAKRO-VETO traden.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>MTF-Alignment?</b> Sub-Zeile zeigt ≥ 3/4. Idealerweise 4/4. Bei 3/4 auf das abweichende TF schauen — wenn es der Daily ist, vorsichtiger sein.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>Regime korrekt?</b> "BULL" für Long, "BEAR" für Short. Kein "SIDEWAYS" oder "SIDEWAYS·SQZ" handeln.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>Makro-Status?</b> "normal" bevorzugen. Bei "Fund Z=2.3 erhöht" ist noch ok, aber Positionsgröße reduzieren. Bei VETO: kein Trade.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>BTC-Kontext (Altcoins)?</b> Wenn BTC Bear und Altcoin Long: BTC-Block im Radar prüfen. Nur traden wenn begründete Dekoppelung sichtbar.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>Kelly-Positionsgröße akzeptabel?</b> Dashboard zeigt Kontrakte + USDT-Notional + Leverage. Leverage über 10x manuell prüfen.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>TP1-Level plausibel?</b> dynTP1 Quelle lesen (2R, FVG, EQH). Bei "Opposing FVG · 1.1R" ist das TP1 knapp — kleinere Tranche oder Skip erwägen.</div>
+    </li>
+    <li>
+      <span class="icon">🟢</span>
+      <div><b>Walk-Forward P(Win) positiv?</b> Backtest-Panel zeigt Out-of-Sample-Gewinnrate. Unter 45% = kein Handel, egal was der Score sagt.</div>
+    </li>
+    <li>
+      <span class="icon">🟡</span>
+      <div><b>Stärke WEAK?</b> Bei WEAK (Score 75–79) extra kritisch sein. Makro-Veto-Risiko hoch. Positionsgröße um 50% reduzieren oder warten bis MEDIUM.</div>
+    </li>
+    <li>
+      <span class="icon">🟡</span>
+      <div><b>News-Ereignisse?</b> System kennt keine Kalender-Events. CPI, FOMC, Token-Unlocks manuell checken. Bei großen Events: kein Auto-Trade.</div>
+    </li>
+  </ul>
+</section>
+
+<!-- ===== 10. HÄUFIGE FEHLER ===== -->
+<section id="fehler">
+  <h2><span class="num">10</span> Häufige Fehler — was das System nicht kann</h2>
+
+  <div class="callout callout-red">
+    <div class="callout-icon">❌</div>
+    <div class="callout-body">
+      <b>"Score ist 78, ich trade trotzdem ohne MTF-Alignment"</b>
+      <p>MTF-Alignment ist kein optionaler Bonus — es ist ein Hard-Gate. Ein Score von 78 mit nur 2/4 MTF ist kein Trade. Das Gate existiert weil Einzelzeitfenster-Signale historisch schlechtere Out-of-Sample-Ergebnisse liefern.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-red">
+    <div class="callout-icon">❌</div>
+    <div class="callout-body">
+      <b>"Ich trade gegen den Regime-Filter weil der Chart gut aussieht"</b>
+      <p>Das Regime-Gate basiert auf EMA 50 + EMA 200 Trendstruktur. Wenn du "gegen das System" tradest, trägst du das volle Risiko ohne den statistischen Edge des Walk-Forward-Backtests. Tu es nicht im Auto-Modus.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-red">
+    <div class="callout-icon">❌</div>
+    <div class="callout-body">
+      <b>"Der Walk-Forward-Backtest zeigt 65% Gewinnrate — das ist garantiert"</b>
+      <p>Out-of-Sample-Ergebnisse aus historischen Daten sind Schätzungen, keine Garantien. Distribution-Shift (Markt ändert Charakter) kann die Gewinnrate temporär senken. Kelly-Sizing und Time-Stop sind genau dafür da.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-amb">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <b>"Limit-Order wird nicht gefüllt — was jetzt?"</b>
+      <p>Bei Ausbruchs-Signalen (Volume-Spike, BOS-Kerze) kann der Markt sofort weg sein.
+      Strategie: 1) Kurz warten (2–3 Kerzen). Oft Partial-Fill oder Pullback. 2) Manuell als Market nachgehen wenn STRONG/ULTRA Signal und du bewusst den Taker-Fee akzeptierst. 3) Signal abschreiben — der nächste kommt.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-amb">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <b>"Runner läuft nicht — SuperTrend kippt sofort"</b>
+      <p>Bei MEDIUM/WEAK-Signalen und schnellen Märkten kann der SuperTrend (10, 3.0) früh flippen.
+      Das ist kein Bug — das ist der Schutz-Mechanismus. Tranche B wird dann bei BE oder kleinem Verlust geschlossen.
+      Wenn das oft passiert: Score-Schwelle auf 78 anheben oder auf stärkere Signale (STRONG+) warten.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-blu">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <b>Optimale Nutzung: Dashboard + Pine parallel</b>
+      <p>Das Dashboard ist für Live-Research und Setup Discovery. Pine auf TradingView dient der visuellen Struktur-Analyse (FVG-Boxen, BOS/CHoCH-Labels, SuperTrend-Linie). Beide zeigen identische Scores — nutze Pine, um FVG-Zonen und EQH/EQL zu untersuchen, die dynTP1 beeinflussen.</p>
+    </div>
+  </div>
+
+  <h3>Zusammenfassung: ideales Trade-Setup</h3>
+  <div class="card" style="border-color:rgba(74,222,128,.3)">
+    <p style="color:var(--grn);font-weight:700;margin-bottom:10px">Das perfekte AURA-Signal sieht so aus:</p>
+    <ul style="margin-left:18px;font-size:13px;color:var(--mut);line-height:2">
+      <li>Score <b>≥ 87 (STRONG oder ULTRA)</b></li>
+      <li>MTF <b>4/4 aligned</b> (alle vier Timeframes)</li>
+      <li>Regime <b>BULL (Long) oder BEAR (Short)</b></li>
+      <li>Makro <b>normal</b>, kein Veto, kein OI-Spike</li>
+      <li>FearGreed <b>supportiv</b> (Greed bei Long, Fear bei Short)</li>
+      <li>BTC-Kontext für Altcoins <b>aligned (kein BTC-Block)</b></li>
+      <li>dynTP1 <b>auf Opposing FVG oder EQH</b> (nicht nur 2R-Default)</li>
+      <li>Walk-Forward P(Win) <b>&ge; 52%</b></li>
+      <li><b>Kelly sagt hasEdge: true</b></li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  AURA v1.4 Tutorial · Generiert für das lokale System unter
+  <code>/home/ivo/projects/openhands-demo/symbiose/</code> ·
+  Kein Finanzratschlag. Das Terminal analysiert historische und öffentliche Marktdaten und besitzt keinen Ausführungspfad.
+</footer>
+
+</body>
+</html>

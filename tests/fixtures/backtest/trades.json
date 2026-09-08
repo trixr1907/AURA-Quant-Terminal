@@ -1,0 +1,12 @@
+[
+  {"rNet": 1.2, "outcome": "win",  "dir": 1,  "score": 82, "grossPnl": 120.0, "fees": 1.6},
+  {"rNet": -0.8, "outcome": "loss", "dir": -1, "score": 18, "grossPnl": -80.0, "fees": 1.4},
+  {"rNet": 2.0, "outcome": "win",  "dir": 1,  "score": 91, "grossPnl": 200.0, "fees": 1.9},
+  {"rNet": -1.0, "outcome": "loss", "dir": 1,  "score": 60, "grossPnl": -100.0, "fees": 1.5},
+  {"rNet": 0.5, "outcome": "open", "dir": 1,  "score": 75, "grossPnl": null,  "fees": null},
+  {"rNet": -0.3, "outcome": "loss", "dir": -1, "score": 30, "grossPnl": -30.0, "fees": 1.1},
+  {"rNet": 1.8, "outcome": "win",  "dir": -1, "score": 12, "grossPnl": 180.0, "fees": 1.8},
+  {"rNet": -1.1, "outcome": "loss", "dir": 1,  "score": 40, "grossPnl": -110.0, "fees": 1.6},
+  {"rNet": 0.9, "outcome": "win",  "dir": 1,  "score": 88, "grossPnl": 90.0,  "fees": 1.2},
+  {"rNet": -0.6, "outcome": "loss", "dir": -1, "score": 55, "grossPnl": -60.0, "fees": 1.0}
+]

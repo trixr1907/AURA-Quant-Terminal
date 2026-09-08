@@ -1,0 +1,30 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated runtime state and reports
+data/aura_shared_state.json
+scripts/.release_verdict.json
+
+# Virtual environments and dependencies
+.venv/
+venv/
+node_modules/
+
+# Build and package artifacts
+dist/
+android-apk/
+*.zip
+*.apk
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

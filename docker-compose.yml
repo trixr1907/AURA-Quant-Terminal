@@ -1,0 +1,23 @@
+# ==============================================================================
+# AURA Quant Terminal - Docker Compose Config (Local & Homelab / Self-Hosted)
+# ==============================================================================
+
+services:
+  aura-terminal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aura-quant-terminal:latest
+    container_name: aura-terminal
+    restart: unless-stopped
+    ports:
+      - "${AURA_PORT:-8787}:8787"
+    environment:
+      - SYM_PORT=8787
+      - SYM_HOST=0.0.0.0   # bind all interfaces inside the container; Docker controls external access
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/serving', timeout=4)\" || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
