@@ -26,11 +26,27 @@ class TestSyncMarketDataSafety(unittest.TestCase):
             self.assertNotEqual(rc, 0)
 
 class TestVersionConsistencyFailClosed(unittest.TestCase):
-    """Version check must be fail-closed across Relay, README, and Dashboard."""
+    """Version check must be fail-closed across release artifacts."""
+
+    def test_current_release_version_is_synchronized(self):
+        expected = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertRegex(expected, r"^\d+\.\d+\.\d+$")
+        sources = {
+            "VERSION": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
+            "relay": (ROOT / "bitget_relay.py").read_text(encoding="utf-8"),
+            "README": (ROOT / "README.md").read_text(encoding="utf-8"),
+            "dashboard": (ROOT / "Symbiose_Dashboard.html").read_text(encoding="utf-8"),
+            "tutorial": (ROOT / "SYMBIOSE_Tutorial.html").read_text(encoding="utf-8"),
+            "Dockerfile": (ROOT / "Dockerfile").read_text(encoding="utf-8"),
+        }
+        self.assertEqual(sources["VERSION"], expected)
+        for name in ("relay", "README", "dashboard", "tutorial", "Dockerfile"):
+            with self.subTest(name=name):
+                self.assertIn(expected, sources[name])
 
     def test_missing_dashboard_version_fails(self):
-        relay_src = 'const meta = { "version": "1.4" };'
-        readme = '# AURA v1.4 - Architecture'
+        relay_src = 'const meta = { "version": "1.0.0" };'
+        readme = '# AURA v1.0.0 - Architecture'
         dashboard = '<div>No version here</div>'
         status, detail = release_check.check_version_consistency(relay_src, readme, dashboard)
         self.assertEqual(status, "FAIL")
@@ -40,8 +56,8 @@ class TestVersionConsistencyFailClosed(unittest.TestCase):
 
     def test_missing_relay_version_fails(self):
         relay_src = 'const meta = {};'
-        readme = '# AURA v1.4 - Architecture'
-        dashboard = '<span id="ft-v">AURA Quant Terminal v1.4</span>'
+        readme = '# AURA v1.0.0 - Architecture'
+        dashboard = '<span id="ft-v">AURA Quant Terminal v1.0.0</span>'
         status, detail = release_check.check_version_consistency(relay_src, readme, dashboard)
         self.assertEqual(status, "FAIL")
         parsed = json.loads(detail)
@@ -49,9 +65,9 @@ class TestVersionConsistencyFailClosed(unittest.TestCase):
         self.assertEqual(parsed["error"], "missing version")
 
     def test_missing_readme_version_fails(self):
-        relay_src = 'const meta = { "version": "1.4" };'
+        relay_src = 'const meta = { "version": "1.0.0" };'
         readme = 'No header version'
-        dashboard = '<span id="ft-v">AURA Quant Terminal v1.4</span>'
+        dashboard = '<span id="ft-v">AURA Quant Terminal v1.0.0</span>'
         status, detail = release_check.check_version_consistency(relay_src, readme, dashboard)
         self.assertEqual(status, "FAIL")
         parsed = json.loads(detail)
@@ -59,24 +75,39 @@ class TestVersionConsistencyFailClosed(unittest.TestCase):
         self.assertEqual(parsed["error"], "missing version")
 
     def test_version_mismatch_fails(self):
-        relay_src = 'const meta = { "version": "1.3" };'
-        readme = '# AURA v1.4 - Architecture'
-        dashboard = '<span id="ft-v">AURA Quant Terminal v1.4</span>'
+        relay_src = 'const meta = { "version": "0.9.0" };'
+        readme = '# AURA v1.0.0 - Architecture'
+        dashboard = '<span id="ft-v">AURA Quant Terminal v1.0.0</span>'
         status, detail = release_check.check_version_consistency(relay_src, readme, dashboard)
         self.assertEqual(status, "FAIL")
         parsed = json.loads(detail)
         self.assertEqual(parsed["error"], "mismatched versions")
 
     def test_all_versions_matching_passes(self):
-        relay_src = 'const meta = { "version": "1.4" };'
-        readme = '# AURA v1.4 - Architecture'
-        dashboard = '<span id="ft-v">AURA Quant Terminal v1.4</span>'
+        relay_src = 'const meta = { "version": "1.0.0" };'
+        readme = '# AURA v1.0.0 - Architecture'
+        dashboard = '<span id="ft-v">AURA Quant Terminal v1.0.0</span>'
         status, detail = release_check.check_version_consistency(relay_src, readme, dashboard)
         self.assertEqual(status, "PASS")
         parsed = json.loads(detail)
-        self.assertEqual(parsed["versions"]["relay /serving"], "1.4")
-        self.assertEqual(parsed["versions"]["README header"], "1.4")
-        self.assertEqual(parsed["versions"]["dashboard footer"], "1.4")
+        self.assertEqual(parsed["versions"]["relay /serving"], "1.0.0")
+        self.assertEqual(parsed["versions"]["README header"], "1.0.0")
+        self.assertEqual(parsed["versions"]["dashboard footer"], "1.0.0")
+
+class TestVersionProgression(unittest.TestCase):
+    def test_two_component_version_is_rejected(self):
+        status, _ = release_check.check_version_progression("1.4", None, False)
+        self.assertEqual(status, "FAIL")
+
+    def test_update_without_bump_is_rejected(self):
+        status, detail = release_check.check_version_progression("1.0.0", "v1.0.0", True)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("version bump required", detail)
+
+    def test_patch_increment_is_accepted(self):
+        status, _ = release_check.check_version_progression("1.0.1", "v1.0.0", True)
+        self.assertEqual(status, "PASS")
+
 
 class TestGoldenMasterAuthenticity(unittest.TestCase):
     """Golden Master authenticity must fail-closed with machine-readable provenance."""

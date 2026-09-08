@@ -29,6 +29,7 @@ STAMP = ROOT / "scripts" / ".release_verdict.json"
 # still filtered by EXCLUDE_DIRS / EXCLUDE_SUFFIXES below.
 MANIFEST = [
     # launchers
+    "VERSION",
     "start.py",
     "START.bat",
     "START_OHNE_GUI.bat",

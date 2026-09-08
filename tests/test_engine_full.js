@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA v1.4 — Vollständige JS Engine Test-Suite
+ * AURA v1.0.0 — Vollständige JS Engine Test-Suite
  * ==================================================
  * Kategorien:
  *   - Unit:        clamp, strengthOf, fgLabel, macroAdjust, calcKelly, dynamicTp1At

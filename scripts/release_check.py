@@ -43,6 +43,25 @@ SECRET_PATTERNS = [
 ]
 
 
+def check_version_progression(current: str, latest_tag: str | None, tracked_changes: bool) -> tuple[str, str]:
+    """Require strict SemVer and a version bump after the latest release tag."""
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", current)
+    if not match:
+        return "FAIL", json.dumps({"version": current, "error": "VERSION must use SemVer MAJOR.MINOR.PATCH"})
+    if not latest_tag:
+        return "PASS", json.dumps({"version": current, "baseline": None})
+    tag_match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", latest_tag)
+    if not tag_match:
+        return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "latest release tag is not SemVer"})
+    current_parts = tuple(int(value) for value in match.groups())
+    tag_parts = tuple(int(value) for value in tag_match.groups())
+    if current_parts < tag_parts:
+        return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "version regressed"})
+    if tracked_changes and current_parts == tag_parts:
+        return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "version bump required for update"})
+    return "PASS", json.dumps({"version": current, "tag": latest_tag})
+
+
 def run(cmd, cwd=ROOT, env=None, timeout=900):
     """Run a command; return (exit_code, stdout, stderr)."""
     child_env = dict(env) if env is not None else {**__import__("os").environ}
@@ -124,10 +143,11 @@ def compute_verdict(results: list[dict], model_no_evidence: bool = False) -> str
 
 
 def extract_versions(relay_src: str, readme_text: str, dashboard_html: str) -> dict[str, str | None]:
-    """Extract version strings from Relay, README, and Dashboard."""
-    relay_ver = re.search(r'"version"\s*:\s*"(\d+(?:\.\d+)+)"', relay_src)
-    readme_ver = re.search(r"#\s*AURA\s+v(\d+(?:\.\d+)+)", readme_text)
-    dash_ver = re.search(r"AURA\s+(?:Quant\s+Terminal\s+)?v(\d+(?:\.\d+)+)", dashboard_html)
+    """Extract SemVer strings from Relay, README, and Dashboard."""
+    semver = r"(\d+\.\d+\.\d+)"
+    relay_ver = re.search(r'"version"\s*:\s*"' + semver + r'"', relay_src)
+    readme_ver = re.search(r"#\s*AURA\s+v" + semver, readme_text)
+    dash_ver = re.search(r"AURA\s+(?:Quant\s+Terminal\s+)?v" + semver, dashboard_html)
     return {
         "relay /serving": relay_ver.group(1) if relay_ver else None,
         "README header": readme_ver.group(1) if readme_ver else None,
@@ -416,10 +436,30 @@ def main() -> int:
         add(check("browser E2E (deterministic)", "PASS" if rc == 0 else "FAIL", tail[:400]))
 
     # 9. Documentation/version consistency (fail-closed)
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     relay_src = (ROOT / "bitget_relay.py").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     ver_status, ver_detail = check_version_consistency(relay_src, readme, html)
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        ver_status = "FAIL"
+        ver_detail = json.dumps({"version": version, "error": "VERSION must use SemVer MAJOR.MINOR.PATCH"})
+    elif ver_status == "PASS":
+        parsed_versions = json.loads(ver_detail)["versions"]
+        if any(value != version for value in parsed_versions.values()):
+            ver_status = "FAIL"
+            ver_detail = json.dumps({"version": version, "versions": parsed_versions, "error": "VERSION mismatch"})
     add(check("version consistency", ver_status, ver_detail))
+
+    # 9b. Every update after a release tag must advance SemVer.
+    tag_rc, latest_tag, _ = run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*.[0-9]*.[0-9]*"])
+    latest_tag = latest_tag.strip() if tag_rc == 0 else None
+    changes_rc, changes, changes_err = run(["git", "status", "--porcelain", "--untracked-files=all"])
+    if changes_rc != 0:
+        progression_status = "FAIL"
+        progression_detail = json.dumps({"error": "cannot inspect tracked changes", "stderr": changes_err[-1000:]})
+    else:
+        progression_status, progression_detail = check_version_progression(version, latest_tag, bool(changes.strip()))
+    add(check("version progression", progression_status, progression_detail))
 
     # 10. Secret-pattern and generated-file scan
     hits = []

@@ -1,4 +1,4 @@
-# AURA v1.4 — Smart Quant Terminal
+# AURA v1.0.0 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
@@ -29,6 +29,16 @@ Zentrale Artefakte:
 | `SYMBIOSE_Tutorial.html` | Research-Workflow und Modellinterpretation |
 | `SYMBIOSE_Model_Validation.md` | Grenzen und statistische Validierung |
 | `RELEASE_CHECKLIST.md` | Reproduzierbare Qualitäts-Gates |
+
+## Versionierung
+
+AURA verwendet ab `1.0.0` Semantic Versioning (`MAJOR.MINOR.PATCH`). Die Datei `VERSION` ist die kanonische Versionsquelle.
+
+- `PATCH` (`1.0.1`): kompatible Fehlerbehebung, Dokumentations- oder Sicherheitskorrektur ohne neue Schnittstelle.
+- `MINOR` (`1.1.0`): rückwärtskompatible neue Funktion.
+- `MAJOR` (`2.0.0`): inkompatible Änderung an Verhalten, Datenformat oder öffentlicher Schnittstelle.
+
+Jedes veröffentlichte Update muss die Version erhöhen, den Release-Check bestehen und als Git-Tag `v<Version>` markiert werden. Der Release-Check blockiert fehlende oder inkonsistente `MAJOR.MINOR.PATCH`-Versionen.
 
 ## Start
 
@@ -149,4 +159,4 @@ python3 scripts/build_package.py --force
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.4 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.0.0 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
