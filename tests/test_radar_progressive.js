@@ -43,6 +43,8 @@ function makeContext({ coins, fetchKlines }) {
     regimeOf: () => ({ reg: 1, isSqz: false }),
     classifyRadarTf: () => ({ status: 'ready', tradeable: true, quality: 80, candidate: true }),
     rankRadarCandidates: rows => rows.slice().sort((a, b) => b.avgScore - a.avgScore),
+    restoreRadarSnapshot: () => null,
+    persistRadarSnapshot() {},
     universeSymbols: () => coins,
     isFinite,
     setTimeout,
