@@ -67,6 +67,56 @@ get_vm_ipv4() {
   echo "$ip"
 }
 
+wait_for_vm_ipv4() {
+  local vmid="$1"
+  local timeout_sec="${2:-30}"
+  local elapsed=0
+  local ip=""
+  while [[ $elapsed -lt $timeout_sec ]]; do
+    ip=$(get_vm_ipv4 "$vmid")
+    if [[ -n "$ip" ]]; then
+      echo "$ip"
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  return 1
+}
+
+verify_vm_deployment() {
+  local vmid="$1"
+  local ip="$2"
+  local inspect_cmd
+  inspect_cmd="docker inspect aura-terminal --format 'running={{.State.Running}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} oom={{.State.OOMKilled}} error={{.State.Error}}'"
+  local inspect_out=""
+  for _ in {1..20}; do
+    inspect_out=$(qm guest exec "$vmid" -- bash -c "$inspect_cmd" 2>/dev/null || true)
+    if [[ "$inspect_out" == *"running=true"* && "$inspect_out" == *"health=healthy"* && "$inspect_out" == *"oom=false"* ]]; then
+      break
+    fi
+    sleep 2
+  done
+  if [[ "$inspect_out" != *"running=true"* || "$inspect_out" != *"health=healthy"* || "$inspect_out" != *"oom=false"* ]]; then
+    echo -e "${RD}[FEHLER] Container ist nicht gesund: ${inspect_out}${CL}" >&2
+    qm guest exec "$vmid" -- docker logs --tail 50 aura-terminal >&2 || true
+    return 1
+  fi
+  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/serving" | grep -q '"ok": true'; then
+    echo -e "${RD}[FEHLER] Externer Healthcheck http://${ip}:${PORT}/serving fehlgeschlagen.${CL}" >&2
+    return 1
+  fi
+  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/" | grep -q "AURA"; then
+    echo -e "${RD}[FEHLER] Dashboard ist extern nicht erreichbar.${CL}" >&2
+    return 1
+  fi
+  if ! curl -fsS --max-time 10 "http://${ip}:${PORT}/tutorial" | grep -q "AURA"; then
+    echo -e "${RD}[FEHLER] Tutorial ist extern nicht erreichbar.${CL}" >&2
+    return 1
+  fi
+  echo -e "${GN}[OK] Container gesund; Dashboard, Tutorial und Healthcheck extern erreichbar.${CL}"
+}
+
 # Übertrage eine Datei in eine VM via QEMU Guest Agent (in Chunks aufgeteilt)
 transfer_file_to_vm() {
   local vmid="$1"
@@ -259,16 +309,26 @@ if [[ $FOUND_COUNT -gt 0 ]]; then
         echo -e "${GN}[OK]${CL}"
       fi
 
-      echo -e "\nBaue und starte AURA Docker Container in VM $T_VM_ID..."
-      qm guest exec "$T_VM_ID" -- bash -c "cd /opt/aura && docker build -t aura-quant-terminal:latest . && docker stop aura-terminal >/dev/null 2>&1 || true && docker rm aura-terminal >/dev/null 2>&1 || true && docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 aura-quant-terminal:latest"
+      # IPv4 vor dem Start ermitteln, damit /api/state den LAN-Host explizit erlaubt.
+      SEL_IP=$(wait_for_vm_ipv4 "$T_VM_ID" 30) || {
+        echo -e "${RD}[FEHLER] Keine LAN-IPv4 für VM $T_VM_ID ermittelt. Prüfe den QEMU Guest Agent.${CL}" >&2
+        exit 1
+      }
 
-      # IPv4 der VM erneut abrufen
-      SEL_IP=$(get_vm_ipv4 "$T_VM_ID")
+      echo -e "\nBaue und starte AURA Docker Container in VM $T_VM_ID..."
+      RUN_CMD="cd /opt/aura && docker build -t aura-quant-terminal:latest . && docker stop aura-terminal >/dev/null 2>&1 || true; docker rm aura-terminal >/dev/null 2>&1 || true; docker run -d --name aura-terminal --restart unless-stopped -p ${PORT}:8787 -e AURA_ALLOWED_HOSTS='$SEL_IP' -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest"
+      DEPLOY_OUT=$(qm guest exec "$T_VM_ID" -- bash -c "$RUN_CMD")
+      if [[ "$DEPLOY_OUT" != *'"exitcode" : 0'* && "$DEPLOY_OUT" != *'"exitcode":0'* && "$DEPLOY_OUT" != *'"exitcode": 0'* ]]; then
+        echo -e "${RD}[FEHLER] Docker-Deployment in VM $T_VM_ID fehlgeschlagen:${CL}" >&2
+        echo "$DEPLOY_OUT" >&2
+        exit 1
+      fi
+      verify_vm_deployment "$T_VM_ID" "$SEL_IP"
     fi
 
-    # Fallback falls IP noch nicht direkt erreichbar
     if [[ -z "$SEL_IP" ]]; then
-      SEL_IP="<IP-DER-VM>"
+      echo -e "${RD}[FEHLER] Keine LAN-IP für das gewählte Ziel ermittelt; Deployment wird nicht als erfolgreich gemeldet.${CL}" >&2
+      exit 1
     fi
 
     echo -e "\n${GN}======================================================${CL}"

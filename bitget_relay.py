@@ -37,6 +37,30 @@ HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
 BITGET_BASE = "https://api.bitget.com"
 
+
+def _parse_allowed_hosts(raw: str) -> set[str]:
+    """Return loopback plus explicitly configured host names or IP addresses."""
+    hosts = {"localhost", "127.0.0.1"}
+    for value in raw.split(","):
+        candidate = value.strip().lower().rstrip(".")
+        if not candidate:
+            continue
+        try:
+            parsed = urllib.parse.urlsplit(f"//{candidate}")
+            if (
+                parsed.hostname == candidate
+                and parsed.port is None
+                and parsed.username is None
+                and parsed.password is None
+            ):
+                hosts.add(candidate)
+        except (TypeError, ValueError):
+            continue
+    return hosts
+
+
+ALLOWED_HOSTS = _parse_allowed_hosts(os.environ.get("AURA_ALLOWED_HOSTS", ""))
+
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
 STATE_FILE = STATE_DIR / "aura_shared_state.json"
 STATE_LOCK = threading.Lock()
@@ -149,7 +173,7 @@ def _request(method: str, path: str, body: dict | None = None, public: bool = Tr
 
 class RelayHandler(BaseHTTPRequestHandler):
     _PRIVILEGED_PATHS = {"/api/state"}
-    _LOCAL_HOSTS = {"localhost", "127.0.0.1"}
+    _ALLOWED_HOSTS = ALLOWED_HOSTS
 
     def log_message(self, format, *args):  # suppress default server log  # noqa: A002
         log.debug(format, *args)
@@ -173,7 +197,7 @@ class RelayHandler(BaseHTTPRequestHandler):
             server_port = int(getattr(self.server, "server_port"))
             host = urllib.parse.urlsplit(f"//{self.headers.get('Host', '')}")
             if (
-                host.hostname not in self._LOCAL_HOSTS
+                host.hostname not in self._ALLOWED_HOSTS
                 or host.port != server_port
                 or host.username is not None
                 or host.password is not None

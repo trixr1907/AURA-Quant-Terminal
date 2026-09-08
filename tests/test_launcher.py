@@ -117,6 +117,14 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn('child_env["PYTHONIOENCODING"] = "utf-8"', script)
         self.assertIn('encoding="utf-8"', script)
 
+    def test_proxmox_deployer_configures_lan_state_and_verifies_health(self):
+        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        self.assertIn("-e AURA_ALLOWED_HOSTS='$SEL_IP'", script)
+        self.assertIn('AURA_STATE_DIR=/var/lib/aura', script)
+        self.assertIn('aura-state:/var/lib/aura', script)
+        self.assertIn('verify_vm_deployment "$T_VM_ID" "$SEL_IP"', script)
+        self.assertNotIn('SEL_IP="<IP-DER-VM>"', script)
+
     def test_run_command_enforces_utf8_child_output_on_windows(self):
         source = (ROOT / "start.py").read_text(encoding="utf-8")
         self.assertIn('env["PYTHONIOENCODING"] = "utf-8"', source)
