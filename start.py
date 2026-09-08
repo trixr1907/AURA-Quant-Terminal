@@ -78,7 +78,7 @@ def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 
 
 def check_relay_health() -> dict | None:
     try:
-        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.0.3"})
+        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.0.4"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
@@ -105,7 +105,7 @@ def start_relay(log: Callable[[str], None] = print) -> bool:
     global RELAY_PROC
     health = check_relay_health()
     if health and health.get("ok"):
-        log(f"Relay läuft bereits auf {BASE_URL} (v{health.get('version', '1.0.3')}).")
+        log(f"Relay läuft bereits auf {BASE_URL} (v{health.get('version', '1.0.4')}).")
         return True
 
     log(f"Starte Bitget Relay auf Port {PORT} …")
@@ -124,7 +124,7 @@ def start_relay(log: Callable[[str], None] = print) -> bool:
             return False
         health = check_relay_health()
         if health and health.get("ok"):
-            log(f"Relay bereit: {BASE_URL} (v{health.get('version', '1.0.3')}).")
+            log(f"Relay bereit: {BASE_URL} (v{health.get('version', '1.0.4')}).")
             return True
         time.sleep(0.2)
     log("FEHLER: Timeout beim Relay-Health-Check.")

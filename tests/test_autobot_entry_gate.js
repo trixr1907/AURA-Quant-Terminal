@@ -28,9 +28,9 @@ function extractFunction(name) {
   throw new Error(`${name}() closing brace not found`);
 }
 
-const context = { Number };
+const context = { Number, console };
 vm.createContext(context);
-vm.runInContext(`${extractFunction('collectAutobotCandidates')}\n${extractFunction('evaluateAutobotCandidate')}\nthis.collectAutobotCandidates = collectAutobotCandidates; this.evaluateAutobotCandidate = evaluateAutobotCandidate;`, context);
+vm.runInContext(`${extractFunction('collectAutobotCandidates')}\n${extractFunction('selectAutobotTimeframe')}\n${extractFunction('evaluateAutobotCandidate')}\nthis.collectAutobotCandidates = collectAutobotCandidates; this.evaluateAutobotCandidate = evaluateAutobotCandidate;`, context);
 
 const readyLong = {
   symbol: 'READYUSDT',
@@ -39,7 +39,11 @@ const readyLong = {
   aligned: 3,
   executable: true,
   bestTF: '4h',
-  bestInfo: { score: 84, dir: 1, status: 'ready', tradeable: true },
+  bestInfo: { score: 84, dir: 1, status: 'ready', tradeable: true, quality: 88 },
+  tfScores: {
+    '1h': { score: 79, dir: 1, status: 'ready', tradeable: true, quality: 75 },
+    '4h': { score: 84, dir: 1, status: 'ready', tradeable: true, quality: 88 },
+  },
 };
 
 assert.deepStrictEqual(
@@ -60,11 +64,11 @@ assert.deepStrictEqual(
 );
 
 for (const [label, candidate] of [
-  ['squeeze-blocked', { ...readyLong, executable: false, bestInfo: { ...readyLong.bestInfo, status: 'blocked_squeeze', tradeable: false } }],
+  ['squeeze-blocked', { ...readyLong, executable: false, bestInfo: { ...readyLong.bestInfo, status: 'blocked_squeeze', tradeable: false }, tfScores: { '4h': { ...readyLong.tfScores['4h'], status: 'blocked_squeeze', tradeable: false } } }],
   ['not marked executable', { ...readyLong, executable: undefined }],
   ['zero aligned', { ...readyLong, aligned: 0 }],
   ['missing alignment', { ...readyLong, aligned: undefined }],
-  ['weak best timeframe score', { ...readyLong, bestInfo: { ...readyLong.bestInfo, score: 70 } }],
+  ['weak best timeframe score', { ...readyLong, bestInfo: { ...readyLong.bestInfo, score: 70 }, tfScores: { '4h': { ...readyLong.tfScores['4h'], score: 70 } } }],
 ]) {
   const result = context.evaluateAutobotCandidate(candidate, 78, 3);
   assert.strictEqual(result.accepted, false, `${label} candidate must fail closed`);

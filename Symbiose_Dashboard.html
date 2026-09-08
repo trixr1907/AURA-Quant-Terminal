@@ -681,7 +681,27 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <div id="radarlist"></div>
 </aside>
 
-<footer><b>AURA Quant Terminal v1.0.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
+  <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.4?</h2></div>
+      <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
+    </div>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update macht die automatische Auswahl strenger und verhindert, dass der laufende Radar-Scan beim normalen 60-Sekunden-Update von vorn beginnt.</p>
+    <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
+      <li><b>Radar bleibt stabil:</b> Der laufende oder fertige Full-Universe-Scan wird bei normalen Dashboard-Updates nicht mehr zurückgesetzt.</li>
+      <li><b>Stärkster gültiger Timeframe:</b> Der Autobot wählt je Asset den stärksten tatsächlich handelbaren READY-Timeframe – beim INJ-Beispiel also 4h statt 1h.</li>
+      <li><b>Edge ist Pflicht:</b> Vor jedem Paper-Entry wird auf dem ausgewählten Timeframe ein frischer Walk-Forward-Test gerechnet. Ohne positiven OOS-Erwartungswert gibt es keinen Trade.</li>
+      <li><b>Deine Einstellungen gelten weiter:</b> Min-Score, MTF-Anzahl, Mindestvolumen, BTC-Filter, Risiko, Hebel und maximale Positionen bleiben zusätzliche harte Grenzen.</li>
+    </ul>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
+      <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
+      <button id="release-notes-ok" type="button" style="border:0;background:linear-gradient(135deg,var(--cyn),#2563eb);color:white;font-weight:800;border-radius:10px;padding:10px 16px;cursor:pointer">Verstanden</button>
+    </div>
+  </section>
+</div>
+
+<footer><b>AURA Quant Terminal v1.0.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2242,8 +2262,17 @@ async function loadAll() {
   if (lu) lu.textContent = formatUtcTime();
   renderAll();
   if (btn) btn.disabled = false;
-  loadRadar().catch(e => console.warn('Radar error:', e));
+  if (shouldStartRadarScan(App.radarProgress, App.data.radar?.length || 0, false)) {
+    loadRadar().catch(e => console.warn('Radar error:', e));
+  }
 }
+
+function shouldStartRadarScan(progress, rowCount, force = false) {
+  if (force) return true;
+  if (progress && progress.scanning) return false;
+  return !(Number.isFinite(+rowCount) && +rowCount > 0);
+}
+
 function collectErrs() {
   const e = [];
   if (!App.data.chart) e.push('OHLCV-Quellen (Binance/Binance Vision/Bybit/CoinGecko) nicht erreichbar.');
@@ -6039,17 +6068,47 @@ function sortAutobotCandidates(candidates) {
   });
 }
 
+function selectAutobotTimeframe(candidate, minScore) {
+  if (!candidate || !candidate.tfScores || typeof candidate.tfScores !== 'object') return null;
+  const direction = Number(candidate.mtfDir || candidate.bestInfo?.dir || 0);
+  const reliability = { '15m': 0, '1h': 4, '4h': 7, '1d': 5 };
+  const eligible = Object.entries(candidate.tfScores)
+    .filter(([, info]) => {
+      if (!info || info.status !== 'ready' || info.tradeable !== true || Number(info.dir) !== direction) return false;
+      const score = Number(info.score);
+      if (!Number.isFinite(score)) return false;
+      return direction === 1 ? score >= minScore : direction === -1 ? score <= 100 - minScore : false;
+    })
+    .sort((a, b) => {
+      const qualityDelta = (Number(b[1].quality) || 0) - (Number(a[1].quality) || 0);
+      if (qualityDelta) return qualityDelta;
+      const strengthA = a[1].dir === -1 ? 100 - Number(a[1].score) : Number(a[1].score);
+      const strengthB = b[1].dir === -1 ? 100 - Number(b[1].score) : Number(b[1].score);
+      if (strengthB !== strengthA) return strengthB - strengthA;
+      return (reliability[b[0]] || 0) - (reliability[a[0]] || 0);
+    });
+  if (!eligible.length) return null;
+  const [tf, info] = eligible[0];
+  return { tf, score: Number(info.score), dir: Number(info.dir), status: info.status, tradeable: info.tradeable, quality: Number(info.quality) || 0 };
+}
+
 function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   const rejected = { accepted: false, dir: 0, tf: null, score: null };
-  if (!candidate || candidate.executable !== true || !candidate.bestInfo || candidate.bestInfo.tradeable !== true) return rejected;
+  if (!candidate || candidate.executable !== true) return rejected;
   if (!Number.isFinite(candidate.aligned) || candidate.aligned < mtfNeed) return rejected;
-  const info = candidate.bestInfo;
-  const score = Number(info.score);
-  const dir = info.dir === 1 ? 1 : info.dir === -1 ? -1 : 0;
-  if (info.status !== 'ready' || !Number.isFinite(score) || !dir) return rejected;
-  const shortThreshold = 100 - minScore;
-  if ((dir === 1 && score < minScore) || (dir === -1 && score > shortThreshold)) return rejected;
-  return { accepted: true, dir, tf: candidate.bestTF || '1h', score };
+  const strongest = selectAutobotTimeframe(candidate, minScore);
+  if (!strongest) return rejected;
+  return { accepted: true, dir: strongest.dir, tf: strongest.tf, score: strongest.score };
+}
+
+function evaluateAutobotEdge(stats, minSamples = 5) {
+  const rejected = { accepted: false, edge: 0, sampleSize: 0 };
+  if (!stats || !Number.isFinite(+stats.total) || +stats.total < minSamples ||
+      !Number.isFinite(+stats.wr) || !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
+      +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
+  const edge = (+stats.wr * +stats.avgWinR) - ((1 - +stats.wr) * +stats.avgLossR);
+  if (!Number.isFinite(edge) || edge <= 0) return { accepted: false, edge: Number.isFinite(edge) ? edge : 0, sampleSize: +stats.total };
+  return { accepted: true, edge, sampleSize: +stats.total };
 }
 
 const Autobot = {
@@ -6438,6 +6497,17 @@ const Autobot = {
         }, this.minScore, this.mtfNeed);
         if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) continue;
 
+        // A technical READY setup is not enough: validate positive out-of-sample
+        // expectancy on the exact freshly selected timeframe before sizing.
+        const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {
+          makerFee: App.fees.maker,
+          takerFee: App.fees.taker,
+          slippage: App.slippage,
+          timeStopBars: App.timeStopBars
+        });
+        const edgeGate = evaluateAutobotEdge(freshWalkForward && freshWalkForward.stats);
+        if (!edgeGate.accepted) continue;
+
         const dir = freshCandidate.dir;
         const atr = A.last.atr || (lastPrice * 0.015);
         const slDist = Math.max(lastPrice * 0.005, atr * 1.5);
@@ -6487,6 +6557,8 @@ const Autobot = {
           scaledOut: false,
           score: Math.round(freshCandidate.score),
           signalTf: freshCandidate.tf,
+          edge: edgeGate.edge,
+          edgeSamples: edgeGate.sampleSize,
           timeStopBars: optTimeStop.bars,
           maxHoldHours: optTimeStop.hours,
           timeStopReason: optTimeStop.reason
@@ -6495,7 +6567,7 @@ const Autobot = {
         this.trades.push(newTrade);
         tradePrices[c.symbol] = lastPrice;
 
-        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Margin: ${margin} USDT | Time-Stop: ${optTimeStop.bars} Bars / ${optTimeStop.hours}h | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${optTimeStop.bars} Bars / ${optTimeStop.hours}h | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
         this.save();
         this.render();
         break; // 1 trade per scan tick
@@ -6648,8 +6720,33 @@ const Autobot = {
   }
 };
 
+function showReleaseNotesOnce(version) {
+  const modal = document.getElementById('release-notes-modal');
+  if (!modal || !version) return false;
+  const key = `aura-release-notes-seen-${version}`;
+  try {
+    if (localStorage.getItem(key) === '1') return false;
+    localStorage.setItem(key, '1');
+  } catch (_) {}
+  modal.hidden = false;
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+  return true;
+}
+
 function init() {
   buildSymbols(); bindTF(); bindRadarTabs(); bindSound(); bindTradeTracker(); bindRadarDrawer(); Autobot.init(); SyncEngine.init();
+  const releaseModal = $('release-notes-modal');
+  const closeReleaseNotes = () => {
+    if (!releaseModal) return;
+    releaseModal.hidden = true;
+    releaseModal.style.display = 'none';
+    releaseModal.setAttribute('aria-hidden', 'true');
+  };
+  const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
+  const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
+  if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
+  showReleaseNotesOnce('1.0.4');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
