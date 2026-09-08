@@ -12,6 +12,7 @@ LABEL version="1.4"
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    SYM_HOST=0.0.0.0 \
     SYM_PORT=8787
 
 # Create non-root user for maximum security (Best Practice)
