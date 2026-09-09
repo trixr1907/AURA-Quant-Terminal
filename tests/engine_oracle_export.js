@@ -49,7 +49,10 @@ const candles = [];
 for (let i = 0; i < n; i++) candles.push({ t: i * 3600000, o: 100, h: 101, l: 99, c: 100, v: 1 });
 const A = { score: new Float64Array(n).fill(50) }; // neutral score => dir 0 everywhere => no entries
 const wf = E.runWalkForwardBacktest(candles, A, { makerFee: 0.0002, takerFee: 0.0006, slippage: 0 });
-out.folds = wf.folds.map(f => ({ fold: f.fold, trainRange: f.trainRange, testRange: f.testRange }));
+out.folds = wf.folds.map(f => ({
+  fold: f.fold, trainRange: f.trainRange, testRange: f.testRange,
+  trainBars: f.trainBars, trainHours: f.trainHours, testHours: f.testHours
+}));
 out.totalTrials = wf.totalTrials;
 
 console.log(JSON.stringify(out));

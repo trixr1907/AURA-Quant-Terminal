@@ -72,7 +72,7 @@ const ctx = {
 ctx.window.document = document;
 ctx.globalThis = ctx;
 vm.createContext(ctx);
-vm.runInContext(scriptMatch[1], ctx);
+vm.runInContext(scriptMatch[1] + '\nthis.__Autobot = Autobot;\nthis.__App = App;', ctx);
 
 assert.strictEqual(typeof ctx.calculateTradeProjection, 'function', 'calculateTradeProjection missing');
 
@@ -580,7 +580,109 @@ const mockA = ctx.analyze ? ctx.analyze(mockCandles) : null;
 const optResult = ctx.optimizeTimeStopForAsset(mockCandles, mockA, { fallbackBars: 12, maxCapHours: 24, minFloorHours: 3 });
 assert(Number.isFinite(optResult.bars) && optResult.bars >= 3 && optResult.bars <= 30, 'optimized bars must be within valid range');
 assert(Number.isFinite(optResult.hours) && optResult.hours >= 3 && optResult.hours <= 24, 'optimized hours must be within bounds');
+assert.strictEqual(optResult.effectiveTrials, 18 * 20,
+  'asset TimeStop must use its actual inclusive 5..24 candidate family under a 24h cap');
+
+// Selection must be DSR-first, not raw expectancy*sqrt(sample count).
+const originalWalkForward = ctx.runWalkForwardBacktest;
+const seenDsrSweep = [];
+ctx.runWalkForwardBacktest = (_candles, _A, options) => {
+  seenDsrSweep.push(options);
+  return options.timeStopBars === 5
+    ? { dsr: { dsr: 0.55 }, stats: { exp: 10, total: 100 } }
+    : { dsr: { dsr: 0.75 }, stats: { exp: 0.01, total: 2 } };
+};
+const dsrFirst = ctx.optimizeTimeStopForAsset(mockCandles, mockA, {
+  timeframe: '1h', timeframeHours: 1, minBars: 5, maxBars: 6, maxCapHours: 24, minFloorHours: 1,
+});
+assert.strictEqual(dsrFirst.bars, 6, 'higher deflated DSR must beat higher unadjusted score');
+assert.deepStrictEqual(seenDsrSweep.map(x => x.trialMultiplier), [2, 2], 'two evaluated candidates imply exactly two trial-family members');
+
+// A 12-hour 15m fallback is 48 bars and must occur in the actual sweep.
+const seenFallbackSweep = [];
+ctx.runWalkForwardBacktest = (_candles, _A, options) => {
+  seenFallbackSweep.push(options);
+  return { dsr: { dsr: 0.5 }, stats: { exp: 0, total: 0 } };
+};
+ctx.optimizeTimeStopForAsset(mockCandles.concat(mockCandles), mockA, {
+  timeframe: '15m', timeframeHours: 0.25, fallbackBars: 48, fallbackHours: 12,
+  maxCapHours: 24, minFloorHours: 0.5,
+});
+assert(seenFallbackSweep.some(x => x.timeStopBars === 48), '15m/12h fallback must be an evaluated candidate');
+assert.strictEqual(seenFallbackSweep[0].trialMultiplier, seenFallbackSweep.length,
+  'trial multiplier must equal the actual inclusive evaluated candidate count');
+ctx.runWalkForwardBacktest = originalWalkForward;
 
 console.log('PASS all Live Trade Tracker & BTC Trend contracts validated');
 
 
+
+// ============================================================================
+// 12. Behavior: Autobot fresh-WF evidence integration
+// ============================================================================
+(async () => {
+  const scanCtx = { ...ctx };
+  scanCtx.globalThis = scanCtx;
+  vm.createContext(scanCtx);
+
+  const scanStart = scriptMatch[1].indexOf('  async scanAndExecuteOpportunities() {');
+  const scanEnd = scriptMatch[1].indexOf('\n  },\n\n  render()', scanStart);
+  assert(scanStart >= 0 && scanEnd > scanStart, 'Autobot scan source missing');
+  let scanSource = scriptMatch[1];
+  const scanBody = scanSource.slice(scanStart, scanEnd)
+    .replace('computeBtcBias(App.data.btcScore, App.data.btcRegime)', '__scanComputeBtcBias(App.data.btcScore, App.data.btcRegime)')
+    .replace('await fetchKlines(c.symbol, candidateGate.tf, 1000)', 'await __scanFetchKlines(c.symbol, candidateGate.tf, 1000)')
+    .replace('const A = analyze(kdata.candles);', 'const A = __scanAnalyze(kdata.candles);')
+    .replace('const freshGate = classifyRadarTf({', 'const freshGate = __scanClassifyRadarTf({')
+    .replace('const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {', 'const freshWalkForward = __scanRunWalkForward(kdata.candles, A, {')
+    .replace('const edgeGate = evaluateAutobotEdge(freshWalkForward);', 'const edgeGate = __scanEvaluateEdge(freshWalkForward);')
+    .replace('const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {', 'const optTimeStop = __scanOptimizeTimeStop(kdata.candles, A, {');
+  scanSource = scanSource.slice(0, scanStart) + scanBody + scanSource.slice(scanEnd);
+  vm.runInContext(scanSource + '\nthis.__Autobot = Autobot;\nthis.__App = App;', scanCtx);
+
+  const bot = scanCtx.__Autobot;
+  const candles = Array.from({ length: 50 }, (_, i) => ({ t: i, o: 100, h: 101, l: 99, c: 100, v: 1 }));
+  const freshA = {
+    n: 50, last: { score: 80, dir: 1, adx: 25, atr: 1 },
+    c: new Float64Array(50).fill(100), e50: new Float64Array(50).fill(101),
+    e200: new Float64Array(50).fill(100), adx: new Float64Array(50).fill(25),
+    atr: new Float64Array(50).fill(1),
+  };
+  const candidate = {
+    symbol: 'EDGEUSDT', executable: true, aligned: 3,
+    bestInfo: { score: 80, dir: 1, status: 'ready', tradeable: true },
+  };
+  scanCtx.__App.data.radar = [candidate, { ...candidate, symbol: 'SECONDUSDT' }];
+  scanCtx.__App.universe = [];
+  scanCtx.__App.data.btcScore = null; scanCtx.__App.data.btcRegime = null;
+  scanCtx.__App.fees = { maker: 0, taker: 0 }; scanCtx.__App.slippage = 0; scanCtx.__App.timeStopBars = 15;
+  bot.trades = []; bot.equity = 10000; bot.min24hVol = 0; bot.btcFilter = false; bot.minScore = 78; bot.mtfNeed = 3;
+  bot.save = () => {}; bot.render = () => {}; bot.log = () => {};
+  scanCtx.__scanFetchKlines = async () => ({ candles });
+  scanCtx.__scanAnalyze = () => freshA;
+  scanCtx.__scanClassifyRadarTf = () => ({ tradeable: true, status: 'ready', score: 80, dir: 1 });
+  scanCtx.__scanComputeBtcBias = () => ({ available: false });
+  scanCtx.__scanOptimizeTimeStop = () => ({ bars: 12, hours: 12, reason: 'stub' });
+
+  let receivedWf = null, receivedOptions = null;
+  const rejectedWf = { evidenceStatus: 'OOS', stats: { total: 15, wr: 0.6, avgWinR: 1.8, avgLossR: 1 }, dsr: { dsr: 0.49 }, totalTrials: 36 };
+  scanCtx.__scanRunWalkForward = (_c, _a, options) => { receivedOptions = options; return rejectedWf; };
+  scanCtx.__scanEvaluateEdge = wf => { receivedWf = wf; return { accepted: false, edge: 0, sampleSize: 0, dsr: 0, effectiveTrials: 0 }; };
+  await bot.scanAndExecuteOpportunities();
+  assert.strictEqual(receivedWf, rejectedWf, 'full fresh walk-forward object must reach evidence gate');
+  assert.strictEqual(receivedOptions.trialMultiplier, 2, 'trial multiplier must equal actual candidates');
+  assert.strictEqual(receivedOptions.tfMinutes, 60, 'fresh selected 1h timeframe must pass 60 minutes');
+  assert.strictEqual(bot.trades.length, 0, 'rejected OOS/DSR evidence must not reach trade creation');
+
+  const acceptedWf = { ...rejectedWf, dsr: { dsr: 0.7 } };
+  scanCtx.__scanRunWalkForward = (_c, _a, options) => { receivedOptions = options; return acceptedWf; };
+  scanCtx.__scanEvaluateEdge = wf => {
+    receivedWf = wf;
+    return { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.7, effectiveTrials: wf.totalTrials };
+  };
+  await bot.scanAndExecuteOpportunities();
+  assert.strictEqual(receivedWf, acceptedWf, 'accepted path must also receive full fresh walk-forward object');
+  assert.strictEqual(bot.trades.length, 1, 'accepted evidence must permit one trade');
+  assert.strictEqual(bot.trades[0].effectiveTrials, 36, 'accepted trade must persist effective trials');
+  console.log('PASS Autobot scan uses fresh WF evidence, blocks rejected evidence, and persists effective trials');
+})().catch(error => { console.error(error); process.exitCode = 1; });

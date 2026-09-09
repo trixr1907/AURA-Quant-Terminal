@@ -376,7 +376,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       <article class="panel chartcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Chart &amp; Price Action</h2><div id="chart-asset-badge" class="chart-asset-pill"><span class="cap-sym" id="cap-sym">BTCUSDT</span><span class="cap-tf" id="cap-tf">1H</span><span class="cap-px" id="cap-px">—</span><span class="cap-chg" id="cap-chg">—</span><span class="cap-reg" id="cap-reg">—</span></div><span class="tag" id="chart-src" style="margin-left:auto">—</span></div><div class="chart-body"><canvas id="chart"></canvas><div class="chartleg" id="chartleg"><span data-ov="e20"><i style="background:#22d3ee"></i>EMA 20</span><span data-ov="e50"><i style="background:#f59e0b"></i>EMA 50</span><span data-ov="e200"><i style="background:#a855f7"></i>EMA 200</span><span data-ov="st"><i style="background:#22c55e"></i>SuperTrend</span><span data-ov="vwap"><i style="background:#e2e8f0"></i>VWAP</span><span data-ov="vol"><i style="background:#3b82f6"></i>Volumen</span><span data-ov="fvg"><i style="background:rgba(34,197,94,.8)"></i>FVG Zonen</span><span data-ov="liq"><i style="background:#f59e0b"></i>EQH/EQL Pools</span><span data-ov="kz"><i style="background:rgba(56,189,248,.6)"></i>Killzones</span></div><div class="chartfoot"><span>Bars</span><button class="cbtn" id="btn-zoom-in">+</button><button class="cbtn" id="btn-zoom-out">−</button><button class="cbtn" id="btn-zoom-100">100</button><button class="cbtn" id="btn-zoom-260">260</button><button class="cbtn" id="btn-zoom-500">500</button><input type="range" id="barslider" min="60" max="600" value="260" step="10"><span id="barsval">260</span><span>Scroll = Zoom · Hover = Detail</span></div></div></article>
       <div class="research-stack">
         <article class="panel sigcard" id="sigcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Setup Validation</h2><div id="sig-asset-badge" class="sig-asset-pill"><span class="cap-sym" id="sig-sym-badge">BTCUSDT</span><span class="tag ok" id="sig-tf">1H</span></div><button class="copy-intel-btn" id="btn-copy-setup" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button></div><div class="panel-body"><div class="sighead"><div class="gaugewrap"><svg id="gauge" viewBox="0 0 200 120"></svg></div><div class="sigmain"><div id="sigscoren">— <small>/100</small></div><div id="sigstrength">—</div><div id="sigbadge">LADE…</div><div id="sigplain">Lade Daten …</div></div></div><div class="subscores"><div class="subrow"><span>Trend</span><div class="sbar"><i id="sb-trend"></i></div><b id="n-trend">—</b></div><div class="subrow"><span>Momentum</span><div class="sbar"><i id="sb-mom"></i></div><b id="n-mom">—</b></div><div class="subrow"><span>Volumen</span><div class="sbar"><i id="sb-vol"></i></div><b id="n-vol">—</b></div><div class="subrow"><span>Struktur</span><div class="sbar"><i id="sb-str"></i></div><b id="n-str">—</b></div><div class="subrow"><span>Funding Z</span><div class="sbar"><i id="sb-fund"></i></div><b id="n-fund">—</b></div><div class="subrow"><span>OI</span><div class="sbar"><i id="sb-oi"></i></div><b id="n-oi">—</b></div></div><div class="spark"><canvas id="scspark"></canvas></div><div class="trades" id="trades"></div></div></article>
-        <section class="time-stop-optimizer" id="time-stop-optimizer" aria-labelledby="time-stop-title"><div><b id="time-stop-title">Time-Stop Optimizer</b><span>Testet für den aktuell geladenen Coin 5–30 Bars im Purged Walk-Forward und übernimmt das beste DSR-/Erwartungs-Ergebnis.</span></div><button class="act" id="auto-timestop" type="button" title="Time-Stop für das aktuelle Setup automatisch optimieren">⚡ Auto-Optimiere Time-Stop</button><span id="timestop-status" role="status">Bereit · aktueller Wert: 15 Bars</span></section>
+        <section class="time-stop-optimizer" id="time-stop-optimizer" aria-labelledby="time-stop-title"><div><b id="time-stop-title">Time-Stop Optimizer</b><span>Testet für den aktuell geladenen Coin 5–30 Bars im Anchored Walk-Forward und übernimmt das beste DSR-/Erwartungs-Ergebnis.</span></div><button class="act" id="auto-timestop" type="button" title="Time-Stop für das aktuelle Setup automatisch optimieren">⚡ Auto-Optimiere Time-Stop</button><span id="timestop-status" role="status">Bereit · aktueller Wert: 15 Bars</span></section>
         <article class="panel"><div class="panel-head"><h2>Liquidity &amp; Structure</h2><span class="tag">Validation</span></div><div class="panel-body" id="liqlist"></div></article>
       </div>
     </section>
@@ -670,7 +670,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       </div>
     </section>
 
-    <section class="panel backtest-panel"><div class="panel-head"><h2>OOS Backtest Validation</h2><span class="tag" id="bt-tag">—</span></div><div class="panel-body"><div class="btiles"><div class="btile"><b id="bt-n">—</b><span>Setups</span></div><div class="btile"><b id="bt-wr">—</b><span>Win-Rate</span></div><div class="btile"><b id="bt-avg">—</b><span>Ø Gewinn R</span></div><div class="btile"><b id="bt-pf">—</b><span>Profit-Faktor</span></div><div class="btile"><b id="bt-exp">—</b><span>Erwartung R</span></div><div class="btile"><b id="bt-dsr">—</b><span>DSR</span></div><div class="btile"><b id="bt-dd">—</b><span>Drawdown</span></div></div><div id="bt-folds"></div><div class="btnote">Purged Walk-Forward · 4 OOS-Folds · <b id="bt-bars">—</b> Bars · Time-Stop <b id="bt-ts">15</b></div><div class="btbl"><table id="bttbl"><thead><tr><th>Fold</th><th>Zeit</th><th>Richtung</th><th>Score</th><th>Entry</th><th>Stop</th><th>TP1</th><th>Ergebnis</th><th>Bars</th></tr></thead><tbody></tbody></table></div></div></section>
+    <section class="panel backtest-panel"><div class="panel-head"><h2>OOS Backtest Validation</h2><span class="tag" id="bt-tag">—</span></div><div class="panel-body"><div class="btiles"><div class="btile"><b id="bt-n">—</b><span>Setups</span></div><div class="btile"><b id="bt-wr">—</b><span>Win-Rate</span></div><div class="btile"><b id="bt-avg">—</b><span>Ø Gewinn R</span></div><div class="btile"><b id="bt-pf">—</b><span>Profit-Faktor</span></div><div class="btile"><b id="bt-exp">—</b><span>Erwartung R</span></div><div class="btile"><b id="bt-dsr">—</b><span>DSR</span></div><div class="btile"><b id="bt-dd">—</b><span>Drawdown</span></div></div><div id="bt-folds"></div><div class="btnote">Anchored t1-safe Walk-Forward · 4 OOS-Folds · <b id="bt-bars">—</b> Bars · Time-Stop <b id="bt-ts">15</b></div><div class="btbl"><table id="bttbl"><thead><tr><th>Fold</th><th>Zeit</th><th>Richtung</th><th>Score</th><th>Entry</th><th>Stop</th><th>TP1</th><th>Ergebnis</th><th>Bars</th></tr></thead><tbody></tbody></table></div></div></section>
 
     <details class="panel details-panel"><summary>Methodik &amp; Begriffe</summary><div class="panel-body">Score bündelt Trend, Momentum, Volumen und Struktur. Ein Setup gilt erst nach Regime-, MTF- und statistischem Edge-Gate als belastbar. Backtests sind historische OOS-Evidenz, keine Prognose.</div></details>
   </main>
@@ -694,14 +694,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.7?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.8?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt robuste geräteübergreifende State-Synchronisierung mit Revisions-Koordination und den korrigierten FVG-Lebenszyklus.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt den methodisch korrigierten Anchored t1-safe Walk-Forward Backtest mit exakter Fold-Grenzziehung, bereinigtem Trial-Accounting für DSR und Timeframe-skalierten Time-Stops.</p>
     <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
-      <li><b>Geräteübergreifende State-Synchronisierung:</b> Paper-Trades, Trade-Historie und Autobot-Zustand werden über <code>/api/state</code> mit Revisions-Tracking synchronisiert. Löschungen und Teil-Schließungen auf einem Gerät übertragen sich zuverlässig auf alle anderen Geräte.</li>
-      <li><b>Sichtbarer Sync-Status:</b> Nicht-blockierende Statusanzeige (verbunden, synchronisiert, Konflikt, offline) in der Statusleiste.</li>
-      <li><b>Korrigierter FVG-Lebenszyklus:</b> Die 3-Kerzen-Regel definiert die FVG-Entstehung, nicht eine künstliche Lebensdauer. Zonen bleiben bis zur vollständigen Mitigation aktiv und werden sauber als ein Rechteck bis zum Füll- oder aktuellen Chart-Bar gerendert.</li>
+      <li><b>Anchored t1-safe Walk-Forward:</b> Exakter t1-Schutz ohne Train/Test-Leakage, transparente Erfassung von Grenzereignissen (purgedByT1 / censoredTest).</li>
+      <li><b>Effektives Trial-Accounting:</b> DSR-Berechnung berücksichtigt die reale Selektionsfamilie (Grid × TimeStop-Sweep bzw. Kandidatenmenge).</li>
+      <li><b>Timeframe-skalierter Time-Stop:</b> Stagnationsstunden werden dynamisch auf die exakte Kerzenanzahl des jeweiligen Zeitfensters umgerechnet.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -710,7 +710,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.0.7</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.8</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1547,7 +1547,7 @@ function macroAdjust(core, fg, fundBias, fundingZ, oiBias, oiSpike, basisBias, m
 }
 
 // ============================================================================
-//  PURGED WALK-FORWARD BACKTEST (K=4 FOLDS · EMBARGO · DSR)
+//  ANCHORED T1-SAFE WALK-FORWARD BACKTEST (K=4 FOLDS · DSR)
 // ============================================================================
 
 function simulateRange(candles, A, startIdx, endIdx, params, foldId = null, maxExitIdx = null) {
@@ -1728,88 +1728,93 @@ function runWalkForwardBacktest(candles, A, options = {}) {
   const effWarmup = Math.min(SYM.warmup || 235, Math.max(14, n - 60));
   const warmup = effWarmup;
   const K = 4;
-  const minTrainBars = 150;
+  const minTrainBars = 300;
+  const minTrainTrades = 5;
   const minTestPerFold = 60;
-  const firstTestStart = warmup + minTrainBars;
+  const tfMinutes = Number.isFinite(+options.tfMinutes) && +options.tfMinutes > 0 ? +options.tfMinutes : 60;
+  const trialMultiplier = Number.isFinite(+options.trialMultiplier) && Number.isInteger(+options.trialMultiplier) && +options.trialMultiplier >= 1 ? +options.trialMultiplier : 1;
+  const firstTestStart = warmup + minTrainBars + 1;
   const lastSignalIdx = n - 2;
   const testableBars = Math.max(0, lastSignalIdx - firstTestStart + 1);
   if (testableBars < minTestPerFold * K) {
     const oosTrades = [];
     const stats = evaluateTrades(oosTrades);
     return {
-      oosTrades,
-      stats,
-      dsr: calcDSR(stats.returns, 1),
-      folds: [],
-      probMap: calibrateProbabilities(oosTrades),
-      totalTrials: 0,
-      evidenceStatus: 'INSUFFICIENT_DATA'
+      oosTrades, stats, dsr: calcDSR(stats.returns, 1), folds: [],
+      probMap: calibrateProbabilities(oosTrades), totalTrials: 0,
+      evidenceStatus: 'INSUFFICIENT_DATA', method: 'anchored_t1'
     };
   }
 
-  const longThs = [72, 75, 78];
-  const shortThs = [22, 25, 28];
-  const regimeGates = [true, false];
   const paramGrid = [];
-  for (const lt of longThs) {
-    for (const st of shortThs) {
-      for (const rg of regimeGates) {
-        paramGrid.push({ longTh: lt, shortTh: st, regimeGate: rg, atrSl: SYM.atrSl, cooldown: SYM.cooldown, maxHold: SYM.maxHold, timeStopBars: options.timeStopBars || SYM.timeStopBars, makerFee: options.makerFee, takerFee: options.takerFee, slippage: options.slippage });
+  for (const lt of [72, 75, 78]) {
+    for (const st of [22, 25, 28]) {
+      for (const rg of [true, false]) {
+        paramGrid.push({ longTh: lt, shortTh: st, regimeGate: rg, atrSl: SYM.atrSl,
+          cooldown: SYM.cooldown, maxHold: SYM.maxHold,
+          timeStopBars: options.timeStopBars || SYM.timeStopBars,
+          makerFee: options.makerFee, takerFee: options.takerFee, slippage: options.slippage });
       }
     }
   }
 
   const testFoldSize = Math.floor(testableBars / K);
   const trainStart = warmup;
-  const purgeBars = Math.max(20, SYM.atrLen || 14);
   const allOosTrades = [];
   const foldReports = [];
 
   for (let k = 0; k < K; k++) {
     const testStart = firstTestStart + k * testFoldSize;
-    const testEnd = (k === K - 1) ? n - 2 : testStart + testFoldSize - 1;
-    const embargoBars = Math.max(5, Math.floor((testStart - trainStart) * 0.01));
-    const trainEnd = testStart - purgeBars - embargoBars;
-
+    const testEnd = k === K - 1 ? n - 2 : testStart + testFoldSize - 1;
+    const trainEnd = testStart - 2; // entry is i + 1; test candles remain unread
+    const trainExitBoundary = testStart - 1;
     let bestParams = paramGrid[0];
     let bestScore = -Infinity;
+    let selectedTrainTrades = [];
+    let selectedPurgedByT1 = 0;
 
     for (const params of paramGrid) {
-      const trainTrades = simulateRange(candles, A, trainStart, trainEnd, params, null, trainEnd);
+      const simulated = simulateRange(candles, A, trainStart, trainEnd, params, null, trainExitBoundary);
+      const trainTrades = simulated.filter(t => t.exitBar != null && t.exitBar < testStart);
+      const purgedByT1 = simulated.length - trainTrades.length;
       const stats = evaluateTrades(trainTrades);
-      const obj = stats.total >= 3 ? stats.exp * Math.sqrt(stats.total) : -999;
+      const obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) : -Infinity;
       if (obj > bestScore) {
         bestScore = obj;
         bestParams = params;
+        selectedTrainTrades = trainTrades;
+        selectedPurgedByT1 = purgedByT1;
       }
     }
 
-    const oosTrades = simulateRange(candles, A, testStart, testEnd, bestParams, k + 1, testEnd);
-    const foldStats = evaluateTrades(oosTrades);
-    foldReports.push({
-      fold: k + 1,
-      trainRange: [trainStart, trainEnd],
-      testRange: [testStart, testEnd],
-      params: bestParams,
-      stats: foldStats,
-      trades: oosTrades
-    });
+    // Deterministic Grid[0] fallback retains no fabricated train evidence.
+    if (bestScore === -Infinity) {
+      const simulated = simulateRange(candles, A, trainStart, trainEnd, bestParams, null, trainExitBoundary);
+      selectedTrainTrades = simulated.filter(t => t.exitBar != null && t.exitBar < testStart);
+      selectedPurgedByT1 = simulated.length - selectedTrainTrades.length;
+    }
 
-    for (const t of oosTrades) allOosTrades.push(t);
+    const oosTrades = simulateRange(candles, A, testStart, testEnd - 1, bestParams, k + 1, testEnd);
+    const foldStats = evaluateTrades(oosTrades);
+    const trainBars = trainEnd - trainStart + 1;
+    const testBars = testEnd - testStart + 1;
+    foldReports.push({
+      fold: k + 1, trainRange: [trainStart, trainEnd], testRange: [testStart, testEnd],
+      trainBars, trainHours: trainBars * tfMinutes / 60, testHours: testBars * tfMinutes / 60,
+      trainTrades: selectedTrainTrades, purgedByT1: selectedPurgedByT1,
+      censoredTest: oosTrades.filter(t => t.exitBar == null).length,
+      selectionObjective: Number.isFinite(bestScore) ? bestScore : null,
+      params: bestParams, stats: foldStats, trades: oosTrades
+    });
+    allOosTrades.push(...oosTrades);
   }
 
   const aggStats = evaluateTrades(allOosTrades);
-  const dsr = calcDSR(aggStats.returns, paramGrid.length);
-  const probMap = calibrateProbabilities(allOosTrades);
-
+  const totalTrials = paramGrid.length * trialMultiplier;
   return {
-    oosTrades: allOosTrades,
-    stats: aggStats,
-    dsr,
-    folds: foldReports,
-    probMap,
-    totalTrials: paramGrid.length,
-    evidenceStatus: 'OOS'
+    oosTrades: allOosTrades, stats: aggStats, dsr: calcDSR(aggStats.returns, totalTrials),
+    folds: foldReports, probMap: calibrateProbabilities(allOosTrades), totalTrials,
+    evidenceStatus: 'OOS', method: 'anchored_t1'
   };
 }
 
@@ -2178,8 +2183,8 @@ async function loadChartData() {
   const r = await fetchKlines(sym, tf, 1500);
   if (gen !== App.gen || sym !== App.symbol || tf !== App.chartTF) return;  // stale response
   App.data.chart = analyze(r.candles);
-  // Walk-Forward Backtest mit K=4 Folds, Purging, Embargo und DSR
-  App.data.wf = runWalkForwardBacktest(r.candles, App.data.chart, { makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: App.slippage, timeStopBars: App.timeStopBars });
+  // Anchored t1-safe Walk-Forward mit K=4 Folds und DSR
+  App.data.wf = runWalkForwardBacktest(r.candles, App.data.chart, { makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: App.slippage, timeStopBars: App.timeStopBars, tfMinutes: tfToMinutes(App.chartTF) });
   App.data.bt = App.data.wf.oosTrades;
   App.data.probMap = App.data.wf.probMap;
   App.data.candles = r.candles;
@@ -2732,6 +2737,11 @@ function tfToHours(tf) {
   return tfToMinutes(tf) / 60;
 }
 
+function stagnationFallbackForTimeframe(stagnationHours, tf) {
+  const hours = Number.isFinite(+stagnationHours) && +stagnationHours > 0 ? +stagnationHours : 12;
+  return { hours, bars: Math.max(1, Math.ceil(hours / tfToHours(tf))) };
+}
+
 function formatTimeStopDisplay(bars, tf) {
   const count = Number.isFinite(+bars) ? +bars : 12;
   const tfMin = tfToMinutes(tf || '1h');
@@ -3237,7 +3247,8 @@ function renderBacktest() {
   const dsr = wf ? wf.dsr : { dsr: 0, sharpe: 0 };
 
   const elTs = $('bt-ts'); if (elTs) elTs.textContent = App.timeStopBars;
-  $('bt-tag').textContent = App.chartTF + ' · ' + App.symbol + ' · Purged Walk-Forward (K=4)';
+  const method = wf?.method === 'anchored_t1' ? 'Anchored t1-safe Walk-Forward' : 'Walk-Forward';
+  $('bt-tag').textContent = `${App.chartTF} · ${App.symbol} · ${method} (K=${wf?.folds?.length || 0})`;
   $('bt-bars').textContent = A ? A.n : '—';
   $('bt-n').textContent = stats.total + ' OOS';
   $('bt-wr').textContent = (stats.wr * 100).toFixed(1) + '%';
@@ -3264,7 +3275,7 @@ function renderBacktest() {
     elFolds.innerHTML = wf.folds.map(f => {
       const col = f.stats.grossR >= 0 ? 'var(--grn2)' : 'var(--red2)';
       return `<span style="padding:2px 7px;background:var(--bg2);border:1px solid var(--line);border-radius:5px">
-        Fold ${f.fold}: N=${f.stats.total} · WR ${(f.stats.wr * 100).toFixed(0)}% · <b style="color:${col}">${(f.stats.grossR >= 0 ? '+' : '') + f.stats.grossR.toFixed(1)}R</b>
+        Fold ${f.fold}: N=${f.stats.total} · WR ${(f.stats.wr * 100).toFixed(0)}% · <b style="color:${col}">${(f.stats.grossR >= 0 ? '+' : '') + f.stats.grossR.toFixed(1)}R</b> · t1-purged ${f.purgedByT1 || 0} · ${f.trainHours}h/${f.testHours}h · trials ${wf.totalTrials}
       </span>`;
     }).join('');
   }
@@ -6070,7 +6081,28 @@ function bindTradeTracker() {
   refreshTradePrices(loadTrades());
   setInterval(()=>refreshTradePrices(loadTrades()),15000);
 }
-async function autoOptimizeTimeStop() { const b=$('auto-timestop'), st=$('timestop-status'); if(!b||!App.data.candles||!App.data.chart){if(st)st.textContent='Nicht verfügbar: erst Candles laden.';return;} b.disabled=true; try { const values=[]; for(let bars=5;bars<=30;bars++){ const wf=runWalkForwardBacktest(App.data.candles,App.data.chart,{makerFee:App.fees.maker,takerFee:App.fees.taker,slippage:App.slippage,timeStopBars:bars}); values.push({bars,dsr:wf.dsr?.dsr??0,exp:wf.stats?.exp??-Infinity}); if(st)st.textContent=`Prüfe ${bars}/30 Bars …`; await new Promise(r=>setTimeout(r,0)); } values.sort((a,b)=>b.dsr-a.dsr||b.exp-a.exp||a.bars-b.bars); const w=values[0]; App.timeStopBars=w.bars; $('timestop').value=w.bars; await loadChartData(); renderAll(); if(st)st.textContent=`Bestes Ergebnis bei ${w.bars} Bars`; } catch(e){if(st)st.textContent='Optimierung fehlgeschlagen: '+String(e.message||e);} finally{b.disabled=false;} }
+async function autoOptimizeTimeStop() {
+  const b = $('auto-timestop'), st = $('timestop-status');
+  if (!b || !App.data.candles || !App.data.chart) { if (st) st.textContent = 'Nicht verfügbar: erst Candles laden.'; return; }
+  b.disabled = true;
+  try {
+    const values = [], minBars = 5, maxBars = 30, trialMultiplier = maxBars - minBars + 1;
+    for (let bars = minBars; bars <= maxBars; bars++) {
+      const wf = runWalkForwardBacktest(App.data.candles, App.data.chart, {
+        makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: App.slippage,
+        timeStopBars: bars, trialMultiplier, tfMinutes: tfToMinutes(App.chartTF)
+      });
+      values.push({ bars, dsr: wf.dsr?.dsr ?? 0, exp: wf.stats?.exp ?? -Infinity });
+      if (st) st.textContent = `Prüfe ${bars}/${maxBars} Bars …`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    values.sort((a, b) => b.dsr - a.dsr || b.exp - a.exp || a.bars - b.bars);
+    const w = values[0]; App.timeStopBars = w.bars; $('timestop').value = w.bars;
+    await loadChartData(); renderAll();
+    if (st) st.textContent = `Bestes Ergebnis bei ${w.bars} Bars · ${trialMultiplier} effektive Trials`;
+  } catch (e) { if (st) st.textContent = 'Optimierung fehlgeschlagen: ' + String(e.message || e); }
+  finally { b.disabled = false; }
+}
 
 function optimizeTimeStopForAsset(candles, A, options = {}) {
   const tf = options.timeframe || '1h';
@@ -6087,31 +6119,33 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
       timeframe: tf,
       dsr: 0,
       exp: 0,
+      effectiveTrials: 0,
       reason: 'fallback_insufficient_history'
     };
   }
 
   try {
     const minBars = Math.max(4, options.minBars || 5);
-    const maxBars = Math.min(30, options.maxBars || 25, Math.floor(candles.length / 2));
+    const historyMaxBars = Math.floor(candles.length / 2);
+    const hoursMaxBars = Math.floor(maxCapHours / tfHours);
+    const requestedMaxBars = options.maxBars != null ? options.maxBars : Math.max(25, fallbackBars);
+    const maxBars = Math.min(requestedMaxBars, historyMaxBars, hoursMaxBars);
     const results = [];
 
     const makerFee = options.makerFee ?? (typeof App !== 'undefined' ? App.fees?.maker : 0.0002) ?? 0.0002;
     const takerFee = options.takerFee ?? (typeof App !== 'undefined' ? App.fees?.taker : 0.0006) ?? 0.0006;
     const slippage = options.slippage ?? (typeof App !== 'undefined' ? App.slippage : 0.0005) ?? 0.0005;
 
+    const trialMultiplier = maxBars - minBars + 1;
     for (let b = minBars; b <= maxBars; b++) {
       const wf = runWalkForwardBacktest(candles, A, {
-        makerFee,
-        takerFee,
-        slippage,
-        timeStopBars: b
+        makerFee, takerFee, slippage, timeStopBars: b, trialMultiplier,
+        tfMinutes: tfHours * 60
       });
       const dsr = Number.isFinite(wf?.dsr?.dsr) ? wf.dsr.dsr : (Number.isFinite(wf?.dsr) ? wf.dsr : 0);
       const exp = Number.isFinite(wf?.stats?.exp) ? wf.stats.exp : 0;
       const total = wf?.stats?.total || 0;
-      const score = total >= 2 ? (exp * Math.sqrt(total)) : (exp - 1);
-      results.push({ bars: b, dsr, exp, total, score });
+      results.push({ bars: b, dsr, exp, total });
     }
 
     if (!results.length) {
@@ -6121,11 +6155,12 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
         timeframe: tf,
         dsr: 0,
         exp: 0,
+        effectiveTrials: 0,
         reason: 'fallback_empty_results'
       };
     }
 
-    results.sort((a, b) => (b.score - a.score) || (b.dsr - a.dsr) || (b.exp - a.exp) || (a.bars - b.bars));
+    results.sort((a, b) => (b.dsr - a.dsr) || (b.exp - a.exp) || (a.bars - b.bars));
     const best = results[0];
     const calculatedHours = Number(Math.min(maxCapHours, Math.max(minFloorHours, best.bars * tfHours)).toFixed(2));
 
@@ -6135,6 +6170,7 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
       timeframe: tf,
       dsr: best.dsr,
       exp: best.exp,
+      effectiveTrials: 18 * trialMultiplier,
       reason: 'walkforward_optimized'
     };
   } catch (_) {
@@ -6144,6 +6180,7 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
       timeframe: tf,
       dsr: 0,
       exp: 0,
+      effectiveTrials: 0,
       reason: 'fallback_error'
     };
   }
@@ -6691,14 +6728,19 @@ function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   return rejected;
 }
 
-function evaluateAutobotEdge(stats, minSamples = 5) {
-  const rejected = { accepted: false, edge: 0, sampleSize: 0 };
-  if (!stats || !Number.isFinite(+stats.total) || +stats.total < minSamples ||
-      !Number.isFinite(+stats.wr) || !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
-      +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
+function evaluateAutobotEdge(wf, minSamples = 15) {
+  const rejected = { accepted: false, edge: 0, sampleSize: 0, dsr: 0, effectiveTrials: 0 };
+  if (!wf || wf.evidenceStatus !== 'OOS' || !wf.stats || !wf.dsr) return rejected;
+  const stats = wf.stats, dsr = +wf.dsr.dsr, total = +stats.total;
+  const effectiveTrials = Number.isFinite(+wf.totalTrials) && +wf.totalTrials >= 1 ? +wf.totalTrials : 0;
+  if (!Number.isFinite(total) || total < minSamples || !Number.isFinite(+stats.wr) ||
+      !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
+      !Number.isFinite(dsr) || !effectiveTrials || +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
   const edge = (+stats.wr * +stats.avgWinR) - ((1 - +stats.wr) * +stats.avgLossR);
-  if (!Number.isFinite(edge) || edge <= 0) return { accepted: false, edge: Number.isFinite(edge) ? edge : 0, sampleSize: +stats.total };
-  return { accepted: true, edge, sampleSize: +stats.total };
+  if (!Number.isFinite(edge) || edge <= 0 || dsr < 0.5) {
+    return { accepted: false, edge: Number.isFinite(edge) ? edge : 0, sampleSize: total, dsr: Number.isFinite(dsr) ? dsr : 0, effectiveTrials };
+  }
+  return { accepted: true, edge, sampleSize: total, dsr, effectiveTrials };
 }
 
 const Autobot = {
@@ -7093,10 +7135,10 @@ const Autobot = {
         const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {
           makerFee: App.fees.maker,
           takerFee: App.fees.taker,
-          slippage: App.slippage,
-          timeStopBars: App.timeStopBars
+          slippage: App.slippage, timeStopBars: App.timeStopBars,
+          trialMultiplier: Math.max(1, candidates.length), tfMinutes: tfToMinutes(freshCandidate.tf)
         });
-        const edgeGate = evaluateAutobotEdge(freshWalkForward && freshWalkForward.stats);
+        const edgeGate = evaluateAutobotEdge(freshWalkForward);
         if (!edgeGate.accepted) continue;
 
         const dir = freshCandidate.dir;
@@ -7124,8 +7166,8 @@ const Autobot = {
         const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {
           timeframe: freshCandidate.tf,
           timeframeHours: tfHours,
-          fallbackBars: this.stagnationHours || 12,
-          fallbackHours: (this.stagnationHours || 12) * tfHours,
+          fallbackBars: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).bars,
+          fallbackHours: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).hours,
           maxCapHours: Math.max(36 * tfHours, 24),
           minFloorHours: 2 * tfHours
         });
@@ -7153,6 +7195,7 @@ const Autobot = {
           signalTf: freshCandidate.tf,
           edge: edgeGate.edge,
           edgeSamples: edgeGate.sampleSize,
+          effectiveTrials: edgeGate.effectiveTrials,
           timeStopBars: optTimeStop.bars,
           maxHoldHours: optTimeStop.hours,
           timeStopReason: optTimeStop.reason
@@ -7162,7 +7205,7 @@ const Autobot = {
         tradePrices[c.symbol] = lastPrice;
 
         const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
-        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades / ${edgeGate.effectiveTrials} Trials | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
         this.save();
         this.render();
         break; // 1 trade per scan tick
@@ -7360,7 +7403,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.0.7');
+  showReleaseNotesOnce('1.0.8');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

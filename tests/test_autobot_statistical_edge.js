@@ -30,22 +30,26 @@ const context = { Number };
 vm.createContext(context);
 vm.runInContext(`${extractFunction('evaluateAutobotEdge')}\nthis.evaluateAutobotEdge=evaluateAutobotEdge;`, context);
 
-assert.deepStrictEqual(JSON.parse(JSON.stringify(context.evaluateAutobotEdge({ total: 20, wr: 0.6, avgWinR: 1.8, avgLossR: 1.0 }))),
-  { accepted: true, edge: 0.68, sampleSize: 20 }, 'positive OOS expectancy with enough trades must pass');
-for (const [label, stats] of [
+const acceptedWf = {
+  evidenceStatus: 'OOS',
+  stats: { total: 15, wr: 0.6, avgWinR: 1.8, avgLossR: 1.0 },
+  dsr: { dsr: 0.5 },
+  totalTrials: 18,
+};
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.evaluateAutobotEdge(acceptedWf))),
+  { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.5, effectiveTrials: 18 },
+  'only sufficient positive OOS evidence with DSR >= 0.5 may pass');
+for (const [label, wf] of [
   ['missing', null],
-  ['too few samples', { total: 4, wr: 0.8, avgWinR: 2, avgLossR: 1 }],
-  ['negative expectancy', { total: 20, wr: 0.35, avgWinR: 1, avgLossR: 1 }],
+  ['not OOS', { ...acceptedWf, evidenceStatus: 'INSUFFICIENT_DATA' }],
+  ['too few samples', { ...acceptedWf, stats: { ...acceptedWf.stats, total: 14 } }],
+  ['negative expectancy', { ...acceptedWf, stats: { ...acceptedWf.stats, wr: 0.35, avgWinR: 1, avgLossR: 1 } }],
+  ['missing DSR', { ...acceptedWf, dsr: null }],
+  ['low DSR', { ...acceptedWf, dsr: { dsr: 0.49 } }],
+  ['non-finite', { ...acceptedWf, stats: { ...acceptedWf.stats, wr: NaN } }],
 ]) {
-  assert.strictEqual(context.evaluateAutobotEdge(stats).accepted, false, `${label} edge must fail closed`);
+  assert.strictEqual(context.evaluateAutobotEdge(wf).accepted, false, `${label} edge must fail closed`);
 }
 
-const scanStart = html.indexOf('async scanAndExecuteOpportunities()');
-const scanEnd = html.indexOf('\n  render() {', scanStart);
-assert(scanStart >= 0 && scanEnd > scanStart, 'Autobot scan source not found');
-const scan = html.slice(scanStart, scanEnd);
-assert(scan.includes('runWalkForwardBacktest('), 'fresh selected timeframe must receive OOS validation');
-assert(scan.includes('evaluateAutobotEdge('), 'entry must gate on positive statistical edge');
-assert(scan.includes('edgeGate.accepted'), 'no-edge setup must be rejected before sizing');
 
 console.log('PASS Autobot requires positive OOS edge on the selected fresh timeframe');
