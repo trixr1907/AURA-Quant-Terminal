@@ -210,24 +210,29 @@ def reconcile(starting_equity: float, trades: list[dict], risk_per_r: float | No
 
 
 # ---------------------------------------------------------------------------
-# 10A — fold-boundary oracle (purged K-fold walk-forward arithmetic)
+# 10A — fold-boundary oracle (anchored t1-safe K-fold walk-forward arithmetic)
 # ---------------------------------------------------------------------------
 
-def fold_boundaries(n: int, warmup: int = 235, atr_len: int = 14, k: int = 4) -> dict:
-    # Look-ahead-invariant warmup: only shrink when the series is too short to
-    # fit the full indicator warmup plus a minimum evaluation reserve (60 bars,
-    # matching the engine's minTestPerFold).
+def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 60.0) -> dict:
+    """Anchored t1-safe fold geometry, independent of ATR or embargo heuristics."""
     eff_warmup = min(warmup, max(14, n - 60))
-    test_fold_size = (n - eff_warmup - 150) // k
-    purge_bars = max(20, atr_len)
+    min_train_bars = 300
+    first_test_start = eff_warmup + min_train_bars + 1
+    test_fold_size = (n - 2 - first_test_start + 1) // k
     train_start = eff_warmup
     folds = []
     for i in range(k):
-        test_start = eff_warmup + 150 + i * test_fold_size
+        test_start = first_test_start + i * test_fold_size
         test_end = (n - 2) if i == k - 1 else test_start + test_fold_size - 1
-        embargo_bars = max(5, (test_start - train_start) // 100)
-        train_end = test_start - purge_bars - embargo_bars
-        folds.append({"fold": i + 1, "trainRange": [train_start, train_end], "testRange": [test_start, test_end]})
+        train_end = test_start - 2
+        train_bars = train_end - train_start + 1
+        test_bars = test_end - test_start + 1
+        folds.append({
+            "fold": i + 1, "trainRange": [train_start, train_end],
+            "testRange": [test_start, test_end], "trainBars": train_bars,
+            "trainHours": train_bars * tf_minutes / 60,
+            "testHours": test_bars * tf_minutes / 60,
+        })
     return {"folds": folds, "totalTrials": 18, "effWarmup": eff_warmup}
 
 

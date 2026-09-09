@@ -32,9 +32,12 @@ vm.runInContext(
   `${extractFunction('tfToMinutes')}\n` +
   `${extractFunction('tfToHours')}\n` +
   `${extractFunction('formatTimeStopDisplay')}\n` +
+  `${extractFunction('stagnationFallbackForTimeframe')}\n` +
   `this.tfToMinutes = tfToMinutes;\n` +
   `this.tfToHours = tfToHours;\n` +
-  `this.formatTimeStopDisplay = formatTimeStopDisplay;`,
+  `this.formatTimeStopDisplay = formatTimeStopDisplay;
+` +
+  `this.stagnationFallbackForTimeframe = stagnationFallbackForTimeframe;`,
   context,
 );
 
@@ -51,7 +54,13 @@ assert.strictEqual(context.tfToHours('4h'), 4.0, '4h must scale to 4.0 hours');
 assert.strictEqual(context.tfToMinutes('1d'), 1440, '1d must scale to 1440 minutes');
 assert.strictEqual(context.tfToHours('1d'), 24.0, '1d must scale to 24.0 hours');
 
-// 2. Formatted display assertions
+// 2. Configured stagnation hours convert to exact timeframe bars.
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.stagnationFallbackForTimeframe(12, '4h'))),
+  { hours: 12, bars: 3 }, '12 configured hours on 4h must be 3 bars');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.stagnationFallbackForTimeframe(12, '15m'))),
+  { hours: 12, bars: 48 }, '12 configured hours on 15m must be 48 bars');
+
+// 3. Formatted display assertions
 assert.strictEqual(context.formatTimeStopDisplay(10, '15m'), '10 Bars (2.5h)', '10 bars on 15m must display 2.5h, NOT 10h');
 assert.strictEqual(context.formatTimeStopDisplay(10, '1h'), '10 Bars (10h)', '10 bars on 1h must display 10h');
 assert.strictEqual(context.formatTimeStopDisplay(10, '4h'), '10 Bars (40h)', '10 bars on 4h must display 40h');

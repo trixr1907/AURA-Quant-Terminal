@@ -1081,6 +1081,113 @@ test('Property(seed=0xa11ce): 2000 Trade-Sequenzen erfüllen die Accounting-Iden
   }
 });
 
+// ===========================================================================
+// 11. Slice 1 — exact t1 train contract and transparent fold reporting
+// ===========================================================================
+section('11. Slice 1: exact t1 train contract');
+test('runWalkForwardBacktest: t1 boundary reports only fully closed train events', () => {
+  const n = 1500;
+  const candles = makeCandles(n);
+  const A = makeMinimalA(n, 80);
+  A.score.fill(50); A.o.fill(100); A.h.fill(101); A.l.fill(99);
+  for (let i = 0; i < n; i += 1) A.c[i] = i % 2 ? 104 : 102;
+  A.atr.fill(0.01); A.e50.fill(101); A.e200.fill(100);
+  // A signal at exactly t1's last permitted index enters on testStart - 1
+  // and remains open at that boundary, so it must be purged from selection.
+  const firstTestStart = 235 + 300 + 1;
+  const foldSize = Math.floor((n - 2 - firstTestStart + 1) / 4);
+  // An early stop is a valid, completed train event and must remain selectable.
+  A.score[240] = 80;
+  A.l[241] = 99;
+  for (let k = 0; k < 4; k += 1) {
+    const testStart = firstTestStart + k * foldSize;
+    A.score[testStart - 2] = 80;
+    A.l[testStart - 1] = 100;
+  }
+  const wf = runWalkForwardBacktest(candles, A, {
+    makerFee: 0, takerFee: 0, slippage: 0, tfMinutes: 60
+  });
+  assert.strictEqual(wf.folds.length, 4);
+  for (const fold of wf.folds) {
+    for (const key of ['trainRange', 'testRange', 'trainBars', 'trainHours',
+      'testHours', 'trainTrades', 'purgedByT1', 'censoredTest', 'selectionObjective']) {
+      assert.ok(Object.prototype.hasOwnProperty.call(fold, key), `missing ${key}`);
+    }
+    assert.strictEqual(fold.trainRange[1], fold.testRange[0] - 2,
+      'last train signal must be testStart - 2');
+    assert.strictEqual(fold.trainBars, fold.trainRange[1] - fold.trainRange[0] + 1);
+    assert.strictEqual(fold.trainHours, fold.trainBars);
+    assert.strictEqual(fold.testHours, (fold.testRange[1] - fold.testRange[0] + 1));
+    assert.ok(fold.trainTrades.length > 0,
+      'a train event fully closed before testStart must remain in selection');
+    assert.ok(fold.trainTrades.every(t => t.exitBar < fold.testRange[0]),
+      'selection must exclude a position open at testStart');
+    const boundarySignal = fold.testRange[0] - 2;
+    const simulated = simulateRange(candles, A, fold.trainRange[0], boundarySignal,
+      fold.params, null, fold.testRange[0] - 1);
+    const boundaryEvent = simulated.find(t => t.i === boundarySignal);
+    assert.ok(boundaryEvent && boundaryEvent.exitBar === null,
+      'the explicit t1 boundary signal must remain unresolved at testStart - 1');
+    assert.ok(!fold.trainTrades.some(t => t.i === boundarySignal),
+      'the explicit unresolved t1 event must be purged from selection');
+    assert.ok(fold.trainTrades.some(t => t.i === 240 && t.exitBar === 241),
+      'the explicit early closed train event must remain in the selected train set');
+    assert.ok(fold.purgedByT1 > 0, 'constructed overlap must be counted as t1-purged');
+  }
+});
+
+section('11. Slice 1: OOS price boundary');
+test('runWalkForwardBacktest: OOS signals require an entry inside testRange', () => {
+  const n = 1500, candles = makeCandles(n), A = makeMinimalA(n, 50);
+  A.o.fill(100); A.h.fill(101); A.l.fill(99);
+  for (let i = 0; i < n; i += 1) A.c[i] = i % 2 ? 104 : 102;
+  A.atr.fill(0.01); A.e50.fill(101); A.e200.fill(100);
+  const firstTestStart = 235 + 300 + 1;
+  const foldSize = Math.floor((n - 2 - firstTestStart + 1) / 4);
+  const firstTestEnd = firstTestStart + foldSize - 1;
+  A.score[firstTestEnd - 1] = 80; // entry is the final permitted test bar
+  A.score[firstTestEnd] = 80;     // would read outside testRange if accepted
+  A.l[firstTestEnd] = 100; A.h[firstTestEnd] = 100.01; // retain the final-entry event as censored
+  const wf = runWalkForwardBacktest(candles, A, { makerFee: 0, takerFee: 0, slippage: 0 });
+  const fold = wf.folds[0];
+  assert.ok(fold.trades.some(t => t.i === firstTestEnd - 1 && t.i + 1 === firstTestEnd),
+    'signal at testEnd - 1 must enter at testEnd');
+  const outsideOnly = makeMinimalA(n, 50);
+  outsideOnly.o.fill(100); outsideOnly.h.fill(101); outsideOnly.l.fill(99);
+  for (let i = 0; i < n; i += 1) outsideOnly.c[i] = i % 2 ? 104 : 102;
+  outsideOnly.atr.fill(0.01); outsideOnly.e50.fill(101); outsideOnly.e200.fill(100);
+  outsideOnly.score[firstTestEnd] = 80;
+  const outsideWf = runWalkForwardBacktest(candles, outsideOnly, { makerFee: 0, takerFee: 0, slippage: 0 });
+  assert.ok(!outsideWf.folds[0].trades.some(t => t.i === firstTestEnd),
+    'an isolated signal at testEnd must not create an out-of-range entry');
+  assert.ok(fold.trades.every(t => t.i + 1 <= fold.testRange[1]),
+    'no OOS trade may read an entry open outside testRange');
+  assert.strictEqual(fold.censoredTest, 1,
+    'the signal entering on testEnd must remain visibly censored when no exit follows');
+  assert.strictEqual(fold.selectionObjective, null,
+    'fewer than five closed train trades must report no selection objective');
+});
+
+
+// ===========================================================================
+// 12. Slice 2 — effective trial accounting
+// ===========================================================================
+section('12. Slice 2: effective trial accounting');
+test('DSR and walk-forward use the effective selection-trial family', () => {
+  const returns = [0.2, -0.1, 0.3, -0.05, 0.25, -0.1];
+  const dsr18 = calcDSR(returns, 18), dsr468 = calcDSR(returns, 468);
+  assert.ok(dsr468.dsr <= dsr18.dsr, 'more trials must not improve DSR');
+  assert.ok(dsr468.srStar >= dsr18.srStar, 'srStar must be monotonic in trials');
+
+  const candles = makeCandles(1000);
+  const A = makeMinimalA(1000, 50);
+  for (const multiplier of [26, 0, -1, NaN, Infinity, 2.5]) {
+    const wf = runWalkForwardBacktest(candles, A, { trialMultiplier: multiplier });
+    const expected = multiplier === 26 ? 18 * 26 : 18;
+    assert.strictEqual(wf.totalTrials, expected, `multiplier=${multiplier}`);
+  }
+});
+
 // ============================================================================
 // REPORT
 // ============================================================================

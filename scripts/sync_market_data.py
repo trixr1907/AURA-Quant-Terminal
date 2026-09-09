@@ -27,7 +27,7 @@ GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 def fetch_json(url: str, timeout: int = 15) -> dict:
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AURA/1.0.7"}
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AURA/1.0.8"}
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))

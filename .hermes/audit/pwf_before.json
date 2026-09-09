@@ -1,0 +1,601 @@
+{
+  "dashboard": "aura_dashboard_before.html",
+  "sha256": "0e380f19dc447fed9981da9d14aa293f90ae41108088eee5284d1aab19458eaf",
+  "fixtures": [
+    {
+      "file": "BTCUSDT_1h.csv",
+      "tfMinutes": 60,
+      "bars": 1500,
+      "evidenceStatus": "OOS",
+      "totalTrials": 18,
+      "oosClosedTrades": 32,
+      "expectancyR": 0.027151,
+      "winRate": 0.1875,
+      "profitFactor": 1.028238,
+      "maxDrawdownR": 22.685963,
+      "dsr": 0.03235,
+      "folds": [
+        {
+          "fold": 1,
+          "trainRange": [
+            235,
+            360
+          ],
+          "testRange": [
+            385,
+            662
+          ],
+          "trainBars": 126,
+          "trainHours": 126,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 13,
+          "testExpectancyR": -0.537364,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 2,
+          "trainRange": [
+            235,
+            638
+          ],
+          "testRange": [
+            663,
+            940
+          ],
+          "trainBars": 404,
+          "trainHours": 404,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 10,
+          "testExpectancyR": -0.963297,
+          "selected": {
+            "longTh": 78,
+            "shortTh": 25,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 3,
+          "trainRange": [
+            235,
+            914
+          ],
+          "testRange": [
+            941,
+            1218
+          ],
+          "trainBars": 680,
+          "trainHours": 680,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 8,
+          "testExpectancyR": 2.247334,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 4,
+          "trainRange": [
+            235,
+            1190
+          ],
+          "testRange": [
+            1219,
+            1498
+          ],
+          "trainBars": 956,
+          "trainHours": 956,
+          "testHours": 280,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 1,
+          "testExpectancyR": -0.491145,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": true,
+            "timeStopBars": 15
+          }
+        }
+      ]
+    },
+    {
+      "file": "ETHUSDT_1h.csv",
+      "tfMinutes": 60,
+      "bars": 1500,
+      "evidenceStatus": "OOS",
+      "totalTrials": 18,
+      "oosClosedTrades": 32,
+      "expectancyR": 0.225515,
+      "winRate": 0.28125,
+      "profitFactor": 1.32537,
+      "maxDrawdownR": 10.028092,
+      "dsr": 0.038026,
+      "folds": [
+        {
+          "fold": 1,
+          "trainRange": [
+            235,
+            360
+          ],
+          "testRange": [
+            385,
+            662
+          ],
+          "trainBars": 126,
+          "trainHours": 126,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 1,
+          "testExpectancyR": -1.225908,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": true,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 2,
+          "trainRange": [
+            235,
+            638
+          ],
+          "testRange": [
+            663,
+            940
+          ],
+          "trainBars": 404,
+          "trainHours": 404,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 9,
+          "testExpectancyR": -0.366592,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 22,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 3,
+          "trainRange": [
+            235,
+            914
+          ],
+          "testRange": [
+            941,
+            1218
+          ],
+          "trainBars": 680,
+          "trainHours": 680,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 9,
+          "testExpectancyR": 1.707925,
+          "selected": {
+            "longTh": 78,
+            "shortTh": 22,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 4,
+          "trainRange": [
+            235,
+            1190
+          ],
+          "testRange": [
+            1219,
+            1498
+          ],
+          "trainBars": 956,
+          "trainHours": 956,
+          "testHours": 280,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 13,
+          "testExpectancyR": -0.279202,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        }
+      ]
+    },
+    {
+      "file": "SOLUSDT_1h.csv",
+      "tfMinutes": 60,
+      "bars": 1500,
+      "evidenceStatus": "OOS",
+      "totalTrials": 18,
+      "oosClosedTrades": 21,
+      "expectancyR": -0.207655,
+      "winRate": 0.285714,
+      "profitFactor": 0.742583,
+      "maxDrawdownR": 12.183609,
+      "dsr": 0.017767,
+      "folds": [
+        {
+          "fold": 1,
+          "trainRange": [
+            235,
+            360
+          ],
+          "testRange": [
+            385,
+            662
+          ],
+          "trainBars": 126,
+          "trainHours": 126,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 11,
+          "testExpectancyR": -0.448352,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 2,
+          "trainRange": [
+            235,
+            638
+          ],
+          "testRange": [
+            663,
+            940
+          ],
+          "trainBars": 404,
+          "trainHours": 404,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 9,
+          "testExpectancyR": -0.631055,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 3,
+          "trainRange": [
+            235,
+            914
+          ],
+          "testRange": [
+            941,
+            1218
+          ],
+          "trainBars": 680,
+          "trainHours": 680,
+          "testHours": 278,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 1,
+          "testExpectancyR": 6.250619,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": true,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 4,
+          "trainRange": [
+            235,
+            1190
+          ],
+          "testRange": [
+            1219,
+            1498
+          ],
+          "trainBars": 956,
+          "trainHours": 956,
+          "testHours": 280,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 0,
+          "testExpectancyR": 0,
+          "selected": {
+            "longTh": 72,
+            "shortTh": 22,
+            "regimeGate": true,
+            "timeStopBars": 15
+          }
+        }
+      ]
+    },
+    {
+      "file": "XRPUSDT_4h.csv",
+      "tfMinutes": 240,
+      "bars": 1500,
+      "evidenceStatus": "OOS",
+      "totalTrials": 18,
+      "oosClosedTrades": 33,
+      "expectancyR": 0.038386,
+      "winRate": 0.333333,
+      "profitFactor": 1.058976,
+      "maxDrawdownR": 9.155493,
+      "dsr": 0.037476,
+      "folds": [
+        {
+          "fold": 1,
+          "trainRange": [
+            235,
+            360
+          ],
+          "testRange": [
+            385,
+            662
+          ],
+          "trainBars": 126,
+          "trainHours": 504,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 8,
+          "testExpectancyR": 0.047194,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 25,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 2,
+          "trainRange": [
+            235,
+            638
+          ],
+          "testRange": [
+            663,
+            940
+          ],
+          "trainBars": 404,
+          "trainHours": 1616,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 9,
+          "testExpectancyR": -0.370706,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 25,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 3,
+          "trainRange": [
+            235,
+            914
+          ],
+          "testRange": [
+            941,
+            1218
+          ],
+          "trainBars": 680,
+          "trainHours": 2720,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 10,
+          "testExpectancyR": -0.389587,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 25,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 4,
+          "trainRange": [
+            235,
+            1190
+          ],
+          "testRange": [
+            1219,
+            1498
+          ],
+          "trainBars": 956,
+          "trainHours": 3824,
+          "testHours": 1120,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 6,
+          "testExpectancyR": 1.353568,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 25,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        }
+      ]
+    },
+    {
+      "file": "DOGEUSDT_4h.csv",
+      "tfMinutes": 240,
+      "bars": 1500,
+      "evidenceStatus": "OOS",
+      "totalTrials": 18,
+      "oosClosedTrades": 41,
+      "expectancyR": -0.289921,
+      "winRate": 0.243902,
+      "profitFactor": 0.593317,
+      "maxDrawdownR": 12.792057,
+      "dsr": 0.00621,
+      "folds": [
+        {
+          "fold": 1,
+          "trainRange": [
+            235,
+            360
+          ],
+          "testRange": [
+            385,
+            662
+          ],
+          "trainBars": 126,
+          "trainHours": 504,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 16,
+          "testExpectancyR": -0.584227,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 2,
+          "trainRange": [
+            235,
+            638
+          ],
+          "testRange": [
+            663,
+            940
+          ],
+          "trainBars": 404,
+          "trainHours": 1616,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 5,
+          "testExpectancyR": 0.381674,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 3,
+          "trainRange": [
+            235,
+            914
+          ],
+          "testRange": [
+            941,
+            1218
+          ],
+          "trainBars": 680,
+          "trainHours": 2720,
+          "testHours": 1112,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 4,
+          "testExpectancyR": 0.492123,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        },
+        {
+          "fold": 4,
+          "trainRange": [
+            235,
+            1190
+          ],
+          "testRange": [
+            1219,
+            1498
+          ],
+          "trainBars": 956,
+          "trainHours": 3824,
+          "testHours": 1120,
+          "trainClosed": null,
+          "purgedByT1": null,
+          "censoredTest": null,
+          "selectionObjective": null,
+          "testClosed": 16,
+          "testExpectancyR": -0.401001,
+          "selected": {
+            "longTh": 75,
+            "shortTh": 28,
+            "regimeGate": false,
+            "timeStopBars": 15
+          }
+        }
+      ]
+    }
+  ]
+}

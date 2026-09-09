@@ -35,12 +35,12 @@ const context = {
 vm.createContext(context);
 vm.runInContext(`${extractFunction('showReleaseNotesOnce')}\nthis.showReleaseNotesOnce=showReleaseNotesOnce;`, context);
 
-assert.strictEqual(context.showReleaseNotesOnce('1.0.7'), true, 'new version must open release notes');
+assert.strictEqual(context.showReleaseNotesOnce('1.0.8'), true, 'new version must open release notes');
 assert.strictEqual(modal.hidden, false, 'release notes overlay must become visible');
 modal.hidden = true;
-assert.strictEqual(context.showReleaseNotesOnce('1.0.7'), false, 'same version must not reopen automatically');
+assert.strictEqual(context.showReleaseNotesOnce('1.0.8'), false, 'same version must not reopen automatically');
 assert.strictEqual(modal.hidden, true, 'dismissed current-version overlay must stay hidden');
 assert(html.includes('id="release-notes-modal"'), 'release notes modal markup required');
-assert(html.includes('Was ist neu in AURA v1.0.7?'), 'release notes need plain-language version heading');
+assert(html.includes('Was ist neu in AURA v1.0.8?'), 'release notes need plain-language version heading');
 
 console.log('PASS release notes overlay opens exactly once per installed version');

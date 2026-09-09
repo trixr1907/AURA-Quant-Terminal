@@ -1,4 +1,4 @@
-# AURA v1.0.7 — Smart Quant Terminal
+# AURA v1.0.8 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
@@ -76,7 +76,7 @@ Andere API-Pfade werden abgewiesen.
 1. Makro-Wetter: BTC-Regime, Fear & Greed, Funding/OI-Extreme sowie SMC-Session- und Killzone-Kontext (UTC). Killzones sind reine Liquiditäts- und Volatilitätsfenster zur Orientierung, kein automatisches Kauf-/Verkaufssignal und kein eigenes GO-Gate.
 2. Top Opportunity: bestes vollständig gegatetes Setup mit Richtung, Entry, Stop, TP1 und Kelly-Edge.
 3. Action Radar: vollständiges Exchange-Universum, progressiv in 10er-Batches gerendert und nach Qualität sortiert.
-4. Chart & Validation: technische Prüfung, Liquiditätsstruktur und Purged Walk-Forward-Auswertung.
+4. Chart & Validation: technische Prüfung, Liquiditätsstruktur und Anchored t1-safe Walk-Forward-Auswertung.
 
 Der Radar überspringt Instrumente früh, wenn Daily- oder 4H-Kerzen kein positives Volumen besitzen. Das spart Requests auf niedrigeren Zeitfenstern. Ein Radar-Ranking ist Orientierung, keine Ausführungsfreigabe. Der Hero nutzt ausschließlich das vollständig gegatete Live-Ergebnis.
 
@@ -94,7 +94,8 @@ Weitere Gates:
 - Regime: kein Sideways/Squeeze für Trendsetups
 - Funding, Open Interest und Basis
 - BTC-Regime für Altcoins
-- Purged Walk-Forward und Deflated Sharpe Ratio
+- Anchored K=4 Walk-Forward mit exaktem t1-Schutz (300 Train-Bars, mindestens 5 geschlossene Train-Trades), transparenten Train/Test-Stunden und Deflated Sharpe Ratio
+- TimeStop- und Autobot-Auswahl verwenden ihre tatsächliche Trialfamilie; Autobot akzeptiert nur OOS-Evidenz mit mindestens 15 geschlossenen Trades, positivem Edge und DSR ≥ 0.5
 - Fractional Kelly; negativer Edge ergibt exakt null Research-Sizing
 
 Scores sind keine garantierten Wahrscheinlichkeiten. Backtests beschreiben historische Stichproben, nicht die Zukunft.
@@ -159,4 +160,4 @@ python3 scripts/build_package.py --force
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.0.7 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.0.8 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.

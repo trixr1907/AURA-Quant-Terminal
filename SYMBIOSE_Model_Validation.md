@@ -28,7 +28,7 @@ not copied line-for-line from JS):
 
 - `evaluate_trades`: win rate, gross R, profit factor, expectancy, max drawdown, avg win/loss R.
 - `reconcile_backtest_accounting`: realized / unrealized PnL, fees, ending equity.
-- `fold_boundaries`: K=4 purged walk-forward, purge + embargo arithmetic, 18-trial param grid.
+- `fold_boundaries`: anchored K=4 walk-forward with exact t1 boundary protection, 300 minimum train bars, and an 18-parameter grid.
 
 Hand-calculated fixture (`tests/fixtures/backtest/trades.json`, 9 closed + 1 open trade):
 
@@ -42,14 +42,22 @@ Hand-calculated fixture (`tests/fixtures/backtest/trades.json`, 9 closed + 1 ope
 | max drawdown | 1.3000 | 1.3000 | 1.3000 |
 | ending equity (start 1000) | 1246.90 | 1246.90 | 1246.90 |
 
+Fold geometry uses anchored K=4 folds intentionally. `minTrainBars=300` and
+`minTrainTrades=5`; no ATR purge or post-test embargo is claimed. For each test start,
+the last train signal is `testStart - 2` (entry at `i+1`) and the train exit boundary is
+`testStart - 1`. Only trades closed strictly before `testStart` enter selection; events
+still open at that boundary are reported as `purgedByT1`. OOS events open at a fold end
+are reported as `censoredTest`. `tfMinutes` only converts reported fold durations to
+hours; indicator periods and warmup are not timeframe-scaled.
+
 Fold boundaries for n=1000 (warmup 235) — Python `fold_boundaries` vs JS
 `runWalkForwardBacktest` `foldReports`:
 
 ```
-fold 1  train [235,360]  test [385,537]
-fold 2  train [235,513]  test [538,690]
-fold 3  train [235,666]  test [691,843]
-fold 4  train [235,818]  test [844,998]
+fold 1  train [235,534]  test [536,650]  train/test hours 300/115
+fold 2  train [235,649]  test [651,765]  train/test hours 415/115
+fold 3  train [235,764]  test [766,880]  train/test hours 530/115
+fold 4  train [235,879]  test [881,998]  train/test hours 645/118
 ```
 
 Verdict: **PASS** — oracle and engine agree to floating-point tolerance on every field.
@@ -65,8 +73,9 @@ approximations the JS uses):
   Python and JS both report exactly `sharpe=0.0000, kurt=0.5625`.
 - DSR is bounded to [0,1], equals 0.5 at `sr == srStar`, and increases monotonically in
   Sharpe — verified.
-- Expected-max-Sharpe adjustment `srStar` grows with `numTrials` and shrinks with `n`
-  (deflation is present and correct).
+- Expected-max-Sharpe adjustment `srStar` grows with effective `totalTrials` and shrinks with `n`.
+  The effective family is `18 × trialMultiplier`: a TimeStop sweep passes its actual candidate count;
+  the Autobot passes its current candidate count, not a theoretical coins×timeframes universe.
 
 `calibrate_probabilities` (PAVA + Bayesian prior, 10 bins) re-derived in Python:
 
@@ -110,24 +119,23 @@ comparison, no pivots in the synthetic series) — not an engine bug.
 
 ## 5. 10D — Sensitivity sweep and release gates
 
-`tests/sensitivity_release_gates.js` runs the full purged walk-forward over a fixed
+`tests/sensitivity_release_gates.js` runs the full anchored t1-safe walk-forward over a fixed
 neighborhood (time-stop {12,15,18} × slippage {0, 0.0002, 0.0005}) on one deterministic
 1500-bar synthetic series, without re-picking the best after seeing OOS.
 
 | Metric | Value |
 |--------|-------|
-| OOS trades | 84 |
-| expectancy (median) | +0.147 R |
-| expectancy spread | [0.116, 0.169] |
-| max drawdown (worst) | 6.72 R |
-| fold dispersion (std of fold exp) | 0.078 R |
-| 95% CI on expectancy | [-0.154 R, +0.448 R] |
+| OOS trades | 33 |
+| expectancy (median) | +1.241 R |
+| expectancy spread | [+1.226, +1.264] R |
+| max drawdown (worst) | 1.050 R |
+| fold dispersion (std of fold exp) | 0.273 R |
+| 95% CI on expectancy | [+0.773 R, +1.710 R] |
 
-Release state: **NO_EVIDENCE** — the confidence interval crosses −0.05 R.
-
-This is the intended, honest outcome: deterministic synthetic data carries no validated
-edge, and the gate reports it instead of hiding it. The engine correctly *measures* an
-edge if one exists; it does not invent one.
+Latest local result: **PAPER_CANDIDATE** on this deterministic synthetic fixture.
+This is not a live-performance claim and does not override any fail-closed path:
+`NO_EVIDENCE`, neutral DSR=0.5, and `INSUFFICIENT_DATA` remain non-accepting
+evidence states. The engine measures the fixture rather than manufacturing evidence.
 
 ### Release-state definitions (computed, never hand-asserted)
 
