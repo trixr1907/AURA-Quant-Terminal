@@ -27,10 +27,13 @@ docker rm aura-terminal >/dev/null 2>&1 || true
 
 echo "[3/3] Starting AURA Container on port ${PORT}..."
 docker run -d \
-  --name aura-terminal \
-  --restart unless-stopped \
-  -p "${PORT}:8787" \
-  aura-quant-terminal:latest
+--name aura-terminal \
+--restart unless-stopped \
+-p "${PORT}:8787" \
+-e "AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}" \
+-e AURA_STATE_DIR=/var/lib/aura \
+-v aura-state:/var/lib/aura \
+aura-quant-terminal:latest
 
 echo ""
 echo "======================================================="

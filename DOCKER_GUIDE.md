@@ -85,8 +85,18 @@ Falls Port 8787 auf deinem Host bereits belegt ist:
   ```
 - Oder starte direkt via Docker CLI:
   ```bash
-  docker run -d --name aura-terminal --restart unless-stopped -p 9090:8787 aura-quant-terminal:latest
+  docker run -d --name aura-terminal --restart unless-stopped \
+    -p 9090:8787 \
+    -e AURA_ALLOWED_HOSTS=<HOST-IP-ODER-DNS> \
+    -e AURA_STATE_DIR=/var/lib/aura \
+    -v aura-state:/var/lib/aura \
+    aura-quant-terminal:latest
   ```
+  Ersetze `<HOST-IP-ODER-DNS>` durch die IP-Adresse oder den DNS-Namen,
+  unter dem du das Dashboard im Browser öffnest, zum Beispiel
+  `192.168.8.115` oder `aura.example`. Der externe Host-Port `9090` darf
+  vom internen Relay-Port `8787` abweichen; öffne danach
+  `http://<HOST-IP-ODER-DNS>:9090/`.
 
 ---
 

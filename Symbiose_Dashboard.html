@@ -298,6 +298,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
     <div class="sb"><div class="dot" id="st-bin"></div><b>Marktdaten:</b> <span id="st-bin-t">aus</span></div>
     <div class="sb"><div class="dot" id="st-fng"></div><b>F&amp;G:</b> <span id="st-fng-t">aus</span></div>
     <div class="sb"><div class="dot" id="st-cg"></div><b>CoinGecko:</b> <span id="st-cg-t">aus</span></div>
+    <div class="sb"><div class="dot" id="st-sync"></div><b>Sync:</b> <span id="st-sync-t">lokal</span></div>
     <div class="sb"><div class="dot" id="st-ws"></div><b>WS Live:</b> <span id="st-ws-t">aus</span></div>
     <div class="sb" id="sound-toggle" title="Klick: Audio-Alerts an/aus"><div class="dot ok" id="sound-dot"></div><b>Audio:</b> <span id="sound-lbl">AN</span></div>
     <div class="sb" style="margin-left:auto"><span id="lastupd">—</span> · <span id="clock">—</span></div>
@@ -693,15 +694,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.6?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.0.7?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt eine präzise Timeframe-Skalierung des dynamischen Time-Stops, 1-Klick-Kopieren aller Trade-Parameter in die Zwischenablage und direkten Chart-Fokus per Klick auf das Asset.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt robuste geräteübergreifende State-Synchronisierung mit Revisions-Koordination und den korrigierten FVG-Lebenszyklus.</p>
     <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
-      <li><b>Präzise Timeframe-Skalierung des Time-Stops:</b> Der dynamische Walk-Forward-Time-Stop skaliert jetzt exakt mit dem gehandelten Timeframe (z. B. 10 Bars im 15m-Chart = 2.5 Stunden statt starrer 10 Stunden; 10 Bars im 4h-Chart = 40 Stunden).</li>
-      <li><b>1-Klick-Kopieren jedes Werts:</b> Jeder Parameter in aktiven Positionen (Einstieg, Markpreis, Stop-Loss, Take-Profit 1/2/3, Margin, Notional, PnL, ROI, Time-Stop) lässt sich durch Anklicken sofort sauber in die Zwischenablage kopieren.</li>
-      <li><b>Direkter Asset-Fokus & Chart-Wechsel:</b> Klick auf den Coin-Namen einer offenen Position wechselt das Dashboard und den Chart sofort auf dieses Asset im passenden Timeframe.</li>
-      <li><b>Lückenloser Rolling Radar Scan:</b> Hintergrund-Aktualisierung des gesamten Universums bleibt kontinuierlich aktiv.</li>
+      <li><b>Geräteübergreifende State-Synchronisierung:</b> Paper-Trades, Trade-Historie und Autobot-Zustand werden über <code>/api/state</code> mit Revisions-Tracking synchronisiert. Löschungen und Teil-Schließungen auf einem Gerät übertragen sich zuverlässig auf alle anderen Geräte.</li>
+      <li><b>Sichtbarer Sync-Status:</b> Nicht-blockierende Statusanzeige (verbunden, synchronisiert, Konflikt, offline) in der Statusleiste.</li>
+      <li><b>Korrigierter FVG-Lebenszyklus:</b> Die 3-Kerzen-Regel definiert die FVG-Entstehung, nicht eine künstliche Lebensdauer. Zonen bleiben bis zur vollständigen Mitigation aktiv und werden sauber als ein Rechteck bis zum Füll- oder aktuellen Chart-Bar gerendert.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -710,7 +710,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.0.6</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.0.7</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -955,18 +955,35 @@ function analyze(candles) {
       const fvB = l[i] > h[i - 2], fvS = h[i] < l[i - 2];
       if (fvB) {
         fvgDir = 1; fvgTop = l[i]; fvgBot = h[i - 2]; fvgAct = true; fvgAge = 0;
-        zones.unshift({ dir: 1, top: fvgTop, bot: fvgBot, age: 0, mit: false, ts: ms[i] });
-        if (zones.length > 8) zones.pop();
+        zones.unshift({ dir: 1, top: fvgTop, bot: fvgBot, age: 0, mit: false, mitigated: false, start: i, end: null, ts: ms[i] });
       } else if (fvS) {
         fvgDir = -1; fvgTop = l[i - 2]; fvgBot = h[i]; fvgAct = true; fvgAge = 0;
-        zones.unshift({ dir: -1, top: fvgTop, bot: fvgBot, age: 0, mit: false, ts: ms[i] });
-        if (zones.length > 8) zones.pop();
+        zones.unshift({ dir: -1, top: fvgTop, bot: fvgBot, age: 0, mit: false, mitigated: false, start: i, end: null, ts: ms[i] });
       } else if (fvgAct) {
         fvgAge = fvgAge < 99 ? fvgAge + 1 : fvgAge;
-        if (fvgDir === 1 && l[i] <= fvgBot) { fvgAct = false; if (zones.length) zones[0].mit = true; }
-        if (fvgDir === -1 && h[i] >= fvgTop) { fvgAct = false; if (zones.length) zones[0].mit = true; }
+        if (fvgDir === 1 && l[i] <= fvgBot) { fvgAct = false; }
+        if (fvgDir === -1 && h[i] >= fvgTop) { fvgAct = false; }
       }
-      for (let z = 0; z < zones.length; z++) zones[z].age++;
+      // Active FVGs are retained until their own full mitigation; only completed
+      // zones may be compacted, and never at the expense of an active zone.
+      const completed = zones.filter(zone => zone.mitigated);
+      if (completed.length > 8) {
+        const removable = completed.slice(0, completed.length - 8);
+        for (const zone of removable) {
+          const index = zones.indexOf(zone);
+          if (index >= 0) zones.splice(index, 1);
+        }
+      }
+      for (const zone of zones) {
+        if (zone.mitigated || zone.start >= i) continue;
+        zone.age++;
+        const filled = zone.dir === 1 ? l[i] <= zone.bot : h[i] >= zone.top;
+        if (filled) {
+          zone.mitigated = true;
+          zone.mit = true;
+          zone.end = i;
+        }
+      }
     }
 
     eqhLvl = NaN; eqlLvl = NaN;
@@ -4296,23 +4313,29 @@ function renderChart(mx, my) {
   }
 
   // Fair Value Gaps (FVG Zonen)
-  if (ov.fvg && A.fvgActA) {
-    for (let i = start; i < n; i++) {
-      if (A.fvgActA[i] && isFinite(A.fvgTopA[i]) && isFinite(A.fvgBotA[i])) {
-        const topY = yAt(A.fvgTopA[i]), botY = yAt(A.fvgBotA[i]);
-        const fvgH = Math.max(3, Math.abs(botY - topY)), minY = Math.min(topY, botY);
-        const isBull = A.fvgDirA[i] === 1, startX = xAt(i), wBox = pw - startX;
-        if (wBox > 4 && minY >= (padT - 15) && minY <= (padT + ph + 15)) {
-          ctx.fillStyle = isBull ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)';
-          ctx.fillRect(startX, minY, wBox, fvgH);
-          ctx.strokeStyle = isBull ? 'rgba(34,197,94,.45)' : 'rgba(239,68,68,.45)';
-          ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
-          ctx.strokeRect(startX, minY, wBox, fvgH);
-          ctx.setLineDash([]);
-          ctx.fillStyle = isBull ? '#4ade80' : '#f87171';
-          ctx.font = 'bold 11px ui-monospace,monospace';
-          ctx.fillText((isBull ? '+FVG ' : '-FVG ') + fmtP(A.fvgBotA[i]), pw - 78, minY + Math.min(fvgH - 2, 11));
-        }
+  if (ov.fvg && Array.isArray(A.zones)) {
+    for (const zone of A.zones) {
+      if (!zone || !isFinite(zone.top) || !isFinite(zone.bot)) continue;
+      const startIdx = typeof zone.start === 'number' ? zone.start : 0;
+      const endIdx = typeof zone.end === 'number' ? zone.end : (n - 1);
+      if (endIdx < start || startIdx > (n - 1)) continue;
+      const topY = yAt(zone.top), botY = yAt(zone.bot);
+      const fvgH = Math.max(3, Math.abs(botY - topY)), minY = Math.min(topY, botY);
+      const isBull = zone.dir === 1;
+      const startX = startIdx >= start ? xAt(startIdx) : 0;
+      const endX = (zone.mitigated && zone.end != null && zone.end < n) ? Math.min(pw, xAt(zone.end)) : pw;
+      const wBox = endX - startX;
+      if (wBox > 2 && minY >= (padT - 15) && minY <= (padT + ph + 15)) {
+        ctx.fillStyle = isBull ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)';
+        ctx.fillRect(startX, minY, wBox, fvgH);
+        ctx.strokeStyle = isBull ? 'rgba(34,197,94,.45)' : 'rgba(239,68,68,.45)';
+        ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+        ctx.strokeRect(startX, minY, wBox, fvgH);
+        ctx.setLineDash([]);
+        ctx.fillStyle = isBull ? '#4ade80' : '#f87171';
+        ctx.font = 'bold 11px ui-monospace,monospace';
+        const labelX = Math.min(Math.max(startX + 6, pw - 78), endX - 60);
+        ctx.fillText((isBull ? '+FVG ' : '-FVG ') + fmtP(zone.bot), labelX > startX ? labelX : startX + 4, minY + Math.min(fvgH - 2, 11));
       }
     }
   }
@@ -5084,12 +5107,20 @@ function loadTrades() {
 
 function saveTrades(x) {
   const data = Array.isArray(x) ? x : [];
+  let previous = [];
   try {
-    localStorage.setItem(TRADE_KEY, JSON.stringify(data));
+    const raw = JSON.parse(localStorage.getItem(TRADE_KEY) || '[]');
+    if (Array.isArray(raw)) previous = raw;
   } catch (_) {}
-  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.push === 'function') {
-    SyncEngine.push(TRADE_KEY, data);
+  const apply = () => {
+    try { localStorage.setItem(TRADE_KEY, JSON.stringify(data)); } catch (_) {}
+  };
+  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.stageListMutation === 'function') {
+    const staged = SyncEngine.stageListMutation(TRADE_KEY, data, previous);
+    if (staged) { apply(); staged.promise.catch(() => {}); }
+    return;
   }
+  apply();
 }
 
 function loadTradeHistory() {
@@ -5104,12 +5135,20 @@ function loadTradeHistory() {
 
 function saveTradeHistory(x) {
   const data = Array.isArray(x) ? x : [];
+  let previous = [];
   try {
-    localStorage.setItem(TRADE_HIST_KEY, JSON.stringify(data));
+    const raw = JSON.parse(localStorage.getItem(TRADE_HIST_KEY) || '[]');
+    if (Array.isArray(raw)) previous = raw;
   } catch (_) {}
-  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.push === 'function') {
-    SyncEngine.push(TRADE_HIST_KEY, data);
+  const apply = () => {
+    try { localStorage.setItem(TRADE_HIST_KEY, JSON.stringify(data)); } catch (_) {}
+  };
+  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.stageListMutation === 'function') {
+    const staged = SyncEngine.stageListMutation(TRADE_HIST_KEY, data, previous);
+    if (staged) { apply(); staged.promise.catch(() => {}); }
+    return;
   }
+  apply();
 }
 
 function closeTrade(tradeIndex, exitPrice, reason = 'MANUAL') {
@@ -5165,13 +5204,23 @@ function closeTrade(tradeIndex, exitPrice, reason = 'MANUAL') {
   });
   
   trades.splice(tradeIndex, 1);
-  saveTrades(trades);
-  
   const hist = loadTradeHistory();
   hist.unshift(closedRecord);
   if (hist.length > 200) hist.pop();
-  saveTradeHistory(hist);
-  
+  const closeMutations = [
+    { key: TRADE_KEY, op: 'delete', id: t.id },
+    { key: TRADE_HIST_KEY, op: 'upsert', id: closedRecord.id, value: closedRecord }
+  ];
+  let closeStage = null;
+  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.stageMutations === 'function') {
+    closeStage = SyncEngine.stageMutations(closeMutations);
+    if (!closeStage) return false;
+  }
+  try { localStorage.setItem(TRADE_KEY, JSON.stringify(trades)); localStorage.setItem(TRADE_HIST_KEY, JSON.stringify(hist)); } catch (_) {
+    if (closeStage) closeStage.promise.catch(() => {});
+    return false;
+  }
+  if (closeStage) closeStage.promise.catch(() => {});
   renderLiveTrades();
   renderTradeHistory();
   return true;
@@ -5232,8 +5281,6 @@ function takePartialProfit(tradeIndex, pct = 0.5) {
   const hist = loadTradeHistory();
   hist.unshift(closedRecord);
   if (hist.length > 200) hist.pop();
-  saveTradeHistory(hist);
-  
   t.remainingMargin = curRemainingMargin * (1 - fraction);
   t.margin = t.remainingMargin;
   t.remainingNotional = t.remainingMargin * t.leverage;
@@ -5243,7 +5290,20 @@ function takePartialProfit(tradeIndex, pct = 0.5) {
   t.beActive = true;
   t.realizedPnlGross = (t.realizedPnlGross || 0) + pnlGross;
   
-  saveTrades(trades);
+  const partialMutations = [
+    { key: TRADE_KEY, op: 'upsert', id: t.id, value: t },
+    { key: TRADE_HIST_KEY, op: 'upsert', id: closedRecord.id, value: closedRecord }
+  ];
+  let partialStage = null;
+  if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.stageMutations === 'function') {
+    partialStage = SyncEngine.stageMutations(partialMutations);
+    if (!partialStage) return false;
+  }
+  try { localStorage.setItem(TRADE_KEY, JSON.stringify(trades)); localStorage.setItem(TRADE_HIST_KEY, JSON.stringify(hist)); } catch (_) {
+    if (partialStage) partialStage.promise.catch(() => {});
+    return false;
+  }
+  if (partialStage) partialStage.promise.catch(() => {});
   renderLiveTrades();
   renderTradeHistory();
   if (Sound && Sound.enabled) Sound.chime([523.25, 659.25, 783.99, 1046.5], { gap: 0.06, dur: 0.2, gain: 0.08 });
@@ -6136,38 +6196,160 @@ function bindRadarDrawer() {
 //  Synchronisiert Autobot-Status, Paper-Trades, Historie & Einstellungen
 //  automatisch zwischen PC, Handy, Tablet und allen Browser-Tabs über /api/state.
 // ============================================================================
+const SYNC_QUEUE_KEY = 'aura-sync-pending-v1';
+const SYNC_QUEUE_VERSION = 1;
 const SyncEngine = {
   syncIntervalMs: 2000,
+  rev: 0,
+  status: 'initial', // 'connected' | 'synced' | 'conflict' | 'offline' | 'bootstrap'
+  bootstrapped: false,
+  isPulling: false,
+  pending: [],
+  queueRunning: false,
+  maxRetries: 3,
+  maxQueueItems: 1000,
+  queueWaiters: [],
+  queueCorrupt: false,
+  queueOverflow: false,
+  shadow: {},
+
+  persistQueue() {
+    const items = this.pending.map(item => {
+      const durable = { attempts: Number.isFinite(item.attempts) ? item.attempts : 0 };
+      if (item.legacy) {
+        durable.kind = 'legacy'; durable.key = item.key; durable.value = item.value;
+      } else {
+        durable.kind = 'mutations'; durable.mutations = item.mutations;
+      }
+      if (item.blocked) durable.blocked = true;
+      return durable;
+    });
+    try {
+      if (!items.length) {
+        localStorage.removeItem(SYNC_QUEUE_KEY);
+      } else {
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(items));
+      }
+      return true;
+    } catch (_) {
+      this.setStatus('offline', 'nicht synchronisiert');
+      return false;
+    }
+  },
+
+  restoreQueue() {
+    this.pending = [];
+    this.queueCorrupt = false;
+    this.queueOverflow = false;
+    let raw;
+    try { raw = localStorage.getItem(SYNC_QUEUE_KEY); } catch (_) { raw = null; }
+    if (!raw) return;
+    try {
+      const stored = JSON.parse(raw);
+      if (!Array.isArray(stored)) throw new Error('queue must be an array');
+      if (stored.length > this.maxQueueItems) {
+        this.queueOverflow = true;
+        this.setStatus('offline', 'nicht synchronisiert');
+        return;
+      }
+      for (const item of stored) {
+        const attempts = Number.isInteger(item?.attempts) && item.attempts >= 0 ? item.attempts : 0;
+        if (item?.kind === 'legacy' && typeof item.key === 'string') {
+          this.pending.push({ legacy: true, key: item.key, value: item.value, attempts, blocked: item.blocked === true, resolve: () => {}, reject: () => {} });
+        } else if (item?.kind === 'mutations' && Array.isArray(item.mutations) && item.mutations.length) {
+          this.pending.push({ mutations: item.mutations, attempts, blocked: item.blocked === true, resolve: () => {}, reject: () => {} });
+        } else { throw new Error('invalid queue item'); }
+      }
+    } catch (_) {
+      this.pending = [];
+      this.queueCorrupt = true;
+      // Preserve the original raw bytes for manual or future safe recovery.
+      this.setStatus('offline', 'nicht synchronisiert');
+    }
+  },
 
   init() {
+    this.restoreQueue();
+    this.updateUI();
     setInterval(() => this.pull(), this.syncIntervalMs);
-    this.pull();
+    return this.pull().then(async () => {
+      if (!this.queueCorrupt && this.pending.length) await this.processQueue();
+    });
+  },
+
+  hasUnsyncedWork() {
+    return this.queueRunning || this.pending.length > 0;
+  },
+
+  setStatus(st, text) {
+    this.status = st;
+    this.updateUI(text);
+  },
+
+  updateUI(customText) {
+    if (typeof setStatus !== 'function') return;
+    const map = {
+      connected: { dot: 'ok', txt: 'verbunden' },
+      synced: { dot: 'ok', txt: 'synchronisiert' },
+      conflict: { dot: 'mid', txt: 'Konflikt' },
+      offline: { dot: 'off', txt: 'offline' },
+      bootstrap: { dot: 'mid', txt: 'initialisiere' }
+    };
+    const info = map[this.status] || { dot: 'off', txt: this.status || 'lokal' };
+    setStatus('st-sync', info.dot, customText || info.txt);
   },
 
   async pull() {
+    if (this.isPulling) return;
+    this.isPulling = true;
     try {
-      if (typeof fetch === 'undefined') return;
+      if (typeof fetch === 'undefined') {
+        this.setStatus('offline', 'offline');
+        this.isPulling = false;
+        return;
+      }
       const res = await fetch('/api/state', { method: 'GET', cache: 'no-store' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        this.setStatus('offline', res.status === 403 ? '403 verboten' : 'offline');
+        this.isPulling = false;
+        return;
+      }
       const json = await res.json();
-      if (!json || !json.ok || !json.data) return;
+      if (!json || !json.ok || !json.data) {
+        this.setStatus('offline', 'keine Daten');
+        this.isPulling = false;
+        return;
+      }
       const remote = json.data;
+      const remoteRev = typeof remote._rev === 'number' ? remote._rev : null;
+      if (remoteRev !== null && remoteRev < this.rev) {
+        return;
+      }
+      if (remoteRev !== null) {
+        this.rev = remoteRev;
+      }
+      // Bootstrap before applying an empty server shadow, otherwise local pending data is lost.
+      if (!this.bootstrapped) {
+        this.bootstrapped = true;
+        await this.bootstrapIfNeeded(remote);
+      }
+      this.applyServerState(remote, true);
 
       // 1. Autobot State Sync
-      if (remote[AUTOBOT_KEY] && typeof Autobot !== 'undefined') {
+      if (remote[AUTOBOT_KEY] !== undefined && !this.hasPendingKey(AUTOBOT_KEY)) {
         const localRaw = localStorage.getItem(AUTOBOT_KEY);
         const remoteStr = JSON.stringify(remote[AUTOBOT_KEY]);
         if (localRaw !== remoteStr) {
           localStorage.setItem(AUTOBOT_KEY, remoteStr);
-          if (typeof Autobot.loadFromObject === 'function') {
+          if (typeof Autobot !== 'undefined' && typeof Autobot.loadFromObject === 'function') {
             Autobot.loadFromObject(remote[AUTOBOT_KEY]);
-            Autobot.render();
+            if (typeof Autobot.render === 'function') Autobot.render();
           }
         }
       }
 
-      // 2. Active Paper Trades Sync
-      if (remote[TRADE_KEY]) {
+      // 2. Active Paper Trades Sync (Supports empty-array remote deletion)
+      if (remote[TRADE_KEY] !== undefined && !this.hasPendingKey(TRADE_KEY)) {
         const localTrades = localStorage.getItem(TRADE_KEY);
         const remoteTrades = JSON.stringify(remote[TRADE_KEY]);
         if (localTrades !== remoteTrades) {
@@ -6177,7 +6359,7 @@ const SyncEngine = {
       }
 
       // 3. Trade History Sync
-      if (remote[TRADE_HIST_KEY]) {
+      if (remote[TRADE_HIST_KEY] !== undefined && !this.hasPendingKey(TRADE_HIST_KEY)) {
         const localHist = localStorage.getItem(TRADE_HIST_KEY);
         const remoteHist = JSON.stringify(remote[TRADE_HIST_KEY]);
         if (localHist !== remoteHist) {
@@ -6185,20 +6367,244 @@ const SyncEngine = {
           if (typeof renderTradeHistory === 'function') renderTradeHistory();
         }
       }
+
+      if (this.queueCorrupt || this.queueOverflow || this.pending.some(item => item.blocked === true)) {
+        this.setStatus('offline', 'nicht synchronisiert');
+      } else if (this.hasUnsyncedWork()) {
+        this.setStatus('bootstrap', 'synchronisiere');
+      } else {
+        this.setStatus('synced', 'synchronisiert');
+      }
     } catch (_) {
-      // Offline / APK standalone fallback
+      this.setStatus('offline', 'offline');
+    } finally {
+      this.isPulling = false;
     }
   },
 
+  async bootstrapIfNeeded(remote) {
+    const keysToBootstrap = [TRADE_KEY, TRADE_HIST_KEY, AUTOBOT_KEY];
+    for (const key of keysToBootstrap) {
+      if (remote[key] === undefined) {
+        const localRaw = localStorage.getItem(key);
+        if (localRaw) {
+          try {
+            const parsed = JSON.parse(localRaw);
+            const hasData = Array.isArray(parsed) ? parsed.length > 0 : (parsed && Object.keys(parsed).length > 0);
+            if (hasData) {
+              await this.enqueueLegacy(key, parsed);
+            }
+          } catch (_) {}
+        }
+      }
+    }
+  },
+
+  hasPendingKey(key) {
+    return this.pending.some(item => item.legacy ? item.key === key : item.mutations.some(mutation => mutation.key === key));
+  },
+
+  stageListMutation(key, values, previousValues) {
+    const next = Array.isArray(values) ? values : [];
+    const previous = Array.isArray(previousValues) ? previousValues : [];
+    const nextIds = new Set(next.map(item => item && item.id).filter(Boolean));
+    const mutations = [];
+    previous.forEach(item => {
+      if (item && item.id && !nextIds.has(item.id)) mutations.push({ key, op: 'delete', id: item.id });
+    });
+    next.forEach(item => {
+      if (item && item.id) mutations.push({ key, op: 'upsert', id: item.id, value: item });
+    });
+    if (!mutations.length) {
+      this.shadow[key] = next.map(item => ({ ...item }));
+      return null;
+    }
+    const staged = this.stageMutations(mutations);
+    if (staged) this.shadow[key] = next.map(item => ({ ...item }));
+    return staged;
+  },
+
+  stageMutations(mutations) {
+    if (!Array.isArray(mutations) || !mutations.length) return null;
+    if (this.pending.length >= this.maxQueueItems) {
+      this.queueOverflow = true;
+      this.setStatus('offline', 'nicht synchronisiert');
+      return null;
+    }
+    const item = { mutations: mutations.map(m => ({ ...m })), attempts: 0, resolve: () => {}, reject: () => {} };
+    this.pending.push(item);
+    if (!this.persistQueue()) {
+      this.pending.pop();
+      this.setStatus('offline', 'nicht synchronisiert');
+      return null;
+    }
+    const promise = new Promise((resolve, reject) => { item.resolve = resolve; item.reject = reject; });
+    this.processQueue();
+    return { promise };
+  },
+
+  enqueueList(key, values, previousValues) {
+    const staged = this.stageListMutation(key, values, previousValues);
+    return staged ? staged.promise : Promise.resolve(true);
+  },
+
+  enqueueMutations(mutations) {
+    return new Promise((resolve, reject) => {
+      if (!Array.isArray(mutations) || !mutations.length) { resolve(true); return; }
+      if (this.pending.length >= this.maxQueueItems) {
+        this.queueOverflow = true;
+        this.setStatus('offline', 'nicht synchronisiert');
+        reject(new Error('sync queue limit reached'));
+        return;
+      }
+      const item = { mutations: mutations.map(m => ({ ...m })), resolve, reject, attempts: 0 };
+      this.pending.push(item);
+      if (!this.persistQueue()) { this.pending.pop(); reject(new Error('sync queue persistence failed')); return; }
+      this.processQueue();
+    });
+  },
+
+  enqueueLegacy(key, value) {
+    return new Promise((resolve, reject) => {
+      if (this.pending.length >= this.maxQueueItems) {
+        this.queueOverflow = true;
+        this.setStatus('offline', 'nicht synchronisiert');
+        reject(new Error('sync queue limit reached'));
+        return;
+      }
+      const item = { key, value, legacy: true, resolve, reject, attempts: 0 };
+      this.pending.push(item);
+      if (!this.persistQueue()) { this.pending.pop(); reject(new Error('sync queue persistence failed')); return; }
+      this.processQueue();
+    });
+  },
+
   push(key, value) {
-    if (typeof fetch === 'undefined') return;
+    this.enqueueLegacy(key, value).catch(() => {});
+  },
+
+  async processQueue() {
+    if (this.queueRunning) return;
+    this.queueRunning = true;
+    while (this.pending.length) {
+      const item = this.pending[0];
+      const ok = await this.sendBatch(item);
+      if (ok) {
+        this.pending.shift();
+        this.persistQueue();
+        item.resolve(true);
+      } else if (item.attempts >= this.maxRetries) {
+        item.blocked = true;
+        this.persistQueue();
+        this.setStatus('offline', 'nicht synchronisiert');
+        item.reject(new Error('sync retry limit reached'));
+        break;
+      } else {
+        this.persistQueue();
+        await new Promise(resolve => setTimeout(resolve, Math.min(1000, 100 * (2 ** item.attempts))));
+      }
+    }
+    this.queueRunning = false;
+    if (this.queueCorrupt || this.queueOverflow || this.pending.some(item => item.blocked === true)) {
+      this.setStatus('offline', 'nicht synchronisiert');
+    } else if (!this.pending.length) this.setStatus('synced', 'synchronisiert');
+  },
+
+  async sendBatch(item) {
+    item.attempts++;
     try {
-      fetch('/api/state', {
+      if (item.legacy) return await this.pushDirect(item.key, item.value, this.rev);
+      const res = await fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value })
-      }).catch(() => {});
-    } catch (_) {}
+        body: JSON.stringify({ mutations: item.mutations, expected_rev: this.rev })
+      });
+      if (res.status === 409) {
+        const conflict = await res.json().catch(() => null);
+        if (conflict && typeof conflict.rev === 'number') this.rev = conflict.rev;
+        if (conflict && conflict.state) this.applyServerState(conflict.state, true);
+        this.setStatus('conflict', 'Konflikt — wiederhole');
+        return false;
+      }
+      if (!res.ok) return false;
+      const data = await res.json();
+      const ackRev = typeof data.rev === 'number'
+        ? data.rev
+        : (data.state && typeof data.state._rev === 'number' ? data.state._rev : null);
+      if (ackRev !== null) {
+        this.rev = Math.max(this.rev, ackRev);
+      }
+      if (data.state && (ackRev === null || ackRev >= this.rev)) this.applyServerState(data.state, false);
+      if (this.hasUnsyncedWork()) this.setStatus('bootstrap', 'synchronisiere');
+      else this.setStatus('synced', 'synchronisiert');
+      return true;
+    } catch (_) {
+      this.setStatus('offline', 'offline');
+      return false;
+    }
+  },
+
+  applyServerState(remote, preservePending = false) {
+    if (!remote || typeof remote !== 'object') return;
+    if (typeof remote._rev === 'number' && remote._rev < this.rev) return;
+    if (typeof remote._rev === 'number') this.rev = Math.max(this.rev, remote._rev);
+    const skip = key => preservePending && this.hasPendingKey(key);
+    const updateShadow = (key, value) => {
+      if (Array.isArray(value) && !skip(key)) this.shadow[key] = value.map(item => ({ ...item }));
+    };
+    updateShadow(AUTOBOT_KEY, remote[AUTOBOT_KEY]);
+    updateShadow(TRADE_KEY, remote[TRADE_KEY]);
+    updateShadow(TRADE_HIST_KEY, remote[TRADE_HIST_KEY]);
+    if (remote[AUTOBOT_KEY] !== undefined && !skip(AUTOBOT_KEY)) {
+      localStorage.setItem(AUTOBOT_KEY, JSON.stringify(remote[AUTOBOT_KEY]));
+      if (typeof Autobot !== 'undefined' && typeof Autobot.loadFromObject === 'function') Autobot.loadFromObject(remote[AUTOBOT_KEY]);
+    }
+    if (remote[TRADE_KEY] !== undefined && !skip(TRADE_KEY)) {
+      localStorage.setItem(TRADE_KEY, JSON.stringify(remote[TRADE_KEY]));
+      if (typeof renderLiveTrades === 'function') renderLiveTrades();
+    }
+    if (remote[TRADE_HIST_KEY] !== undefined && !skip(TRADE_HIST_KEY)) {
+      localStorage.setItem(TRADE_HIST_KEY, JSON.stringify(remote[TRADE_HIST_KEY]));
+      if (typeof renderTradeHistory === 'function') renderTradeHistory();
+    }
+  },
+
+
+
+  async pushDirect(key, value, expectedRev) {
+    if (typeof fetch === 'undefined') return false;
+    try {
+      const res = await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value, expected_rev: typeof expectedRev === 'number' ? expectedRev : undefined })
+      });
+      if (res.status === 409) {
+        this.setStatus('conflict', 'Konflikt');
+        const conflictData = await res.json().catch(() => null);
+        if (conflictData && typeof conflictData.rev === 'number') this.rev = conflictData.rev;
+        if (conflictData && conflictData.state) this.applyServerState(conflictData.state, false);
+        return false;
+      }
+      if (!res.ok) {
+        this.setStatus('offline', 'Fehler');
+        return false;
+      }
+      const data = await res.json();
+      const ackRev = data && typeof data.rev === 'number'
+        ? data.rev
+        : (data && data.state && typeof data.state._rev === 'number' ? data.state._rev : null);
+      if (ackRev !== null) {
+        this.rev = Math.max(this.rev, ackRev);
+      }
+      if (data && data.state && (ackRev === null || ackRev >= this.rev)) this.applyServerState(data.state, false);
+      if (this.hasUnsyncedWork()) this.setStatus('bootstrap', 'synchronisiere');
+      else this.setStatus('synced', 'synchronisiert');
+      return true;
+    } catch (_) {
+      this.setStatus('offline', 'offline');
+      return false;
+    }
   }
 };
 
@@ -6954,7 +7360,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.0.6');
+  showReleaseNotesOnce('1.0.7');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

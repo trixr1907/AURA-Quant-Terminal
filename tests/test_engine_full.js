@@ -36,7 +36,7 @@ vm.runInContext(
     regimeOf, squeezeAt,
     classifyRadarTf, rankRadarCandidates, recommendLeverage, explainDecision,
     sizePosition,
-    emaArr, smaArr, rsiArr, atrArr
+    emaArr, smaArr, rsiArr, atrArr, analyze
   };`,
   ctx
 );
@@ -48,7 +48,7 @@ const {
   regimeOf, squeezeAt,
   classifyRadarTf, rankRadarCandidates, recommendLeverage, explainDecision,
   sizePosition,
-  emaArr, smaArr, rsiArr, atrArr,
+  emaArr, smaArr, rsiArr, atrArr, analyze
 } = ctx.__E;
 
 // ---------------------------------------------------------------------------
@@ -369,9 +369,54 @@ test('dynTP1: nimmt nächsten Kandidaten (kleinster rMultiple) bei Mehrfach-Kand
   assert.strictEqual(r.price, 112, `sollte näheres Level 112 wählen, got ${r.price}`);
 });
 
-// ===========================================================================
-// 7. UNIT — calcFundingBias Edge Cases
-// ===========================================================================
+test('FVG lifecycle: bullish zone persists beyond three bars and ends on full mitigation', () => {
+  const candles = [
+    {t: 0,o:100,h:101,l:99,c:100,v:1}, {t: 1,o:100,h:102,l:99,c:101,v:1},
+    {t: 2,o:104,h:106,l:104,c:105,v:1},
+    {t: 3,o:105,h:107,l:103,c:106,v:1}, {t: 4,o:106,h:108,l:105,c:107,v:1},
+    {t: 5,o:107,h:109,l:105,c:108,v:1}, {t: 6,o:108,h:110,l:104.5,c:109,v:1},
+    {t: 7,o:109,h:110,l:100,c:101,v:1},
+  ];
+  const result = analyze(candles);
+  const zones = result.zones.filter(z => z.dir === 1 && z.start === 2);
+  assert.strictEqual(zones.length, 1);
+  assert.strictEqual(zones[0].mitigated, true);
+  assert.strictEqual(zones[0].end, 7);
+  assert.ok(zones[0].age > 3);
+});
+
+test('FVG lifecycle: nine active unmitigated zones are retained independently', () => {
+  const candles = [
+    {t: 0,o:100,h:101,l:99,c:100,v:1}, {t: 1,o:100,h:102,l:99,c:101,v:1},
+    {t: 2,o:104,h:106,l:104,c:105,v:1}, {t: 3,o:114,h:116,l:114,c:115,v:1},
+    {t: 4,o:124,h:126,l:124,c:125,v:1}, {t: 5,o:134,h:136,l:134,c:135,v:1},
+    {t: 6,o:144,h:146,l:144,c:145,v:1}, {t: 7,o:154,h:156,l:154,c:155,v:1},
+    {t: 8,o:164,h:166,l:164,c:165,v:1}, {t: 9,o:174,h:176,l:174,c:175,v:1},
+    {t: 10,o:184,h:186,l:184,c:185,v:1}, {t: 11,o:194,h:196,l:194,c:195,v:1}
+  ];
+  const result = analyze(candles);
+  const active = result.zones.filter(z => !z.mitigated);
+  assert.ok(active.length >= 9);
+  assert.ok(active.some(z => z.start === 2), 'oldest active FVG must remain');
+});
+
+test('FVG lifecycle: bearish zone persists beyond three bars and ends on full mitigation', () => {
+  const candles = [
+    {t: 0,o:100,h:101,l:99,c:100,v:1}, {t: 1,o:100,h:102,l:99,c:101,v:1},
+    {t: 2,o:95,h:96,l:94,c:95,v:1},
+    {t: 3,o:95,h:97,l:93,c:94,v:1}, {t: 4,o:94,h:96,l:92,c:93,v:1},
+    {t: 5,o:93,h:95,l:91,c:92,v:1}, {t: 6,o:92,h:95.5,l:90,c:91,v:1},
+    {t: 7,o:91,h:102,l:90,c:101,v:1},
+  ];
+  const result = analyze(candles);
+  const zones = result.zones.filter(z => z.dir === -1 && z.start === 2);
+  assert.strictEqual(zones.length, 1);
+  assert.strictEqual(zones[0].mitigated, true);
+  assert.strictEqual(zones[0].end, 7);
+  assert.ok(zones[0].age > 3);
+});
+
+
 section('7. Unit: calcFundingBias — Edge Cases');
 
 test('Funding: leeres Array → bias=0, z=0', () => {

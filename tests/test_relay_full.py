@@ -1,5 +1,5 @@
 """
-test_relay_full.py — Comprehensive tests for AURA v1.0.6 read-only relay
+test_relay_full.py — Comprehensive tests for AURA v1.0.7 read-only relay
 ============================================================================
 Focus: HTTP serving, public data proxying, canonical request formatting,
 error handling, and client disconnect tolerance.
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import tempfile
 import unittest
 import urllib.error
 import urllib.parse
@@ -129,12 +130,51 @@ class TestPublicRequest(unittest.TestCase):
 # ----------------------------------------------------------------------------
 # 3. HTTP SERVER INTEGRATION
 # ----------------------------------------------------------------------------
+class TestRelayMutationContract(unittest.TestCase):
+    def test_history_upsert_prepends_and_trims_newest_first(self):
+        key = "aura-quant-terminal-history-trades-v1"
+        current = {key: [{"id": f"old-{i}"} for i in range(205)]}
+        result = bitget_relay._apply_mutations_locked(current, [{"key": key, "op": "upsert", "id": "new", "value": {"id": "new"}}])
+        self.assertEqual(len(result[key]), 200)
+        self.assertEqual(result[key][0]["id"], "new")
+        self.assertEqual(result[key][-1]["id"], "old-198")
+
+
 class TestDockerDeploymentContract(unittest.TestCase):
+    def test_dockerfile_prepares_persistent_state_directory_before_non_root_user(self):
+        dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text(encoding="utf-8")
+        prepare = "RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura"
+        self.assertIn(prepare, dockerfile)
+        self.assertLess(dockerfile.index(prepare), dockerfile.index("USER aura"))
+
     def test_compose_configures_lan_host_and_persistent_state(self):
         compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn("AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}", compose)
         self.assertIn("AURA_STATE_DIR=/var/lib/aura", compose)
         self.assertIn("aura-state:/var/lib/aura", compose)
+
+    def test_direct_docker_guide_declares_external_port_state_and_allowlist_contract(self):
+        guide = (Path(__file__).resolve().parent.parent / "DOCKER_GUIDE.md").read_text(encoding="utf-8")
+        self.assertIn("-p 9090:8787", guide)
+        self.assertIn("-e AURA_ALLOWED_HOSTS=<HOST-IP-ODER-DNS>", guide)
+        self.assertIn("-e AURA_STATE_DIR=/var/lib/aura", guide)
+        self.assertIn("-v aura-state:/var/lib/aura", guide)
+        self.assertIn("Ersetze `<HOST-IP-ODER-DNS>`", guide)
+
+
+        root = Path(__file__).resolve().parent.parent
+        starters = [
+            "DOCKER_START.bat", "docker_start.sh", "smart_homelab_installer.sh",
+            "deep_infrastructure_scanner.sh",
+        ]
+        for name in starters:
+            text = (root / name).read_text(encoding="utf-8")
+            for line in text.splitlines():
+                if "docker run" in line and "aura-quant-terminal:latest" in line:
+                    self.assertIn("AURA_STATE_DIR=/var/lib/aura", text, name)
+                    self.assertIn("aura-state:/var/lib/aura", text, name)
+        compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("AURA_ALLOWED_HOSTS=", compose)
 
 
 class TestHTTPServer(unittest.TestCase):
@@ -216,7 +256,7 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self._get("/serving")
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
-        self.assertEqual(body["version"], "1.0.6")
+        self.assertEqual(body["version"], "1.0.7")
         self.assertEqual(body["mode"], "quant_research")
 
     def test_get_serving_with_querystring(self):
@@ -261,11 +301,191 @@ class TestHTTPServer(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(body["code"], "ERR_FORBIDDEN_HOST")
 
+    def test_get_state_invalid_json_is_500_and_preserves_bytes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = Path(tmpdir) / "aura_shared_state.json"
+            raw = b'{invalid-json-preserve-me'
+            state_file.write_bytes(raw)
+            with patch.object(bitget_relay, "STATE_FILE", state_file), patch.object(bitget_relay, "STATE_DIR", Path(tmpdir)):
+                status, body = self._get_status("/api/state")
+            self.assertEqual(status, 500)
+            self.assertEqual(body["code"], "ERR_STATE_PERSIST")
+            self.assertEqual(state_file.read_bytes(), raw)
+
+    def test_get_state_json_array_is_500_and_preserves_bytes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = Path(tmpdir) / "aura_shared_state.json"
+            raw = b'[{"not":"an-object"}]'
+            state_file.write_bytes(raw)
+            with patch.object(bitget_relay, "STATE_FILE", state_file), patch.object(bitget_relay, "STATE_DIR", Path(tmpdir)):
+                status, body = self._get_status("/api/state")
+            self.assertEqual(status, 500)
+            self.assertEqual(body["code"], "ERR_STATE_PERSIST")
+            self.assertEqual(state_file.read_bytes(), raw)
+
+    def test_get_state_missing_file_is_empty_initial_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = Path(tmpdir) / "missing.json"
+            with patch.object(bitget_relay, "STATE_FILE", state_file), patch.object(bitget_relay, "STATE_DIR", Path(tmpdir)):
+                status, body = self._get_status("/api/state")
+            self.assertEqual(status, 200)
+            self.assertEqual(body, {"ok": True, "data": {}})
+
+    def test_legacy_write_on_corrupt_state_is_500_and_preserves_bytes(self):
+        original_file = bitget_relay.STATE_FILE
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = Path(tmpdir) / "aura_shared_state.json"
+            raw = b'{not-json-preserve-me'
+            state_file.write_bytes(raw)
+            with patch.object(bitget_relay, "STATE_FILE", state_file), patch.object(bitget_relay, "STATE_DIR", Path(tmpdir)):
+                status, body = self._post("/api/state", {
+                    "key": "aura-autobot-state-v2",
+                    "value": {"enabled": True},
+                    "expected_rev": 0,
+                })
+            self.assertEqual(status, 500)
+            self.assertEqual(body["code"], "ERR_STATE_PERSIST")
+            self.assertEqual(state_file.read_bytes(), raw)
+        self.assertIsNotNone(original_file)
+    def test_state_mutation_persistence_failure_is_500_not_conflict(self):
+        _, current = self._get_status("/api/state")
+        with patch("bitget_relay._save_mutation_batch", return_value=(None, current["data"].get("_rev", 0), bitget_relay.PersistenceError())):
+            status, body = self._post("/api/state", {
+                "expected_rev": current["data"].get("_rev", 0),
+                "mutations": [{"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "persist-fail", "value": {"id": "persist-fail"}}],
+            })
+        self.assertEqual(status, 500)
+        self.assertEqual(body["code"], "ERR_STATE_PERSIST")
+
+
+    def test_legacy_persistence_failure_is_500_not_conflict(self):
+        _, current = self._get_status("/api/state")
+        with patch("bitget_relay._save_shared_state", return_value=(None, current["data"].get("_rev", 0), bitget_relay.PersistenceError())):
+            status, body = self._post("/api/state", {
+                "expected_rev": current["data"].get("_rev", 0),
+                "key": "aura-autobot-state-v2",
+                "value": {"enabled": True},
+            })
+        self.assertEqual(status, 500)
+        self.assertEqual(body["code"], "ERR_STATE_PERSIST")
+
+    def test_state_mutation_stale_revision_remains_409_conflict(self):
+        _, current = self._get_status("/api/state")
+        base = current["data"].get("_rev", 0)
+        status, first = self._post("/api/state", {"key": "aura-autobot-state-v2", "value": {"marker": "conflict"}, "expected_rev": base})
+        self.assertEqual(status, 200)
+        status, body = self._post("/api/state", {
+            "expected_rev": base,
+            "mutations": [{"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "stale", "value": {"id": "stale"}}],
+        })
+        self.assertEqual(status, 409)
+        self.assertEqual(body["code"], "ERR_STATE_CONFLICT")
+
+    def test_state_write_increments_revision_and_stale_revision_cannot_overwrite(self):
+        _, current = self._get_status("/api/state")
+        base_rev = current["data"].get("_rev", 0)
+        first_status, first = self._post("/api/state", {"key": "aura-autobot-state-v2", "value": {"enabled": True}, "expected_rev": base_rev})
+        self.assertEqual(first_status, 200)
+        self.assertEqual(first["rev"], first["state"]["_rev"])
+        second_status, second = self._post("/api/state", {"key": "aura-autobot-state-v2", "value": {"enabled": False}, "expected_rev": 0})
+        self.assertEqual(second_status, 409)
+        self.assertEqual(second["code"], "ERR_STATE_CONFLICT")
+        self.assertEqual(second["rev"], first["rev"])
+        self.assertEqual(second["state"]["aura-autobot-state-v2"], {"enabled": True})
+
+    def test_state_write_accepts_current_revision(self):
+        _, current = self._get_status("/api/state")
+        base_rev = current["data"].get("_rev", 0)
+        _, first = self._post("/api/state", {"key": "aura-autobot-state-v2", "value": {"enabled": True}, "expected_rev": base_rev})
+        status, body = self._post("/api/state", {"key": "aura-autobot-state-v2", "value": {"enabled": False}, "expected_rev": first["rev"]})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["rev"], first["rev"] + 1)
+        self.assertEqual(body["state"]["aura-autobot-state-v2"], {"enabled": False})
+
+    def test_state_route_allows_external_docker_port_same_origin(self):
+        origin = "http://127.0.0.1:18787"
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1"}):
+            status, body = self._get_status("/api/state", {"Host": "127.0.0.1:18787", "Origin": origin})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+
+    def test_state_route_rejects_external_port_origin_mismatch(self):
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1"}):
+            status, body = self._get_status("/api/state", {
+                "Host": "127.0.0.1:18787", "Origin": "http://127.0.0.1:9999"
+            })
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
     def test_state_route_allows_exact_same_origin(self):
         origin = f"http://127.0.0.1:{self.port}"
         status, body = self._get_status("/api/state", {"Origin": origin})
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
+
+    def test_state_route_allows_https_same_origin_for_allowlisted_proxy_host(self):
+        origin = "https://aura.example"
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1", "aura.example"}):
+            status, body = self._get_status("/api/state", {"Host": "aura.example", "Origin": origin})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+
+    def test_state_route_rejects_same_host_with_port_mismatch(self):
+        with patch.object(RelayHandler, "_ALLOWED_HOSTS", {"localhost", "127.0.0.1", "aura.example"}):
+            status, body = self._get_status("/api/state", {"Host": "aura.example:8787", "Origin": "https://aura.example"})
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+    def test_state_mutation_batch_is_atomic_and_single_revision(self):
+        _, current = self._get_status("/api/state")
+        base = current["data"].get("_rev", 0)
+        status, body = self._post("/api/state", {
+            "expected_rev": base,
+            "mutations": [
+                {"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "atomic-active", "value": {"id": "atomic-active", "coin": "BTCUSDT"}},
+                {"key": "aura-quant-terminal-history-trades-v1", "op": "upsert", "id": "atomic-history", "value": {"id": "atomic-history", "tradeId": "atomic-active"}},
+            ],
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(body["rev"], base + 1)
+        self.assertEqual(body["state"]["_rev"], base + 1)
+
+    def test_invalid_state_mutation_batch_has_no_partial_effect(self):
+        _, current = self._get_status("/api/state")
+        base = current["data"].get("_rev", 0)
+        status, body = self._post("/api/state", {
+            "expected_rev": base,
+            "mutations": [
+                {"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "must-not-appear", "value": {"id": "must-not-appear"}},
+                {"key": "not-allowed", "op": "delete", "id": "bad"},
+            ],
+        })
+        self.assertEqual(status, 400)
+        self.assertEqual(body["code"], "ERR_INVALID_MUTATIONS")
+        _, after = self._get_status("/api/state")
+        self.assertEqual(after["data"].get("_rev", 0), base)
+        ids = {item.get("id") for item in after["data"].get("aura-quant-terminal-active-trades-v1", [])}
+        self.assertNotIn("must-not-appear", ids)
+
+    def test_delete_mutation_preserves_other_trade_ids(self):
+        _, current = self._get_status("/api/state")
+        base = current["data"].get("_rev", 0)
+        status, body = self._post("/api/state", {
+            "expected_rev": base,
+            "mutations": [
+                {"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "keep-id", "value": {"id": "keep-id"}},
+                {"key": "aura-quant-terminal-active-trades-v1", "op": "upsert", "id": "delete-id", "value": {"id": "delete-id"}},
+            ],
+        })
+        self.assertEqual(status, 200)
+        status, body = self._post("/api/state", {
+            "expected_rev": body["rev"],
+            "mutations": [{"key": "aura-quant-terminal-active-trades-v1", "op": "delete", "id": "delete-id"}],
+        })
+        self.assertEqual(status, 200)
+        ids = {item.get("id") for item in body["state"]["aura-quant-terminal-active-trades-v1"]}
+        self.assertIn("keep-id", ids)
+        self.assertNotIn("delete-id", ids)
 
     def test_state_route_allows_configured_lan_host_and_origin(self):
         origin = f"http://192.168.8.115:{self.port}"

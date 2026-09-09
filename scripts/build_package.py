@@ -14,12 +14,13 @@ Usage:
 """
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "symbiose.zip"
@@ -64,8 +65,8 @@ MANIFEST = [
     "scripts/release_check.py",
     "scripts/build_package.py",
     "scripts/sync_market_data.py",
-    # data
-    "data/",
+    # data — only the public static dataset; never recurse over data/
+    "data/bitget_usdt_futures_universe.json",
     # tests + fixtures
     "pytest.ini",
     "tests/",
@@ -73,32 +74,117 @@ MANIFEST = [
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".hermes", ".git", "node_modules"}
 EXCLUDE_SUFFIXES = {".pyc", ".png", ".log", ".zip"}
 EXCLUDE_NAMES = {".release_dashboard_check.js", ".release_verdict.json", ".DS_Store"}
+RUNTIME_STATE_BASENAME = "aura_shared_state"
 
 
-def collect_files() -> list[str]:
+def _is_runtime_state_family(name: str) -> bool:
+    """Reject every filename whose stem starts with the runtime-state basename."""
+    return Path(name).name.split(".", 1)[0] == RUNTIME_STATE_BASENAME
+
+
+def _normalized_relative_path(rel: str | Path) -> str:
+    """Return a safe POSIX archive path or reject it before filesystem access."""
+    raw = os.fspath(rel)
+    if not raw or "\\" in raw:
+        raise ValueError(f"refusing unsafe package path: {rel!r}")
+    posix = PurePosixPath(raw)
+    windows = PureWindowsPath(raw)
+    if posix.is_absolute() or windows.is_absolute() or windows.drive:
+        raise ValueError(f"refusing unsafe package path: {rel!r}")
+    if any(part == ".." for part in posix.parts):
+        raise ValueError(f"refusing unsafe package path: {rel!r}")
+    normalized = posix.as_posix()
+    if normalized in {"", "."}:
+        raise ValueError(f"refusing unsafe package path: {rel!r}")
+    return normalized
+
+
+def _path_is_safe(p: Path) -> bool:
+    """Require p and every path segment below ROOT to be non-symlinks."""
+    root = ROOT.resolve()
+    try:
+        p.relative_to(root)
+        resolved = p.resolve(strict=False)
+    except ValueError:
+        return False
+    if root != resolved and root not in resolved.parents:
+        return False
+    current = p
+    while current != root:
+        if current.is_symlink():
+            return False
+        current = current.parent
+    return True
+
+
+def _validate_package_path(rel: str | Path, *, allow_missing: bool = False) -> tuple[Path, str]:
+    """Validate a manifest/list path and return its source plus ZIP arcname."""
+    normalized = _normalized_relative_path(rel)
+    root = ROOT.resolve()
+    source = root / Path(normalized)
+    if not _path_is_safe(source):
+        raise ValueError(f"refusing unsafe package path: {rel!r}")
+    if not allow_missing and not source.exists():
+        raise ValueError(f"refusing missing package path: {rel!r}")
+    return source, normalized
+
+
+def _resolve_manifest_files() -> list[str]:
+    """Resolve the current MANIFEST into safe, filtered archive paths."""
     files: list[str] = []
     for entry in MANIFEST:
-        path = ROOT / entry
+        path, normalized_entry = _validate_package_path(entry, allow_missing=True)
         if path.is_dir():
             for p in sorted(path.rglob("*")):
+                if p.is_symlink():
+                    continue
                 if p.is_file() and _allowed(p):
-                    files.append(str(p.relative_to(ROOT)))
-        elif path.is_file():
-            files.append(entry)
+                    relative = p.relative_to(ROOT.resolve()).as_posix()
+                    _validate_package_path(relative)
+                    files.append(relative)
+        elif path.is_file() and _allowed(path):
+            files.append(normalized_entry)
         else:
             print(f"WARNING: manifest entry missing, skipped: {entry}", file=sys.stderr)
-    # dedupe, keep order
     return sorted(set(files))
 
 
+def collect_files() -> list[str]:
+    return _resolve_manifest_files()
+
+
 def _allowed(p: Path) -> bool:
+    if not _path_is_safe(p):
+        return False
     if any(seg in EXCLUDE_DIRS for seg in p.parts):
         return False
     if p.suffix.lower() in EXCLUDE_SUFFIXES:
         return False
-    if p.name in EXCLUDE_NAMES:
+    if p.name in EXCLUDE_NAMES or _is_runtime_state_family(p.name):
         return False
     return True
+
+
+def build_archive(files: list[str], output: Path) -> None:
+    """Write an archive only from the current resolved manifest allowlist."""
+    allowed_files = set(_resolve_manifest_files())
+    validated = []
+    for rel in files:
+        source, arcname = _validate_package_path(rel)
+        if arcname not in allowed_files:
+            raise ValueError(f"refusing non-manifest package path: {rel}")
+        if not source.is_file() or not _allowed(source):
+            raise ValueError(f"refusing forbidden package path: {rel}")
+        validated.append((source, arcname))
+
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as zf:
+        for source, arcname in validated:
+            zf.write(source, arcname=arcname)
+
+
+def verdict_allows_packaging(verdict: str | None) -> bool:
+    """Only an exact GO stamp is valid for non-forced packaging."""
+    return verdict == "GO"
 
 
 def guard() -> None:
@@ -109,14 +195,9 @@ def guard() -> None:
               "(or pass --force).", file=sys.stderr)
         sys.exit(3)
     verdict = json.loads(STAMP.read_text(encoding="utf-8")).get("verdict")
-    if verdict == "FAIL":
-        print("ERROR: last release check was FAIL — refusing to package. "
-              "Fix the failures or pass --force.", file=sys.stderr)
-        sys.exit(3)
-    if "MODEL_NO_EVIDENCE" in (verdict or ""):
-        print("ERROR: last release check reports MODEL_NO_EVIDENCE — the statistical "
-              "model has no validated edge. Refusing to package a strategy without "
-              "mathematical edge (pass --force only if you truly understand).",
+    if not verdict_allows_packaging(verdict):
+        print(f"ERROR: last release verdict is {verdict!r}, not exact GO — "
+              "refusing to package. Fix the release check or pass --force.",
               file=sys.stderr)
         sys.exit(3)
 
@@ -140,6 +221,7 @@ def smoke_test(extract_dir: Path) -> int:
         ["node", "tests/test_radar_continuous_cycle.js"],
         ["node", "tests/test_timestop_timeframe_scaling.js"],
         ["node", "tests/test_trade_clickable_data.js"],
+        ["node", "tests/test_cross_device_sync.js"],
         ["node", "tests/test_engine_full.js"],
         [sys.executable, "tests/reference_backtest.py"],
         [sys.executable, "-m", "unittest", "tests/test_relay_full.py"],
@@ -164,9 +246,7 @@ def main() -> int:
 
     # build
     tmp_zip = OUT.with_suffix(".tmp.zip")
-    with zipfile.ZipFile(tmp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for rel in files:
-            zf.write(ROOT / rel, arcname=rel)
+    build_archive(files, tmp_zip)
 
     sha = hashlib.sha256(tmp_zip.read_bytes()).hexdigest()
     tmp_zip.replace(OUT)
