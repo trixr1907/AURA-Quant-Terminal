@@ -55,6 +55,17 @@ jobs:
           test "v$(tr -d '\r\n' < VERSION)" = "$TAG"
           git rev-parse --verify "refs/tags/$TAG^{commit}" >/dev/null
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install release dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          python3 -m playwright install --with-deps chromium
+
       - name: Build distributable archive
         shell: bash
         run: |
