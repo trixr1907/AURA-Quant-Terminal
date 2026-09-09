@@ -122,6 +122,29 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn("21–25", tutorial)
         self.assertNotIn("26–25", tutorial)
 
+    def test_native_lxc_resolves_lan_ip_before_openrc_service_start(self):
+        script = (ROOT / "proxmox_lxc_install.sh").read_text(encoding="utf-8")
+        ip_probe = script.index("ip -4 -o addr show scope global dev eth0")
+        service_start = script.index("rc-service aura-terminal start")
+        self.assertLess(ip_probe, service_start)
+        self.assertIn('AURA_ALLOWED_HOSTS="$IP"', script)
+        self.assertIn('AURA_STATE_DIR=/var/lib/aura', script)
+        self.assertIn('mkdir -p /var/lib/aura', script)
+        self.assertIn('Keine gültige LAN-IPv4', script)
+        self.assertIn('exit 1', script[script.index('Keine gültige LAN-IPv4'):])
+
+    def test_native_scanner_configures_and_probes_state_before_success(self):
+        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        native = script[script.index('elif [[ "$SEL_TYPE" =~ ^lxc_native: ]]'):]
+        self.assertIn('/var/lib/aura', native)
+        self.assertIn('SYM_HOST=0.0.0.0', native)
+        self.assertIn('SYM_PORT=$PORT', native)
+        self.assertIn('AURA_ALLOWED_HOSTS=$SEL_IP', native)
+        self.assertIn('AURA_STATE_DIR=/var/lib/aura', native)
+        self.assertIn('curl -fsS --max-time 10 "http://$SEL_IP:$PORT/api/state"', native)
+        self.assertNotIn('2>/dev/null || true && systemctl restart', native)
+        self.assertNotIn('SEL_IP=$(pct exec', native[native.index('AURA_STATE_DIR'):])
+
     def test_proxmox_deployer_avoids_early_exit_pipe_checks(self):
         script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         self.assertNotIn('"http://${ip}:${PORT}/" | grep -q', script)

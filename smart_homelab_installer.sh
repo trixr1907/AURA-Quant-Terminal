@@ -52,15 +52,23 @@ deploy_docker() {
   docker stop aura-terminal >/dev/null 2>&1 || true
   docker rm aura-terminal >/dev/null 2>&1 || true
 
+  HOST_IP=$(hostname -I | awk '{print $1}' || echo "")
+  if [[ -z "$HOST_IP" || "$HOST_IP" == "127.0.0.1" ]]; then
+    echo -e "${RD}[FEHLER] Keine LAN-IPv4 für Docker-Deployment ermittelt.${CL}" >&2
+    exit 1
+  fi
+
   echo -e "${BL}[3/3] Starte Container im Hintergrund auf Port ${PORT}...${CL}"
   docker run -d \
     --name aura-terminal \
     --restart unless-stopped \
     -p "${PORT}:8787" \
+    -e "AURA_ALLOWED_HOSTS=${HOST_IP}" \
+    -e AURA_STATE_DIR=/var/lib/aura \
+    -v aura-state:/var/lib/aura \
     aura-quant-terminal:latest
 
-  # Host-IP ermitteln
-  HOST_IP=$(hostname -I | awk '{print $1}' || echo "localhost")
+  # Host-IP is already validated before the container starts.
 
   echo -e "\n${GN}======================================================${CL}"
   echo -e "${GN}  AURA QUANT TERMINAL ERFOLGREICH VIA DOCKER GESTARTET!${CL}"
@@ -158,16 +166,17 @@ deploy_proxmox_docker_lxc() {
     pct push "$CT_ID" "$SCRIPT_DIR/data/bitget_usdt_futures_universe.json" /opt/aura/data/bitget_usdt_futures_universe.json
   fi
 
-  echo -e "${BL}[6/6] Baue und starte AURA Docker Container im LXC...${CL}"
-  pct exec "$CT_ID" -- bash -c "cd /opt/aura && docker build -t aura-quant-terminal:latest . && docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 aura-quant-terminal:latest"
-
-  sleep 3
   IP=""
   for i in {1..10}; do
     IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || true)
     if [[ -n "$IP" ]]; then break; fi
     sleep 1
   done
+  if [[ -z "$IP" || "$IP" == "127.0.0.1" ]]; then
+    echo -e "${RD}[FEHLER] Keine LAN-IPv4 für LXC $CT_ID ermittelt.${CL}" >&2
+    exit 1
+  fi
+  pct exec "$CT_ID" -- bash -c "cd /opt/aura && docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 -e AURA_ALLOWED_HOSTS='$IP' -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest"
 
   echo -e "\n${GN}======================================================${CL}"
   echo -e "${GN}  PROXMOX DOCKER LXC ERFOLGREICH EINGERICHTET!${CL}"

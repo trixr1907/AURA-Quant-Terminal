@@ -7,7 +7,7 @@ FROM python:3.12-alpine
 # Set build & runtime metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="1.0.6"
+LABEL version="1.0.7"
 
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,6 +17,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Create non-root user for maximum security (Best Practice)
 RUN addgroup -S aura && adduser -S aura -G aura
+
+# Prepare the persistent state mount before switching to the non-root user.
+RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
 
 WORKDIR /app
 

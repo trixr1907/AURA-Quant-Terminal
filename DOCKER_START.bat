@@ -39,7 +39,7 @@ docker stop aura-terminal >nul 2>nul
 docker rm aura-terminal >nul 2>nul
 
 echo [3/3] Starte Container im Hintergrund auf Port 8787...
-docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 aura-quant-terminal:latest
+docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 -e AURA_ALLOWED_HOSTS=127.0.0.1 -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest
 if %ERRORLEVEL% NEQ 0 (
     echo [FEHLER] Docker Run fehlgeschlagen!
     pause

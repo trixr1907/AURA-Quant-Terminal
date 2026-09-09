@@ -127,11 +127,7 @@ def classify_sensitivity(report: dict | None) -> tuple[str, str]:
 
 
 def compute_verdict(results: list[dict], model_no_evidence: bool = False) -> str:
-    """Aggregate per-check statuses into the honest final verdict.
-
-    A clean GO is only possible when nothing FAILed AND the statistical model did
-    not report NO_EVIDENCE. Missing external evidence remains a NO-GO, never a GO.
-    """
+    """Aggregate per-check statuses; only an all-PASS result can be GO."""
     statuses = [r.get("status") for r in results]
     if any(s == "FAIL" for s in statuses):
         return "FAIL"
@@ -139,27 +135,68 @@ def compute_verdict(results: list[dict], model_no_evidence: bool = False) -> str
         return "SOFTWARE_GO / MODEL_NO_EVIDENCE"
     if any(s == "NO-GO" for s in statuses):
         return "NO-GO"
+    if any(s == "CONDITIONAL" for s in statuses):
+        return "CONDITIONAL"
+    if any(s == "WARN" for s in statuses):
+        return "WARN"
+    if not statuses or any(s != "PASS" for s in statuses):
+        return "FAIL"
     return "GO"
 
 
-def extract_versions(relay_src: str, readme_text: str, dashboard_html: str) -> dict[str, str | None]:
-    """Extract SemVer strings from Relay, README, and Dashboard."""
+def exit_code_for_verdict(verdict: str | None) -> int:
+    """Return success only for the exact release verdict GO."""
+    return 0 if verdict == "GO" else 2
+
+
+def extract_versions(
+    relay_src: str,
+    readme_text: str,
+    dashboard_html: str,
+    tutorial_html: str = "",
+    pine_src: str = "",
+) -> dict[str, str | None]:
+    """Extract current, user-visible release metadata from every shipped surface."""
     semver = r"(\d+\.\d+\.\d+)"
     relay_ver = re.search(r'"version"\s*:\s*"' + semver + r'"', relay_src)
     readme_ver = re.search(r"#\s*AURA\s+v" + semver, readme_text)
     dash_ver = re.search(r"AURA\s+(?:Quant\s+Terminal\s+)?v" + semver, dashboard_html)
+    tutorial_html = tutorial_html or ""
+    pine_src = pine_src or ""
+    tutorial_nav = re.search(r'class="nav-logo">AURA\s+v' + semver, tutorial_html)
+    tutorial_hero = re.search(r'<h1>AURA\s+v' + semver, tutorial_html)
+    tutorial_footer = re.search(r'<footer>\s*AURA\s+v' + semver, tutorial_html)
+    pine_header = re.search(r"^//\s+AURA\s+v" + semver + r"\s+—", pine_src, re.MULTILINE)
+    pine_dashboard = re.search(r'f_hdr\(0,\s*"AURA\s+v' + semver + r'"', pine_src)
+    pine_alert = re.search(r'"type":"symbiose\.v' + semver + r'"', pine_src)
     return {
         "relay /serving": relay_ver.group(1) if relay_ver else None,
         "README header": readme_ver.group(1) if readme_ver else None,
         "dashboard footer": dash_ver.group(1) if dash_ver else None,
+        "tutorial navigation": tutorial_nav.group(1) if tutorial_nav else None,
+        "tutorial hero": tutorial_hero.group(1) if tutorial_hero else None,
+        "tutorial footer": tutorial_footer.group(1) if tutorial_footer else None,
+        "Pine header": pine_header.group(1) if pine_header else None,
+        "Pine dashboard": pine_dashboard.group(1) if pine_dashboard else None,
+        "Pine alert type": pine_alert.group(1) if pine_alert else None,
     }
 
-def check_version_consistency(relay_src: str, readme_text: str, dashboard_html: str) -> tuple[str, str]:
+def check_version_consistency(
+    relay_src: str,
+    readme_text: str,
+    dashboard_html: str,
+    tutorial_html: str | None = None,
+    pine_src: str | None = None,
+) -> tuple[str, str]:
     """Check version consistency across components in a fail-closed manner.
 
     Relay, README, and Dashboard versions must all be present (not None) and identical.
     """
-    versions = extract_versions(relay_src, readme_text, dashboard_html)
+    versions = extract_versions(relay_src, readme_text, dashboard_html, tutorial_html or "", pine_src or "")
+    if tutorial_html is None:
+        versions = {k: v for k, v in versions.items() if not k.startswith("tutorial ")}
+    if pine_src is None:
+        versions = {k: v for k, v in versions.items() if not k.startswith("Pine ")}
     stale_changelog = re.findall(r"### v(\d+\.\d+(?:\.\d+)?)[^\n]*\(aktuelle Fassung\)", readme_text)
     vals = list(versions.values())
     if any(v is None for v in vals):
@@ -381,6 +418,9 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_smc_sessions.js"])
     add(check("smc sessions suite", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_cross_device_sync.js"])
+    add(check("cross device sync suite", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
 
     # 2. Statistical Oracle & Metamorphic tests
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
@@ -475,7 +515,9 @@ def main() -> int:
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     relay_src = (ROOT / "bitget_relay.py").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    ver_status, ver_detail = check_version_consistency(relay_src, readme, html)
+    tutorial = (ROOT / "SYMBIOSE_Tutorial.html").read_text(encoding="utf-8")
+    pine = (ROOT / "Symbiose_Signal_System_v1.pine").read_text(encoding="utf-8")
+    ver_status, ver_detail = check_version_consistency(relay_src, readme, html, tutorial, pine)
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         ver_status = "FAIL"
         ver_detail = json.dumps({"version": version, "error": "VERSION must use SemVer MAJOR.MINOR.PATCH"})
@@ -520,7 +562,9 @@ def main() -> int:
     add(check("secret scan", "PASS" if not hits else "FAIL",
               "; ".join(hits[:10]) if hits else "no credential values found"))
 
-    # Workspace hygiene (report only — never delete generated user state)
+    # Workspace hygiene is report-only information. It must never become a
+    # verdict input: generated caches do not prove a release is unsafe, but they
+    # must remain visible in the machine-readable report.
     hygiene = []
     for seg in ("__pycache__", ".pytest_cache"):
         n = sum(1 for p in ROOT.rglob(seg) if p.is_dir() and not is_runtime_path(p))
@@ -529,8 +573,7 @@ def main() -> int:
     for p in ROOT.rglob("*.png"):
         if not is_runtime_path(p):
             hygiene.append(f"screenshot {p.name}")
-    add(check("workspace hygiene (report)", "PASS" if not hygiene else "CONDITIONAL",
-              "; ".join(hygiene) if hygiene else "clean"))
+    info = {"workspace_hygiene": hygiene or ["clean"]}
 
     # Aggregate
     verdict = compute_verdict(results, model_no_evidence=model_no_evidence)
@@ -538,6 +581,7 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "verdict": verdict,
         "checks": results,
+        "info": info,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
@@ -552,6 +596,8 @@ def main() -> int:
                     "CONDITIONAL": "[WARN] "}.get(r["status"], "[??]   ")
             print(f"{flag}{r['name']:34s} {r['detail'][:110]}", file=sys.stderr)
         print(f"\nVERDICT: {verdict}", file=sys.stderr)
+        if info.get("workspace_hygiene") != ["clean"]:
+            print(f"[INFO] workspace hygiene: {'; '.join(info['workspace_hygiene'])}", file=sys.stderr)
         if verdict == "SOFTWARE_GO / MODEL_NO_EVIDENCE":
             print("Statistical model reports NO_EVIDENCE — software passes, but there "
                   "is no mathematical edge. Not a clean GO.", file=sys.stderr)
@@ -560,7 +606,7 @@ def main() -> int:
                   "See RELEASE_CHECKLIST.md.", file=sys.stderr)
 
     required_fail = any(r["status"] == "FAIL" for r in results)
-    return 2 if required_fail else 0
+    return exit_code_for_verdict(verdict) if not required_fail else 2
 
 
 if __name__ == "__main__":

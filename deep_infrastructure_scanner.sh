@@ -262,12 +262,21 @@ if [[ $FOUND_COUNT -gt 0 ]]; then
       docker build -t aura-quant-terminal:latest .
       docker stop aura-terminal >/dev/null 2>&1 || true
       docker rm aura-terminal >/dev/null 2>&1 || true
-      docker run -d --name aura-terminal --restart unless-stopped -p "${PORT}:8787" aura-quant-terminal:latest
       SEL_IP=$(hostname -I | awk '{print $1}')
+      if [[ -z "$SEL_IP" || "$SEL_IP" == "127.0.0.1" ]]; then
+        echo -e "${RD}[FEHLER] Keine LAN-IP für Host ermittelt.${CL}" >&2
+        exit 1
+      fi
+      docker run -d --name aura-terminal --restart unless-stopped -p "${PORT}:8787" -e AURA_ALLOWED_HOSTS="$SEL_IP" -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest
 
     elif [[ "$SEL_TYPE" =~ ^lxc_docker: || "$SEL_TYPE" =~ ^lxc: ]]; then
       T_CT_ID="${SEL_TYPE#lxc_docker:}"
       T_CT_ID="${T_CT_ID#lxc:}"
+      SEL_IP=$(pct exec "$T_CT_ID" -- ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || pct exec "$T_CT_ID" -- hostname -I | awk '{print $1}')
+      if [[ -z "$SEL_IP" || "$SEL_IP" == "127.0.0.1" ]]; then
+        echo -e "${RD}[FEHLER] Keine LAN-IP für LXC $T_CT_ID ermittelt.${CL}" >&2
+        exit 1
+      fi
       echo -e "Übertrage Dateien in LXC $T_CT_ID (Docker)..."
       pct exec "$T_CT_ID" -- mkdir -p /opt/aura/data
       pct push "$T_CT_ID" "$SCRIPT_DIR/Dockerfile" /opt/aura/Dockerfile
@@ -278,22 +287,43 @@ if [[ $FOUND_COUNT -gt 0 ]]; then
         pct push "$T_CT_ID" "$SCRIPT_DIR/data/bitget_usdt_futures_universe.json" /opt/aura/data/bitget_usdt_futures_universe.json
       fi
       echo -e "Baue und starte Container in LXC $T_CT_ID..."
-      pct exec "$T_CT_ID" -- bash -c "cd /opt/aura && docker build -t aura-quant-terminal:latest . && docker stop aura-terminal >/dev/null 2>&1 || true && docker rm aura-terminal >/dev/null 2>&1 || true && docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 aura-quant-terminal:latest"
-      SEL_IP=$(pct exec "$T_CT_ID" -- ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || pct exec "$T_CT_ID" -- hostname -I | awk '{print $1}')
+      pct exec "$T_CT_ID" -- bash -c "cd /opt/aura && docker build -t aura-quant-terminal:latest . && docker stop aura-terminal >/dev/null 2>&1 || true && docker rm aura-terminal >/dev/null 2>&1 || true && docker run -d --name aura-terminal --restart unless-stopped -p 8787:8787 -e AURA_ALLOWED_HOSTS='$SEL_IP' -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest"
 
     elif [[ "$SEL_TYPE" =~ ^lxc_native: ]]; then
       T_CT_ID="${SEL_TYPE#lxc_native:}"
+      SEL_IP=$(pct exec "$T_CT_ID" -- ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || pct exec "$T_CT_ID" -- hostname -I | awk '{print $1}')
+      if [[ -z "$SEL_IP" || "$SEL_IP" == "127.0.0.1" ]]; then
+        echo -e "${RD}[FEHLER] Keine LAN-IP für LXC $T_CT_ID ermittelt.${CL}" >&2
+        exit 1
+      fi
       echo -e "Übertrage Dateien in nativen AURA LXC $T_CT_ID..."
-      pct exec "$T_CT_ID" -- mkdir -p /opt/aura/data
+      pct exec "$T_CT_ID" -- mkdir -p /opt/aura/data /var/lib/aura
       pct push "$T_CT_ID" "$SCRIPT_DIR/bitget_relay.py" /opt/aura/bitget_relay.py
       pct push "$T_CT_ID" "$SCRIPT_DIR/Symbiose_Dashboard.html" /opt/aura/Symbiose_Dashboard.html
       pct push "$T_CT_ID" "$SCRIPT_DIR/SYMBIOSE_Tutorial.html" /opt/aura/SYMBIOSE_Tutorial.html
       if [[ -f "$SCRIPT_DIR/data/bitget_usdt_futures_universe.json" ]]; then
         pct push "$T_CT_ID" "$SCRIPT_DIR/data/bitget_usdt_futures_universe.json" /opt/aura/data/bitget_usdt_futures_universe.json
       fi
-      echo -e "Starte nativen AURA Service in LXC $T_CT_ID neu..."
-      pct exec "$T_CT_ID" -- sh -c "rc-service aura restart 2>/dev/null || systemctl restart aura 2>/dev/null || (pkill -f bitget_relay.py || true && nohup python3 /opt/aura/bitget_relay.py >/opt/aura/aura.log 2>&1 &)"
-      SEL_IP=$(pct exec "$T_CT_ID" -- ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || pct exec "$T_CT_ID" -- hostname -I | awk '{print $1}')
+      echo -e "Konfiguriere nativen AURA Service in LXC $T_CT_ID..."
+      SERVICE_ENV="SYM_HOST=0.0.0.0 SYM_PORT=$PORT AURA_ALLOWED_HOSTS=$SEL_IP AURA_STATE_DIR=/var/lib/aura"
+      if pct exec "$T_CT_ID" -- sh -c "command -v rc-service >/dev/null 2>&1 && { test -f /etc/init.d/aura || test -f /etc/init.d/aura-terminal; }"; then
+        if pct exec "$T_CT_ID" -- sh -c "test -f /etc/init.d/aura"; then
+          OPENRC_SERVICE="aura"
+        else
+          OPENRC_SERVICE="aura-terminal"
+        fi
+        pct exec "$T_CT_ID" -- sh -c "mkdir -p /etc/conf.d; printf '%s\\n' 'SYM_HOST=0.0.0.0' 'SYM_PORT=$PORT' 'AURA_ALLOWED_HOSTS=$SEL_IP' 'AURA_STATE_DIR=/var/lib/aura' > /etc/conf.d/$OPENRC_SERVICE"
+        pct exec "$T_CT_ID" -- sh -c "rc-service $OPENRC_SERVICE restart"
+      elif pct exec "$T_CT_ID" -- sh -c "command -v systemctl >/dev/null 2>&1 && systemctl cat aura.service >/dev/null 2>&1"; then
+        pct exec "$T_CT_ID" -- sh -c "mkdir -p /etc/systemd/system/aura.service.d; printf '%s\\n' '[Service]' 'Environment=SYM_HOST=0.0.0.0' 'Environment=SYM_PORT=$PORT' 'Environment=AURA_ALLOWED_HOSTS=$SEL_IP' 'Environment=AURA_STATE_DIR=/var/lib/aura' > /etc/systemd/system/aura.service.d/aura-scanner.conf"
+        pct exec "$T_CT_ID" -- sh -c "systemctl daemon-reload && systemctl restart aura.service"
+      else
+        pct exec "$T_CT_ID" -- sh -c "pkill -f bitget_relay.py || true; nohup env $SERVICE_ENV python3 /opt/aura/bitget_relay.py >/opt/aura/aura.log 2>&1 </dev/null &"
+      fi
+      if ! curl -fsS --max-time 10 "http://$SEL_IP:$PORT/api/state" >/dev/null; then
+        echo -e "${RD}[FEHLER] Externer State-Endpunkt http://$SEL_IP:$PORT/api/state nicht erreichbar.${CL}" >&2
+        exit 1
+      fi
 
     elif [[ "$SEL_TYPE" =~ ^vm: ]]; then
       T_VM_ID="${SEL_TYPE#vm:}"
@@ -386,8 +416,8 @@ else
     systemctl enable --now docker
     cd "$SCRIPT_DIR"
     docker build -t aura-quant-terminal:latest .
-    docker run -d --name aura-terminal --restart unless-stopped -p "${PORT}:8787" aura-quant-terminal:latest
     MY_IP=$(hostname -I | awk '{print $1}')
+    docker run -d --name aura-terminal --restart unless-stopped -p "${PORT}:8787" -e AURA_ALLOWED_HOSTS="$MY_IP" -e AURA_STATE_DIR=/var/lib/aura -v aura-state:/var/lib/aura aura-quant-terminal:latest
     echo -e "\n${GN}======================================================${CL}"
     echo -e "${GN}  AURA QUANT TERMINAL ERFOLGREICH GESTARTET!${CL}"
     echo -e "${GN}======================================================${CL}"

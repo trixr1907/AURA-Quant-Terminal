@@ -132,8 +132,24 @@ if [[ -f "$SCRIPT_DIR/bitget_relay.py" ]]; then
   fi
 fi
 
-# OpenRC Service Script anlegen
-pct exec "$CT_ID" -- bash -c 'cat << "SVC" > /etc/init.d/aura-terminal
+# 5. LXC LAN-IP muss vor Service-Erstellung/-Start fail-closed ermittelt werden
+# (der Service verwendet die ermittelte IP als Allowlist und persistiert State).
+echo -e "${BL}[5/5] Ermittle LXC-LAN-IP...${CL}"
+sleep 3
+IP=""
+for i in {1..10}; do
+  IP=$(pct exec "$CT_ID" -- sh -c "ip -4 -o addr show scope global dev eth0 | awk 'NR==1 {split(\$4,a,\"/\"); print a[1]}'" || true)
+  if [[ "$IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then break; fi
+  IP=""
+  sleep 1
+done
+if [[ -z "$IP" ]]; then
+  echo -e "${RD}[FEHLER] Keine gültige LAN-IPv4 auf eth0 gefunden; Service wird nicht gestartet.${CL}"
+  exit 1
+fi
+
+pct exec "$CT_ID" -- env AURA_ALLOWED_HOSTS="$IP" AURA_STATE_DIR=/var/lib/aura sh -c 'mkdir -p /var/lib/aura'
+pct exec "$CT_ID" -- env AURA_ALLOWED_HOSTS="$IP" AURA_STATE_DIR=/var/lib/aura sh -c 'cat << "SVC" > /etc/init.d/aura-terminal
 #!/sbin/openrc-run
 
 name="AURA Quant Terminal"
@@ -145,6 +161,8 @@ pidfile="/run/aura-terminal.pid"
 directory="/opt/aura"
 export SYM_HOST="0.0.0.0"
 export SYM_PORT="8787"
+export AURA_ALLOWED_HOSTS="'"$IP"'"
+export AURA_STATE_DIR="/var/lib/aura"
 
 depend() {
     need net
@@ -156,15 +174,6 @@ rc-update add aura-terminal default
 rc-service aura-terminal start
 '
 
-# 5. IP Adresse ermitteln
-echo -e "${BL}[5/5] Ermittle IP-Adresse...${CL}"
-sleep 3
-IP=""
-for i in {1..10}; do
-  IP=$(pct exec "$CT_ID" -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || true)
-  if [[ -n "$IP" ]]; then break; fi
-  sleep 1
-done
 
 echo -e "\n${GN}======================================================${CL}"
 echo -e "${GN}  AURA QUANT TERMINAL ERFOLGREICH INSTALLIERT!${CL}"

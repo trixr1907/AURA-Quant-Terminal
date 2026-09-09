@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Regression tests for TEIL 3: honest release gate + Bitget-first data sync."""
 import hashlib
+import importlib.util
 import json
 import sys
 import tempfile
 import time
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -16,6 +18,13 @@ sys.path.insert(0, str(SCRIPTS))
 import release_check  # noqa: E402
 import sync_market_data  # noqa: E402
 
+BUILD_PACKAGE_SPEC = importlib.util.spec_from_file_location(
+    "build_package", SCRIPTS / "build_package.py"
+)
+build_package = importlib.util.module_from_spec(BUILD_PACKAGE_SPEC)
+assert BUILD_PACKAGE_SPEC.loader is not None
+BUILD_PACKAGE_SPEC.loader.exec_module(build_package)
+
 
 class TestSyncMarketDataSafety(unittest.TestCase):
     """sync_market_data safety: refuses JS Golden-Master score generation."""
@@ -24,6 +33,202 @@ class TestSyncMarketDataSafety(unittest.TestCase):
         with mock.patch("sys.argv", ["sync_market_data.py", "--golden-only"]):
             rc = sync_market_data.main()
             self.assertNotEqual(rc, 0)
+
+
+class TestPackageRuntimeStateExclusion(unittest.TestCase):
+    """Release archives must never contain generated user runtime state."""
+
+    RUNTIME_STATE_VARIANTS = (
+        "aura_shared_state.json",
+        "aura_shared_state.json.tmp",
+        "aura_shared_state.tmp",
+        "aura_shared_state.json.bak",
+    )
+
+    def test_real_manifest_only_collects_the_explicit_static_dataset(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            (data / "bitget_usdt_futures_universe.json").write_text(
+                "harmless universe sentinel", encoding="utf-8"
+            )
+            (data / "unlisted_fixture.json").write_text(
+                "harmless unlisted sentinel", encoding="utf-8"
+            )
+            with mock.patch.object(build_package, "ROOT", root):
+                files = build_package.collect_files()
+            self.assertEqual(files, ["data/bitget_usdt_futures_universe.json"])
+
+    def test_runtime_state_family_is_excluded_from_collection(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            for variant in self.RUNTIME_STATE_VARIANTS:
+                (data / variant).write_text("harmless runtime sentinel", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root), mock.patch.object(
+                build_package, "MANIFEST", ["data/"]
+            ):
+                files = build_package.collect_files()
+            self.assertEqual(files, [])
+
+    def test_explicit_static_dataset_remains_in_normal_package(self):
+        self.assertIn("data/bitget_usdt_futures_universe.json", build_package.collect_files())
+
+    def test_archive_builder_rejects_every_runtime_state_family_variant(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            for variant in self.RUNTIME_STATE_VARIANTS:
+                (data / variant).write_text("harmless runtime sentinel", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root):
+                for variant in self.RUNTIME_STATE_VARIANTS:
+                    with self.subTest(variant=variant), self.assertRaises(ValueError):
+                        build_package.build_archive([f"data/{variant}"], root / "out.zip")
+
+    def test_allowed_static_dataset_can_be_archived(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            fixture = data / "bitget_usdt_futures_universe.json"
+            fixture.write_text("harmless universe sentinel", encoding="utf-8")
+            output = root / "out.zip"
+            with mock.patch.object(build_package, "ROOT", root):
+                build_package.build_archive(["data/bitget_usdt_futures_universe.json"], output)
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(archive.namelist(), ["data/bitget_usdt_futures_universe.json"])
+
+    def test_archive_builder_rejects_unknown_file_outside_explicit_manifest(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            (data / "bitget_usdt_futures_universe.json").write_text(
+                "harmless universe sentinel", encoding="utf-8"
+            )
+            (data / "secret_fixture.json").write_text(
+                "harmless unknown sentinel", encoding="utf-8"
+            )
+            with mock.patch.object(
+                build_package, "ROOT", root
+            ), mock.patch.object(
+                build_package, "MANIFEST", ["data/bitget_usdt_futures_universe.json"]
+            ):
+                with self.assertRaises(ValueError):
+                    build_package.build_archive(["data/secret_fixture.json"], root / "out.zip")
+
+    def test_archive_builder_accepts_safe_child_of_manifest_directory_only(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            tests_dir = root / "tests"
+            data_dir = root / "data"
+            tests_dir.mkdir()
+            data_dir.mkdir()
+            (tests_dir / "fixture.txt").write_text("harmless child sentinel", encoding="utf-8")
+            (data_dir / "outside.txt").write_text("harmless outside sentinel", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root), mock.patch.object(
+                build_package, "MANIFEST", ["tests/"]
+            ):
+                output = root / "out.zip"
+                build_package.build_archive(["tests/fixture.txt"], output)
+                with zipfile.ZipFile(output) as archive:
+                    self.assertEqual(archive.namelist(), ["tests/fixture.txt"])
+                with self.assertRaises(ValueError):
+                    build_package.build_archive(["data/outside.txt"], root / "outside.zip")
+
+    def test_archive_builder_rejects_runtime_state_even_if_list_is_tampered(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            state = data / "aura_shared_state.json"
+            state.write_text("harmless runtime sentinel", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root):
+                with self.assertRaises(ValueError):
+                    build_package.build_archive(["data/aura_shared_state.json"], root / "out.zip")
+
+
+class TestPackagePathSafety(unittest.TestCase):
+    """Package sources must stay inside ROOT and never traverse symlinks."""
+
+    def test_parent_traversal_manifest_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            root = workspace / "root"
+            root.mkdir()
+            outside = workspace / "outside.txt"
+            outside.write_text("harmless traversal fixture", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root):
+                with self.assertRaises(ValueError):
+                    build_package.build_archive(["../outside.txt"], root / "out.zip")
+
+    def test_absolute_manifest_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            root = workspace / "root"
+            root.mkdir()
+            outside = workspace / "absolute.txt"
+            outside.write_text("harmless absolute-path fixture", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root):
+                with self.assertRaises(ValueError):
+                    build_package.build_archive([str(outside)], root / "out.zip")
+
+    def test_symlink_file_is_excluded_from_collection_and_rejected_if_injected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            root = workspace / "root"
+            data = root / "data"
+            data.mkdir(parents=True)
+            outside = workspace / "outside.txt"
+            outside.write_text("harmless symlink fixture", encoding="utf-8")
+            link = data / "linked.txt"
+            link.symlink_to(outside)
+            fixture = data / "market_fixture.json"
+            fixture.write_text("fixture", encoding="utf-8")
+            with mock.patch.object(build_package, "ROOT", root), mock.patch.object(
+                build_package, "MANIFEST", ["data/"]
+            ):
+                files = build_package.collect_files()
+                self.assertNotIn("data/linked.txt", files)
+                self.assertIn("data/market_fixture.json", files)
+                with self.assertRaises(ValueError):
+                    build_package.build_archive(["data/linked.txt"], root / "out.zip")
+
+    def test_symlink_directory_is_not_traversed_or_packaged(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            root = workspace / "root"
+            data = root / "data"
+            data.mkdir(parents=True)
+            outside = workspace / "external-data"
+            outside.mkdir()
+            (outside / "leak.txt").write_text("harmless symlink-dir fixture", encoding="utf-8")
+            (data / "linked-dir").symlink_to(outside, target_is_directory=True)
+            with mock.patch.object(build_package, "ROOT", root), mock.patch.object(
+                build_package, "MANIFEST", ["data/"]
+            ):
+                files = build_package.collect_files()
+            self.assertNotIn("data/linked-dir/leak.txt", files)
+            self.assertNotIn("data/linked-dir", files)
+
+    def test_normal_fixture_remains_allowed_and_archive_name_is_normalized(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data = root / "data"
+            data.mkdir()
+            fixture = data / "market_fixture.json"
+            fixture.write_text("fixture", encoding="utf-8")
+            output = root / "out.zip"
+            with mock.patch.object(build_package, "ROOT", root), mock.patch.object(
+                build_package, "MANIFEST", ["data/"]
+            ):
+                build_package.build_archive(["data/./market_fixture.json"], output)
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(archive.namelist(), ["data/market_fixture.json"])
+
 
 class TestVersionConsistencyFailClosed(unittest.TestCase):
     """Version check must be fail-closed across release artifacts."""
@@ -43,6 +248,16 @@ class TestVersionConsistencyFailClosed(unittest.TestCase):
         for name in ("relay", "README", "dashboard", "tutorial", "Dockerfile"):
             with self.subTest(name=name):
                 self.assertIn(expected, sources[name])
+
+    def test_stale_tutorial_and_pine_current_metadata_fails(self):
+        status, detail = release_check.check_version_consistency(
+            'const meta = { "version": "1.0.7" };', '# AURA v1.0.7 - Architecture',
+            '<span>AURA Quant Terminal v1.0.7</span>',
+            '<nav><span class="nav-logo">AURA v1.0.3</span></nav><h1>AURA v1.0.7</h1><footer>AURA v1.0.7</footer>',
+            '// AURA v1.0.7 — Header\nf_hdr(0, "AURA v1.0.3")\njsn = \'{"type":"symbiose.v1.0.7"}\'',
+        )
+        self.assertEqual(status, "FAIL")
+        self.assertIn("tutorial navigation", detail)
 
     def test_missing_dashboard_version_fails(self):
         relay_src = 'const meta = { "version": "1.0.0" };'
@@ -274,10 +489,33 @@ class TestHonestReleaseVerdict(unittest.TestCase):
         verdict = release_check.compute_verdict(results, model_no_evidence=False)
         self.assertEqual(verdict, "GO")
 
-    def test_compute_verdict_fail_wins(self):
-        results = [{"name": "engine suite", "status": "FAIL", "detail": ""}]
-        verdict = release_check.compute_verdict(results, model_no_evidence=False)
-        self.assertEqual(verdict, "FAIL")
+    def test_compute_verdict_warn_is_not_go(self):
+        self.assertEqual(release_check.compute_verdict([{"name": "hygiene", "status": "WARN"}]), "WARN")
+        self.assertNotEqual(release_check.compute_verdict([{"name": "pass", "status": "PASS"}, {"name": "warn", "status": "WARN"}]), "GO")
+
+    def test_compute_verdict_conditional_is_not_go(self):
+        results = [{"name": "browser", "status": "CONDITIONAL", "detail": ""}]
+        self.assertEqual(release_check.compute_verdict(results), "CONDITIONAL")
+
+    def test_compute_verdict_no_go_is_preserved(self):
+        results = [{"name": "golden", "status": "NO-GO", "detail": ""}]
+        self.assertEqual(release_check.compute_verdict(results), "NO-GO")
+
+    def test_compute_verdict_unknown_or_missing_status_fails_closed(self):
+        self.assertNotEqual(release_check.compute_verdict([{"name": "x"}]), "GO")
+        self.assertNotEqual(release_check.compute_verdict([{"name": "x", "status": "UNKNOWN"}]), "GO")
+
+    def test_exit_code_for_verdict_rejects_every_non_go(self):
+        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "SOFTWARE_GO / MODEL_NO_EVIDENCE", "UNKNOWN", None):
+            with self.subTest(verdict=verdict):
+                self.assertNotEqual(release_check.exit_code_for_verdict(verdict), 0)
+        self.assertEqual(release_check.exit_code_for_verdict("GO"), 0)
+
+    def test_package_guard_accepts_only_exact_go(self):
+        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "SOFTWARE_GO / MODEL_NO_EVIDENCE", "UNKNOWN", None):
+            with self.subTest(verdict=verdict):
+                self.assertFalse(build_package.verdict_allows_packaging(verdict))
+        self.assertTrue(build_package.verdict_allows_packaging("GO"))
 
     def test_parse_sensitivity_no_evidence(self):
         report = json.dumps({"release": "NO_EVIDENCE", "reasons": ["expectancy -0.010R <= 0"]})

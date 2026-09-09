@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.0.4 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.0.7 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.0.6", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.0.7", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -35,7 +35,16 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
+VERSION = "1.0.7"
 BITGET_BASE = "https://api.bitget.com"
+
+
+class PersistenceError(Exception):
+    """Internal marker for state storage failures (never exposed to clients)."""
+
+
+class StatePersistenceError(PersistenceError):
+    """Existing state is unreadable or not a JSON object."""
 
 
 def _parse_allowed_hosts(raw: str) -> set[str]:
@@ -63,13 +72,95 @@ ALLOWED_HOSTS = _parse_allowed_hosts(os.environ.get("AURA_ALLOWED_HOSTS", ""))
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
 STATE_FILE = STATE_DIR / "aura_shared_state.json"
+MAX_STATE_VALUE_BYTES = 1_000_000
 STATE_LOCK = threading.Lock()
 ALLOWED_STATE_KEYS = {
     "aura-autobot-state-v2",
     "aura-quant-terminal-active-trades-v1",
     "aura-quant-terminal-history-trades-v1",
 }
-MAX_STATE_VALUE_BYTES = 1_000_000
+
+def _validate_mutations(mutations: Any) -> list[dict] | None:
+    """Validate an ID-based batch completely before applying any mutation."""
+    if not isinstance(mutations, list) or not mutations or len(mutations) > 1000:
+        return None
+    validated: list[dict] = []
+    for mutation in mutations:
+        if not isinstance(mutation, dict):
+            return None
+        key = mutation.get("key")
+        op = mutation.get("op")
+        ident = mutation.get("id")
+        if key not in {"aura-quant-terminal-active-trades-v1", "aura-quant-terminal-history-trades-v1"}:
+            return None
+        if op not in {"upsert", "delete"} or not isinstance(ident, str) or not ident or len(ident) > 256:
+            return None
+        if op == "upsert":
+            value = mutation.get("value")
+            if not isinstance(value, dict) or value.get("id") != ident:
+                return None
+            try:
+                if len(json.dumps(value, separators=(",", ":")).encode()) > MAX_STATE_VALUE_BYTES:
+                    return None
+            except (TypeError, ValueError):
+                return None
+            validated.append({"key": key, "op": op, "id": ident, "value": value})
+        else:
+            validated.append({"key": key, "op": op, "id": ident})
+    return validated
+
+
+def _apply_mutations_locked(current: dict, mutations: list[dict]) -> dict:
+    """Apply a previously validated batch to a copied state while STATE_LOCK is held."""
+    next_state = dict(current)
+    arrays: dict[str, list] = {}
+    for key in {item["key"] for item in mutations}:
+        existing = current.get(key, [])
+        arrays[key] = list(existing) if isinstance(existing, list) else []
+    for mutation in mutations:
+        values = arrays[mutation["key"]]
+        ident = mutation["id"]
+        index = next((i for i, item in enumerate(values) if isinstance(item, dict) and item.get("id") == ident), None)
+        if mutation["op"] == "delete":
+            if index is not None:
+                values.pop(index)
+        elif index is None:
+            if mutation["key"] == "aura-quant-terminal-history-trades-v1":
+                values.insert(0, mutation["value"])
+            else:
+                values.append(mutation["value"])
+        else:
+            values[index] = mutation["value"]
+    for key, values in arrays.items():
+        limit = 200 if key == "aura-quant-terminal-history-trades-v1" else 500
+        next_state[key] = values[:limit]
+    return next_state
+
+
+def _save_mutation_batch(mutations: list[dict], expected_rev: int | None = None) -> tuple[dict | None, int, PersistenceError | None]:
+    """Atomically validate, apply, and persist an ID mutation batch."""
+    with STATE_LOCK:
+        current: dict = {}
+        try:
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            if STATE_FILE.exists():
+                loaded = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                if not isinstance(loaded, dict):
+                    raise ValueError("shared state must be a JSON object")
+                current = loaded
+            current_rev = int(current.get("_rev", 0))
+            if expected_rev is not None and expected_rev != current_rev:
+                return None, current_rev, None
+            next_state = _apply_mutations_locked(current, mutations)
+            next_state["_updated_at"] = int(time.time())
+            next_state["_rev"] = current_rev + 1
+            tmp_path = STATE_FILE.with_suffix(".tmp")
+            tmp_path.write_text(json.dumps(next_state, indent=2), encoding="utf-8")
+            tmp_path.replace(STATE_FILE)
+            return next_state, next_state["_rev"], None
+        except Exception as exc:
+            log.error("Failed to persist mutation batch: %s", exc)
+            return None, int(current.get("_rev", 0)) if isinstance(current, dict) else 0, PersistenceError()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,38 +177,49 @@ CORS_HEADERS = {
 
 
 def _load_shared_state() -> dict:
-    """Read shared persistent state across all connected devices."""
+    """Read shared persistent state; missing file is empty, corruption is fatal."""
     with STATE_LOCK:
-        if STATE_FILE.exists():
-            try:
-                return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-            except Exception as e:
-                log.warning("Could not parse %s: %s", STATE_FILE, e)
-        return {}
+        if not STATE_FILE.exists():
+            return {}
+        try:
+            state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        except Exception as exc:
+            log.error("Could not parse existing state file: %s", exc)
+            raise StatePersistenceError() from exc
+        if not isinstance(state, dict):
+            log.error("Existing state file is not a JSON object")
+            raise StatePersistenceError()
+        return state
 
 
-def _save_shared_state(key: str, val: Any) -> dict:
-    """Save a key/value pair atomically to the shared server state file."""
+def _save_shared_state(key: str, val: Any, expected_rev: int | None = None) -> tuple[dict | None, int, PersistenceError | None]:
+    """Atomically save one key, rejecting stale revisions before mutation."""
     with STATE_LOCK:
+        current: dict = {}
         try:
             STATE_DIR.mkdir(parents=True, exist_ok=True)
             current = {}
             if STATE_FILE.exists():
                 try:
-                    current = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                    loaded = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                    if not isinstance(loaded, dict):
+                        raise ValueError("shared state must be a JSON object")
+                    current = loaded
                 except Exception:
-                    current = {}
+                    raise PersistenceError("shared state is corrupt")
+            current_rev = int(current.get("_rev", 0))
+            if expected_rev is not None and expected_rev != current_rev:
+                return None, current_rev, None
             current[key] = val
             current["_updated_at"] = int(time.time())
-            current["_rev"] = int(current.get("_rev", 0)) + 1
-            # Write via temporary file for atomic write safety
+            current["_rev"] = current_rev + 1
             tmp_path = STATE_FILE.with_suffix(".tmp")
             tmp_path.write_text(json.dumps(current, indent=2), encoding="utf-8")
             tmp_path.replace(STATE_FILE)
-            return current
+            return current, current["_rev"], None
         except Exception as e:
             log.error("Failed to persist shared state: %s", e)
-            return {}
+            return None, int(current.get("_rev", 0)) if isinstance(current, dict) else 0, PersistenceError()
 
 
 # ---------------------------------------------------------------------------
@@ -194,11 +296,9 @@ class RelayHandler(BaseHTTPRequestHandler):
 
     def _authorize_privileged(self) -> bool:
         try:
-            server_port = int(getattr(self.server, "server_port"))
             host = urllib.parse.urlsplit(f"//{self.headers.get('Host', '')}")
             if (
                 host.hostname not in self._ALLOWED_HOSTS
-                or host.port != server_port
                 or host.username is not None
                 or host.password is not None
             ):
@@ -212,12 +312,23 @@ class RelayHandler(BaseHTTPRequestHandler):
             return True
         try:
             origin = urllib.parse.urlsplit(origin_value)
-            valid_origin = (
-                origin.scheme == "http"
-                and origin.hostname == host.hostname
-                and origin.port == server_port
+            host_port = host.port
+            origin_port = origin.port
+            # Host and Origin must describe exactly the same authority.  The
+            # listener port is deliberately not consulted: Docker/NAT may
+            # expose the internal listener on a different external port.
+            same_authority = (
+                origin.hostname == host.hostname
                 and origin.username is None
                 and origin.password is None
+                and (
+                    (host_port is not None and origin_port == host_port)
+                    or (host_port is None and origin_port is None)
+                )
+            )
+            valid_origin = (
+                origin.scheme in {"http", "https"}
+                and same_authority
                 and origin.path == ""
                 and origin.query == ""
                 and origin.fragment == ""
@@ -303,17 +414,22 @@ class RelayHandler(BaseHTTPRequestHandler):
         elif path == "/serving":
             self._send_json({
                 "ok": True,
-                "version": "1.0.6",
+                "version": VERSION,
                 "port": PORT,
                 "mode": "quant_research",
             })
         elif path == "/api/state":
             if not self._authorize_privileged():
                 return
-            # Return shared server state for cross-device synchronization
+            # Return shared server state for cross-device synchronization.
+            try:
+                state = _load_shared_state()
+            except StatePersistenceError:
+                self._send_json({"code": "ERR_STATE_PERSIST", "msg": "state could not be read"}, 500, cors_headers=self._privileged_cors_headers())
+                return
             self._send_json({
                 "ok": True,
-                "data": _load_shared_state(),
+                "data": state,
             }, cors_headers=self._privileged_cors_headers())
         else:
             self._send_json({"code": "ERR_NOT_FOUND"}, 404)
@@ -332,13 +448,34 @@ class RelayHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/state":
-            # Central state persistence & synchronization endpoint
+            expected_raw = payload.get("expected_rev")
+            if expected_raw is not None and (isinstance(expected_raw, bool) or not isinstance(expected_raw, int) or expected_raw < 0):
+                self._send_json({"code": "ERR_INVALID_REV", "msg": "expected_rev must be a non-negative integer"}, 400)
+                return
+            if "mutations" in payload:
+                mutations = _validate_mutations(payload.get("mutations"))
+                if mutations is None:
+                    self._send_json({"code": "ERR_INVALID_MUTATIONS", "msg": "invalid ID mutation batch"}, 400)
+                    return
+                saved, rev, persist_error = _save_mutation_batch(mutations, expected_raw)
+                if persist_error is not None:
+                    self._send_json({"code": "ERR_STATE_PERSIST", "msg": "state could not be persisted"}, 500, cors_headers=self._privileged_cors_headers())
+                    return
+                if saved is None:
+                    self._send_json({
+                        "code": "ERR_STATE_CONFLICT",
+                        "msg": "state revision is stale; pull current state before retrying",
+                        "rev": rev,
+                        "state": _load_shared_state(),
+                    }, 409, cors_headers=self._privileged_cors_headers())
+                    return
+                self._send_json({"ok": True, "mutations": len(mutations), "rev": rev, "state": saved}, cors_headers=self._privileged_cors_headers())
+                return
+
+            # Legacy single-key writes remain supported for autobot/bootstrap only.
             key = str(payload.get("key", "")).strip()
             val = payload.get("value")
-            if not key:
-                self._send_json({"code": "ERR_INVALID_KEY", "msg": "key is required"}, 400)
-                return
-            if key.startswith("_") or key not in ALLOWED_STATE_KEYS:
+            if not key or key.startswith("_") or key not in ALLOWED_STATE_KEYS:
                 self._send_json({"code": "ERR_INVALID_KEY", "msg": "unknown or reserved key"}, 400)
                 return
             try:
@@ -346,14 +483,16 @@ class RelayHandler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 serialized_size = 0
             if serialized_size > MAX_STATE_VALUE_BYTES:
-                self._send_json({"code": "ERR_STATE_TOO_LARGE",
-                                 "msg": f"value exceeds {MAX_STATE_VALUE_BYTES} bytes"}, 413)
+                self._send_json({"code": "ERR_STATE_TOO_LARGE", "msg": f"value exceeds {MAX_STATE_VALUE_BYTES} bytes"}, 413)
                 return
-            saved = _save_shared_state(key, val)
-            self._send_json(
-                {"ok": True, "key": key, "state": saved},
-                cors_headers=self._privileged_cors_headers(),
-            )
+            saved, rev, persist_error = _save_shared_state(key, val, expected_raw)
+            if persist_error is not None:
+                self._send_json({"code": "ERR_STATE_PERSIST", "msg": "state could not be persisted"}, 500, cors_headers=self._privileged_cors_headers())
+                return
+            if saved is None:
+                self._send_json({"code": "ERR_STATE_CONFLICT", "msg": "state revision is stale; pull current state before retrying", "rev": rev, "state": _load_shared_state()}, 409, cors_headers=self._privileged_cors_headers())
+                return
+            self._send_json({"ok": True, "key": key, "rev": rev, "state": saved}, cors_headers=self._privileged_cors_headers())
             return
 
         if path == "/api/public":
@@ -391,7 +530,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.0.6 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.0.7 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()
