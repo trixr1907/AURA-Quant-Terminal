@@ -476,6 +476,38 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         self.assertEqual(status, "PASS", f"Golden master gate unexpectedly failed: {detail}")
 
 
+class TestReleaseWorkflowDependencies(unittest.TestCase):
+    """The release runner must prepare the browser gate before fail-closed checks."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
+
+    def test_pinned_playwright_and_chromium_system_dependencies_precede_release_gate(self):
+        workflow = self.WORKFLOW.read_text(encoding="utf-8")
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+
+        self.assertRegex(requirements, r"(?m)^playwright==[^\\s]+$")
+        self.assertIn("actions/checkout@v4", workflow)
+        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertIn(
+            "python3 -m pip install --disable-pip-version-check -r requirements.txt",
+            workflow,
+        )
+        self.assertIn("python3 -m playwright install --with-deps chromium", workflow)
+
+        checkout = workflow.index("actions/checkout@v4")
+        setup = workflow.index("actions/setup-python@v5")
+        dependencies = workflow.index("python3 -m pip install")
+        browser = workflow.index("python3 -m playwright install --with-deps chromium")
+        release_check = workflow.index("python3 scripts/release_check.py")
+        publish = workflow.index("gh release create")
+
+        self.assertLess(checkout, setup)
+        self.assertLess(setup, dependencies)
+        self.assertLess(dependencies, browser)
+        self.assertLess(browser, release_check)
+        self.assertLess(release_check, publish)
+
+
 class TestHonestReleaseVerdict(unittest.TestCase):
     """release_check must never emit a clean GO when the model has no edge."""
 
