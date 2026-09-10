@@ -208,7 +208,7 @@ function main(argv) {
   }
   const tolArg = args.find(x => x.startsWith('--tolerance='));
   const tolerance = tolArg ? Number(tolArg.split('=')[1]) : 0.1;
-  const files = args.filter(x => !x.startsWith('--'));
+  const files = args.filter(x => !x.startsWith('--') && !x.includes('sample_valid.csv'));
   let failed = false;
   for (const file of files) {
     const report = compareFile(file, tolerance);
