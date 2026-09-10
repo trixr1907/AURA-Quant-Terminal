@@ -69,8 +69,8 @@ jobs:
       - name: Build distributable archive
         shell: bash
         run: |
-          python3 scripts/release_check.py || true
-          python3 scripts/build_package.py --force
+          python3 scripts/release_check.py
+          python3 scripts/build_package.py
 
       - name: Publish immutable GitHub Release
         env:

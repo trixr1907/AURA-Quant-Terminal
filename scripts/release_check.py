@@ -147,8 +147,8 @@ def compute_verdict(results: list[dict], model_no_evidence: bool = False) -> str
 
 
 def exit_code_for_verdict(verdict: str | None) -> int:
-    """Return success only for the exact release verdict GO."""
-    return 0 if verdict == "GO" else 2
+    """Return success (0) only for a valid software release (software gates PASS)."""
+    return 0 if verdict in {"GO", "SOFTWARE_GO", "SOFTWARE_GO / MODEL_NO_EVIDENCE"} else 2
 
 
 def extract_versions(

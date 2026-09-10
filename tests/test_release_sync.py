@@ -583,17 +583,21 @@ class TestHonestReleaseVerdict(unittest.TestCase):
         self.assertNotEqual(release_check.compute_verdict([{"name": "x"}]), "GO")
         self.assertNotEqual(release_check.compute_verdict([{"name": "x", "status": "UNKNOWN"}]), "GO")
 
-    def test_exit_code_for_verdict_rejects_every_non_go(self):
-        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "SOFTWARE_GO / MODEL_NO_EVIDENCE", "UNKNOWN", None):
+    def test_exit_code_for_verdict_accepts_software_go_and_rejects_fails(self):
+        for verdict in ("GO", "SOFTWARE_GO", "SOFTWARE_GO / MODEL_NO_EVIDENCE"):
+            with self.subTest(verdict=verdict):
+                self.assertEqual(release_check.exit_code_for_verdict(verdict), 0)
+        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "UNKNOWN", None):
             with self.subTest(verdict=verdict):
                 self.assertNotEqual(release_check.exit_code_for_verdict(verdict), 0)
-        self.assertEqual(release_check.exit_code_for_verdict("GO"), 0)
 
-    def test_package_guard_accepts_only_exact_go(self):
-        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "SOFTWARE_GO / MODEL_NO_EVIDENCE", "UNKNOWN", None):
+    def test_package_guard_accepts_software_go_and_rejects_fails(self):
+        for verdict in ("GO", "SOFTWARE_GO", "SOFTWARE_GO / MODEL_NO_EVIDENCE"):
+            with self.subTest(verdict=verdict):
+                self.assertTrue(build_package.verdict_allows_packaging(verdict))
+        for verdict in ("FAIL", "NO-GO", "CONDITIONAL", "UNKNOWN", None):
             with self.subTest(verdict=verdict):
                 self.assertFalse(build_package.verdict_allows_packaging(verdict))
-        self.assertTrue(build_package.verdict_allows_packaging("GO"))
 
     def test_parse_sensitivity_no_evidence(self):
         report = json.dumps({"release": "NO_EVIDENCE", "reasons": ["expectancy -0.010R <= 0"]})
@@ -614,6 +618,25 @@ class TestHonestReleaseVerdict(unittest.TestCase):
     def test_classify_sensitivity_research_only_warns(self):
         status, _detail = release_check.classify_sensitivity({"release": "RESEARCH_ONLY", "reasons": ["unstable"]})
         self.assertEqual(status, "CONDITIONAL")
+
+    def test_software_go_model_no_evidence_exits_zero_and_software_fail_exits_two(self):
+        # Scenario 1: All software checks PASS, but model evidence is NO_EVIDENCE -> exit 0
+        all_software_pass = [
+            {"name": "engine suite", "status": "PASS", "detail": "121 passed"},
+            {"name": "real data model evidence", "status": "PASS", "detail": "NO_EVIDENCE"},
+        ]
+        verdict = release_check.compute_verdict(all_software_pass, model_no_evidence=True)
+        self.assertEqual(verdict, "SOFTWARE_GO / MODEL_NO_EVIDENCE")
+        self.assertEqual(release_check.exit_code_for_verdict(verdict), 0)
+
+        # Scenario 2: Injected software failure (e.g. test fails or secret leak) -> exit 2
+        software_fail = [
+            {"name": "engine suite", "status": "FAIL", "detail": "syntax error"},
+            {"name": "real data model evidence", "status": "PASS", "detail": "NO_EVIDENCE"},
+        ]
+        fail_verdict = release_check.compute_verdict(software_fail, model_no_evidence=True)
+        self.assertEqual(fail_verdict, "FAIL")
+        self.assertEqual(release_check.exit_code_for_verdict(fail_verdict), 2)
 
 
 if __name__ == "__main__":

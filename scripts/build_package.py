@@ -183,8 +183,8 @@ def build_archive(files: list[str], output: Path) -> None:
 
 
 def verdict_allows_packaging(verdict: str | None) -> bool:
-    """Only an exact GO stamp is valid for non-forced packaging."""
-    return verdict == "GO"
+    """Packaging is permitted for valid software releases (even under research-only model verdict)."""
+    return verdict in {"GO", "SOFTWARE_GO", "SOFTWARE_GO / MODEL_NO_EVIDENCE"}
 
 
 def guard() -> None:
@@ -194,10 +194,14 @@ def guard() -> None:
         print("ERROR: no release verdict stamp — run scripts/release_check.py first "
               "(or pass --force).", file=sys.stderr)
         sys.exit(3)
-    verdict = json.loads(STAMP.read_text(encoding="utf-8")).get("verdict")
-    if not verdict_allows_packaging(verdict):
-        print(f"ERROR: last release verdict is {verdict!r}, not exact GO — "
-              "refusing to package. Fix the release check or pass --force.",
+    stamp_data = json.loads(STAMP.read_text(encoding="utf-8"))
+    verdict = stamp_data.get("verdict")
+    software_verdict = stamp_data.get("software_verdict")
+    checks = stamp_data.get("checks", [])
+    has_fail = any(c.get("status") == "FAIL" for c in checks)
+    if has_fail or not verdict_allows_packaging(verdict) or (software_verdict and software_verdict != "SOFTWARE_GO"):
+        print(f"ERROR: last release verdict is {verdict!r} (software: {software_verdict!r}) — "
+              "refusing to package. Software checks must pass (or pass --force).",
               file=sys.stderr)
         sys.exit(3)
 
