@@ -50,6 +50,12 @@ function splitCsvLine(line) {
   return out;
 }
 
+function normalizeTimestamp(val, fallbackIndex) {
+  const n = Number(val);
+  if (!Number.isFinite(n) || n <= 0) return (fallbackIndex || 0) * 3600000;
+  return n < 10_000_000_000 ? n * 1000 : n;
+}
+
 function parseCsv(content) {
   const lines = content.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -67,7 +73,8 @@ function parseCsv(content) {
   for (let i = 1; i < lines.length; i++) {
     const row = splitCsvLine(lines[i]);
     if (row.length <= Math.max(oIdx, hIdx, lIdx, cIdx)) continue;
-    const t = tIdx >= 0 ? Number(row[tIdx]) : i * 3600000;
+    const rawT = tIdx >= 0 ? row[tIdx] : i * 3600000;
+    const t = normalizeTimestamp(rawT, i);
     const o = Number(row[oIdx]);
     const h = Number(row[hIdx]);
     const l = Number(row[lIdx]);
@@ -140,5 +147,14 @@ const output = {
   note: 'real golden fixtures baseline evaluation',
 };
 
-console.log(JSON.stringify(output, null, 2));
-process.exit(0);
+if (require.main === module) {
+  console.log(JSON.stringify(output, null, 2));
+  process.exit(0);
+}
+
+module.exports = {
+  normalizeTimestamp,
+  parseCsv,
+  output,
+  GOLDEN_FILES,
+};
