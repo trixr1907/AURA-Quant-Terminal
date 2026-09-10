@@ -13,8 +13,8 @@ Jede Code-, Daten- oder Konfigurationsänderung wird vor ihrer Durchführung str
   - *Zähler-Wirkung:* Erhöht `total_model_experiments` um **`+1`**.
   - *DSR-Auswirkung:* Geht in die Multiple-Testing-Korrektur ($T_{\text{eff}}$) ein.
 
-- **Prozess-Fix (`0`):**
-  Reine Software-Integritäts-, Dokumentations-, CI/CD-, UI-Rendering-, Caching-, Relay-Sicherheits- oder Test-Harness-Arbeiten ohne jegliche Signal-, Order- oder Modellwirkung (z. B. Zeitstempel-Normalisierung von Sekunden auf Millisekunden im Harness, Behebung von Race Conditions, Layout-Fixes).
+- **Prozess-Fix / Diagnose (`0`):**
+  Reine Software-Integritäts-, Dokumentations-, CI/CD-, UI-Rendering-, Caching-, Relay-Sicherheits-, Test-Harness-Arbeiten oder nicht-invasive Diagnosen (D1–D6) ohne jegliche Signal-, Order- oder Modellwirkung.
   - *Zähler-Wirkung:* Zählt als **`0`** Modellexperimente (`total_model_experiments` bleibt unverändert).
 
 ---
@@ -59,13 +59,19 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 | **EXP-013** | 2026-09-10 | v1.1.1 | Prozess-Fix | B1: Wiederherstellung des fail-closed CI-Release-Gates & Software-GO Packaging ohne Bypasses. | `scripts/release_check.py:150` | CI blockt bei Fehler (Exit 2), akzeptiert Software-GO (Exit 0) | Fail-closed Verhalten verifiziert | 0 | 8 | ACCEPTED |
 | **EXP-014** | 2026-09-10 | v1.1.1 | Prozess-Fix | B2: Millisekunden-Zeitstempel-Normalisierung im Model Evidence Gate (`normalizeTimestamp`). | `tests/model_evidence_real.js:45` | Konsistente ms-Zeitbasis über alle 5 Fixtures | Tages-VWAP & Session-Bounds konsistent | 0 | 8 | ACCEPTED |
 | **EXP-015** | 2026-09-10 | v1.1.1 | Prozess-Fix | B3: Dokumentation der Millisekunden-Zeitstempel-Konvention und Provenienz-Synchronisation. | `docs/architecture.md:50` | Vollständige Doku der Zeitbasis | Dokumentiert & synchronisiert | 0 | 8 | ACCEPTED |
+| **EXP-016** | 2026-09-10 | v1.1.1 | Diagnose | D1 Kosten-Dekomposition: Slippage und Taker-Exit-Fees stellen >80% des Kostendrags dar und belasten enge TF unverhältnismäßig. | `tools/edge_diagnostic_phase_a.js:15` | Vollständige Aufspaltung in Maker-, Taker- und Slippage-Kosten je Fixture | Verifiziert: Slippage (55-74%) & Taker-Fees (20-46%) dominieren; Kosten 0.079-0.380 R/Trade | 0 | 8 | ACCEPTED |
+| **EXP-017** | 2026-09-10 | v1.1.1 | Diagnose | D2 Payoff- & WR-Struktur: Erwartungswert-Profil ist mit Payoff >2.0:1 strukturell gesund, scheitert aber an WR <35%. | `tools/edge_diagnostic_phase_a.js:35` | Exakte Messung von WR, avgWinR, avgLossR, TP1-Hit-Rate und Haltedauern | Verifiziert: Payoff 2.17:1 bis 2.73:1, TP1-Hit-Rate 24-34%, Win-Dauer 30-48 Bars vs Loss 7-9 Bars | 0 | 8 | ACCEPTED |
+| **EXP-018** | 2026-09-10 | v1.1.1 | Diagnose | D3 Exit-Grund-Zerlegung: Breakeven nach TP1 hochprofitabel, Time-Stop dämpft Verlust, direkte Stops dominieren Verlustseite. | `tools/edge_diagnostic_phase_a.js:55` | Quantifizierung von RNet, Trade-Anzahl, WinRate je ExitReason | Verifiziert: Breakeven +0.26 bis +0.88 R (100% WR), TimeStop -0.18 bis -0.40 R, Stop -0.12 bis +0.25 R | 0 | 8 | ACCEPTED |
+| **EXP-019** | 2026-09-10 | v1.1.1 | Diagnose | D4 Regime-Bedingung: Signal generiert positiven Netto-Edge in Trendphasen (ADX 20-30) und verbrennt Kapital im Chop (ADX <20). | `tools/edge_diagnostic_phase_a.js:75` | Messung des mittleren RNet konditioniert auf ADX-Buckets über alle 5 Fixtures | Verifiziert: ADX <20 liefert -0.14 bis -0.93 R auf ALLEN Assets; ADX 20-30 liefert +0.19 bis +1.42 R auf ALLEN Assets | 0 | 8 | ACCEPTED |
+| **EXP-020** | 2026-09-10 | v1.1.1 | Diagnose | D5 Sample-Size & DSR-Inversion: Bei n ≈ 33 Trades ist mathematisch ein per-Trade Sharpe von SR >= 0.33 für DSR >= 0.5 nötig. | `tools/edge_diagnostic_phase_a.js:95` | Numerische Inversion der DSR-Gleichung für n=15..1000 bei T=18 und T=8640 | Verifiziert: n=33 erfordert SR >= 0.328 (Setup) bzw. SR >= 0.676 (Universe); n=200 senkt Schwelle auf SR >= 0.131 | 0 | 8 | ACCEPTED |
+| **EXP-021** | 2026-09-10 | v1.1.1 | Diagnose | D6 Querschnitts-Konsistenz: Alle 5 Assets zeigen homogenes Brutto-Alpha (+0.051 bis +0.475 R) und scheitern homogen am Chop-Regime. | `tools/edge_diagnostic_phase_a.js:120` | Asset-übergreifende Gegenüberstellung von Gross Exp, Net Exp, DSR und Kostendrag | Verifiziert: Homogenes Verhalten über alle 5 Fixtures; Signal trägt auf allen 5 Assets echte Information | 0 | 8 | ACCEPTED |
 
 ---
 
 ## 5. Bilanzierte Kennzahlen
 
 - **Kumulative Modell-Experimente (`total_model_experiments`):** **`8`** (EXP-001 bis EXP-006, EXP-008, EXP-009)
-- **Prozess- / Infrastruktur- / Mess-Fixes:** **`7`** (EXP-007, EXP-010, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015)
+- **Prozess- / Infrastruktur- / Mess- & Diagnose-Releases:** **`13`** (EXP-007, EXP-010 bis EXP-021)
 - **Modell-Trials im Autobot-Scan (Default Universe: 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
   - Internes Parameter-Grid: `18`
@@ -77,6 +83,6 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 
 ## 6. Protokoll-Regeln für künftige Modellexperimente
 
-1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-016`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen.
+1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-022`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen.
 2. Nach Abschluss der Untersuchung wird das reale Messergebnis eingetragen und der Status auf `ACCEPTED` (Kriterium erreicht) oder `REJECTED` (Kriterium verfehlt) gesetzt.
 3. Der Zähler `total_model_experiments` wird bei jedem Modellexperiment inkrementiert und fließt transparent in die statistische Bewertung ein.
