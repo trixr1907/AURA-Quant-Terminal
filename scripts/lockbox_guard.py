@@ -3,12 +3,14 @@
 
 Enforces that any fixture bar with close time >= lockbox.cutoff_time is
 strictly quarantined and excluded from model optimization and tuning.
+Provides an evaluation mechanism to inspect or verify holdout data.
 """
 
 from __future__ import annotations
 
 import csv
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -27,6 +29,14 @@ def parse_timestamp_ms(val: str | int | float) -> int:
         pass
     dt = datetime.fromisoformat(val_str.replace("Z", "+00:00"))
     return int(dt.timestamp() * 1000)
+
+
+def compute_file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def inspect_lockbox_fixtures(golden_dir: Path | None = None) -> dict:
@@ -60,12 +70,14 @@ def inspect_lockbox_fixtures(golden_dir: Path | None = None) -> dict:
 
     locked_bars_per_fixture = {}
     total_bars_per_fixture = {}
+    fixture_hashes = {}
 
     csv_files = sorted(g_dir.glob("*USDT_*.csv"))
     if not csv_files:
         return {"status": "FAIL", "error": "no golden CSV fixtures found"}
 
     for csv_file in csv_files:
+        fixture_hashes[csv_file.name] = compute_file_sha256(csv_file)
         total_bars = 0
         locked_bars = 0
         with csv_file.open("r", encoding="utf-8") as f:
@@ -93,16 +105,36 @@ def inspect_lockbox_fixtures(golden_dir: Path | None = None) -> dict:
         locked_bars_per_fixture[csv_file.name] = locked_bars
         total_bars_per_fixture[csv_file.name] = total_bars
 
+    total_locked = sum(locked_bars_per_fixture.values())
+    eval_state = "UNUSED" if total_locked == 0 else "HOLD_OUT_DATA_AVAILABLE"
+
     return {
         "status": "PASS",
         "lockbox_status": status,
         "mode": mode,
+        "evaluation_state": eval_state,
         "cutoff_time": cutoff_iso,
         "cutoff_ms": cutoff_ms,
         "locked_span_days": locked_span,
+        "total_locked_bars": total_locked,
         "locked_bars_per_fixture": locked_bars_per_fixture,
         "total_bars_per_fixture": total_bars_per_fixture,
+        "fixture_hashes": fixture_hashes,
     }
+
+
+def evaluate_lockbox_evaluation(golden_dir: Path | None = None) -> tuple[str, str, str]:
+    """Evaluate lockbox status for release checks.
+
+    Returns (check_status, detail_message, eval_state_label).
+    """
+    res = inspect_lockbox_fixtures(golden_dir)
+    if res.get("status") != "PASS":
+        return "FAIL", res.get("error", "unknown error"), "ERROR"
+    total_locked = res.get("total_locked_bars", 0)
+    if total_locked == 0:
+        return "PASS", "lockbox-eval: UNUSED (0 locked bars in current fixtures, holdout active)", "UNUSED"
+    return "PASS", f"lockbox-eval: HOLD_OUT_DATA_AVAILABLE ({total_locked} bars locked for final eval)", "HOLD_OUT_DATA_AVAILABLE"
 
 
 def main() -> int:

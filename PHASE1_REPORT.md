@@ -25,9 +25,10 @@ Status: Phase 1 vollständig implementiert und testgetrieben verifiziert
 
 3. **Dual-DSR & Option B (Default) vs. Option A (Strikt):**
    - Die Engine berechnet parallel:
-     - `setupDsr`: DSR bezogen auf das 18er-Grid des einzelnen Setups.
-     - `universeDsr`: DSR bezogen auf die gesamte Scan-Familie ($18 \times \text{scanned}$).
-   - **Option B (Standard):** Entry-Gate `evaluateAutobotEdge` schaltet auf Basis des `setupDsr \ge 0.5` frei (kein Verhaltensbruch), zeigt aber im UI und Log beide Werte transparent an.
+     - `setupDsr`: DSR bezogen auf das 18er-Grid des einzelnen Setups ($T=18$).
+     - `universeDsr`: DSR bezogen auf die gesamte Scan-Familie ($T_{\text{eff}} = 18 \times \text{scanned}$).
+   - **Option B (Standard):** Entry-Gate `evaluateAutobotEdge` schaltet auf Basis von `setupDsr \ge 0.5` frei, zeigt aber im UI und Log beide Werte transparent an.
+     *(Hinweis zur Methodik: Setup-Gate: T=18 (Grid); v1.0.8 gatete mit T=18×Kandidaten; Universum-Adjustierung ist ab jetzt explizit sichtbar statt implizit im Gate.)*
    - **Option A (Strikt):** Konfigurierbarer Schalter `strictUniverseGate` (UI Checkbox `#ab-cfg-strict-universe-gate`), bei dem das Gate `universeDsr \ge 0.5` erzwingt.
 
 4. **Kumulatives Trials-Ledger (`TRIALS_LEDGER.md`):**
@@ -36,7 +37,14 @@ Status: Phase 1 vollständig implementiert und testgetrieben verifiziert
 
 5. **Release-Check Summary-Schärfung (`scripts/release_check.py`):**
    - Eindeutige Ausweisung von Software- und Modell-Status in der Summary:
-     `VERDICT: GO (SOFTWARE_GO / MODEL_PAPER_CANDIDATE)` bzw. `VERDICT: SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+     `VERDICT: SOFTWARE_GO / MODEL_NO_EVIDENCE (real) · synthetic-gate: PAPER_CANDIDATE`
+
+---
+
+## 2. PROVENIENZ & COMMITS
+
+- `60bb193`: `feat(phase1): instrument hypotheses funnel, dual DSR and trials ledger`
+- `a96725d`: `fix(phase1): real-data model verdict, operational lockbox, dynamic universe count`
 
 ---
 

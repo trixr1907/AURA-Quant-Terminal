@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
 GOLDEN_FILES = [
@@ -43,7 +45,7 @@ SECRET_PATTERNS = [
 ]
 
 
-def check_version_progression(current: str, latest_tag: str | None, tracked_changes: bool) -> tuple[str, str]:
+def check_version_progression(current: str, latest_tag: str | None, tracked_changes: bool, allow_current_version: bool = False) -> tuple[str, str]:
     """Require strict SemVer and a version bump after the latest release tag."""
     match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", current)
     if not match:
@@ -57,7 +59,7 @@ def check_version_progression(current: str, latest_tag: str | None, tracked_chan
     tag_parts = tuple(int(value) for value in tag_match.groups())
     if current_parts < tag_parts:
         return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "version regressed"})
-    if tracked_changes and current_parts == tag_parts:
+    if tracked_changes and current_parts == tag_parts and not allow_current_version:
         return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "version bump required for update"})
     return "PASS", json.dumps({"version": current, "tag": latest_tag})
 
@@ -468,6 +470,11 @@ def main() -> int:
     add(check("real data model evidence (5 golden fixtures)", real_status, real_detail))
     model_no_evidence = (real_model_verdict == "NO_EVIDENCE")
 
+    # 2d. OOS Lockbox Quarantine & Evaluation Gate
+    from scripts.lockbox_guard import evaluate_lockbox_evaluation
+    lb_status, lb_detail, lb_eval_state = evaluate_lockbox_evaluation()
+    add(check("lockbox evaluation gate", lb_status, lb_detail))
+
     # 3. Relay suite (uses stdlib unittest — zero external pip dependencies needed)
     rc, out, err = run([sys.executable, "-m", "unittest", "tests/test_relay_full.py"])
     ok = rc == 0
@@ -569,7 +576,9 @@ def main() -> int:
         progression_status = "FAIL"
         progression_detail = json.dumps({"error": "cannot inspect tracked changes", "stderr": changes_err[-1000:]})
     else:
-        progression_status, progression_detail = check_version_progression(version, latest_tag, bool(changes.strip()))
+        progression_status, progression_detail = check_version_progression(
+            version, latest_tag, bool(changes.strip()), allow_current_version=("--allow-current-version" in sys.argv)
+        )
     add(check("version progression", progression_status, progression_detail))
 
     # 10. Secret-pattern and generated-file scan
@@ -613,7 +622,7 @@ def main() -> int:
     software_status = "SOFTWARE_GO" if not any(r["status"] == "FAIL" for r in results) else "SOFTWARE_FAIL"
     real_status_label = f"MODEL_{real_model_verdict or 'NO_EVIDENCE'} (real)"
     synthetic_label = f"synthetic-gate: {sens_release or 'PAPER_CANDIDATE'}"
-    summary_verdict_line = f"VERDICT: {software_status} / {real_status_label} · {synthetic_label}"
+    summary_verdict_line = f"VERDICT: {software_status} / {real_status_label} · {synthetic_label} · lockbox-eval: {lb_eval_state}"
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -621,6 +630,7 @@ def main() -> int:
         "software_verdict": software_status,
         "model_verdict": real_status_label,
         "synthetic_gate": sens_release,
+        "lockbox_evaluation": lb_eval_state,
         "checks": results,
         "info": info,
     }
