@@ -70,6 +70,8 @@ MANIFEST = [
     # tests + fixtures
     "pytest.ini",
     "tests/",
+    # Reference-oracle support imported by tests/reference_backtest.py
+    "tools/fold_geometry.js",
 ]
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".hermes", ".git", "node_modules"}
 EXCLUDE_SUFFIXES = {".pyc", ".png", ".log", ".zip"}
