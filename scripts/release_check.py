@@ -422,6 +422,11 @@ def main() -> int:
     add(check("cross device sync suite", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
 
+    # 1e. Audit Integrity & E2E Trace
+    rc, out, err = run(["node", "tests/test_audit_integrity.js"])
+    add(check("audit integrity suite", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+
     # 2. Statistical Oracle & Metamorphic tests
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
     rc2, out2, err2 = run(["node", "tests/test_lookahead_metamorphic.js"])
