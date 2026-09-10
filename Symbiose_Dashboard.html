@@ -1729,6 +1729,11 @@ function evaluateTrades(trades) {
   return { total, wins: wins.length, losses: losses.length, wr, grossR, pf, exp, maxDd, avgWinR, avgLossR, returns };
 }
 
+function selectionObjective(exp, total, minTrainTrades = 2) {
+  if (!Number.isFinite(exp) || !Number.isInteger(total) || total < minTrainTrades) return -Infinity;
+  return exp * Math.sqrt(total) * (1 - 1 / (1 + total));
+}
+
 function runWalkForwardBacktest(candles, A, options = {}) {
   const n = candles.length;
   const effWarmup = Math.min(SYM.warmup || 235, Math.max(14, n - 60));
@@ -1786,7 +1791,7 @@ function runWalkForwardBacktest(candles, A, options = {}) {
       const trainTrades = simulated.filter(t => t.exitBar != null && t.exitBar < testStart);
       const purgedByT1 = simulated.length - trainTrades.length;
       const stats = evaluateTrades(trainTrades);
-      const obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) * (1 - 1 / (1 + stats.total)) : -Infinity;
+      const obj = selectionObjective(stats.exp, stats.total, minTrainTrades);
       if (obj > bestScore) {
         bestScore = obj;
         bestParams = params;

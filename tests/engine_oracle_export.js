@@ -16,7 +16,7 @@ const ctx = { console, Float64Array, Int8Array, Uint8Array, Math, Date, isFinite
 vm.createContext(ctx);
 vm.runInContext(
   html.slice(begin, end) + `
-  this.__E = { evaluateTrades, reconcileBacktestAccounting, calcDSR, calibrateProbabilities, runWalkForwardBacktest };`,
+  this.__E = { evaluateTrades, reconcileBacktestAccounting, calcDSR, calibrateProbabilities, selectionObjective, runWalkForwardBacktest };`,
   ctx
 );
 const E = ctx.__E;
@@ -58,11 +58,7 @@ out.totalTrials = wf.totalTrials;
 // 10A — selection objective oracle (EXP-024)
 out.selectionObjective = {};
 for (const [exp, total] of [[0.5, 1], [0.5, 2], [0.5, 3], [0.5, 5], [0.5, 10], [-0.2, 3], [-0.2, 1]]) {
-  const obj = vm.runInContext(
-    `(() => { const stats = { exp: ${JSON.stringify(exp)}, total: ${total} }; const minTrainTrades = 2; return stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) * (1 - 1 / (1 + stats.total)) : -Infinity; })()`,
-    ctx
-  );
-  out.selectionObjective[`${exp},${total}`] = obj;
+  out.selectionObjective[`${exp},${total}`] = E.selectionObjective(exp, total, 2);
 }
 
 console.log(JSON.stringify(out));

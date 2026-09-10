@@ -66,6 +66,10 @@ $$\text{obj}_{\text{neu}} = \begin{cases} \text{exp} \cdot \sqrt{n} \cdot \left(
    - Bleibt erwartungsgemäß weit unter $0.50$ $\rightarrow$ weiterhin `NO_EVIDENCE`.
    - **Status: ERFÜLLT (im Rahmen der Definition).**
 
+### 2.4 Oracle-Lücke — Option A umgesetzt
+
+Das EXP-024-Objektiv wurde als Produktionsfunktion `selectionObjective()` in `Symbiose_Dashboard.html` benannt. `tests/reference_backtest.py` enthält ein unabhängiges Python-Spiegelbild; `tests/engine_oracle_export.js` ruft die Produktionsfunktion direkt auf. Die synthetische Parität deckt insbesondere $n=1$ sowie das neue $n=2\text{--}4$-Band ab. Damit ist die Objektiv-Parität erstmals real und nicht lediglich durch das Laden derselben Gesamt-Engine behauptet.
+
 ---
 
 ## 3. Fold-by-Fold Detailanalyse
