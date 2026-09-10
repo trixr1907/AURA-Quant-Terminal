@@ -223,18 +223,17 @@ const avgDeltaExp = avgGatedExp - avgBaseExp;
 const avgBaseDsr = sumBaseDsr / results.length;
 const avgGatedDsr = sumGatedDsr / results.length;
 
-  const allGatedReturns = results.flatMap(r => r.gated.stats.returns);
-  const aggregatedGatedDsr = calcDSR(allGatedReturns, 18).dsr;
+const allGatedReturns = results.flatMap(r => r.gated.stats.returns);
+const aggregatedGatedDsr = calcDSR(allGatedReturns, 18).dsr;
 
-  console.log(`AVERAGE | - | - | - | ${avgBaseExp.toFixed(3)} R | ${avgGatedExp.toFixed(3)} R | ${avgDeltaExp >= 0 ? '+' : ''}${avgDeltaExp.toFixed(3)} R | - | - | ${avgBaseDsr.toFixed(3)} | ${avgGatedDsr.toFixed(3)} | ${totalRgFolds}/${totalFolds} (${((totalRgFolds/totalFolds)*100).toFixed(1)}%)`);
-  console.log(`POOLED GATED DSR (all ${allGatedReturns.length} OOS returns, T=18): ${aggregatedGatedDsr.toFixed(3)}`);
+console.log(`AVERAGE | - | - | - | ${avgBaseExp.toFixed(3)} R | ${avgGatedExp.toFixed(3)} R | ${avgDeltaExp >= 0 ? '+' : ''}${avgDeltaExp.toFixed(3)} R | - | - | ${avgBaseDsr.toFixed(3)} | ${avgGatedDsr.toFixed(3)} | ${totalRgFolds}/${totalFolds} (${((totalRgFolds/totalFolds)*100).toFixed(1)}%)`);
+console.log(`POOLED GATED DSR (all ${allGatedReturns.length} OOS returns, T=18): ${aggregatedGatedDsr.toFixed(3)}`);
 
 console.log('\n--- FOLD 1 SHARE & GEOMETRY VERIFICATION (KRITERIEN 1 & 2) ---');
 for (const r of results) {
   const f1 = r.base.folds[0];
   const totalTrades = r.base.stats.total;
   const f1TradePct = totalTrades > 0 ? (f1.stats.total / totalTrades * 100) : 0;
-  const allFoldsTrainOk = r.base.folds.every(f => f.maxGatedTrainTrades >= 5);
   console.log(`${r.fix.label}: Fold 1 TestBars=${f1.testBars}/${r.totalBars} (${((f1.testBars/r.totalBars)*100).toFixed(1)}%) | Fold 1 Trades=${f1.stats.total}/${totalTrades} (${f1TradePct.toFixed(1)}%) | Fold 1 Gated Train Capacity >= 5: ${f1.maxGatedTrainTrades >= 5 ? 'YES (' + f1.maxGatedTrainTrades + ')' : 'NO (' + f1.maxGatedTrainTrades + ')'}`);
 }
 
