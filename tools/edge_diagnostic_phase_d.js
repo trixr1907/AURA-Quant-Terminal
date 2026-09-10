@@ -224,10 +224,12 @@ const avgBaseDsr = sumBaseDsr / results.length;
 const avgGatedDsr = sumGatedDsr / results.length;
 
 const allGatedReturns = results.flatMap(r => r.gated.stats.returns);
-const aggregatedGatedDsr = calcDSR(allGatedReturns, 18).dsr;
+const pooledGatedDsrSetup = calcDSR(allGatedReturns, 9).dsr;
+const pooledGatedDsrCrossFixture = calcDSR(allGatedReturns, 45).dsr;
 
 console.log(`AVERAGE | - | - | - | ${avgBaseExp.toFixed(3)} R | ${avgGatedExp.toFixed(3)} R | ${avgDeltaExp >= 0 ? '+' : ''}${avgDeltaExp.toFixed(3)} R | - | - | ${avgBaseDsr.toFixed(3)} | ${avgGatedDsr.toFixed(3)} | ${totalRgFolds}/${totalFolds} (${((totalRgFolds/totalFolds)*100).toFixed(1)}%)`);
-console.log(`POOLED GATED DSR (all ${allGatedReturns.length} OOS returns, T=18): ${aggregatedGatedDsr.toFixed(3)}`);
+console.log(`POOLED GATED DSR (all ${allGatedReturns.length} OOS returns, T=9): ${pooledGatedDsrSetup.toFixed(3)}`);
+console.log(`POOLED GATED DSR (all ${allGatedReturns.length} OOS returns, T=45): ${pooledGatedDsrCrossFixture.toFixed(3)}`);
 
 console.log('\n--- FOLD 1 SHARE & GEOMETRY VERIFICATION (KRITERIEN 1 & 2) ---');
 for (const r of results) {
