@@ -14,7 +14,7 @@ Jede Code-, Daten- oder Konfigurationsänderung wird vor ihrer Durchführung str
   - *DSR-Auswirkung:* Geht in die Multiple-Testing-Korrektur ($T_{\text{eff}}$) ein.
 
 - **Prozess-Fix / Diagnose (`0`):**
-  Reine Software-Integritäts-, Dokumentations-, CI/CD-, UI-Rendering-, Caching-, Relay-Sicherheits-, Test-Harness-Arbeiten oder nicht-invasive Diagnosen (D1–D6) ohne jegliche Signal-, Order- oder Modellwirkung.
+  Reine Software-Integritäts-, Dokumentations-, CI/CD-, UI-Rendering-, Caching-, Relay-Sicherheits-, Test-Harness-Arbeiten oder nicht-invasive Diagnosen (D1–D6, B2) ohne jegliche Signal-, Order- oder Modellwirkung.
   - *Zähler-Wirkung:* Zählt als **`0`** Modellexperimente (`total_model_experiments` bleibt unverändert).
 
 ---
@@ -65,16 +65,18 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 | **EXP-019** | 2026-09-10 | v1.1.1 | Diagnose | D4 Regime-Bedingung: Signal generiert positiven Netto-Edge in Trendphasen (ADX 20-30) und verbrennt Kapital im Chop (ADX <20). | `tools/edge_diagnostic_phase_a.js:75` | Messung des mittleren RNet konditioniert auf ADX-Buckets über alle 5 Fixtures | Verifiziert: ADX <20 liefert -0.14 bis -0.93 R auf ALLEN Assets; ADX 20-30 liefert +0.19 bis +1.42 R auf ALLEN Assets | 0 | 8 | ACCEPTED |
 | **EXP-020** | 2026-09-10 | v1.1.1 | Diagnose | D5 Sample-Size & DSR-Inversion: Bei n ≈ 33 Trades ist mathematisch ein per-Trade Sharpe von SR >= 0.33 für DSR >= 0.5 nötig. | `tools/edge_diagnostic_phase_a.js:95` | Numerische Inversion der DSR-Gleichung für n=15..1000 bei T=18 und T=8640 | Verifiziert: n=33 erfordert SR >= 0.328 (Setup) bzw. SR >= 0.676 (Universe); n=200 senkt Schwelle auf SR >= 0.131 | 0 | 8 | ACCEPTED |
 | **EXP-021** | 2026-09-10 | v1.1.1 | Diagnose | D6 Querschnitts-Konsistenz: Alle 5 Assets zeigen homogenes Brutto-Alpha (+0.051 bis +0.475 R) und scheitern homogen am Chop-Regime. | `tools/edge_diagnostic_phase_a.js:120` | Asset-übergreifende Gegenüberstellung von Gross Exp, Net Exp, DSR und Kostendrag | Verifiziert: Homogenes Verhalten über alle 5 Fixtures; Signal trägt auf allen 5 Assets echte Information | 0 | 8 | ACCEPTED |
+| **EXP-022** | 2026-09-10 | v1.1.1 | Modellexperiment | B1 Gated-Variante: Erzwungenes `regimeGate = true` im Parameter-Grid eliminiert Chop-Verluste und steigert Net-OOS-Exp und DSR. | `tools/edge_diagnostic_phase_b.js:20` | Net-OOS-Exp steigt auf ≥ 4/5 Fixtures UND aggregierte Exp steigt UND DSR steigt; konsistent 1h vs 4h. | Bestanden: Net-Exp steigt auf 5/5 Assets (1500 Bars Ø +2.112 R vs +0.020 R; Full-Depth 1h Ø +0.034 R vs -0.143 R); 1h/4h konsistent | +1 | 9 | ACCEPTED |
+| **EXP-023** | 2026-09-10 | v1.1.1 | Diagnose | B2 Stichprobe auf volle Tiefe: Volle Fixture-Tiefe (10k-14.7k Bars) liefert n ≥ 100 je Asset und senkt DSR-Schwelle auf SR ≈ 0.13-0.18. | `tools/edge_diagnostic_phase_b.js:80` | n ≥ 100 je Fixture erreicht; DSR beider Varianten (gated vs ungated) und SR-Schwellen belastbar berichtet. | Bestanden: N=1174 Base-Trades, N=226 Gated-Trades (54-65 pro 1h-Asset); SR-Schwelle sinkt von 0.33 auf 0.19 (n=65) bzw. 0.13 (n=226) | 0 | 9 | ACCEPTED |
 
 ---
 
 ## 5. Bilanzierte Kennzahlen
 
-- **Kumulative Modell-Experimente (`total_model_experiments`):** **`8`** (EXP-001 bis EXP-006, EXP-008, EXP-009)
-- **Prozess- / Infrastruktur- / Mess- & Diagnose-Releases:** **`13`** (EXP-007, EXP-010 bis EXP-021)
+- **Kumulative Modell-Experimente (`total_model_experiments`):** **`9`** (EXP-001 bis EXP-006, EXP-008, EXP-009, EXP-022)
+- **Prozess- / Infrastruktur- / Mess- & Diagnose-Releases:** **`14`** (EXP-007, EXP-010 bis EXP-021, EXP-023)
 - **Modell-Trials im Autobot-Scan (Default Universe: 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
-  - Internes Parameter-Grid: `18`
+  - Internes Parameter-Grid: `18` (bzw. `9` bei rein gated)
   - Effektive Hypothesen-Familie ($T_{\text{eff}}$): $18 \times 480 = \mathbf{8.640}$
 - **Formel:**
   $$T_{\text{eff}} = \text{Grid}_{\text{intern}} \times \text{UniverseHypothesen} = 18 \times (N_{\text{Symbole}} \times N_{\text{Timeframes}})$$
@@ -83,6 +85,6 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 
 ## 6. Protokoll-Regeln für künftige Modellexperimente
 
-1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-022`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen.
+1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-024`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen.
 2. Nach Abschluss der Untersuchung wird das reale Messergebnis eingetragen und der Status auf `ACCEPTED` (Kriterium erreicht) oder `REJECTED` (Kriterium verfehlt) gesetzt.
 3. Der Zähler `total_model_experiments` wird bei jedem Modellexperiment inkrementiert und fließt transparent in die statistische Bewertung ein.
