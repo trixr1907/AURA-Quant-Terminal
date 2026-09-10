@@ -33,13 +33,16 @@ Jede Änderung an Indikator-Schwellen, Parametern, Walk-Forward-Architektur oder
 | **EXP-010** | v1.1.0 | 2026-09-10 | `bitget_relay.py:240` | Infrastruktur | *(Keine Modelländerung — Relay In-Memory TTL-Cache & Token-Bucket Rate Limiter, 0 Experimente)* |
 | **EXP-011** | v1.1.0 | 2026-09-10 | `Symbiose_Dashboard.html:3620` | UI-Performance | *(Keine Modelländerung — RenderCache Dirty-Flag Panel Rendering, 0 Experimente)* |
 | **EXP-012** | v1.1.0 | 2026-09-10 | `scripts/lockbox_guard.py:1` | Holdout-Quarantäne | *(Keine Modelländerung — Lockbox OOS-Evaluationsmechanik & Quarantäne-Guard, 0 Experimente)* |
+| **EXP-013** | v1.1.1 | 2026-09-10 | `scripts/release_check.py:150` | CI / Release-Gate | *(Keine Modelländerung — B1: Wiederherstellung fail-closed Release-Gate & Software-GO Packaging, 0 Experimente)* |
+| **EXP-014** | v1.1.1 | 2026-09-10 | `tests/model_evidence_real.js:45` | Mess-Integrität | *(Keine Modelländerung — B2: Millisekunden-Zeitstempel-Normalisierung im Model Evidence Gate, 0 Experimente)* |
+| **EXP-015** | v1.1.1 | 2026-09-10 | `docs/architecture.md:50` | Dokumentation | *(Keine Modelländerung — B3: Dokumentation der Zeitstempel-Konvention & Provenienz-Update, 0 Experimente)* |
 
 ---
 
 ## 3. Bilanzierte Kennzahlen
 
 - **Kumulative Modell-Experimente (Gesamt):** 8 (EXP-001 bis EXP-006, EXP-008, EXP-009)
-- **Infrastruktur/Hygiene-Releases:** 4 (EXP-007, EXP-010, EXP-011, EXP-012)
+- **Infrastruktur/Hygiene/Mess-Releases:** 7 (EXP-007, EXP-010, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015)
 - **Modell-Trials im Autobot-Scan (Default Universe 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
   - Internes Parameter-Grid: `18`
