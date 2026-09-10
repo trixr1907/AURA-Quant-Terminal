@@ -69,7 +69,10 @@ jobs:
       - name: Build distributable archive
         shell: bash
         run: |
-          python3 scripts/release_check.py
+          # The workflow checks out the release tag itself. Version consistency
+          # still runs fail-closed; only the expected same-tag progression case
+          # is allowed here.
+          python3 scripts/release_check.py --allow-current-version
           python3 scripts/build_package.py
 
       - name: Publish immutable GitHub Release
