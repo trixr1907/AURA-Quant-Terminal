@@ -8,7 +8,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 $VenvDir = Join-Path $Root ".venv"
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
-$MarkerDir = Join-Path $env:LOCALAPPDATA "AURA\1.0.8"
+$MarkerDir = Join-Path $env:LOCALAPPDATA "AURA\1.0.9"
 $BrowserMarker = Join-Path $MarkerDir "playwright-browser-ready"
 $RuntimeDir = Join-Path $Root ".runtime"
 $NodeDir = Join-Path $RuntimeDir "node"
