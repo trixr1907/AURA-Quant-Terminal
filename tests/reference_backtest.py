@@ -213,7 +213,14 @@ def reconcile(starting_equity: float, trades: list[dict], risk_per_r: float | No
 # 10A — fold-boundary oracle (anchored t1-safe K-fold walk-forward arithmetic)
 # ---------------------------------------------------------------------------
 
-def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 60.0) -> dict:
+def effective_trials(grid_size: int = 18, trial_multiplier: int = 1) -> int:
+    """Calculate effective trials: grid_size * trial_multiplier (no double counting)."""
+    grid = int(grid_size) if grid_size and int(grid_size) >= 1 else 18
+    mult = int(trial_multiplier) if trial_multiplier and int(trial_multiplier) >= 1 else 1
+    return grid * mult
+
+
+def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 60.0, trial_multiplier: int = 1) -> dict:
     """Anchored t1-safe fold geometry, independent of ATR or embargo heuristics."""
     eff_warmup = min(warmup, max(14, n - 60))
     min_train_bars = 300
@@ -233,7 +240,8 @@ def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 6
             "trainHours": train_bars * tf_minutes / 60,
             "testHours": test_bars * tf_minutes / 60,
         })
-    return {"folds": folds, "totalTrials": 18, "effWarmup": eff_warmup}
+    total_trials = effective_trials(18, trial_multiplier)
+    return {"folds": folds, "totalTrials": total_trials, "setupTrials": 18, "trialMultiplier": trial_multiplier, "effWarmup": eff_warmup}
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +330,14 @@ def main() -> int:
         d = calc_dsr(RETURNS[name], 18)
         if not (0.0 <= d["dsr"] <= 1.0 + EPS):
             failures.append(f"dsr[{name}] out of [0,1]: {d['dsr']}")
+
+    # Multiple testing arithmetic parity
+    if effective_trials(18, 1) != 18:
+        failures.append("effective_trials(18, 1) != 18")
+    if effective_trials(18, 480) != 8640:
+        failures.append("effective_trials(18, 480) != 8640")
+    if fold_boundaries(1000, trial_multiplier=480)["totalTrials"] != 8640:
+        failures.append("fold_boundaries trialMultiplier != 8640")
 
     # --- 10B: calibration, monotonicity + bounds + JS cross-check -------------
     py_cal = calibrate(TRADES)
