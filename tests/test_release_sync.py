@@ -475,6 +475,52 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         )
         self.assertEqual(status, "PASS", f"Golden master gate unexpectedly failed: {detail}")
 
+    def test_invalid_lockbox_metadata_returns_nogo(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            td = Path(tmpdir)
+            files = ["BTCUSDT_1h.csv"]
+            csv_path = td / "BTCUSDT_1h.csv"
+            lines = ["timestamp,open,high,low,close,volume,GM Trend Score,GM Momentum Score,GM Volume Score,GM Structure Score,GM Core Score"]
+            for i in range(10):
+                lines.append(f"{1600000000000 + i * 3600000},100,105,95,102,1000,na,na,na,na,na")
+            csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            sha = hashlib.sha256(csv_path.read_bytes()).hexdigest()
+            prov = {
+                "lockbox": {
+                    "description": "missing cutoff_time and locked_span_days"
+                },
+                "BTCUSDT_1h.csv": {
+                    "sha256": sha,
+                    "source": "TradingView/Pine",
+                    "export_time": "2026-09-04T12:00:00Z",
+                    "symbol": "BTCUSDT",
+                    "timeframe": "1h",
+                }
+            }
+            (td / "provenance.json").write_text(json.dumps(prov), encoding="utf-8")
+            status, detail = release_check.verify_golden_authenticity(td, files)
+            self.assertEqual(status, "NO-GO")
+            self.assertIn("lockbox entry missing required cutoff_time, locked_span_days, status=LOCKED, or mode=forward_holdout", detail)
+
+    def test_summary_reports_real_model_verdict_and_synthetic_label(self):
+        """Release summary must separate real model evidence verdict from synthetic sensitivity fixture integrity."""
+        real_status, real_detail, real_verdict = release_check.run_model_evidence_real_gate()
+        self.assertEqual(real_status, "PASS")
+        self.assertEqual(real_verdict, "NO_EVIDENCE")
+
+        sens_status, sens_detail, sens_release = release_check.run_sensitivity_gate()
+        self.assertEqual(sens_status, "PASS")
+        self.assertEqual(sens_release, "PAPER_CANDIDATE")
+
+        results = [{"status": "PASS"}]
+        verdict = release_check.compute_verdict(results, model_no_evidence=(real_verdict == "NO_EVIDENCE"))
+        self.assertEqual(verdict, "SOFTWARE_GO / MODEL_NO_EVIDENCE")
+
+        summary_line = f"VERDICT: SOFTWARE_GO / MODEL_{real_verdict} (real) · synthetic-gate: {sens_release}"
+        self.assertIn("MODEL_NO_EVIDENCE (real)", summary_line)
+        self.assertIn("synthetic-gate: PAPER_CANDIDATE", summary_line)
+        self.assertNotIn("MODEL_PAPER_CANDIDATE", summary_line)
+
 
 class TestReleaseWorkflowDependencies(unittest.TestCase):
     """The release runner must prepare the browser gate before fail-closed checks."""

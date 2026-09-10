@@ -37,8 +37,37 @@ const acceptedWf = {
   totalTrials: 18,
 };
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.evaluateAutobotEdge(acceptedWf))),
-  { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.5, effectiveTrials: 18 },
+  { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.5, setupDsr: 0.5, universeDsr: 0.5, effectiveTrials: 18, setupTrials: 18, strictApplied: false },
   'only sufficient positive OOS evidence with DSR >= 0.5 may pass');
+
+// Option B vs Option A verification (Dual-DSR behavior)
+const dualDsrWf = {
+  evidenceStatus: 'OOS',
+  stats: { total: 15, wr: 0.6, avgWinR: 1.8, avgLossR: 1.0 },
+  dsr: { dsr: 0.32 }, // Universe-adjusted DSR (over 8640 trials)
+  setupDsr: { dsr: 0.65 }, // Setup DSR (over 18 trials)
+  universeDsr: { dsr: 0.32 },
+  totalTrials: 8640,
+  setupTrials: 18,
+};
+
+const optBResult = context.evaluateAutobotEdge(dualDsrWf, 15, { strictUniverseGate: false });
+assert.strictEqual(optBResult.accepted, true, 'Option B default must accept valid setup-DSR >= 0.5 without breaking behavior');
+assert.strictEqual(optBResult.setupDsr, 0.65, 'Option B must report setupDsr');
+assert.strictEqual(optBResult.universeDsr, 0.32, 'Option B must report universeDsr');
+assert.strictEqual(optBResult.strictApplied, false, 'Option B reports strictApplied false');
+
+const optAResult = context.evaluateAutobotEdge(dualDsrWf, 15, { strictUniverseGate: true });
+assert.strictEqual(optAResult.accepted, false, 'Option A (strictUniverseGate: true) must reject when universeDsr < 0.5');
+assert.strictEqual(optAResult.strictApplied, true, 'Option A reports strictApplied true');
+
+const strongUniWf = {
+  ...dualDsrWf,
+  dsr: { dsr: 0.55 },
+  universeDsr: { dsr: 0.55 }
+};
+const optAPassing = context.evaluateAutobotEdge(strongUniWf, 15, { strictUniverseGate: true });
+assert.strictEqual(optAPassing.accepted, true, 'Option A accepts when universe-adjusted DSR >= 0.5');
 for (const [label, wf] of [
   ['missing', null],
   ['not OOS', { ...acceptedWf, evidenceStatus: 'INSUFFICIENT_DATA' }],

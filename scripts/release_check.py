@@ -329,6 +329,11 @@ def verify_golden_authenticity(
         if actual_sha != expected_sha:
             return "NO-GO", f"GOLDEN_MASTER_UNVERIFIED: sha256 mismatch for {f} (expected {expected_sha}, got {actual_sha})"
 
+    if "lockbox" in prov_raw and isinstance(prov_raw["lockbox"], dict):
+        lb = prov_raw["lockbox"]
+        if not lb.get("cutoff_time") or not lb.get("locked_span_days") or lb.get("status") != "LOCKED" or lb.get("mode") != "forward_holdout":
+            return "NO-GO", "GOLDEN_MASTER_UNVERIFIED: lockbox entry missing required cutoff_time, locked_span_days, status=LOCKED, or mode=forward_holdout"
+
     return "PASS", "all golden master fixtures verified with independent provenance"
 
 
@@ -341,6 +346,26 @@ def run_sensitivity_gate() -> tuple[str, str, str | None]:
     status, detail = classify_sensitivity(report)
     release_state = report.get("release") if isinstance(report, dict) else None
     return status, detail, release_state
+
+
+def run_model_evidence_real_gate() -> tuple[str, str, str | None]:
+    """Run real golden fixture evaluation and return (status, detail, real_verdict)."""
+    rc, out, err = run(["node", "tests/model_evidence_real.js"])
+    if rc != 0:
+        return "FAIL", (err or out).strip()[-300:], None
+    try:
+        report = json.loads(out.strip())
+        verdict = report.get("verdict", "NO_EVIDENCE")
+        per_symbol = report.get("per_symbol", [])
+        symbol_summaries = []
+        for s in per_symbol:
+            dsr = s.get("dsr", 0)
+            exp = s.get("exp", 0)
+            symbol_summaries.append(f"{s.get('symbol')}: exp={exp:.3f} dsr={dsr:.3f}")
+        detail = f"{verdict} ({', '.join(symbol_summaries)})"
+        return "PASS", detail, verdict
+    except Exception as e:
+        return "FAIL", f"parse_error: {e}", None
 
 
 def main() -> int:
@@ -434,11 +459,14 @@ def main() -> int:
     add(check("statistical oracle & metamorphic", "PASS" if ok else "FAIL",
               (out2.strip() or err2.strip() or out1.strip())[:200]))
 
-    # 2b. Honest release gate: the model's edge is COMPUTED from a sensitivity
-    # sweep, never asserted by hand. NO_EVIDENCE -> verdict must not be a clean GO.
+    # 2b. Synthetic fixture integrity gate (fixture integrity, not model evidence)
     sens_status, sens_detail, sens_release = run_sensitivity_gate()
-    add(check("statistical release gate (sensitivity)", sens_status, sens_detail))
-    model_no_evidence = sens_release == "NO_EVIDENCE"
+    add(check("synthetic sensitivity gate (fixture integrity)", sens_status, f"{sens_release} (fixture integrity, not model evidence: {sens_detail})"))
+
+    # 2c. Real data model evidence gate (5 Golden Fixtures)
+    real_status, real_detail, real_model_verdict = run_model_evidence_real_gate()
+    add(check("real data model evidence (5 golden fixtures)", real_status, real_detail))
+    model_no_evidence = (real_model_verdict == "NO_EVIDENCE")
 
     # 3. Relay suite (uses stdlib unittest — zero external pip dependencies needed)
     rc, out, err = run([sys.executable, "-m", "unittest", "tests/test_relay_full.py"])
@@ -582,9 +610,17 @@ def main() -> int:
 
     # Aggregate
     verdict = compute_verdict(results, model_no_evidence=model_no_evidence)
+    software_status = "SOFTWARE_GO" if not any(r["status"] == "FAIL" for r in results) else "SOFTWARE_FAIL"
+    real_status_label = f"MODEL_{real_model_verdict or 'NO_EVIDENCE'} (real)"
+    synthetic_label = f"synthetic-gate: {sens_release or 'PAPER_CANDIDATE'}"
+    summary_verdict_line = f"VERDICT: {software_status} / {real_status_label} · {synthetic_label}"
+
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "verdict": verdict,
+        "software_verdict": software_status,
+        "model_verdict": real_status_label,
+        "synthetic_gate": sens_release,
         "checks": results,
         "info": info,
     }
@@ -600,11 +636,14 @@ def main() -> int:
             flag = {"PASS": "[OK]   ", "FAIL": "[FAIL] ", "NO-GO": "[NOGO] ",
                     "CONDITIONAL": "[WARN] "}.get(r["status"], "[??]   ")
             print(f"{flag}{r['name']:34s} {r['detail'][:110]}", file=sys.stderr)
-        print(f"\nVERDICT: {verdict}", file=sys.stderr)
+        if any(r["status"] == "FAIL" for r in results):
+            print(f"\nVERDICT: FAIL", file=sys.stderr)
+        else:
+            print(f"\n{summary_verdict_line}", file=sys.stderr)
         if info.get("workspace_hygiene") != ["clean"]:
             print(f"[INFO] workspace hygiene: {'; '.join(info['workspace_hygiene'])}", file=sys.stderr)
         if verdict == "SOFTWARE_GO / MODEL_NO_EVIDENCE":
-            print("Statistical model reports NO_EVIDENCE — software passes, but there "
+            print("Statistical model reports NO_EVIDENCE on real golden fixtures — software passes, but there "
                   "is no mathematical edge. Not a clean GO.", file=sys.stderr)
         elif verdict == "NO-GO":
             print("External/manual evidence missing — not a false green. "
