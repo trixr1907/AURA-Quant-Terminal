@@ -139,3 +139,13 @@ src/
 Vorteile:
 - 100%ige Abwärtskompatibilität (Distribution bleibt ein einziges autarkes HTML-File).
 - Vollständige Modularisierung und isolierte Unit-Tests für jedes Submodul.
+
+---
+
+## 6. Zeitstempel-Konvention (Millisekunden-Standard)
+
+- **Verbindlicher Standard:** Sämtliche Zeitstempel im gesamten System (`candles[i].t`, Engine-Indikatoren, Session-Filter, VWAP-Tagesgruppierung) werden ausnahmslos in **Millisekunden (ms)** geführt.
+- **Produktions-APIs:** WebSocket- und REST-Streams (Bitget `openTime`, Binance `openTime`) liefern Zeitstempel nativ in ms (z. B. `1735689600000`).
+- **CSV- & Fixture-Import:** Externe CSV-Exporte mit Zeitstempeln in Sekunden (`< 10_000_000_000`) werden ausnahmslos über `normalizeTimestamp(value)` automatisch in Millisekunden ($s \times 1000$) skaliert:
+  $$\text{timestamp}_{\text{ms}} = (n < 10^{10}) \;?\; n \times 1000 : n$$
+- **Harness-Pflicht:** Jeder Test-Harness, Parser oder Reader (JavaScript oder Python), der Fixtures oder historische Daten einliest, MUSS diese Normalisierung anwenden. Dies stellt sicher, dass datumsbasierte Gruppierungen wie `Math.floor(ms / 86400000)` über alle Test- und Produktivumgebungen exakt identische Tagesgrenzen berechnen.
