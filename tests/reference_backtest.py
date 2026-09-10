@@ -335,32 +335,19 @@ def main() -> int:
         failures.append("totalTrials mismatch")
 
     # --- 10B: EXP-025 fair fold geometry (real JS/Python parity) ------------
-    phase_d_source = (ROOT / "tools" / "edge_diagnostic_phase_d.js").read_text(encoding="utf-8")
-    if "const minTrainBars = tfMinutes >= 240 ? 500 : 2000;" not in phase_d_source:
-        failures.append("EXP-025 JS harness geometry declaration missing")
+    geometry_script = ROOT / "tools" / "fold_geometry.js"
     for n_bars, tf_minutes, min_train in [(14773, 60, 2000), (10270, 240, 500)]:
+        js_code = (
+            f"const {{fairFoldBoundaries}}=require({json.dumps(str(geometry_script))});"
+            f"process.stdout.write(JSON.stringify(fairFoldBoundaries({n_bars},{tf_minutes})));"
+        )
+        proc = subprocess.run(["node", "-e", js_code], capture_output=True, text=True, cwd=ROOT, check=True)
+        js_geom = json.loads(proc.stdout)
         py_geom = fold_boundaries(n_bars, tf_minutes=tf_minutes, min_train_bars=min_train)
-        eff_warmup = min(235, max(14, n_bars - 60))
-        first_test_start = eff_warmup + min_train + 1
-        test_fold_size = (n_bars - 2 - first_test_start + 1) // 4
-        js_folds = []
-        for fold_index in range(4):
-            test_start = first_test_start + fold_index * test_fold_size
-            test_end = n_bars - 2 if fold_index == 3 else test_start + test_fold_size - 1
-            train_end = test_start - 2
-            train_bars = train_end - eff_warmup + 1
-            test_bars = test_end - test_start + 1
-            js_folds.append({
-                "fold": fold_index + 1,
-                "trainRange": [eff_warmup, train_end],
-                "testRange": [test_start, test_end],
-                "trainBars": train_bars,
-                "trainHours": train_bars * tf_minutes / 60,
-                "testBars": test_bars,
-                "testHours": test_bars * tf_minutes / 60,
-            })
-        if py_geom["folds"] != js_folds:
-            failures.append(f"EXP-025 geometry folds mismatch for tf={tf_minutes}: python={py_geom['folds']!r} js={js_folds!r}")
+        if py_geom["effWarmup"] != js_geom["effWarmup"]:
+            failures.append(f"EXP-025 geometry effWarmup mismatch for tf={tf_minutes}")
+        if py_geom["folds"] != js_geom["folds"]:
+            failures.append(f"EXP-025 geometry folds mismatch for tf={tf_minutes}: python={py_geom['folds']!r} js={js_geom['folds']!r}")
 
     # --- 10C: DSR, hand-checked moments then JS cross-check ------------------
     for name in RETURNS:
