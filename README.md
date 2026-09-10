@@ -1,9 +1,17 @@
-# AURA v1.1.3 — Smart Quant Terminal
+# AURA v1.1.4 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.1.3 — Laufzeitstabilität und Autobot-Diagnose (aktuelle Fassung)
+### v1.1.4 — Zuverlässige Radar-Fokusauswahl (aktuelle Fassung)
+
+- Radar-Zeilen und Timeframe-Pills wechseln Symbol und Timeframe über einen gemeinsamen atomaren Fokuspfad.
+- Setup Validation invalidiert ihren Render-Cache beim Assetwechsel und berücksichtigt nur tatsächlich dargestellte Live-Felder.
+- Fokus-Setup, Setup Validation, Symbolfelder und Timeframe-Schalter bleiben damit synchron.
+- Der tag-basierte Release-Workflow erlaubt den erwarteten aktuellen Release-Tag, ohne Konsistenz- oder Qualitäts-Gates zu umgehen.
+- Scores, OOS-/DSR-Gates und das ehrliche Modellverdikt `MODEL_NO_EVIDENCE` bleiben unverändert.
+
+### v1.1.3 — Laufzeitstabilität und Autobot-Diagnose
 
 - Das Pine-Script hält FVG-Zeichnungen deterministisch begrenzt und läuft auch dann weiter, wenn alle gespeicherten Zonen noch aktiv sind.
 - Der Autobot-Funnel zeigt modellneutral an, an welchem technischen, statistischen oder operativen Gate Kandidaten abgelehnt wurden.
@@ -179,4 +187,4 @@ Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet 
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.1.3 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.1.4 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.

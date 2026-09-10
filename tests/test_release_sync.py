@@ -539,6 +539,7 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
             workflow,
         )
         self.assertIn("python3 -m playwright install --with-deps chromium", workflow)
+        self.assertIn("python3 scripts/release_check.py --allow-current-version", workflow)
 
         checkout = workflow.index("actions/checkout@v4")
         setup = workflow.index("actions/setup-python@v5")
