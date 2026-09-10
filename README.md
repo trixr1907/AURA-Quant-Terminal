@@ -1,9 +1,17 @@
-# AURA v1.1.4 — Smart Quant Terminal
+# AURA v1.1.5 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.1.4 — Zuverlässige Radar-Fokusauswahl (aktuelle Fassung)
+### v1.1.5 — Institutional Audit Patches & UX-Härtung (aktuelle Fassung)
+
+- **Signal-Integrität:** Hero-Richtung entkoppelt vom Markt-Scoring; BTC-Trend-Veto ('wait') fest verankert; Radar-State-Key berücksichtigt Sortierung & TF.
+- **Risk-Management:** Autobot-Position-Sizing vollständig mit dynamischem Fractional Kelly (`calcKelly`) harmonisiert (Fail-closed bei mangelndem Edge).
+- **Stabilität & Kausalität:** Look-Ahead-invariantes Warmup für junge Tokens ($N < 295$) fixiert (Metamorphic-Tests verifiziert).
+- **Netzwerk & Performance:** WebSocket-Tick-Drosselung via `requestAnimationFrame`, Stale-Data-Guard (`⚠️ STALE`), Relay Token-Bucket auf 15/30 optimiert und Radar-Batchgröße auf 4 reduziert.
+- **UI/UX & Accessibility:** RenderCache-State-Keys repariert, CSS-Ausblendung für Mobile-Controls entfernt (Flex-Wrap) und Schriften/Kontraste auf WCAG AA gehärtet.
+
+### v1.1.4 — Zuverlässige Radar-Fokusauswahl
 
 - Radar-Zeilen und Timeframe-Pills wechseln Symbol und Timeframe über einen gemeinsamen atomaren Fokuspfad.
 - Setup Validation invalidiert ihren Render-Cache beim Assetwechsel und berücksichtigt nur tatsächlich dargestellte Live-Felder.
@@ -187,4 +195,4 @@ Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet 
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.1.4 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.1.5 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.

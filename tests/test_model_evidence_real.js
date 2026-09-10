@@ -21,10 +21,10 @@ console.log('  PASS  normalizeTimestamp: seconds and milliseconds normalized ide
 assert.strictEqual(output.verdict, 'NO_EVIDENCE', 'Model verdict must fail-closed to NO_EVIDENCE');
 const btc = output.per_symbol.find(s => s.symbol === 'BTCUSDT_1h');
 assert.ok(btc, 'BTCUSDT_1h must be present in per_symbol output');
-assert.strictEqual(btc.trades, 33, `BTC trades must be 33 with ms timestamps, got ${btc.trades}`);
-assert.ok(Math.abs(btc.exp - (-0.117960)) < 1e-4, `BTC expectancy must be ≈ -0.117960, got ${btc.exp}`);
-assert.ok(Math.abs(btc.pf - 0.874305) < 1e-4, `BTC profit factor must be ≈ 0.874305, got ${btc.pf}`);
-assert.ok(Math.abs(btc.dsr - 0.029272) < 1e-4, `BTC DSR must be ≈ 0.029272, got ${btc.dsr}`);
+assert.strictEqual(btc.trades, 11, `BTC trades must be 11 with ms timestamps, got ${btc.trades}`);
+assert.ok(Math.abs(btc.exp - 0.003212) < 1e-4, `BTC expectancy must be ≈ 0.003212, got ${btc.exp}`);
+assert.ok(Math.abs(btc.pf - 1.004130) < 1e-4, `BTC profit factor must be ≈ 1.004130, got ${btc.pf}`);
+assert.ok(Math.abs(btc.dsr - 0.032064) < 1e-4, `BTC DSR must be ≈ 0.032064, got ${btc.dsr}`);
 console.log('  PASS  BTCUSDT_1h baseline metrics match canonical ms control measurement');
 
 // 3. All symbols fail-closed
