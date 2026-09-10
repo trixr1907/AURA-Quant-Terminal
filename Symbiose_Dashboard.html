@@ -700,14 +700,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.2?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.3?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Patch-Release enthält den regularisierten Minimal-Fix des Walk-Forward-Selektionsobjektivs und den konsolidierten Abschluss der Edge-Forschung A–D. Das reale Modellverdikt bleibt ehrlich <b>MODEL_NO_EVIDENCE</b>.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Patch-Release behebt den FVG-Box-Laufzeitabbruch und macht Autobot-Ablehnungen sichtbar. Scores, Gates und das reale Modellverdikt <b>MODEL_NO_EVIDENCE</b> bleiben unverändert.</p>
     <ul style="color:var(--txt);line-height:1.6;margin:0 0 18px;padding-left:20px">
-      <li><b>Selektionsobjektiv:</b> Kleine Trainingsstichproben werden ab zwei Trades regularisiert statt bis fünf Trades pauschal ausgeschlossen.</li>
-      <li><b>Research-Abschluss:</b> Aggregierter OOS-DSR 0.038 bei T=45; B3 wurde gemäß Stopp-Regel nicht durchgeführt.</li>
-      <li><b>Prozess:</b> Künftige Präregistrierungen benötigen einen eigenen vorausgehenden Git-Commit.</li>
+      <li><b>Pine-Stabilität:</b> Bei voller FVG-Kapazität wird deterministisch eine alte visuelle Zone entfernt, statt die Indikatorausführung abzubrechen.</li>
+      <li><b>Autobot-Diagnose:</b> Der Funnel nennt technische, statistische und operative Ablehnungsgründe.</li>
+      <li><b>Datenschutz:</b> Provider-Fehler werden nur als feste Kategorie gespeichert; Diagnosecodes sind allowlist-basiert.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -716,7 +716,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.1.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.1.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -6762,6 +6762,39 @@ function collectAutobotCandidates(radar) {
   return radar.flatMap(item => Array.isArray(item?.rows) ? item.rows : [item]).filter(Boolean);
 }
 
+function addAutobotReject(funnel, code) {
+  if (!funnel || !code) return;
+  if (!funnel.rejects || typeof funnel.rejects !== 'object') funnel.rejects = {};
+  funnel.rejects[code] = (Number(funnel.rejects[code]) || 0) + 1;
+}
+
+function sanitizeAutobotError(_error) {
+  // Provider errors may contain URLs, headers or credentials. Persist only a
+  // stable category; detailed exceptions stay out of local/synced state.
+  return 'Datenabruf/Revalidierung fehlgeschlagen';
+}
+
+function autobotRejectSummary(funnel) {
+  if (!funnel || !funnel.rejects || typeof funnel.rejects !== 'object') return '';
+  const labels = {
+    DUPLICATE_OR_INVALID: 'ungültig/bereits offen',
+    LIQUIDITY: 'Liquidität',
+    NO_RADAR_READY: 'Radar-Gate',
+    BTC_CONFLICT: 'BTC-Konflikt',
+    FRESH_DATA: 'Fresh-Daten',
+    FRESH_ANALYSIS: 'Fresh-Analyse',
+    FRESH_GATE: 'Fresh-Gate',
+    MODEL_NO_EVIDENCE: 'keine OOS-Evidenz',
+    MARGIN: 'Margin',
+    REFETCH_ERROR: 'Datenfehler'
+  };
+  return Object.entries(funnel.rejects)
+    .filter(([code, count]) => Object.prototype.hasOwnProperty.call(labels, code) && Number(count) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0]))
+    .map(([code, count]) => `${Number(count)}× ${labels[code]}`)
+    .join(', ');
+}
+
 function autobotSignalStrength(candidate) {
   if (!candidate || !candidate.bestInfo) return -Infinity;
   const info = candidate.bestInfo;
@@ -7253,7 +7286,9 @@ const Autobot = {
       scanned: scannedHypotheses,
       radarFiltered: radarFilteredCount,
       wfEvaluated: wfEvaluated,
-      selected: 0
+      selected: 0,
+      rejects: {},
+      lastError: null
     };
     this.lastScanFunnel = funnel;
 
@@ -7263,27 +7298,45 @@ const Autobot = {
 
     for (const c of candidates) {
       if (this.trades.length >= this.maxOpenTrades) break;
-      if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) continue;
+      if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) {
+        addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
+        continue;
+      }
 
       const universeRow = (App.universe || []).find(row => row && row.symbol === c.symbol);
-      if (this.min24hVol > 0 && (!universeRow || !Number.isFinite(+universeRow.vol) || +universeRow.vol < this.min24hVol)) continue;
+      if (this.min24hVol > 0 && (!universeRow || !Number.isFinite(+universeRow.vol) || +universeRow.vol < this.min24hVol)) {
+        addAutobotReject(funnel, 'LIQUIDITY');
+        continue;
+      }
 
       const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
-      if (!candidateGate.accepted) continue;
+      if (!candidateGate.accepted) {
+        addAutobotReject(funnel, 'NO_RADAR_READY');
+        continue;
+      }
 
       // Macro Confluence Gate
       if (this.btcFilter && btcBias.available) {
-        if (candidateGate.dir === 1 && btcBias.regime === -1) continue;
-        if (candidateGate.dir === -1 && btcBias.regime === 1) continue;
+        if ((candidateGate.dir === 1 && btcBias.regime === -1) ||
+            (candidateGate.dir === -1 && btcBias.regime === 1)) {
+          addAutobotReject(funnel, 'BTC_CONFLICT');
+          continue;
+        }
       }
 
       // Re-fetch the radar-selected timeframe immediately before entry and apply
       // the same score, squeeze, regime and ADX gates to prevent stale entries.
       try {
         const kdata = await fetchKlines(c.symbol, candidateGate.tf, 1000);
-        if (!kdata || !kdata.candles || kdata.candles.length < 40) continue;
+        if (!kdata || !kdata.candles || kdata.candles.length < 40) {
+          addAutobotReject(funnel, 'FRESH_DATA');
+          continue;
+        }
         const A = analyze(kdata.candles);
-        if (!A || !A.n || !A.last) continue;
+        if (!A || !A.n || !A.last) {
+          addAutobotReject(funnel, 'FRESH_ANALYSIS');
+          continue;
+        }
         const freshRegime = regimeOf(A);
         const lastPrice = kdata.candles[kdata.candles.length - 1].c;
         const freshGate = classifyRadarTf({
@@ -7300,7 +7353,10 @@ const Autobot = {
           aligned: c.aligned,
           bestTF: candidateGate.tf
         }, this.minScore, this.mtfNeed);
-        if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) continue;
+        if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) {
+          addAutobotReject(funnel, 'FRESH_GATE');
+          continue;
+        }
 
         // A technical READY setup is not enough: validate positive out-of-sample
         // expectancy on the exact freshly selected timeframe before sizing.
@@ -7311,7 +7367,10 @@ const Autobot = {
           trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
         });
         const edgeGate = evaluateAutobotEdge(freshWalkForward, 15, { strictUniverseGate: this.strictUniverseGate });
-        if (!edgeGate.accepted) continue;
+        if (!edgeGate.accepted) {
+          addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
+          continue;
+        }
 
         funnel.selected = 1;
 
@@ -7330,7 +7389,10 @@ const Autobot = {
         const leverage = Math.min(this.maxLeverage, Math.max(2, Math.ceil(targetNotional / (this.equity * 0.25))));
         const margin = Math.round(targetNotional / leverage);
 
-        if (margin > this.equity * 0.35 || margin < 10) continue;
+        if (margin > this.equity * 0.35 || margin < 10) {
+          addAutobotReject(funnel, 'MARGIN');
+          continue;
+        }
 
         // Deduct margin from available equity
         this.equity -= margin;
@@ -7387,8 +7449,12 @@ const Autobot = {
         this.save();
         this.render();
         break; // 1 trade per scan tick
-      } catch (_) {}
+      } catch (error) {
+        addAutobotReject(funnel, 'REFETCH_ERROR');
+        funnel.lastError = sanitizeAutobotError(error);
+      }
     }
+    this.save();
     return funnel;
   },
 
@@ -7420,7 +7486,16 @@ const Autobot = {
         const tEff = 18 * f.wfEvaluated;
         const mode = this.strictUniverseGate ? '<span style="color:var(--amb)">[Option A: Strikt (Uni-DSR &ge; 0.5)]</span>' : '<span style="color:#c084fc">[Option B: Standard (Setup-DSR &ge; 0.5)]</span>';
         const numMarkets = Math.round(f.scanned / 4) || f.scanned;
-        funnelEl.innerHTML = `Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> Radar-Kandidaten &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}`;
+        const rejectSummary = autobotRejectSummary(f);
+        const diagnostics = rejectSummary ? ` &middot; Abgelehnt: <b>${rejectSummary}</b>` : '';
+        funnelEl.innerHTML = `Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> Radar-Kandidaten &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}${diagnostics}`;
+        if (f.lastError) {
+          funnelEl.append(' · Letzter Datenfehler: ');
+          const errorEl = document.createElement('span');
+          errorEl.style.color = 'var(--red2)';
+          errorEl.textContent = f.lastError;
+          funnelEl.appendChild(errorEl);
+        }
       } else {
         funnelEl.textContent = `Bereit: Scanne Universum mit Grid 18 & Universe-Adjustierung (${this.strictUniverseGate ? 'Option A: Strikt' : 'Option B: Standard'}).`;
       }
@@ -7595,7 +7670,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.1.2');
+  showReleaseNotesOnce('1.1.3');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
