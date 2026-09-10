@@ -700,20 +700,21 @@ class TestRelayCacheAndRateLimiter(unittest.TestCase):
             return {"code": "00000", "data": []}
 
         with patch("bitget_relay._request", side_effect=fake_request):
-            # Exhaust the 20 tokens capacity with unique queries to bypass cache
-            for i in range(20):
+            # Exhaust the tokens capacity with unique queries to bypass cache
+            capacity = int(bitget_relay.UPLINK_RATE_LIMITER.capacity)
+            for i in range(capacity):
                 resp, is_cached = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": f"COIN{i}USDT"})
                 self.assertEqual(resp.get("code"), "00000")
 
-            self.assertEqual(call_count, 20)
+            self.assertEqual(call_count, capacity)
 
-            # 21st unique query immediately exceeds capacity -> 429 without uplink hit
+            # Next unique query immediately exceeds capacity -> 429 without uplink hit
             resp_overflow, is_cached = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": "OVERFLOWUSDT"})
             self.assertEqual(resp_overflow.get("code"), "429")
             self.assertEqual(resp_overflow.get("_http"), 429)
             self.assertFalse(is_cached)
-            # Uplink call_count must remain strictly 20!
-            self.assertEqual(call_count, 20)
+            # Uplink call_count must remain strictly at capacity!
+            self.assertEqual(call_count, capacity)
 
     def test_non_get_and_error_responses_are_not_cached(self):
         call_count = 0

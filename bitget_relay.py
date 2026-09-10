@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.1.4 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.1.5 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.1.4", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.1.5", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -35,7 +35,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -342,7 +342,7 @@ class TTLCache:
             self._cache.clear()
 
 
-UPLINK_RATE_LIMITER = TokenBucketRateLimiter(rate=10.0, capacity=20.0)
+UPLINK_RATE_LIMITER = TokenBucketRateLimiter(rate=15.0, capacity=30.0)
 PUBLIC_CACHE = TTLCache()
 
 
@@ -363,7 +363,7 @@ def _public_request_cached(method: str, path: str, params: dict) -> tuple[dict, 
     if not UPLINK_RATE_LIMITER.consume():
         return {
             "code": "429",
-            "msg": "Relay rate limit exceeded (Token Bucket: 10 req/s, burst 20). Retry shortly.",
+            "msg": "Relay rate limit exceeded (Token Bucket: 15 req/s, burst 30). Retry shortly.",
             "data": None,
             "_http": 429,
         }, False
@@ -645,7 +645,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.1.4 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.1.5 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()
