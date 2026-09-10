@@ -1,4 +1,11 @@
 {
+  "lockbox": {
+    "cutoff_time": "2026-09-10T00:00:00Z",
+    "locked_span_days": 60,
+    "status": "LOCKED",
+    "mode": "forward_holdout",
+    "description": "All bars with close timestamp >= 2026-09-10T00:00:00Z are strictly locked for final blind OOS evaluation. No model tuning, parameter selection, or threshold optimization may access this span."
+  },
   "BTCUSDT_1h.csv": {
     "symbol": "BTCUSDT",
     "timeframe": "1h",

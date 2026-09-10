@@ -635,7 +635,7 @@ console.log('PASS all Live Trade Tracker & BTC Trend contracts validated');
     .replace('const A = analyze(kdata.candles);', 'const A = __scanAnalyze(kdata.candles);')
     .replace('const freshGate = classifyRadarTf({', 'const freshGate = __scanClassifyRadarTf({')
     .replace('const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {', 'const freshWalkForward = __scanRunWalkForward(kdata.candles, A, {')
-    .replace('const edgeGate = evaluateAutobotEdge(freshWalkForward);', 'const edgeGate = __scanEvaluateEdge(freshWalkForward);')
+    .replace(/const edgeGate = evaluateAutobotEdge\([^)]*\);/, 'const edgeGate = __scanEvaluateEdge(freshWalkForward);')
     .replace('const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {', 'const optTimeStop = __scanOptimizeTimeStop(kdata.candles, A, {');
   scanSource = scanSource.slice(0, scanStart) + scanBody + scanSource.slice(scanEnd);
   vm.runInContext(scanSource + '\nthis.__Autobot = Autobot;\nthis.__App = App;', scanCtx);
@@ -670,19 +670,19 @@ console.log('PASS all Live Trade Tracker & BTC Trend contracts validated');
   scanCtx.__scanEvaluateEdge = wf => { receivedWf = wf; return { accepted: false, edge: 0, sampleSize: 0, dsr: 0, effectiveTrials: 0 }; };
   await bot.scanAndExecuteOpportunities();
   assert.strictEqual(receivedWf, rejectedWf, 'full fresh walk-forward object must reach evidence gate');
-  assert.strictEqual(receivedOptions.trialMultiplier, 2, 'trial multiplier must equal actual candidates');
+  assert.strictEqual(receivedOptions.trialMultiplier, 8, 'trial multiplier must equal scan hypotheses family (2 symbols * 4 TFs = 8)');
   assert.strictEqual(receivedOptions.tfMinutes, 60, 'fresh selected 1h timeframe must pass 60 minutes');
   assert.strictEqual(bot.trades.length, 0, 'rejected OOS/DSR evidence must not reach trade creation');
 
-  const acceptedWf = { ...rejectedWf, dsr: { dsr: 0.7 } };
+  const acceptedWf = { ...rejectedWf, dsr: { dsr: 0.7 }, totalTrials: 144 };
   scanCtx.__scanRunWalkForward = (_c, _a, options) => { receivedOptions = options; return acceptedWf; };
   scanCtx.__scanEvaluateEdge = wf => {
     receivedWf = wf;
-    return { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.7, effectiveTrials: wf.totalTrials };
+    return { accepted: true, edge: 0.68, sampleSize: 15, dsr: 0.7, setupDsr: 0.7, universeDsr: 0.55, effectiveTrials: wf.totalTrials, setupTrials: 18, strictApplied: false };
   };
   await bot.scanAndExecuteOpportunities();
   assert.strictEqual(receivedWf, acceptedWf, 'accepted path must also receive full fresh walk-forward object');
   assert.strictEqual(bot.trades.length, 1, 'accepted evidence must permit one trade');
-  assert.strictEqual(bot.trades[0].effectiveTrials, 36, 'accepted trade must persist effective trials');
+  assert.strictEqual(bot.trades[0].effectiveTrials, 144, 'accepted trade must persist effective trials');
   console.log('PASS Autobot scan uses fresh WF evidence, blocks rejected evidence, and persists effective trials');
 })().catch(error => { console.error(error); process.exitCode = 1; });
