@@ -108,3 +108,9 @@
 1. **Keine zertifizierbare Out-of-Sample-Evidenz:** Auf den 5 realen Golden Master Fixtures erreicht der aggregierte DSR auch unter korrekter Regime-Filterung und fairer Fold-Geometrie nicht die statistische Zertifizierungsgrenze ($\text{DSR} \ge 0.50$). Das Modell verbleibt ehrlich im Zustand `MODEL_NO_EVIDENCE`.
 2. **B3 (TP1 / R:R-Tuning) wird NICHT durchgeführt:** Jede weitere Parameter-Optimierung auf diesen historischen Daten würde unweigerlich zu Data-Snooping (*p-Hacking*) führen.
 3. **Schutz der Lockbox:** Die gesperrten Bars ($\ge 2026-09-10$) bleiben unberührt.
+
+---
+
+## 7. Release-Check und Packaging
+
+`scripts/release_check.py` läuft im committeten Zustand vollständig grün durch (Exit 0): `SOFTWARE_GO / MODEL_NO_EVIDENCE (real) · synthetic-gate: PAPER_CANDIDATE · lockbox-eval: UNUSED`. `scripts/build_package.py` wurde im Research-Schritt korrekt nicht ausgeführt, weil dort kein Versionsbump erfolgte; die Paketierung gehört zum nachfolgenden Release-Schritt.
