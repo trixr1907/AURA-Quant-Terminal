@@ -1165,7 +1165,7 @@ test('runWalkForwardBacktest: OOS signals require an entry inside testRange', ()
   assert.strictEqual(fold.censoredTest, 1,
     'the signal entering on testEnd must remain visibly censored when no exit follows');
   assert.strictEqual(fold.selectionObjective, null,
-    'fewer than five closed train trades must report no selection objective');
+    'fewer than minTrainTrades closed train trades must report no selection objective');
 });
 
 

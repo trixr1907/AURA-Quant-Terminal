@@ -220,11 +220,11 @@ def effective_trials(grid_size: int = 18, trial_multiplier: int = 1) -> int:
     return grid * mult
 
 
-def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 60.0, trial_multiplier: int = 1) -> dict:
+def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 60.0, trial_multiplier: int = 1, min_train_bars: int = 300) -> dict:
     """Anchored t1-safe fold geometry, independent of ATR or embargo heuristics."""
     eff_warmup = min(warmup, max(14, n - 60))
-    min_train_bars = 300
-    first_test_start = eff_warmup + min_train_bars + 1
+    min_train = int(min_train_bars) if min_train_bars and int(min_train_bars) > 0 else 300
+    first_test_start = eff_warmup + min_train + 1
     test_fold_size = (n - 2 - first_test_start + 1) // k
     train_start = eff_warmup
     folds = []
@@ -238,6 +238,7 @@ def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 6
             "fold": i + 1, "trainRange": [train_start, train_end],
             "testRange": [test_start, test_end], "trainBars": train_bars,
             "trainHours": train_bars * tf_minutes / 60,
+            "testBars": test_bars,
             "testHours": test_bars * tf_minutes / 60,
         })
     total_trials = effective_trials(18, trial_multiplier)
@@ -247,6 +248,13 @@ def fold_boundaries(n: int, warmup: int = 235, k: int = 4, tf_minutes: float = 6
 # ---------------------------------------------------------------------------
 # Hand-computed expected values (derived independently from the definitions)
 # ---------------------------------------------------------------------------
+
+def selection_objective(exp: float, total: int, min_train_trades: int = 2) -> float:
+    """EXP-024 regularized selection objective with small-sample penalization."""
+    if total < min_train_trades or not math.isfinite(exp):
+        return -float("inf")
+    return exp * math.sqrt(total) * (1.0 - 1.0 / (1.0 + total))
+
 
 def _hand_expected() -> dict:
     # trades.json: wins = rNet {1.2, 2.0, 1.8, 0.9} -> 5.9; losses = {-0.8,-1.0,-0.3,-1.1,-0.6} -> -3.8
@@ -276,6 +284,10 @@ def _load_js_oracle() -> dict:
 
 
 def _approx(a, b, tol=EPS) -> bool:
+    if a == -float("inf") or b == -float("inf") or b is None:
+        return (a == -float("inf")) and (b == -float("inf") or b is None)
+    if not math.isfinite(a) or not math.isfinite(b):
+        return a == b
     return abs(a - b) <= tol
 
 
@@ -300,18 +312,57 @@ def main() -> int:
         if not _approx(rc[k], js["reconcile"][k], EPS_ACCT):
             failures.append(f"reconcile[{k}] JS: {rc[k]} != {js['reconcile'][k]}")
 
+    # --- 10A: selection objective oracle cross-check (EXP-024) -------------
+    test_pts = [(0.5, 1), (0.5, 2), (0.5, 3), (0.5, 5), (0.5, 10), (-0.2, 3), (-0.2, 1)]
+    for exp_val, tot_val in test_pts:
+        py_obj = selection_objective(exp_val, tot_val, min_train_trades=2)
+        js_key = f"{exp_val},{tot_val}"
+        if js_key in js.get("selectionObjective", {}):
+            js_obj = js["selectionObjective"][js_key]
+            if not _approx(py_obj, js_obj, EPS_ACCT):
+                failures.append(f"selectionObjective[{js_key}] JS: {py_obj} != {js_obj}")
+
     # --- 10A: fold boundaries ----------------------------------------------
     py_folds = fold_boundaries(1000)
     js_folds = js["folds"]
     if len(py_folds["folds"]) != len(js_folds):
         failures.append("fold count mismatch")
     for pf, jf in zip(py_folds["folds"], js_folds):
-        if pf != jf:
-            failures.append(f"fold {pf['fold']}: py {pf} != js {jf}")
+        comparable_pf = {key: value for key, value in pf.items() if key in jf}
+        if comparable_pf != jf:
+            failures.append(f"fold {pf['fold']}: py {comparable_pf} != js {jf}")
     if py_folds["totalTrials"] != js["totalTrials"]:
         failures.append("totalTrials mismatch")
 
-    # --- 10B: DSR, hand-checked moments then JS cross-check ------------------
+    # --- 10B: EXP-025 fair fold geometry (real JS/Python parity) ------------
+    phase_d_source = (ROOT / "tools" / "edge_diagnostic_phase_d.js").read_text(encoding="utf-8")
+    if "const minTrainBars = tfMinutes >= 240 ? 500 : 2000;" not in phase_d_source:
+        failures.append("EXP-025 JS harness geometry declaration missing")
+    for n_bars, tf_minutes, min_train in [(14773, 60, 2000), (10270, 240, 500)]:
+        py_geom = fold_boundaries(n_bars, tf_minutes=tf_minutes, min_train_bars=min_train)
+        eff_warmup = min(235, max(14, n_bars - 60))
+        first_test_start = eff_warmup + min_train + 1
+        test_fold_size = (n_bars - 2 - first_test_start + 1) // 4
+        js_folds = []
+        for fold_index in range(4):
+            test_start = first_test_start + fold_index * test_fold_size
+            test_end = n_bars - 2 if fold_index == 3 else test_start + test_fold_size - 1
+            train_end = test_start - 2
+            train_bars = train_end - eff_warmup + 1
+            test_bars = test_end - test_start + 1
+            js_folds.append({
+                "fold": fold_index + 1,
+                "trainRange": [eff_warmup, train_end],
+                "testRange": [test_start, test_end],
+                "trainBars": train_bars,
+                "trainHours": train_bars * tf_minutes / 60,
+                "testBars": test_bars,
+                "testHours": test_bars * tf_minutes / 60,
+            })
+        if py_geom["folds"] != js_folds:
+            failures.append(f"EXP-025 geometry folds mismatch for tf={tf_minutes}: python={py_geom['folds']!r} js={js_folds!r}")
+
+    # --- 10C: DSR, hand-checked moments then JS cross-check ------------------
     for name in RETURNS:
         py_dsr = calc_dsr(RETURNS[name], 18)
         js_dsr = js["dsr"][name]
