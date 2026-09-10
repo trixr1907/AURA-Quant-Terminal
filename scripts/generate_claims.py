@@ -92,14 +92,14 @@ CLAIMS = [
     },
     {
         "ID": "CLM-09",
-        "Quelle": "Symbiose_Dashboard.html:1781",
-        "Wortlaut": "Selection Objective in Walk-Forward: exp * sqrt(n) mit n >= 5 Train-Trades, negatives Expectancy behält negatives Vorzeichen",
+        "Quelle": "Symbiose_Dashboard.html:1789",
+        "Wortlaut": "Selection Objective in Walk-Forward: exp * sqrt(n) * (1 - 1/(1+n)) mit n >= 2 Train-Trades (EXP-024)",
         "Typ": "Formel",
         "Ebene_Querschnitt": "Ebene 1",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "Symbiose_Dashboard.html:1781; obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) : -Infinity.",
-        "Empfehlung_Fix": "Keine Änderung nötig. Mathematisch korrekt und bestraft negative Erwartungswerte."
+        "Beleg_Repro": "Symbiose_Dashboard.html:1789; obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) * (1 - 1 / (1 + stats.total)) : -Infinity.",
+        "Empfehlung_Fix": "Keine Änderung nötig. Regularisierte Selektion verifiziert."
     },
 
     # --- Ebene 2: Implementierung (Correctness) ---
