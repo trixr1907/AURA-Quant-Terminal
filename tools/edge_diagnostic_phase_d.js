@@ -24,6 +24,7 @@ vm.createContext(sandbox);
 vm.runInContext(code + '\n__E = { analyze, runWalkForwardBacktest, evaluateTrades, regimeOf, calcDSR, simulateRange, calibrateProbabilities, SYM };', sandbox);
 const { analyze, runWalkForwardBacktest, evaluateTrades, regimeOf, calcDSR, simulateRange, calibrateProbabilities, SYM } = sandbox.__E;
 const { parseCsv } = require('../tests/model_evidence_real.js');
+const { fairFoldBoundaries } = require('./fold_geometry.js');
 
 const GOLDEN_DIR = path.join(__dirname, '..', 'tests', 'fixtures', 'golden');
 const GOLDEN_FILES = [
@@ -52,7 +53,8 @@ function runFairWalkForward(candles, A, options = {}, forcedRegimeGate = null, K
   const warmup = effWarmup;
   const tfMinutes = options.tfMinutes || 60;
   // EXP-025 Fair initial training window: 2000 bars for 1h, 500 bars for 4h
-  const minTrainBars = tfMinutes >= 240 ? 500 : 2000;
+  const geometry = fairFoldBoundaries(n, tfMinutes, K, warmup);
+  const minTrainBars = geometry.minTrainBars;
   const minTrainTrades = 2;
   const minTestPerFold = 60;
   const trialMultiplier = options.trialMultiplier || 1;
