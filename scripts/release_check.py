@@ -420,6 +420,9 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_autobot_revalidation_object.js"])
     add(check("autobot revalidation object", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_autobot_scan_diagnostics.js"])
+    add(check("autobot scan diagnostics", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
     rc, out, err = run(["node", "tests/test_radar_continuous_cycle.js"])
     add(check("radar continuous cycle", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
@@ -517,6 +520,9 @@ def main() -> int:
     # 6. Pine static rules
     rc, out, err = run([sys.executable, "tests/pine_static_check.py"])
     add(check("pine static rules", "PASS" if rc == 0 else "FAIL", (out or err).strip()[:300]))
+
+    rc, out, err = run([sys.executable, "-m", "unittest", "tests/test_pine_fvg_capacity.py"])
+    add(check("pine FVG capacity regression", "PASS" if rc == 0 else "FAIL", (out or err).strip()[:300]))
 
     # 7. Golden-Master: harness self-test (required) + authenticity + five real fixtures (external)
     rc, out, err = run(["node", "tests/test_compare_pine_js_golden.js"])

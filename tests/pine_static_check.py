@@ -131,15 +131,26 @@ def main() -> int:
         if required not in src:
             problems.append(f"missing zonal FVG lifecycle marker: {required}")
 
-    # 7. A storage limit may compact only mitigated zones. A blind FIFO shift
-    # would delete an older still-active FVG and is a release blocker.
+    # 7. Drawing storage must remain bounded without terminating indicator
+    # execution. Mitigated zones are preferred for eviction; if every retained
+    # zone is active, the oldest visual zone is evicted as a deterministic
+    # fallback. The latest scalar FVG state used by scoring remains untouched.
     fvg_block = src[src.find("// --- Fair Value Gaps"):src.find("// --- Liquiditäts-Pools")]
     if re.search(r"array\.size\(fvgBoxes\)\s*>\s*30[\s\S]{0,300}array\.shift\(fvgBoxes\)", fvg_block):
         problems.append("FVG capacity still blindly shifts the oldest box")
-    if "if not na(removeIdx)" not in fvg_block or "array.remove(fvgActives, removeIdx)" not in fvg_block:
-        problems.append("FVG capacity lacks inactive-only atomic removal")
-    if "array.size(fvgBoxes) >= 64" not in fvg_block or "runtime.error" not in fvg_block:
-        problems.append("FVG max-box exhaustion is not visible/fail-closed")
+    required_capacity_markers = (
+        "MAX_FVG_ZONES = 30",
+        "array.size(fvgBoxes) > MAX_FVG_ZONES",
+        "if na(removeIdx)",
+        "removeIdx := 0",
+        "box.delete(array.get(fvgBoxes, removeIdx))",
+        "array.remove(fvgActives, removeIdx)",
+    )
+    for marker in required_capacity_markers:
+        if marker not in src:
+            problems.append(f"FVG capacity lacks bounded-eviction marker: {marker}")
+    if "runtime.error" in fvg_block:
+        problems.append("FVG capacity exhaustion still aborts indicator execution")
 
     if problems:
         print(f"PINE STATIC CHECK: {len(problems)} problem(s) in {path}")
