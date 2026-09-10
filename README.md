@@ -146,10 +146,10 @@ Das bedeutet: technisch als Research-Tool nutzbar, aber kein belastbarer Profita
 ## Paket bauen
 
 ```text
-python3 scripts/build_package.py --force
+python3 scripts/build_package.py
 ```
 
-`--force` ist nötig, solange das Modell-Gate `MODEL_NO_EVIDENCE` meldet. Der Builder erzeugt `symbiose.zip`, berechnet SHA-256 und testet das entpackte Paket.
+Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet SHA-256 und testet das entpackte Paket im Smoke-Test.
 
 ## Grenzen
 
