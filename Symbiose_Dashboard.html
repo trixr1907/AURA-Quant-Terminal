@@ -410,7 +410,10 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 
         <!-- Strategy Summary & Status Bar -->
         <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);font-size:10px;color:var(--txt);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div id="ab-strategy-summary"><b>Strategie:</b> SOTA Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">78</span>, MTF &ge; <span id="cfg-disp-mtf">3/4</span>, Dynamic Scale-Out &amp; Trailing-SL).</div>
+          <div>
+            <div id="ab-strategy-summary"><b>Strategie:</b> SOTA Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">78</span>, MTF &ge; <span id="cfg-disp-mtf">3/4</span>, Dynamic Scale-Out &amp; Trailing-SL).</div>
+            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Scan-Funnel: Bereit · Grid 18 · Option B (Setup-DSR &ge; 0.5)</div>
+          </div>
           <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">2.0%</b> · Max Hebel: <b id="cfg-disp-lev">15x</b> · Max Slots: <b id="cfg-disp-max">3</b></div>
         </div>
 
@@ -470,6 +473,9 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             </label>
             <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">
               <input id="ab-cfg-trailing-sl" type="checkbox" checked> Trailing-SL Sicherung
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:#c084fc">
+              <input id="ab-cfg-strict-universe-gate" type="checkbox"> Striktes Universe-Gate (Option A: erfordert Uni-DSR &ge; 0.5 statt Setup-DSR)
             </label>
           </div>
         </div>
@@ -1739,9 +1745,11 @@ function runWalkForwardBacktest(candles, A, options = {}) {
   if (testableBars < minTestPerFold * K) {
     const oosTrades = [];
     const stats = evaluateTrades(oosTrades);
+    const setupDsr = calcDSR(stats.returns, 1);
+    const universeDsr = calcDSR(stats.returns, trialMultiplier);
     return {
-      oosTrades, stats, dsr: calcDSR(stats.returns, 1), folds: [],
-      probMap: calibrateProbabilities(oosTrades), totalTrials: 0,
+      oosTrades, stats, dsr: universeDsr, setupDsr, universeDsr, folds: [],
+      probMap: calibrateProbabilities(oosTrades), totalTrials: 0, setupTrials: 0, trialMultiplier,
       evidenceStatus: 'INSUFFICIENT_DATA', method: 'anchored_t1'
     };
   }
@@ -1810,9 +1818,13 @@ function runWalkForwardBacktest(candles, A, options = {}) {
   }
 
   const aggStats = evaluateTrades(allOosTrades);
+  const setupTrials = paramGrid.length;
   const totalTrials = paramGrid.length * trialMultiplier;
+  const setupDsr = calcDSR(aggStats.returns, setupTrials);
+  const universeDsr = calcDSR(aggStats.returns, totalTrials);
   return {
-    oosTrades: allOosTrades, stats: aggStats, dsr: calcDSR(aggStats.returns, totalTrials),
+    oosTrades: allOosTrades, stats: aggStats, dsr: universeDsr,
+    setupDsr, universeDsr, setupTrials, trialMultiplier,
     folds: foldReports, probMap: calibrateProbabilities(allOosTrades), totalTrials,
     evidenceStatus: 'OOS', method: 'anchored_t1'
   };
@@ -6728,19 +6740,50 @@ function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   return rejected;
 }
 
-function evaluateAutobotEdge(wf, minSamples = 15) {
-  const rejected = { accepted: false, edge: 0, sampleSize: 0, dsr: 0, effectiveTrials: 0 };
+function evaluateAutobotEdge(wf, minSamples = 15, options = null) {
+  const opts = (options && typeof options === 'object') ? options : (typeof options === 'boolean' ? { strictUniverseGate: options } : {});
+  const rejected = { accepted: false, edge: 0, sampleSize: 0, dsr: 0, setupDsr: 0, universeDsr: 0, effectiveTrials: 0, setupTrials: 18, strictApplied: false };
   if (!wf || wf.evidenceStatus !== 'OOS' || !wf.stats || !wf.dsr) return rejected;
-  const stats = wf.stats, dsr = +wf.dsr.dsr, total = +stats.total;
+  const stats = wf.stats, total = +stats.total;
   const effectiveTrials = Number.isFinite(+wf.totalTrials) && +wf.totalTrials >= 1 ? +wf.totalTrials : 0;
+  const setupTrials = Number.isFinite(+wf.setupTrials) && +wf.setupTrials >= 1 ? +wf.setupTrials : 18;
+
+  const setupDsrObj = wf.setupDsr || (wf.totalTrials === setupTrials ? wf.dsr : null);
+  const setupDsr = Number.isFinite(+setupDsrObj?.dsr) ? +setupDsrObj.dsr : (Number.isFinite(+wf.dsr?.dsr) ? +wf.dsr.dsr : 0);
+  const universeDsrObj = wf.universeDsr || wf.dsr;
+  const universeDsr = Number.isFinite(+universeDsrObj?.dsr) ? +universeDsrObj.dsr : setupDsr;
+
+  const strictApplied = Boolean(opts.strictUniverseGate);
+  const testDsr = strictApplied ? universeDsr : setupDsr;
+
   if (!Number.isFinite(total) || total < minSamples || !Number.isFinite(+stats.wr) ||
       !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
-      !Number.isFinite(dsr) || !effectiveTrials || +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
+      !Number.isFinite(testDsr) || !effectiveTrials || +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
   const edge = (+stats.wr * +stats.avgWinR) - ((1 - +stats.wr) * +stats.avgLossR);
-  if (!Number.isFinite(edge) || edge <= 0 || dsr < 0.5) {
-    return { accepted: false, edge: Number.isFinite(edge) ? edge : 0, sampleSize: total, dsr: Number.isFinite(dsr) ? dsr : 0, effectiveTrials };
+  if (!Number.isFinite(edge) || edge <= 0 || testDsr < 0.5) {
+    return {
+      accepted: false,
+      edge: Number.isFinite(edge) ? edge : 0,
+      sampleSize: total,
+      dsr: setupDsr,
+      setupDsr,
+      universeDsr,
+      effectiveTrials,
+      setupTrials,
+      strictApplied
+    };
   }
-  return { accepted: true, edge, sampleSize: total, dsr, effectiveTrials };
+  return {
+    accepted: true,
+    edge,
+    sampleSize: total,
+    dsr: setupDsr,
+    setupDsr,
+    universeDsr,
+    effectiveTrials,
+    setupTrials,
+    strictApplied
+  };
 }
 
 const Autobot = {
@@ -6756,6 +6799,8 @@ const Autobot = {
   autoBe: true,
   scaleOut: true,
   trailingSl: true,
+  strictUniverseGate: false,
+  lastScanFunnel: null,
   min24hVol: 2000000,
   stagnationHours: 12,
   trades: [],
@@ -6780,6 +6825,8 @@ const Autobot = {
         if (typeof stored.autoBe === 'boolean') this.autoBe = stored.autoBe;
         if (typeof stored.scaleOut === 'boolean') this.scaleOut = stored.scaleOut;
         if (typeof stored.trailingSl === 'boolean') this.trailingSl = stored.trailingSl;
+        if (typeof stored.strictUniverseGate === 'boolean') this.strictUniverseGate = stored.strictUniverseGate;
+        if (stored.lastScanFunnel && typeof stored.lastScanFunnel === 'object') this.lastScanFunnel = stored.lastScanFunnel;
         if (Number.isFinite(stored.min24hVol)) this.min24hVol = stored.min24hVol;
         if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
         if (Array.isArray(stored.trades)) this.trades = stored.trades;
@@ -6806,6 +6853,8 @@ const Autobot = {
     if (typeof stored.autoBe === 'boolean') this.autoBe = stored.autoBe;
     if (typeof stored.scaleOut === 'boolean') this.scaleOut = stored.scaleOut;
     if (typeof stored.trailingSl === 'boolean') this.trailingSl = stored.trailingSl;
+    if (typeof stored.strictUniverseGate === 'boolean') this.strictUniverseGate = stored.strictUniverseGate;
+    if (stored.lastScanFunnel && typeof stored.lastScanFunnel === 'object') this.lastScanFunnel = stored.lastScanFunnel;
     if (Number.isFinite(stored.min24hVol)) this.min24hVol = stored.min24hVol;
     if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
     if (Array.isArray(stored.trades)) this.trades = stored.trades;
@@ -6827,6 +6876,8 @@ const Autobot = {
       autoBe: this.autoBe,
       scaleOut: this.scaleOut,
       trailingSl: this.trailingSl,
+      strictUniverseGate: this.strictUniverseGate,
+      lastScanFunnel: this.lastScanFunnel,
       min24hVol: this.min24hVol,
       stagnationHours: this.stagnationHours,
       trades: this.trades,
@@ -6877,6 +6928,7 @@ const Autobot = {
           $('ab-cfg-auto-be').checked = this.autoBe;
           $('ab-cfg-scale-out').checked = this.scaleOut;
           $('ab-cfg-trailing-sl').checked = this.trailingSl;
+          if ($('ab-cfg-strict-universe-gate')) $('ab-cfg-strict-universe-gate').checked = this.strictUniverseGate;
           if ($('ab-cfg-min-vol')) $('ab-cfg-min-vol').value = this.min24hVol || 2000000;
           if ($('ab-cfg-stagnation-hours')) $('ab-cfg-stagnation-hours').value = this.stagnationHours || 12;
         }
@@ -6900,11 +6952,12 @@ const Autobot = {
         this.autoBe = Boolean($('ab-cfg-auto-be').checked);
         this.scaleOut = Boolean($('ab-cfg-scale-out').checked);
         this.trailingSl = Boolean($('ab-cfg-trailing-sl').checked);
+        if ($('ab-cfg-strict-universe-gate')) this.strictUniverseGate = Boolean($('ab-cfg-strict-universe-gate').checked);
         if ($('ab-cfg-min-vol')) this.min24hVol = +$('ab-cfg-min-vol').value || 2000000;
         if ($('ab-cfg-stagnation-hours')) this.stagnationHours = +$('ab-cfg-stagnation-hours').value || 12;
 
         cfgBox.classList.add('hidden');
-        this.log(`⚙ Parameter aktualisiert: Risk=${this.riskPerTradePct}%, MinScore=${this.minScore}, MaxLev=${this.maxLeverage}x, MTF=${this.mtfNeed}/4, Slots=${this.maxOpenTrades}, MinVol=${fmtBig(this.min24hVol)}, TimeStop=${this.stagnationHours}h`);
+        this.log(`⚙ Parameter aktualisiert: Risk=${this.riskPerTradePct}%, MinScore=${this.minScore}, MaxLev=${this.maxLeverage}x, MTF=${this.mtfNeed}/4, Slots=${this.maxOpenTrades}, GateMode=${this.strictUniverseGate ? 'Option A (Strikt: Uni-DSR ≥ 0.5)' : 'Option B (Standard: Setup-DSR ≥ 0.5)'}, MinVol=${fmtBig(this.min24hVol)}, TimeStop=${this.stagnationHours}h`);
         this.save();
         this.render();
       };
@@ -7079,13 +7132,40 @@ const Autobot = {
   },
 
   async scanAndExecuteOpportunities() {
-    if (this.trades.length >= this.maxOpenTrades) return;
+    if (this.trades.length >= this.maxOpenTrades) return null;
 
     // The Autobot consumes only fully ranked Action Radar rows. Without complete
     // MTF/regime evidence it must wait instead of manufacturing a candidate.
     // Evaluate every currently valid row in deterministic overall-strength order.
     const candidates = sortAutobotCandidates(collectAutobotCandidates(App.data.radar));
-    if (!candidates.length) return;
+    const eligibleCandidates = candidates.filter(c => evaluateAutobotCandidate(c, this.minScore, this.mtfNeed).accepted);
+    const universeCount = (Array.isArray(App.universe) && App.universe.length)
+      ? App.universe.length
+      : (Array.isArray(App.data.radar) && App.data.radar.length
+        ? App.data.radar.length
+        : (typeof universeSymbols === 'function' && Array.isArray(universeSymbols()) && universeSymbols().length
+          ? universeSymbols().length
+          : (candidates.length || 1)));
+    const radarSymbolsCount = Math.max(
+      universeCount,
+      Array.isArray(App.data.radar) ? App.data.radar.length : 0,
+      candidates.length,
+      1
+    );
+    const tfCount = Array.isArray(RADAR_TFS) && RADAR_TFS.length ? RADAR_TFS.length : 4;
+    const scannedHypotheses = radarSymbolsCount * tfCount;
+    const radarFilteredCount = eligibleCandidates.length;
+    const wfEvaluated = Math.max(scannedHypotheses, candidates.length, 1);
+
+    const funnel = {
+      scanned: scannedHypotheses,
+      radarFiltered: radarFilteredCount,
+      wfEvaluated: wfEvaluated,
+      selected: 0
+    };
+    this.lastScanFunnel = funnel;
+
+    if (!candidates.length) return funnel;
 
     const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
 
@@ -7136,10 +7216,12 @@ const Autobot = {
           makerFee: App.fees.maker,
           takerFee: App.fees.taker,
           slippage: App.slippage, timeStopBars: App.timeStopBars,
-          trialMultiplier: Math.max(1, candidates.length), tfMinutes: tfToMinutes(freshCandidate.tf)
+          trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
         });
-        const edgeGate = evaluateAutobotEdge(freshWalkForward);
+        const edgeGate = evaluateAutobotEdge(freshWalkForward, 15, { strictUniverseGate: this.strictUniverseGate });
         if (!edgeGate.accepted) continue;
+
+        funnel.selected = 1;
 
         const dir = freshCandidate.dir;
         const atr = A.last.atr || (lastPrice * 0.015);
@@ -7195,7 +7277,11 @@ const Autobot = {
           signalTf: freshCandidate.tf,
           edge: edgeGate.edge,
           edgeSamples: edgeGate.sampleSize,
+          dsr: edgeGate.setupDsr,
+          setupDsr: edgeGate.setupDsr,
+          universeDsr: edgeGate.universeDsr,
           effectiveTrials: edgeGate.effectiveTrials,
+          setupTrials: edgeGate.setupTrials || 18,
           timeStopBars: optTimeStop.bars,
           maxHoldHours: optTimeStop.hours,
           timeStopReason: optTimeStop.reason
@@ -7205,12 +7291,13 @@ const Autobot = {
         tradePrices[c.symbol] = lastPrice;
 
         const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
-        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades / ${edgeGate.effectiveTrials} Trials | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+        this.log(`🚀 [${c.symbol}] Autobot eröffnet ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Setup-DSR: ${edgeGate.setupDsr.toFixed(2)} · Uni-DSR: ${edgeGate.universeDsr.toFixed(2)} (${edgeGate.effectiveTrials} Trials) | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
         this.save();
         this.render();
         break; // 1 trade per scan tick
       } catch (_) {}
     }
+    return funnel;
   },
 
   render() {
@@ -7233,6 +7320,19 @@ const Autobot = {
     if (sRisk) sRisk.textContent = `${this.riskPerTradePct.toFixed(1)}%`;
     if (sLev) sLev.textContent = `${this.maxLeverage}x`;
     if (sMax) sMax.textContent = `${this.maxOpenTrades}`;
+
+    const funnelEl = $('ab-funnel-summary');
+    if (funnelEl) {
+      if (this.lastScanFunnel) {
+        const f = this.lastScanFunnel;
+        const tEff = 18 * f.wfEvaluated;
+        const mode = this.strictUniverseGate ? '<span style="color:var(--amb)">[Option A: Strikt (Uni-DSR &ge; 0.5)]</span>' : '<span style="color:#c084fc">[Option B: Standard (Setup-DSR &ge; 0.5)]</span>';
+        const numMarkets = Math.round(f.scanned / 4) || f.scanned;
+        funnelEl.innerHTML = `Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> Radar-Kandidaten &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}`;
+      } else {
+        funnelEl.textContent = `Bereit: Scanne Universum mit Grid 18 & Universe-Adjustierung (${this.strictUniverseGate ? 'Option A: Strikt' : 'Option B: Standard'}).`;
+      }
+    }
 
     // 2. Metrics & Portfolio KPIs
     let unrealizedPnl = 0;
