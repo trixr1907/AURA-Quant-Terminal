@@ -639,5 +639,13 @@ class TestHonestReleaseVerdict(unittest.TestCase):
         self.assertEqual(release_check.exit_code_for_verdict(fail_verdict), 2)
 
 
+    def test_reference_backtest_oracle_passes(self):
+        """Require reference_backtest.py to pass with EXP-024 selection objective parity."""
+        import subprocess
+        res = subprocess.run([sys.executable, str(ROOT / "tests" / "reference_backtest.py")], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"reference_backtest failed: {res.stderr}\n{res.stdout}")
+        self.assertIn("REFERENCE BACKTEST: ALL ASSERTIONS PASSED", res.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

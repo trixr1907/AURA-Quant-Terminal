@@ -1,15 +1,15 @@
 # AURA Edge-Forschung Phase C — Experimentbericht (Selektionsobjektiv-Reform & Fold-1-Bias)
 
-**Datum:** 2026-09-10  
-**Gegenstand:** Bewertung des prä-registrierten Modellexperiments **EXP-024 (C1: Selektionsobjektiv-Reform)** und Quantifizierung des **Fold-1-Geometrie-Bias (C2)** auf voller Fixture-Tiefe.  
-**Ergebnis EXP-024:** **BESTANDEN** über alle 4 vorab definierten Kriterien.  
+**Datum:** 2026-09-10
+**Gegenstand:** Bewertung des prä-registrierten Modellexperiments **EXP-024 (C1: Selektionsobjektiv-Reform)** und Quantifizierung des **Fold-1-Geometrie-Bias (C2)** auf voller Fixture-Tiefe.
+**Ergebnis EXP-024:** **EINGESCHRÄNKT BESTANDEN** (Kriterien 1, 2, 4 formal erfüllt; Kriterium 3 je Asset nur TEILWEISE erfüllt).
 **B3 Status:** Weiterhin strikt **DEFERRED**.
 
 ---
 
-## 1. Executive Summary & Headline
+## 1. Executive Summary & Ehrliche Headline
 
-> **„Die regularisierte Objektiv-Reform (EXP-024: $n \ge 2$, Penalisierung $(1 - 1/(1+n))$) hebt die aggregierte Net-Expectancy auf voller Tiefe um $+0.032\text{ R}$ und wählt organisch in 50 % aller Folds `regimeGate = true`. Der Effekt ist sowohl auf 1h ($+0.028\text{ R}$) als auch auf 4h ($+0.039\text{ R}$) positiv. Die Quantifizierung des Fold-1-Bias deckt auf, dass bis zu 75.6 % aller Backtest-Trades im 300-Bar-Fold-1-Fenster erzeugt werden."**
+> **„Die Objektiv-Reform ist ein korrekter, minimaler Fix mit kleiner Wirkung auf 2/5 Assets (+1 Fold-Gate-Flip, nur SOL/XRP betroffen). Sie hebt die 1h-Assets nicht (nur SOL) und erzeugt keinen Edge: DSR 0.049 ≪ 0.5 → weiterhin NO_EVIDENCE."**
 
 ---
 
@@ -38,27 +38,32 @@ $$\text{obj}_{\text{neu}} = \begin{cases} \text{exp} \cdot \sqrt{n} \cdot \left(
 | **DOGE 4h**| 10.270 | 327 | 327 | +0.100 R | **+0.100 R** | +0.000 R | 33.6% | 33.6% | 0.133 | 0.133 | 0 / 4 |
 | **Ø GESAMT**| — | **234.8** | **225.4** | **−0.051 R** | **−0.019 R** | **+0.032 R** | — | — | **0.041** | **0.049** | **10 / 20 (50%)** |
 
+*Wesentliche Differenzierungsbefunde (K1–K3):*
+- **K1 (Wirkung auf nur 2/5 Assets):** Auf BTC, ETH und DOGE ist das Ergebnis bit-identisch ($\Delta = +0.000\text{ R}$). Die gesamte aggregierte Verbesserung von $+0.032\text{ R}$ stammt ausschließlich aus SOL ($+0.084\text{ R}$) und XRP ($+0.078\text{ R}$).
+- **K2 (Marginaler Gate-Flip: +1 Fold):** Vor der Reform wurden auf voller Tiefe bereits 9/20 Folds als `regimeGate=true` gewählt. Die Reform kippt genau **einen einzigen Fold** (XRP Fold 2 von ungated zu gated).
+- **K3 (XRP-Artefakt: Expositionsreduktion statt Signalverbesserung):** In XRP Fold 2 sank die Trade-Zahl von 50 auf 5. Die per-Trade-Qualität fiel von $-0.256\text{ R}$ auf $-0.605\text{ R}$; der Erwartungswert des Gesamt-Backtests stieg lediglich durch die Eliminierung von 45 Verlust-Trades (Expositionsreduktion).
+
 ---
 
 ### 2.3 Formale Auswertung der vorab definierten Erfolgskriterien (1–4)
 
-1. **Kriterium 1: Aggregierte OOS-Net-Expectancy steigt gegenüber Baseline**  
-   - Baseline Ø: $-0.051\text{ R}$ $\rightarrow$ Reform Ø: **$-0.019\text{ R}$** ($\Delta = \mathbf{+0.032\text{ R}}$).  
+1. **Kriterium 1: Aggregierte OOS-Net-Expectancy steigt gegenüber Baseline**
+   - Baseline Ø: $-0.051\text{ R}$ $\rightarrow$ Reform Ø: **$-0.019\text{ R}$** ($\Delta = \mathbf{+0.032\text{ R}}$).
    - **Status: BESTANDEN.**
 
-2. **Kriterium 2: `regimeGate = true` wird in $\ge 50\,\%$ der Folds organisch gewählt**  
-   - Gated-Folds: $10 / 20$ Folds ($50.0\,\%$).  
-   - BTC: 3/4 Folds (`rg=true`), ETH: 2/4 Folds (`rg=true`), SOL: 3/4 Folds (`rg=true`), XRP: 2/4 Folds (`rg=true`), DOGE: 0/4 Folds.  
-   - **Status: BESTANDEN.**
+2. **Kriterium 2: `regimeGate = true` wird in $\ge 50\,\%$ der Folds organisch gewählt**
+   - Gated-Folds: $10 / 20$ Folds ($50.0\,\%$).
+   - BTC: 3/4 Folds (`rg=true`), ETH: 2/4 Folds (`rg=true`), SOL: 3/4 Folds (`rg=true`), XRP: 2/4 Folds (`rg=true`), DOGE: 0/4 Folds.
+   - **Status: FORMAL BESTANDEN** *(Hinweis: 9/20 Folds waren bereits vorab gated; Netto-Beitrag der Reform: +1 Fold).*
 
-3. **Kriterium 3: Cross-Asset-Richtung (1h positiv, 4h nicht-negativ)**  
-   - **1h-Gruppe (BTC, ETH, SOL):** $\Delta = \frac{0.000 + 0.000 + 0.084}{3} = \mathbf{+0.028\text{ R}}$ (positiv).  
-   - **4h-Gruppe (XRP, DOGE):** $\Delta = \frac{+0.078 + 0.000}{2} = \mathbf{+0.039\text{ R}}$ (nicht-negativ, sogar deutlich positiv).  
-   - **Status: BESTANDEN (Voll bestätigt über alle Timeframes).**
+3. **Kriterium 3: Cross-Asset-Richtung (1h positiv, 4h nicht-negativ)**
+   - **1h-Gruppe (BTC, ETH, SOL):** SOL $+0.084\text{ R}$, BTC $+0.000\text{ R}$, ETH $+0.000\text{ R}$. Je Asset ist nur 1 von 3 positiv.
+   - **4h-Gruppe (XRP, DOGE):** XRP $+0.078\text{ R}$, DOGE $+0.000\text{ R}$ (beide $\ge 0$).
+   - **Status: TEILWEISE ERFÜLLT** (4h-Klausel erfüllt, 1h-Klausel je Einzel-Asset verfehlt, nur im Aggregat $+0.028\text{ R}$ positiv).
 
-4. **Kriterium 4: DSR-Verhalten (Transparenz, keine $\ge 0.5$ Anforderung)**  
-   - Setup-DSR steigt im Mittel von $0.041$ auf **$0.049$**.  
-   - Bleibt erwartungsgemäß unter $0.50$, da $n$ und per-Trade-Sharpe noch unter der Zertifizierungsgrenze liegen.  
+4. **Kriterium 4: DSR-Verhalten (Transparenz, keine $\ge 0.5$ Anforderung)**
+   - Setup-DSR steigt marginal von $0.041$ auf **$0.049$**.
+   - Bleibt erwartungsgemäß weit unter $0.50$ $\rightarrow$ weiterhin `NO_EVIDENCE`.
    - **Status: ERFÜLLT (im Rahmen der Definition).**
 
 ---
@@ -99,7 +104,7 @@ $$\text{obj}_{\text{neu}} = \begin{cases} \text{exp} \cdot \sqrt{n} \cdot \left(
 
 ## 4. Fold-1-Geometrie-Bias Quantifizierung (C2)
 
-| Fixture | Test Bars (Fold 1) | Anteil Bars | Trades Fold 1 | Total Trades | Anteil Trades | Net Exp Fold 1 | Net Exp Overall |
+| Fixture | Test Bars (Fold 1) | Anteil Zeit | Trades Fold 1 | Total Trades | Anteil Trades | Net Exp Fold 1 | Net Exp Gesamt |
 |---|---|---|---|---|---|---|---|
 | **BTC 1h** | 3.559 | 24.1 % | **138** | 186 | **74.2 %** | −0.276 R | −0.229 R |
 | **ETH 1h** | 3.559 | 24.1 % | **120** | 279 | **43.0 %** | −0.020 R | −0.078 R |
@@ -118,4 +123,3 @@ $$\text{obj}_{\text{neu}} = \begin{cases} \text{exp} \cdot \sqrt{n} \cdot \left(
 
 - **B3 (TP1/R:R-Tuning) bleibt DEFERRED.**
 - **Begründung:** Solange die Walk-Forward-Geometrie (Initial-Trainingsgröße vs. Testfold-Größe) die Trade-Verteilung dominiert, würde ein vorzeitiges TP1-Tuning auf den aggregierten Trades primär versuchen, die Fold-1-Chop-Trades zu fitten (*p-Hacking*).
-- **Nächster logischer Forschungsschritt:** Evaluierung einer adaptiven Fold-Geometrie (z. B. proportionales Initial-Training `minTrainBars = Math.floor(testableBars / (K + 1))` oder Rolling Window) als sauber isoliertes Modellexperiment.
