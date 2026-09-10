@@ -6,7 +6,7 @@ Dieses Dokument enthält die verbindlichen, fail-closed Regeln und die vollstän
 
 ## 1. Verbindliche Prozess-Regeln (Fail-Closed)
 
-Jede künftige Session und jeder Release-Vorgang muss die folgenden 8 Regeln ausnahmslos einhalten:
+Jede künftige Session und jeder Release-Vorgang muss die folgenden 9 Regeln ausnahmslos einhalten:
 
 - [ ] **1. Kein Gate-Bypass (Fail-Closed CI & Packaging):**
   - **Regel:** Der Workflow zur Freigabe bleibt strikt `python3 scripts/release_check.py && python3 scripts/build_package.py` — ohne jegliche Bypass-Flags (`|| true`, `--force`, `--allow-current-version`).
@@ -45,6 +45,10 @@ Jede künftige Session und jeder Release-Vorgang muss die folgenden 8 Regeln aus
 - [ ] **8. Verbraucherschutz & Ehrlichkeit des Edges:**
   - **Regel:** Kein Text, UI-Element oder Tooltip darf Profitabilität oder Edge suggerieren, solange die reale Out-of-Sample-Messung `MODEL_NO_EVIDENCE` meldet. Synthetische Tests MÜSSEN explizit als solche ausgewiesen werden (`synthetic-gate: fixture integrity, not model evidence`). Autobot-Logs zeigen ehrlichen DSR-Status.
   - **Historische Begründung:** Trennung von Software-Funktionsfähigkeit und echter statistischer Evidenz ist das Kernprinzip von AURA.
+
+- [ ] **9. Präregistrierung durch eigenen Git-Commit belegen:**
+  - **Regel:** Hypothese und Erfolgskriterium jedes Experiments oder Diagnosepakets werden vor dem ersten Messlauf in einem eigenen Commit eingetragen. Der Hash dieses Präregistrierungs-Commits wird im Ledger-Zeilenkopf vermerkt. Ein Ergebnis ohne vorausgehenden Präregistrierungs-Commit ist als `prä-registriert (Session-Protokoll, nicht git-belegt)` zu kennzeichnen und wird nicht als git-belegte Präregistrierung gewertet.
+  - **Begründung:** Ein lediglich lokaler Zwischenstand kann die Reihenfolge von Hypothesenfestlegung und Messung in der dauerhaften Repository-Historie nicht unabhängig beweisen.
 
 ---
 
