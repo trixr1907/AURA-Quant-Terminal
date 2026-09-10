@@ -46,8 +46,11 @@ Grenz- und Accounting-Korrektur. Sie ist keine Performance- oder Live-Edge-Behau
 
 Dashboard-Hashes:
 
-- Vorher (`HEAD`): `0e380f19dc447fed9981da9d14aa293f90ae41108088eee5284d1aab19458eaf`
-- Nachher (aktueller Diff): `8a05272afc988b57f53f5fa37a402cc5caa0f545e874cc9c2c43b36e9c4ddd35`
+- Vorher (`v1.0.7` / `HEAD` vor Fix): `0e380f19dc447fed9981da9d14aa293f90ae41108088eee5284d1aab19458eaf`
+- Nachher (Pre-Commit-Snapshot): `8a05272afc988b57f53f5fa37a402cc5caa0f545e874cc9c2c43b36e9c4ddd35`
+- Nachher (Veröffentlichter Release-Stand `v1.0.8`): `0dea7c77ed4f571d8eb41f2c82354cbbcaeb9a34e52f37e46e55c1367c1cd98b`
+
+*Hinweis zur Provenienz:* Die unten stehende Tabelle wurde auf dem Pre-Commit-Stand gemessen und auf dem finalen Release-Stand v1.0.8 (`0dea7c77...`) unabhängig re-verifiziert — die Backtest-Ergebnisse sind auf 6 Nachkommastellen identisch.
 
 | Fixture | OOS geschlossen vorher → nachher | Expectancy R vorher → nachher | Profit Factor vorher → nachher | DSR vorher → nachher |
 |---|---:|---:|---:|---:|

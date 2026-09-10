@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Internal agent runtime documents
+.hermes/
+
 # Python caches and test artifacts
 __pycache__/
 *.py[cod]

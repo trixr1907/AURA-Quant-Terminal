@@ -177,10 +177,10 @@ function compareRows(pineRows, jsRows, tolerance = 0.1) {
   // Check soft-mismatch rate after full scan
   const softRate = comparedRows > 0 ? softMismatches / comparedRows : 0;
   if (softRate > SOFT_MISMATCH_RATE) {
-    return { ok: false, comparedRows, skippedRows, maxDelta,
+    return { ok: false, comparedRows, skippedRows, maxDelta, softMismatches, softRate,
       firstMismatch: { ...firstSoftMismatch, note: `soft-mismatch rate ${(softRate * 100).toFixed(3)}% exceeds limit ${(SOFT_MISMATCH_RATE * 100).toFixed(1)}%` } };
   }
-  return { ok: true, comparedRows, skippedRows, maxDelta, softMismatches, firstMismatch: null };
+  return { ok: true, comparedRows, skippedRows, maxDelta, softMismatches, softRate, firstMismatch: null, firstSoftMismatch };
 }
 
 function compareFile(file, tolerance = 0.1) {
@@ -212,8 +212,14 @@ function main(argv) {
   let failed = false;
   for (const file of files) {
     const report = compareFile(file, tolerance);
-    if (report.ok) console.log(`PASS ${file}: ${report.comparedRows} rows compared (${report.skippedRows} warmup), max delta ${report.maxDelta}`);
-    else {
+    if (report.ok) {
+      const softRateStr = report.comparedRows > 0 ? ((report.softMismatches || 0) / report.comparedRows * 100).toFixed(4) : '0.0000';
+      console.log(`PASS ${file}: ${report.comparedRows} rows compared (${report.skippedRows} warmup), max delta ${report.maxDelta}, soft-mismatches: ${report.softMismatches || 0} (${softRateStr}%)`);
+      if (report.softMismatches > 0 && report.firstSoftMismatch) {
+        const sm = report.firstSoftMismatch;
+        console.log(`     first soft-mismatch: ts=${sm.timestamp} field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+      }
+    } else {
       failed = true;
       console.error(`FAIL ${file}: ${report.reason || JSON.stringify(report.firstMismatch)} (${report.comparedRows} rows compared)`);
     }

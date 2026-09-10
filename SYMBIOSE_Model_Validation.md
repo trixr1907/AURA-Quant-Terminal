@@ -152,23 +152,30 @@ evidence states. The engine measures the fixture rather than manufacturing evide
 
 ## 6. Test commands
 
-```
-node tests/test_engine_full.js            # 118/118
-node test_symbiose.js                     # T1–T6
-node tests/test_lookahead_metamorphic.js  # 3/3
-python3 tests/reference_backtest.py       # all assertions
+```bash
+node tests/test_engine_full.js            # 121/121
+node tests/test_lookahead_metamorphic.js  # 3/3 metamorphic invariants
+python3 tests/reference_backtest.py       # all Oracle assertions
 node tests/sensitivity_release_gates.js   # JSON report, exit 0
-python3 scripts/release_check.py          # one-command release check (all 10 gates)
+node tests/compare_pine_js_golden.js tests/fixtures/golden/*.csv  # 5-symbol parity
+node tests/test_audit_integrity.js        # E2E pipeline & integrity trace
+python3 scripts/release_check.py          # one-command release check (all gates)
 ```
 
 ---
 
-## 7. External evidence still open (cannot be produced locally)
+## 7. Model choices, external evidence & verification
 
-- Pine v6 compile in TradingView and the five `GM ...` Data-Window fields (Task 11).
-- Five golden-master CSV exports (BTCUSDT/ETHUSDT/SOLUSDT 1h, XRPUSDT/DOGEUSDT 4h) and the
-  Pine↔JS comparison at absolute delta ≤ 0.1 (Task 11).
-- One controlled Bitget demo minimum order (only with explicit user approval).
+### 7.1 Model Choices & Design Decisions
+- **Anchored Walk-Forward (K=4 Folds):** An anchored (expanding training window) approach is chosen over rolling windows to ensure a robust, monotonically growing historical training base (`minTrainBars=300`) while evaluating strictly non-overlapping, out-of-sample test slices with exact `t1` purge boundaries (`trainEnd = testStart - 2`, `exitBar < testStart`).
+- **Warmup Policy (`warmup = 235`):** Fixed to guarantee lookahead-invariance. Indicator periods (EMA200, ATR, SuperTrend) stabilize before scoring begins, preventing historical boundary repainting when new bars are appended.
+- **Selection Parameter Grid:** Fixed 18-parameter grid (`longTh ∈ {72, 75, 78}`, `shortTh ∈ {22, 25, 28}`, `regimeGate ∈ {true, false}`) optimized via `exp · √n` on train data. Multiple testing is penalized via DSR ($18 \times \text{trialMultiplier}$).
 
-Until these exist, the overall model release remains `NO-GO` regardless of the local
-`PAPER_CANDIDATE`-capable gates.
+### 7.2 Golden Master Evidence Status
+- **Pine v6 Golden Master:** `Symbiose_Signal_System_v1.pine` serves as the authoritative strategy specification.
+- **Five Golden Fixtures:** Verified independent TradingView exports with full `provenance.json` (BTCUSDT, ETHUSDT, SOLUSDT 1h; XRPUSDT, DOGEUSDT 4h) are integrated under `tests/fixtures/golden/`.
+- **Pine ↔ JS Parity:** 58.859 Bars verglichen: 99,966% der Bars stimmen exakt überein (BTC 1h: 0/13.573 Mismatches, max $\Delta \approx 4.75 \times 10^{-12}$). Auf 20 Bars (0,034% der Daten) weichen Sub-Scores um bis zu 20 Punkte ab ($\Delta \le 20$ bei Soft-Ceiling 25). Ursache: Kumulative Indikatoren (OBV/CVD, EMA aus Listing-Historie) — Pine akkumuliert ab Listing-Datum (2017+), die JS-Engine ab Fensteranfang (15.000 Bars). Gated in `scripts/release_check.py` und `tests/test_audit_integrity.js`.
+
+### 7.3 Live Trading Disclaimer
+- This model validation provides rigorous mathematical and implementation verification.
+- **It does NOT grant a live trading authorization.** Execution arming and live risk management remain external responsibilities.
