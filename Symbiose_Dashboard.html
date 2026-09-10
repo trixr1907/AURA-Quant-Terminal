@@ -700,14 +700,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt signifikante Infrastruktur- und Messbarkeits-Upgrades: Universums-adjustierte Dual-DSR-Statistik, Relay-Caching & Token-Bucket Rate-Limiting sowie Dirty-Flag-Panel-Rendering.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Patch-Release liefert essenzielle Post-Release-Fixes für den CI/Release-Workflow und die statistische Mess-Integrität: Fail-closed Release-Gatekeeper, strikte Millisekunden-Zeitstempel-Normalisierung und saubere Provenienz.</p>
     <ul style="display:grid;gap:10px;padding-left:20px;line-height:1.5">
-      <li><b>Ehrliche Dual-DSR-Statistik:</b> Universums-adjustierte Hypothesenzählung ($T_{\text{eff}} = 18 \times \text{Universum} \times 4$) im Autobot verhindert Survivor-Bias.</li>
-      <li><b>Relay TTL-Cache & Token-Bucket:</b> 10 req/s Rate-Limiter (Burst 20) und In-Memory-Caching für Klines/Ticker entlasten Bitget-APIs.</li>
-      <li><b>Performance durch Dirty-Flags:</b> Selektives Re-Rendering verhindert unnötige DOM-Updates bei unveränderten Daten.</li>
+      <li><b>Fail-Closed Release-Gate:</b> Der CI-Workflow baut und publiziert das Release-Paket strikt bei bestandenem Release-Check ohne manuelle Bypass-Flags.</li>
+      <li><b>Zeitstempel-Normalisierung:</b> Das Model-Evidence-Gate normalisiert Sekunden- und Millisekunden-Zeitstempel deterministisch auf Millisekunden.</li>
+      <li><b>Integrität & Provenienz:</b> Vollständige Dokumentations-Synchronisation und unverändertes Trials-Ledger.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -716,7 +716,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.1.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.1.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -7590,7 +7590,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.1.0');
+  showReleaseNotesOnce('1.1.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
