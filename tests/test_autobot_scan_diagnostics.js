@@ -66,7 +66,7 @@ const freshA = {
 
 function resetBot() {
   ctx.__App.data.radar = [readyCandidate];
-  ctx.__App.universe = [{ symbol: readyCandidate.symbol, vol: 10000000 }];
+  ctx.__App.universe = [{ symbol: readyCandidate.symbol, vol: 10000000, liquidityVerified: true }];
   ctx.__App.data.btcScore = null;
   ctx.__App.data.btcRegime = null;
   ctx.__App.fees = { maker: 0, taker: 0 };
@@ -91,6 +91,11 @@ function resetBot() {
 }
 
 (async () => {
+  resetBot();
+  ctx.__App.universe = [{ symbol: readyCandidate.symbol, vol: 10000000, liquidityVerified: false }];
+  const liquidityRejected = await bot.scanAndExecuteOpportunities();
+  assert.strictEqual(liquidityRejected.selected, 0, 'unverified liquidity must never create a Paper-Autobot position');
+  assert.strictEqual(liquidityRejected.rejects.LIQUIDITY, 1, 'unverified liquidity must be reported as LIQUIDITY');
   resetBot();
   const rejected = await bot.scanAndExecuteOpportunities();
   assert.strictEqual(rejected.selected, 0);

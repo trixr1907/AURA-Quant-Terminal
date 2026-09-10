@@ -7,13 +7,14 @@ FROM python:3.12-alpine
 # Set build & runtime metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="1.1.5"
+LABEL version="1.1.6"
 
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     SYM_HOST=0.0.0.0 \
-    SYM_PORT=8787
+    SYM_PORT=8787 \
+    AURA_STATE_DIR=/var/lib/aura
 
 # Create non-root user for maximum security (Best Practice)
 RUN addgroup -S aura && adduser -S aura -G aura
@@ -36,8 +37,10 @@ USER aura
 EXPOSE 8787
 
 # Native lightweight Python Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/serving', timeout=4)" || exit 1
+# /ready requires a recent successful public-market uplink; the start period
+# permits the first dashboard/public probe without a premature unhealthy state.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4)" || exit 1
 
 # Start the AURA Quant Relay & Web Server
 ENTRYPOINT ["python3", "bitget_relay.py"]

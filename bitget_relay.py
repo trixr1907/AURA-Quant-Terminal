@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.1.5 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.1.6 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.1.5", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.1.6", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -35,7 +35,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.1.5"
+VERSION = "1.1.6"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -262,8 +262,16 @@ def _request(method: str, path: str, body: dict | None = None, public: bool = Tr
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body_err = e.read().decode(errors="replace")
+        retry_after = e.headers.get("Retry-After") if e.headers else None
+        try:
+            retry_after_seconds = max(0.0, min(float(retry_after), 2.0)) if retry_after is not None else None
+        except (TypeError, ValueError):
+            retry_after_seconds = None
         log.error("HTTP %s %s: %s", e.code, path, body_err)
-        return {"code": str(e.code), "msg": body_err, "data": None, "_http": e.code}
+        result = {"code": str(e.code), "msg": body_err, "data": None, "_http": e.code}
+        if retry_after_seconds is not None:
+            result["_retry_after"] = retry_after_seconds
+        return result
     except Exception as exc:
         log.error("Request error %s: %s", path, exc)
         return {"code": "ERR", "msg": str(exc), "data": None}
@@ -344,36 +352,143 @@ class TTLCache:
 
 UPLINK_RATE_LIMITER = TokenBucketRateLimiter(rate=15.0, capacity=30.0)
 PUBLIC_CACHE = TTLCache()
+UPSTREAM_429_RETRIES = 2
+UPSTREAM_429_FALLBACK_SECONDS = 0.15
+UPSTREAM_429_MAX_BACKOFF_SECONDS = 1.0
+READINESS_FRESH_SECONDS = 90.0
+_sleep = time.sleep
 
+class MarketDataHealth:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.last_success_monotonic: float | None = None
+        self.last_error_code: str | None = None
+        self.inflight = 0
+
+MARKET_DATA_HEALTH = MarketDataHealth()
+
+def reset_market_data_health() -> None:
+    with MARKET_DATA_HEALTH.lock:
+        MARKET_DATA_HEALTH.last_success_monotonic = None
+        MARKET_DATA_HEALTH.last_error_code = None
+        MARKET_DATA_HEALTH.inflight = 0
+
+def record_market_data_result(response: dict) -> None:
+    code = str(response.get("code", "ERR")) if isinstance(response, dict) else "ERR"
+    with MARKET_DATA_HEALTH.lock:
+        if code == "00000":
+            MARKET_DATA_HEALTH.last_success_monotonic = time.monotonic()
+            MARKET_DATA_HEALTH.last_error_code = None
+        else:
+            MARKET_DATA_HEALTH.last_error_code = code
+
+def market_data_health_snapshot() -> dict:
+    with MARKET_DATA_HEALTH.lock:
+        last_success = MARKET_DATA_HEALTH.last_success_monotonic
+        age = None if last_success is None else max(0.0, time.monotonic() - last_success)
+        return {
+            "last_success_age_seconds": age,
+            "last_error_code": MARKET_DATA_HEALTH.last_error_code,
+            "inflight": MARKET_DATA_HEALTH.inflight,
+        }
+
+def market_data_readiness() -> dict:
+    snapshot = market_data_health_snapshot()
+    age = snapshot["last_success_age_seconds"]
+    if age is None:
+        return {"ok": False, "code": "MARKET_DATA_NOT_READY", **snapshot}
+    if age > READINESS_FRESH_SECONDS:
+        return {"ok": False, "code": "MARKET_DATA_STALE", **snapshot}
+    return {"ok": True, "code": "MARKET_DATA_READY", **snapshot}
+
+class SingleFlight:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._inflight: dict[tuple, threading.Event] = {}
+        self._results: dict[tuple, dict] = {}
+
+    def begin(self, key: tuple) -> tuple[threading.Event, bool]:
+        with self._lock:
+            event = self._inflight.get(key)
+            if event is not None:
+                return event, False
+            event = threading.Event()
+            self._results.pop(key, None)
+            self._inflight[key] = event
+            with MARKET_DATA_HEALTH.lock:
+                MARKET_DATA_HEALTH.inflight += 1
+            return event, True
+
+    def result(self, key: tuple) -> dict | None:
+        with self._lock:
+            return self._results.get(key)
+
+    def finish(self, key: tuple, event: threading.Event, result: dict) -> None:
+        with self._lock:
+            if self._inflight.get(key) is event:
+                self._results[key] = result
+                del self._inflight[key]
+                with MARKET_DATA_HEALTH.lock:
+                    MARKET_DATA_HEALTH.inflight = max(0, MARKET_DATA_HEALTH.inflight - 1)
+                event.set()
+
+PUBLIC_SINGLEFLIGHT = SingleFlight()
+
+def _upstream_request_with_backoff(method: str, path: str, params: dict) -> dict:
+    response: dict = {"code": "ERR", "data": None}
+    for attempt in range(UPSTREAM_429_RETRIES + 1):
+        response = _request(method, path, params, public=True)
+        if not isinstance(response, dict) or response.get("_http") != 429:
+            record_market_data_result(response if isinstance(response, dict) else {"code": "ERR"})
+            return response
+        if attempt == UPSTREAM_429_RETRIES:
+            limited = {"code": "UPSTREAM_RATE_LIMIT", "msg": "Bitget upstream rate limit; retry later.", "data": None, "_http": 429}
+            record_market_data_result(limited)
+            return limited
+        delay = response.get("_retry_after")
+        if not isinstance(delay, (int, float)):
+            delay = min(UPSTREAM_429_MAX_BACKOFF_SECONDS, UPSTREAM_429_FALLBACK_SECONDS * (2 ** attempt))
+        _sleep(max(0.0, min(float(delay), UPSTREAM_429_MAX_BACKOFF_SECONDS)))
+    return response
 
 def _public_request_cached(method: str, path: str, params: dict) -> tuple[dict, bool]:
-    """Execute a public Bitget request with TTL caching and token bucket rate limiting."""
+    """Cache public GETs and coalesce identical misses without blocking other keys."""
     method_upper = method.upper()
-    cache_key = (
-        method_upper,
-        path,
-        tuple(sorted((str(k), str(v)) for k, v in params.items()))
-    )
+    cache_key = (method_upper, path, tuple(sorted((str(k), str(v)) for k, v in params.items())))
+    if method_upper != "GET":
+        if not UPLINK_RATE_LIMITER.consume():
+            return {"code": "RELAY_BUSY", "msg": "Relay rate limit exceeded; retry shortly.", "data": None, "_http": 429}, False
+        return _upstream_request_with_backoff(method_upper, path, params), False
 
-    if method_upper == "GET":
+    cached = PUBLIC_CACHE.get(cache_key)
+    if cached is not None:
+        return cached, True
+    event, leader = PUBLIC_SINGLEFLIGHT.begin(cache_key)
+    if not leader:
+        event.wait()
         cached = PUBLIC_CACHE.get(cache_key)
         if cached is not None:
             return cached, True
+        shared = PUBLIC_SINGLEFLIGHT.result(cache_key)
+        if shared is not None:
+            return shared, False
+        return {"code": "RELAY_BUSY", "msg": "Identical relay request did not produce a result; retry shortly.", "data": None, "_http": 503}, False
 
-    if not UPLINK_RATE_LIMITER.consume():
-        return {
-            "code": "429",
-            "msg": "Relay rate limit exceeded (Token Bucket: 15 req/s, burst 30). Retry shortly.",
-            "data": None,
-            "_http": 429,
-        }, False
-
-    resp = _request(method_upper, path, params, public=True)
-    if method_upper == "GET" and isinstance(resp, dict) and resp.get("code") == "00000":
-        ttl = PUBLIC_CACHE.get_ttl_for_path(path)
-        PUBLIC_CACHE.set(cache_key, resp, ttl)
-
-    return resp, False
+    response: dict = {"code": "RELAY_BUSY", "msg": "Relay request interrupted.", "data": None, "_http": 503}
+    try:
+        cached = PUBLIC_CACHE.get(cache_key)
+        if cached is not None:
+            response = cached
+            return response, True
+        if not UPLINK_RATE_LIMITER.consume():
+            response = {"code": "RELAY_BUSY", "msg": "Relay rate limit exceeded; retry shortly.", "data": None, "_http": 429}
+            return response, False
+        response = _upstream_request_with_backoff(method_upper, path, params)
+        if response.get("code") == "00000":
+            PUBLIC_CACHE.set(cache_key, response, PUBLIC_CACHE.get_ttl_for_path(path))
+        return response, False
+    finally:
+        PUBLIC_SINGLEFLIGHT.finish(cache_key, event, response)
 
 
 # ---------------------------------------------------------------------------
@@ -530,6 +645,9 @@ class RelayHandler(BaseHTTPRequestHandler):
                 "port": PORT,
                 "mode": "quant_research",
             })
+        elif path == "/ready":
+            readiness = market_data_readiness()
+            self._send_json(readiness, 200 if readiness["ok"] else 503)
         elif path == "/api/state":
             if not self._authorize_privileged():
                 return
@@ -627,8 +745,8 @@ class RelayHandler(BaseHTTPRequestHandler):
             method = str(payload.get("method", "GET")).upper()
             r, is_cached = _public_request_cached(method, base, merged)
             status = 200
-            if isinstance(r, dict) and r.get("code") == "429":
-                status = 429
+            if isinstance(r, dict) and r.get("_http") in {429, 503}:
+                status = int(r["_http"])
             self._send_json(r, status=status)
         else:
             self._send_json({"code": "ERR_NOT_FOUND"}, 404)
@@ -645,7 +763,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.1.5 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.1.6 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()

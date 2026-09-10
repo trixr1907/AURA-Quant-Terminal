@@ -708,12 +708,12 @@ class TestRelayCacheAndRateLimiter(unittest.TestCase):
 
             self.assertEqual(call_count, capacity)
 
-            # Next unique query immediately exceeds capacity -> 429 without uplink hit
+            # Next unique query is rejected locally without an upstream call.
             resp_overflow, is_cached = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": "OVERFLOWUSDT"})
-            self.assertEqual(resp_overflow.get("code"), "429")
+            self.assertEqual(resp_overflow.get("code"), "RELAY_BUSY")
             self.assertEqual(resp_overflow.get("_http"), 429)
             self.assertFalse(is_cached)
-            # Uplink call_count must remain strictly at capacity!
+            # Uplink call_count must remain strictly at capacity.
             self.assertEqual(call_count, capacity)
 
     def test_non_get_and_error_responses_are_not_cached(self):

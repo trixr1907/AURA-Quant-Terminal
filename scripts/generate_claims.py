@@ -1,4 +1,7 @@
 import csv
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 CLAIMS = [
     # --- Ebene 1: Herleitung (Derivation) ---
@@ -207,12 +210,12 @@ CLAIMS = [
     {
         "ID": "CLM-19",
         "Quelle": "VERSION:1, README.md:1, Symbiose_Dashboard.html:719, SYMBIOSE_Tutorial.html:6, bitget_relay.py:38",
-        "Wortlaut": "Version 1.1.5 einheitlich in allen Systemkomponenten",
+        "Wortlaut": "Version 1.1.6 einheitlich in allen Systemkomponenten",
         "Typ": "Zahl",
         "Ebene_Querschnitt": "Ebene 3",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle 9 Vorkommen matchen exakt '1.1.5'.",
+        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle 9 Vorkommen matchen exakt '1.1.6'.",
         "Empfehlung_Fix": "Keine Änderung nötig. Versionierung ist strikt konsistent."
     },
     {
@@ -337,7 +340,8 @@ CLAIMS = [
     }
 ]
 
-with open("/home/ivo/projects/AURA_Quant_Terminal/claims.csv", "w", newline="", encoding="utf-8") as f:
+output_csv = ROOT / "claims.csv"
+with open(output_csv, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=[
         "ID", "Quelle", "Wortlaut", "Typ", "Ebene_Querschnitt", "Status", "Schweregrad", "Beleg_Repro", "Empfehlung_Fix"
     ], lineterminator="\n")

@@ -234,6 +234,65 @@ class LauncherDependencyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             self.assertTrue(launcher.universe_snapshot_is_stale(Path(td) / "missing.json"))
 
+    def test_docker_start_sh_contract_readiness_probing_and_error_handling(self):
+        script = (ROOT / "docker_start.sh").read_text(encoding="utf-8")
+        self.assertIn("--restart unless-stopped", script)
+        self.assertIn("aura-state:/var/lib/aura", script)
+        self.assertIn("AURA_ALLOWED_HOSTS", script)
+        self.assertIn("/serving", script)
+        self.assertIn("/ready", script)
+        self.assertIn("/api/public", script)
+        self.assertIn("/api/state", script)
+        self.assertIn("BTCUSDT", script)
+        self.assertIn("docker logs", script)
+        self.assertIn("exit 1", script)
+
+        # Probing must happen after docker run and before success reporting
+        run_pos = script.index("docker run")
+        serving_pos = script.index("/serving")
+        public_pos = script.index("/api/public")
+        ready_pos = script.index("/ready")
+        state_pos = script.index("/api/state")
+        success_pos = script.index("running successfully")
+
+        self.assertLess(run_pos, serving_pos)
+        self.assertLess(run_pos, public_pos)
+        self.assertLess(run_pos, ready_pos)
+        self.assertLess(run_pos, state_pos)
+        self.assertLess(serving_pos, success_pos)
+        self.assertLess(public_pos, success_pos)
+        self.assertLess(ready_pos, success_pos)
+        self.assertLess(state_pos, success_pos)
+
+    def test_docker_start_bat_contract_readiness_probing_and_browser_gate(self):
+        script = (ROOT / "DOCKER_START.bat").read_text(encoding="utf-8", errors="replace")
+        self.assertIn("--restart unless-stopped", script)
+        self.assertIn("AURA_ALLOWED_HOSTS", script)
+        self.assertIn("/serving", script)
+        self.assertIn("/ready", script)
+        self.assertIn("/api/public", script)
+        self.assertIn("/api/state", script)
+        self.assertIn("BTCUSDT", script)
+        self.assertIn("docker logs", script)
+        self.assertIn("exit /b 1", script)
+
+        # Browser opening must happen after readiness probe success
+        run_pos = script.index("docker run")
+        serving_pos = script.index("/serving")
+        public_pos = script.index("/api/public")
+        ready_pos = script.index("/ready")
+        state_pos = script.index("/api/state")
+        browser_pos = script.index("start http")
+
+        self.assertLess(run_pos, serving_pos)
+        self.assertLess(run_pos, public_pos)
+        self.assertLess(run_pos, ready_pos)
+        self.assertLess(run_pos, state_pos)
+        self.assertLess(serving_pos, browser_pos)
+        self.assertLess(public_pos, browser_pos)
+        self.assertLess(ready_pos, browser_pos)
+        self.assertLess(state_pos, browser_pos)
+
 
 if __name__ == "__main__":
     unittest.main()
