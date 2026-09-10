@@ -35,21 +35,22 @@ Das AURA Quant Terminal wurde einem vollständigen, mathematisch-statistischen u
 
 | Datei | SHA-256 Prüfsumme |
 |---|---|
+| `Symbiose_Dashboard.html` (v1.0.9 Release) | `95a17974762377b0a0da681145561b774e4fac517fc19d05c147b43d5b613980` |
 | `Symbiose_Dashboard.html` (v1.0.8 Release) | `0dea7c77ed4f571d8eb41f2c82354cbbcaeb9a34e52f37e46e55c1367c1cd98b` |
 | `Symbiose_Dashboard.html` (v1.0.7 Vorher) | `0e380f19dc447fed9981da9d14aa293f90ae41108088eee5284d1aab19458eaf` |
-| `Symbiose_Signal_System_v1.pine` | `23e452b24fce447699cccd9e86b647ca4858eb1d42aa11c949a22802bc548bbd` |
-| `bitget_relay.py` | `14472abe6d9c4af6ddc30b798c45c3e049db4e4b0cbf2ff22afc4f2c37a0bcff` |
+| `Symbiose_Signal_System_v1.pine` | `10222f7fb7e69d7b426615b1fbba1fc8eebaa50e051752b9ba89f28989504a50` |
+| `bitget_relay.py` | `0518ffec7ff3eec4b291db1990c765715fb8997c67bf30aa0aa41d6b05bead48` |
 | `tests/reference_backtest.py` | `a1f9fc82919a7827aa141a4abcba25803e9ddb2e819a1008e4ccccc3f2d3d412` |
-| `tests/compare_pine_js_golden.js` | `b92ea7edf0a043fe3c91c8674fffdab204812d9b154fac9bb237607964a8c88c` |
+| `tests/compare_pine_js_golden.js` | `37180bf85be5aa5045437197b1021bc36ef4c76037fe68c92bb1d2c0bfe05634` |
 | `tests/sensitivity_release_gates.js` | `593f897e82d66cb024a8028420914656fe70b481ac9bff6ad76ea92a3f68d9f7` |
 | `tests/test_lookahead_metamorphic.js` | `ce3e883cc392eacfb409dc75b58aca37118b835fafd908984dc8abb38ea0e52f` |
 | `tests/test_engine_full.js` | `e4bb7f04c6709e70a85ac88683d4439626fc8ef521559fb7b5100426b794cf8e` |
-| `tests/test_audit_integrity.js` | `88c6ba38827f311c1f5168e30bcaecbbd2e5bbf2f0ea6690cf856b3e64841d72` |
-| `VERSION` | `326dd5d8641f399990de42def50ac29eb4c9222601c0a0a3fc3c947dd3bec65d` |
-| `README.md` | `a1ef73ede7860a3266d9d84d3fa959560d0ce3f8232f8db53f40abe98f448667` |
-| `SYMBIOSE_Model_Validation.md` | `9804e3894ae4a8996b86fb04a1164101e40ebca66c611cebc3d67f70ef8e24c5` |
-| `PWF_FIX_REPORT.md` | `c87df5771542f61e2b6febe7a44f9c3ff6f3f01038ccbb8d234d707c2299fc88` |
-| `claims.csv` | `64d36005085e3b6eb09fa92750e33be3c1626f8d394eefcbaef813f89a8079a0` |
+| `tests/test_audit_integrity.js` | `ec8f96e4be1b86dcf292723c316262453e96191c9533f81eec95368a788bb003` |
+| `VERSION` | `4cfc133a8ae3e1075c324dfab0abdc34d4ae83023e104a3ad63ab87140f7b99c` |
+| `README.md` | `5c47796d8e20f1882d1c676ecdb3ff61d9a5b3a4a15a0179a614d3bf9c6db1c8` |
+| `SYMBIOSE_Model_Validation.md` | `a8570fa728c31e7c5ce9ec0c082725c4efc13480026f7481ecff602b115456f4` |
+| `PWF_FIX_REPORT.md` | `04a9e55728a55baeb4c8a5a54ca730a91f422eb72caef750eec33575975db0eb` |
+| `claims.csv` | `0469273a00fa447e132c3f87ea5cf212450893a743a603598d9e2621ae1d624a` |
 
 ---
 
@@ -271,6 +272,16 @@ $ python3 tests/browser_research_harness.py
 
 ---
 
-## 8. Abschluss-Verdict
+## 8. Release v1.0.9 (Gesamtaudit-Veröffentlichung)
 
-Korrektheit verifiziert: JA — Freigabe erteilt: JA — Das AURA Quant Terminal v1.0.8 ist mathematisch, implementierungsseitig und darstellungsbezogen vollständig konsistent, leakage-frei und wahrheitsgetreu verifiziert.
+- **Release-Version:** `v1.0.9` (Patch Release nach Gesamtaudit)
+- **Release-Tag:** `v1.0.9`
+- **Release-URL:** `https://github.com/trixr1907/AURA-Quant-Terminal/releases/tag/v1.0.9`
+- **Verifizierter Dashboard SHA-256 Hash:** `95a17974762377b0a0da681145561b774e4fac517fc19d05c147b43d5b613980`
+- **Audit-Status:** Alle Audit-Fixes (B1–B4, O1–O7) sind vollständig im Hauptzweig (`main`) integriert, im Tag `v1.0.9` verankert und öffentlich auf GitHub publiziert.
+
+---
+
+## 9. Abschluss-Verdict
+
+Korrektheit verifiziert: JA — Freigabe erteilt: JA — v1.0.9 veröffentlicht.

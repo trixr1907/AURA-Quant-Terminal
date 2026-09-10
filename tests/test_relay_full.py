@@ -256,7 +256,7 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self._get("/serving")
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
-        self.assertEqual(body["version"], "1.0.8")
+        self.assertEqual(body["version"], bitget_relay.VERSION)
         self.assertEqual(body["mode"], "quant_research")
 
     def test_get_serving_with_querystring(self):
