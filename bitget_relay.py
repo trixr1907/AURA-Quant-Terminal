@@ -269,6 +269,113 @@ def _request(method: str, path: str, body: dict | None = None, public: bool = Tr
         return {"code": "ERR", "msg": str(exc), "data": None}
 
 
+class TokenBucketRateLimiter:
+    """Thread-safe token bucket rate limiter for external API uplink."""
+
+    def __init__(self, rate: float = 10.0, capacity: float = 20.0):
+        self.rate = float(rate)
+        self.capacity = float(capacity)
+        self.tokens = float(capacity)
+        self.last_fill = time.monotonic()
+        self.lock = threading.Lock()
+
+    def consume(self, amount: float = 1.0) -> bool:
+        with self.lock:
+            now = time.monotonic()
+            elapsed = now - self.last_fill
+            self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
+            self.last_fill = now
+            if self.tokens >= amount:
+                self.tokens -= amount
+                return True
+            return False
+
+    def reset(self):
+        with self.lock:
+            self.tokens = self.capacity
+            self.last_fill = time.monotonic()
+
+
+class TTLCache:
+    """Thread-safe in-memory cache with TTL policies by endpoint type."""
+
+    def __init__(self):
+        self._cache: dict[tuple, tuple[float, dict]] = {}
+        self._lock = threading.Lock()
+
+    def get_ttl_for_path(self, path: str) -> float:
+        p = str(path).lower()
+        if "candle" in p or "kline" in p:
+            return 60.0
+        if "ticker" in p:
+            return 5.0
+        if "contract" in p or "funding" in p or "open-interest" in p or "orderbook" in p or "depth" in p:
+            return 10.0
+        return 5.0
+
+    def get(self, key: tuple) -> dict | None:
+        now = time.monotonic()
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+            expire_at, value = entry
+            if now < expire_at:
+                return value
+            del self._cache[key]
+            return None
+
+    def set(self, key: tuple, value: dict, ttl: float) -> None:
+        if ttl <= 0:
+            return
+        now = time.monotonic()
+        expire_at = now + ttl
+        with self._lock:
+            self._cache[key] = (expire_at, value)
+            if len(self._cache) > 2000:
+                expired = [k for k, (exp, _) in self._cache.items() if now >= exp]
+                for k in expired:
+                    del self._cache[k]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+
+UPLINK_RATE_LIMITER = TokenBucketRateLimiter(rate=10.0, capacity=20.0)
+PUBLIC_CACHE = TTLCache()
+
+
+def _public_request_cached(method: str, path: str, params: dict) -> tuple[dict, bool]:
+    """Execute a public Bitget request with TTL caching and token bucket rate limiting."""
+    method_upper = method.upper()
+    cache_key = (
+        method_upper,
+        path,
+        tuple(sorted((str(k), str(v)) for k, v in params.items()))
+    )
+
+    if method_upper == "GET":
+        cached = PUBLIC_CACHE.get(cache_key)
+        if cached is not None:
+            return cached, True
+
+    if not UPLINK_RATE_LIMITER.consume():
+        return {
+            "code": "429",
+            "msg": "Relay rate limit exceeded (Token Bucket: 10 req/s, burst 20). Retry shortly.",
+            "data": None,
+            "_http": 429,
+        }, False
+
+    resp = _request(method_upper, path, params, public=True)
+    if method_upper == "GET" and isinstance(resp, dict) and resp.get("code") == "00000":
+        ttl = PUBLIC_CACHE.get_ttl_for_path(path)
+        PUBLIC_CACHE.set(cache_key, resp, ttl)
+
+    return resp, False
+
+
 # ---------------------------------------------------------------------------
 #  HTTP Request Handler
 # ---------------------------------------------------------------------------
@@ -340,13 +447,18 @@ class RelayHandler(BaseHTTPRequestHandler):
             return False
         return True
 
-    def _send_json(self, data: dict, status: int = 200, cors_headers: dict[str, str] | None = None):
+    def _send_json(self, data: dict, status: int = 200, cors_headers: dict[str, str] | None = None, extra_headers: dict[str, str] | None = None):
         body = json.dumps(data).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if status == 429:
+            self.send_header("Retry-After", "1")
+        if extra_headers:
+            for k, v in extra_headers.items():
+                self.send_header(k, v)
         headers = CORS_HEADERS if cors_headers is None else cors_headers
         for k, v in headers.items():
             self.send_header(k, v)
@@ -496,7 +608,7 @@ class RelayHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/public":
-            # Public Bitget REST passthrough (no auth).
+            # Public Bitget REST passthrough with TTL caching & Token-Bucket rate limiting.
             raw = payload.get("path") or payload.get("url", "")
             if (
                 not isinstance(raw, str)
@@ -513,8 +625,11 @@ class RelayHandler(BaseHTTPRequestHandler):
             for k, v in urllib.parse.parse_qsl(qs, keep_blank_values=True):
                 merged.setdefault(k, v)
             method = str(payload.get("method", "GET")).upper()
-            r = _request(method, base, merged, public=True)
-            self._send_json(r)
+            r, is_cached = _public_request_cached(method, base, merged)
+            status = 200
+            if isinstance(r, dict) and r.get("code") == "429":
+                status = 429
+            self._send_json(r, status=status)
         else:
             self._send_json({"code": "ERR_NOT_FOUND"}, 404)
 

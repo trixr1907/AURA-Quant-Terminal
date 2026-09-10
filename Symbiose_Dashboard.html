@@ -2616,7 +2616,30 @@ function computeBtcBias(score, regime, regimeTxt = '') {
   };
 }
 
-function renderStatus() {
+const RenderCache = {
+  hashes: {},
+  isDirty(panel, keyObj) {
+    let key;
+    try {
+      key = typeof keyObj === 'string' ? keyObj : JSON.stringify(keyObj);
+    } catch (_) {
+      return true;
+    }
+    if (this.hashes[panel] === key) return false;
+    this.hashes[panel] = key;
+    return true;
+  },
+  invalidate(panel) {
+    if (panel) delete this.hashes[panel];
+    else this.hashes = {};
+  }
+};
+if (typeof window !== 'undefined') window.RenderCache = RenderCache;
+if (typeof globalThis !== 'undefined') globalThis.RenderCache = RenderCache;
+
+function renderStatus(force = false) {
+  const stateKey = [App.status.bin, App.data.fng?.value, App.data.fng?.label, App.data.cg, App.status.ws, App.data.btcScore, App.data.btcRegime, App.data.btcRegimeTxt];
+  if (!force && !RenderCache.isDirty('status', stateKey)) return;
   setStatus('st-bin', App.status.bin === 'OK' ? 'ok' : App.status.bin ? 'mid' : 'err', App.status.bin || 'aus');
   setStatus('st-fng', App.data.fng ? 'ok' : 'err', App.data.fng ? ('OK · ' + App.data.fng.value + ' (' + App.data.fng.label + ')') : 'n/a');
   setStatus('st-cg', App.data.cg ? 'ok' : 'err', App.data.cg ? 'OK' : 'n/a');
@@ -2902,9 +2925,11 @@ Generiert: ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC (AURA 
   }
 }
 
-function renderPrice() {
+function renderPrice(force = false) {
   const A = App.data.chart, tk = App.data.ticker, cf = App.data.crypto;
   if (!A) return;
+  const stateKey = [App.symbol, App.chartTF, A.c[A.n - 1], A.last?.atr, tk?.chg, tk?.hi, tk?.lo, tk?.vol, App.data.funding?.rate, App.data.funding?.t];
+  if (!force && !RenderCache.isDirty('price', stateKey)) return;
   $('ps-sym').textContent = App.symbol;
   const px = A.c[A.n - 1];
   $('ps-price').textContent = fmtP(px);
@@ -2994,9 +3019,11 @@ function renderGauge(sc) {
 }
 
 // --- Score-Sub-Scores ---
-function renderSignal() {
+function renderSignal(force = false) {
   const L = App.data.live, A = App.data.chart, cf = App.data.crypto;
-  if (!A || !L) return;
+  if (!L || !A) return;
+  const stateKey = [L.score, L.dir, L.qual, L.qualKey, L.gate, L.regTxt, L.btcBlock, L.longSig, L.shortSig, L.rsi, L.adx, L.sqz, L.fvg, L.liqBull, L.liqBear, L.cvdSig];
+  if (!force && !RenderCache.isDirty('signal', stateKey)) return;
   const sc = L.total;
   renderGauge(sc);
 
@@ -3147,9 +3174,11 @@ function renderSignal() {
      <div class="trow"><span class="k">Regime-Gate Status</span><span class="v">${regimeStatus}</span></div>`;
 }
 
-function renderMTF() {
-  const list = $('mtflist');
+function renderMTF(force = false) {
   const tfs = ['15m', '1h', '4h', '1d'];
+  const stateKey = [App.symbol, tfs.map(tf => App.data.mtf[tf] ? `${App.data.mtf[tf].ok}:${App.data.mtf[tf].score}:${App.data.mtf[tf].dir}` : 'none').join(',')];
+  if (!force && !RenderCache.isDirty('mtf', stateKey)) return;
+  const list = $('mtflist');
   list.innerHTML = tfs.map(tf => {
     const m = App.data.mtf[tf];
     const sc = m && m.ok ? m.score : NaN;
@@ -3170,10 +3199,12 @@ function renderMTF() {
   else { el.className = 'mtfsum ' + (okN === 2 ? 'mid' : 'bad'); el.textContent = `✗ ${okN}/4 aligned — Signal-Gate GESPERRT (≥3 von 4 erforderlich)`; }
 }
 
-function renderContext() {
+function renderContext(force = false) {
   const A = App.data.chart;
   const cg = App.data.cg, fng = App.data.fng, cf = App.data.crypto;
   if (!A) return;
+  const stateKey = [App.symbol, App.chartTF, A.last?.adx, A.last?.rsi, cf?.funding?.rate, cf?.funding?.z, cf?.oi?.latest, cf?.oi?.chg4h, cf?.basis?.val, fng?.value, cg?.mcap, cg?.dom, cg?.coin?.market_cap];
+  if (!force && !RenderCache.isDirty('context', stateKey)) return;
   const reg = regimeOf(A);
   $('kc-reg').textContent = reg.txt; $('kc-reg').style.color = reg.c;
   $('kc-adx').textContent = A.last.adx.toFixed(1);
@@ -3224,10 +3255,13 @@ function renderContext() {
   }
 }
 
-function renderLiq() {
+function renderLiq(force = false) {
   const A = App.data.chart;
   const el = $('liqlist');
   if (!A) { el.innerHTML = '—'; return; }
+  const tk = App.data.ticker;
+  const stateKey = [App.symbol, App.chartTF, A.c[A.n - 1], A.last.eqhLvl, A.last.eqlLvl, tk?.hi, tk?.lo, A.zones.length];
+  if (!force && !RenderCache.isDirty('liq', stateKey)) return;
   const px = A.c[A.n - 1];
   const dist = p => ((p - px) / px * 100).toFixed(2) + '%';
   let rows = [];
@@ -3235,7 +3269,6 @@ function renderLiq() {
   else rows.push(`<div class="lrow"><span class="k">Equal Highs</span><span class="v">keine aktiven</span></div>`);
   if (isFinite(A.last.eqlLvl)) rows.push(`<div class="lrow"><span class="k">Equal Lows (Pool unten)</span><span class="v">${fmtP(A.last.eqlLvl)}<span class="dist">${dist(A.last.eqlLvl)}</span></span></div>`);
   else rows.push(`<div class="lrow"><span class="k">Equal Lows</span><span class="v">keine aktiven</span></div>`);
-  const tk = App.data.ticker;
   if (tk) {
     rows.push(`<div class="lrow"><span class="k">24h-Hoch / Tief</span><span class="v">${fmtP(tk.hi)} / ${fmtP(tk.lo)}</span></div>`);
   }
@@ -3253,10 +3286,12 @@ function renderLiq() {
   el.innerHTML = rows.join('');
 }
 
-function renderBacktest() {
+function renderBacktest(force = false) {
   const A = App.data.chart, wf = App.data.wf, sigs = App.data.bt || [];
   const stats = wf ? wf.stats : btStats(sigs);
   const dsr = wf ? wf.dsr : { dsr: 0, sharpe: 0 };
+  const stateKey = [App.symbol, App.chartTF, App.timeStopBars, A?.n, wf?.folds?.length, stats.total, stats.wr, stats.pf, stats.exp, dsr.dsr, dsr.sharpe, stats.maxDd, wf?.evidenceStatus];
+  if (!force && !RenderCache.isDirty('backtest', stateKey)) return;
 
   const elTs = $('bt-ts'); if (elTs) elTs.textContent = App.timeStopBars;
   const method = wf?.method === 'anchored_t1' ? 'Anchored t1-safe Walk-Forward' : 'Walk-Forward';
@@ -3578,9 +3613,23 @@ function groupRadarCandidates(rows, sortMode = 'quality') {
 }
 
 function renderRadar() {
+  const force = arguments[0] === true;
   const list = $('radarlist');
   if (!list || !App.data.radar) return;
   const progress = App.radarProgress || { done: 0, total: universeSymbols().length, scanning: false, skipped: 0 };
+  const all = App.data.radar;
+  const stateKey = [
+    progress.done,
+    progress.total,
+    progress.scanning,
+    progress.updatedInCycle,
+    App.radarSort,
+    App.radarFilter,
+    App.radarSearchQuery,
+    all.length,
+    all.map(r => `${r.symbol}:${r.avgScore}:${r.aligned}:${r.executable}`).join(',')
+  ];
+  if (!force && !RenderCache.isDirty('radar', stateKey)) return;
   const nEl = $('radar-n'); if (nEl) nEl.textContent = progress.total;
   const progressBar = $('radar-progress-bar');
   if (progressBar) {
@@ -3597,7 +3646,6 @@ function renderRadar() {
       progressCopy.textContent = `${progress.done} analysiert · Universum aktuell (Rolling Scan)`;
     }
   }
-  const all = App.data.radar;
   let ok = all.filter(r => isFinite(r.avgScore) || (r.tfScores && Object.values(r.tfScores).some(v => isFinite(v.score))));
 
   // User Search Filter
@@ -3830,10 +3878,12 @@ async function loadUniverse() {
   renderMarketPulse();
 }
 
-function renderMarketPulse() {
+function renderMarketPulse(force = false) {
   const moversEl = $('mp-movers'), fundEl = $('mp-funding');
   if (!moversEl || !fundEl) return;
   const uni = (App.universe && App.universe.length) ? App.universe : null;
+  const stateKey = [uni ? uni.length : 0, uni ? uni.slice(0, 3).map(u => `${u.symbol}:${u.chg}:${u.funding}`).join(',') : 'none'];
+  if (!force && !RenderCache.isDirty('marketPulse', stateKey)) return;
   const tag = $('pulse-tag');
   if (tag) tag.textContent = uni ? uni.length + ' Paare · Bitget' : 'Bitget';
   if (!uni) {
@@ -3943,7 +3993,7 @@ function notifyHeroState(state, L) {
 //  HERO WIDGET — Top Opportunity auf einen Blick (Consumer-First UX)
 //  Beantwortet: Ob · Wann · Wo · Wie · Wieviel · Warum
 // ============================================================================
-function renderHero() {
+function renderHero(force = false) {
   // -----------------------------------------------------------------------
   // DESIGN PRINCIPLE: The hero widget is the single source of truth.
   // It ONLY shows GO/SHORT when computeLive() has returned longSig/shortSig=true —
@@ -3952,10 +4002,25 @@ function renderHero() {
   // -----------------------------------------------------------------------
   const hero = document.getElementById('hero');
   if (!hero) return;
-  const hq = id => document.getElementById(id);
-
   const L = App.data.live;      // live result from computeLive() — all gates applied
   const radar = App.data.radar; // radar scan results (score/direction only, no gates)
+  const topSym = (radar && radar.length) ? (radar.find(r => r.executable)?.symbol || radar[0]?.symbol) : null;
+  const stateKey = [
+    App.symbol,
+    L?.score,
+    L?.dir,
+    L?.longSig,
+    L?.shortSig,
+    L?.blockReason,
+    L?.btcBlock,
+    L?.kelly?.hasEdge,
+    L?.kelly?.finalFrac,
+    radar?.length,
+    topSym,
+    App.account?.size
+  ];
+  if (!force && !RenderCache.isDirty('hero', stateKey)) return;
+  const hq = id => document.getElementById(id);
 
   // --- Step 1: Is there a REAL tradeable signal right now? ---
   // A real signal means computeLive() said longSig or shortSig AND kelly.hasEdge.
@@ -4197,24 +4262,46 @@ function renderHero() {
   }
 }
 
-function renderAll() {
+function renderAll(force = false) {
+  if (force) {
+    RenderCache.invalidate();
+  }
   App.data.live = computeLive();
   if (App.data.live && App.data.btcRegime != null && App.symbol !== 'BTCUSDT') {
     // Annotate live signal with BTC block — only if current symbol is an altcoin
     const L = App.data.live;
     L.btcBlock = (L.longSig && App.data.btcRegime === -1) || (L.shortSig && App.data.btcRegime === 1);
   }
-  renderHero();
-  renderStatus(); renderPrice(); renderSignal(); renderMTF(); renderContext(); renderLiq(); renderBacktest(); renderChart(); renderRadar(); renderMarketPulse();
+  renderHero(force);
+  renderStatus(force); renderPrice(force); renderSignal(force); renderMTF(force); renderContext(force); renderLiq(force); renderBacktest(force); renderChart(null, null, force); renderRadar(force); renderMarketPulse(force);
 }
+if (typeof window !== 'undefined') window.renderAll = renderAll;
+if (typeof globalThis !== 'undefined') globalThis.renderAll = renderAll;
 
 // ============================================================================
 //  LIVE-CHART (eigener Canvas-Renderer) — Kerzen, EMAs, SuperTrend, VWAP,
 //  Volumen, Signal-Marker, Crosshair, Preis-Tag
 // ============================================================================
-function renderChart(mx, my) {
+function renderChart(mx, my, force = false) {
   const cv = $('chart');
   const A = App.data.chart;
+  if (!cv) return;
+  const isInteractive = (mx != null || my != null);
+  if (!isInteractive && !force) {
+    const chartStateKey = [
+      App.symbol,
+      App.chartTF,
+      App.visible,
+      App.chartPanBars,
+      A?.n,
+      A?.last?.t,
+      A?.last?.c,
+      App.chartOverlays,
+      cv.clientWidth,
+      cv.clientHeight
+    ];
+    if (!RenderCache.isDirty('chart', chartStateKey)) return;
+  }
   const ctx = cv.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = cv.clientWidth, hgt = cv.clientHeight;

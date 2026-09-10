@@ -643,5 +643,93 @@ class TestWriteBodyTolerance(unittest.TestCase):
             self.fail("_write_body must swallow BrokenPipeError without raising")
 
 
+# ===========================================================================
+# 5. IN-MEMORY TTL CACHE & TOKEN-BUCKET RATE LIMITER
+# ===========================================================================
+class TestRelayCacheAndRateLimiter(unittest.TestCase):
+    def setUp(self):
+        bitget_relay.PUBLIC_CACHE.clear()
+        bitget_relay.UPLINK_RATE_LIMITER.reset()
+
+    def tearDown(self):
+        bitget_relay.PUBLIC_CACHE.clear()
+        bitget_relay.UPLINK_RATE_LIMITER.reset()
+
+    def test_ttl_cache_returns_cached_response_without_uplink_hit(self):
+        call_count = 0
+
+        def fake_request(method, path, body=None, public=True):
+            nonlocal call_count
+            call_count += 1
+            return {"code": "00000", "data": [{"t": 100, "c": "100"}]}
+
+        with patch("bitget_relay._request", side_effect=fake_request):
+            # 1st call -> Cache miss, live uplink request
+            r1, is_cached1 = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": "BTCUSDT", "granularity": "1H"})
+            self.assertFalse(is_cached1)
+            self.assertEqual(call_count, 1)
+
+            # 2nd call -> Cache hit, no live uplink request
+            r2, is_cached2 = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": "BTCUSDT", "granularity": "1H"})
+            self.assertTrue(is_cached2)
+            self.assertEqual(call_count, 1)
+            self.assertEqual(r1, r2)
+
+    def test_ttl_cache_distinguishes_different_parameters(self):
+        call_count = 0
+
+        def fake_request(method, path, body=None, public=True):
+            nonlocal call_count
+            call_count += 1
+            params = body if isinstance(body, dict) else {}
+            return {"code": "00000", "data": [{"symbol": params.get("symbol")}]}
+
+        with patch("bitget_relay._request", side_effect=fake_request):
+            r1, _ = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/tickers", {"symbol": "BTCUSDT"})
+            r2, _ = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/tickers", {"symbol": "ETHUSDT"})
+            self.assertEqual(call_count, 2)
+            self.assertEqual(r1["data"][0]["symbol"], "BTCUSDT")
+            self.assertEqual(r2["data"][0]["symbol"], "ETHUSDT")
+
+    def test_token_bucket_rejects_burst_exceeded_with_429_without_hitting_uplink(self):
+        call_count = 0
+
+        def fake_request(method, path, body=None, public=True):
+            nonlocal call_count
+            call_count += 1
+            return {"code": "00000", "data": []}
+
+        with patch("bitget_relay._request", side_effect=fake_request):
+            # Exhaust the 20 tokens capacity with unique queries to bypass cache
+            for i in range(20):
+                resp, is_cached = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": f"COIN{i}USDT"})
+                self.assertEqual(resp.get("code"), "00000")
+
+            self.assertEqual(call_count, 20)
+
+            # 21st unique query immediately exceeds capacity -> 429 without uplink hit
+            resp_overflow, is_cached = bitget_relay._public_request_cached("GET", "/api/v2/mix/market/candles", {"symbol": "OVERFLOWUSDT"})
+            self.assertEqual(resp_overflow.get("code"), "429")
+            self.assertEqual(resp_overflow.get("_http"), 429)
+            self.assertFalse(is_cached)
+            # Uplink call_count must remain strictly 20!
+            self.assertEqual(call_count, 20)
+
+    def test_non_get_and_error_responses_are_not_cached(self):
+        call_count = 0
+
+        def fake_error_request(method, path, body=None, public=True):
+            nonlocal call_count
+            call_count += 1
+            return {"code": "40014", "msg": "Error"}
+
+        with patch("bitget_relay._request", side_effect=fake_error_request):
+            r1, c1 = bitget_relay._public_request_cached("GET", "/api/v2/test", {})
+            r2, c2 = bitget_relay._public_request_cached("GET", "/api/v2/test", {})
+            self.assertFalse(c1)
+            self.assertFalse(c2)
+            self.assertEqual(call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
