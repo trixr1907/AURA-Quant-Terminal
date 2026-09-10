@@ -29,6 +29,7 @@ function makeContinuousContext(coins) {
     RADAR_BATCH_SIZE: 5,
     RADAR_BATCH_DELAY_MS: 0,
     RADAR_CYCLE_DELAY_MS: 0,
+    RADAR_CONCURRENCY: 2,
     fetchKlines: async () => ({ candles: candleSeries(), source: 'test' }),
     analyze: candles => ({ n: candles.length, c: Float64Array.from(candles.map(x => x.c)), last: { score: 85, dir: 1, adx: 30, atr: 2, trend: 80, mom: 75, vol: 70, str: 65 } }),
     regimeOf: () => ({ reg: 1, isSqz: false }),

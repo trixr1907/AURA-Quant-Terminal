@@ -653,7 +653,10 @@ console.log('PASS all Live Trade Tracker & BTC Trend contracts validated');
     bestInfo: { score: 80, dir: 1, status: 'ready', tradeable: true },
   };
   scanCtx.__App.data.radar = [candidate, { ...candidate, symbol: 'SECONDUSDT' }];
-  scanCtx.__App.universe = [];
+  scanCtx.__App.universe = [
+    { symbol: 'EDGEUSDT', vol: 10000000, liquidityVerified: true },
+    { symbol: 'SECONDUSDT', vol: 10000000, liquidityVerified: true }
+  ];
   scanCtx.__App.data.btcScore = null; scanCtx.__App.data.btcRegime = null;
   scanCtx.__App.fees = { maker: 0, taker: 0 }; scanCtx.__App.slippage = 0; scanCtx.__App.timeStopBars = 15;
   bot.trades = []; bot.equity = 10000; bot.min24hVol = 0; bot.btcFilter = false; bot.minScore = 78; bot.mtfNeed = 3;

@@ -20,11 +20,11 @@ services:
     volumes:
       - aura-state:/var/lib/aura
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/serving', timeout=4)\" || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4)\" || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 90s
 
 volumes:
   aura-state:

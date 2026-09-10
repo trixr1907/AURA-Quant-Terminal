@@ -143,7 +143,7 @@ console.log('--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---');
 
   const bot = scanCtx.__Autobot;
   scanCtx.__App.data.radar = radar120;
-  scanCtx.__App.universe = radar120.map(r => ({ symbol: r.symbol, vol: 10000000 }));
+  scanCtx.__App.universe = radar120.map(r => ({ symbol: r.symbol, vol: 10000000, liquidityVerified: true }));
   scanCtx.__App.data.btcScore = null;
   scanCtx.__App.data.btcRegime = null;
   scanCtx.__App.fees = { maker: 0, taker: 0 };
@@ -208,7 +208,7 @@ console.log('--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---');
 
   // Dynamic Universe tests: 35 markets -> 140 hypotheses; 150 markets -> 600 hypotheses
   scanCtx.__App.data.radar = radar120.slice(0, 35);
-  scanCtx.__App.universe = scanCtx.__App.data.radar.map(r => ({ symbol: r.symbol, vol: 10000000 }));
+  scanCtx.__App.universe = scanCtx.__App.data.radar.map(r => ({ symbol: r.symbol, vol: 10000000, liquidityVerified: true }));
   const funnel35 = await bot.scanAndExecuteOpportunities();
   assert.strictEqual(funnel35.scanned, 35 * 4, 'dynamic universe 35 markets * 4 TFs must equal 140');
   assert.strictEqual(funnel35.wfEvaluated, 140, 'wfEvaluated must equal 140');
@@ -216,7 +216,7 @@ console.log('--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---');
   scanCtx.__App.data.radar = Array.from({ length: 150 }, (_, i) => ({
     symbol: `COIN${i}USDT`, executable: false, aligned: 1, bestTF: '1h', bestInfo: { score: 40, dir: 1, status: 'neutral', tradeable: false }
   }));
-  scanCtx.__App.universe = scanCtx.__App.data.radar.map(r => ({ symbol: r.symbol, vol: 10000000 }));
+  scanCtx.__App.universe = scanCtx.__App.data.radar.map(r => ({ symbol: r.symbol, vol: 10000000, liquidityVerified: true }));
   const funnel150 = await bot.scanAndExecuteOpportunities();
   assert.strictEqual(funnel150.scanned, 150 * 4, 'dynamic universe 150 markets * 4 TFs must equal 600');
   assert.strictEqual(funnel150.wfEvaluated, 600, 'wfEvaluated must equal 600');
