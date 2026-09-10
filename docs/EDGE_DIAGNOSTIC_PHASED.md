@@ -3,13 +3,13 @@
 **Datum:** 2026-09-10  
 **Gegenstand:** Bewertung des Diagnose-Experiments **EXP-025 (D1: Fold-1-Geometrie-Fix)** auf voller Fixture-Tiefe und Anwendung der vorab festgelegten **D2-Stopp-Regel**.  
 **Ergebnis EXP-025:** **TEILWEISE BESTANDEN** (Fold-1-Trade-Anteil im Fixture-Mittel $26.5\,\%$, aber SOL einzeln $42.3\,\%$; selektive Trainingskapazität auf 4h nicht hergestellt).  
-**D2 Stopp-Entscheidung:** **STOPP (NO_EVIDENCE)** — Aggregierter (gepoolter) OOS-DSR $= 0.085 < 0.50$. B3 (TP1/R:R-Tuning) wird **NICHT** durchgeführt.
+**D2 Stopp-Entscheidung:** **STOPP (NO_EVIDENCE)** — konservativ aggregierter OOS-DSR $= 0.038 < 0.50$ (205 gepoolte Trades, $T=9\times5=45$ Cross-Fixture-Hypothesen). Selbst die lokale $T=9$-Lesart erreicht nur $0.152$. B3 (TP1/R:R-Tuning) wird **NICHT** durchgeführt.
 
 ---
 
 ## 1. Executive Summary & Ehrliches Abschlussverdikt
 
-> **„Mit der fairen Fold-1-Geometrie (Initial-Training 2000 Bars auf 1h / 500 Bars auf 4h) sinkt der Fold-1-Trade-Anteil auf 26.5 % im ungewichteten Fixture-Mittel. Die Walk-Forward wählt auf BTC 1h in allen 4 Folds organisch `regimeGate = true` und verbessert die 1h-Gated-Expectancy auf $+0.083\text{ R}$ (ETH $+0.126\text{ R}$, SOL $+0.147\text{ R}$). Der aggregierte (über alle 205 Gated-OOS-Trades gepoolte) DSR erreicht $0.085$ und verfehlt die vorab festgelegte Zertifizierungsschwelle von $0.50$ klar. Gemäß bindender D2-Stopp-Regel wird die Edge-Forschung beendet und B3 (TP1-Tuning) nicht durchgeführt, um Overfitting zu verhindern."**
+> **„Mit der fairen Fold-1-Geometrie (Initial-Training 2000 Bars auf 1h / 500 Bars auf 4h) sinkt der Fold-1-Trade-Anteil auf 26.5 % im ungewichteten Fixture-Mittel. Die Walk-Forward wählt auf BTC 1h in allen 4 Folds organisch `regimeGate = true` und verbessert die 1h-Gated-Expectancy auf $+0.083\text{ R}$ (ETH $+0.126\text{ R}$, SOL $+0.147\text{ R}$). Der konservativ aggregierte DSR über alle 205 Gated-OOS-Trades erreicht bei $T=45$ nur $0.038$ (lokal $T=9$: $0.152$) und verfehlt die vorab festgelegte Zertifizierungsschwelle von $0.50$ klar. Gemäß bindender D2-Stopp-Regel wird die Edge-Forschung beendet und B3 (TP1-Tuning) nicht durchgeführt, um Overfitting zu verhindern."**
 
 ---
 
@@ -96,7 +96,8 @@
 
 | Metrik | Soll (GO-Schwelle) | Ist (Gated-Variante, Fair) | Befund |
 |---|---|---|---|
-| **Aggregierter OOS-DSR (205 gepoolte Trades)** | $\ge \mathbf{0.50}$ | **$0.085$** | **VERFEHLT ($0.085 \ll 0.50$)** |
+| **Aggregierter OOS-DSR (205 gepoolte Trades, $T=45$)** | $\ge \mathbf{0.50}$ | **$0.038$** | **VERFEHLT ($0.038 \ll 0.50$)** |
+| **Lokale Sensitivität ($T=9$)** | — | **$0.152$** | Ebenfalls unter 0.50 |
 | **BTC 1h DSR** | — | 0.056 | Nicht signifikant |
 | **ETH 1h DSR** | — | 0.126 | Positiv, aber unter Schwelle |
 | **SOL 1h DSR** | — | 0.164 | Positiv, aber unter Schwelle |
