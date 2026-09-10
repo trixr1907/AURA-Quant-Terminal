@@ -30,12 +30,16 @@ Jede Änderung an Indikator-Schwellen, Parametern, Walk-Forward-Architektur oder
 | **EXP-007** | v1.0.9 | 2026-09-09 | `—` | Hygiene | *(Keine Modelländerung — reine Dokumentations- & Provenienz-Validierung, 0 Experimente)* |
 | **EXP-008** | v1.1.0 | 2026-09-10 | `Symbiose_Dashboard.html:7139` | Multi-Testing | **Universe-Adjustierter DSR:** Autobot übermittelt `trialMultiplier = wfEvaluated` (gesamte Scan-Hypothesen-Familie `Symbole × 4 TFs`), um Survivor-Bias über das gescannte Universum zu eliminieren. |
 | **EXP-009** | v1.1.0 | 2026-09-10 | `Symbiose_Dashboard.html:6731` | Execution Gate | **Option B Dual-DSR & strictUniverseGate:** Anzeige von Setup-DSR und Universums-DSR im UI; Schalter `strictUniverseGate` (Default: false) für optionales striktes Universe-Gate. |
+| **EXP-010** | v1.1.0 | 2026-09-10 | `bitget_relay.py:240` | Infrastruktur | *(Keine Modelländerung — Relay In-Memory TTL-Cache & Token-Bucket Rate Limiter, 0 Experimente)* |
+| **EXP-011** | v1.1.0 | 2026-09-10 | `Symbiose_Dashboard.html:3620` | UI-Performance | *(Keine Modelländerung — RenderCache Dirty-Flag Panel Rendering, 0 Experimente)* |
+| **EXP-012** | v1.1.0 | 2026-09-10 | `scripts/lockbox_guard.py:1` | Holdout-Quarantäne | *(Keine Modelländerung — Lockbox OOS-Evaluationsmechanik & Quarantäne-Guard, 0 Experimente)* |
 
 ---
 
 ## 3. Bilanzierte Kennzahlen
 
-- **Kumulative Experimente (Gesamt):** 8
+- **Kumulative Modell-Experimente (Gesamt):** 8 (EXP-001 bis EXP-006, EXP-008, EXP-009)
+- **Infrastruktur/Hygiene-Releases:** 4 (EXP-007, EXP-010, EXP-011, EXP-012)
 - **Modell-Trials im Autobot-Scan (Default Universe 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
   - Internes Parameter-Grid: `18`
