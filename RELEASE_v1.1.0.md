@@ -38,6 +38,10 @@
 
 ## 3. Provenienz, Hashes & Artefakte
 
-- **Release-Commit:** (Wird nach dem Version-Bump ermittelt und eingetragen)
-- **Release-Tag:** `v1.1.0`
+- **Release-Commit:** `513fe686c5c0d5b29184e2e9b304b37cd33669a8`
+- **Release-Tag:** `v1.1.0` (Peeled Commit: `513fe686c5c0d5b29184e2e9b304b37cd33669a8`)
 - **Release-URL:** `https://github.com/trixr1907/AURA-Quant-Terminal/releases/tag/v1.1.0`
+- **Release-Status:** `Published` (Draft: `false`, Pre-Release: `false`)
+- **Asset symbiose.zip SHA-256:** `4695656e10d070e767eb70c986f02340ac8ec5ff473ea7a03164cbbdf8ffa893`
+- **Asset .hermes/ Exclusion Check:** `unzip -l symbiose.zip | grep -c "\.hermes/"` = `0`
+- **Dashboard SHA-256 (`Symbiose_Dashboard.html`):** `fa5f1075436a385acfb0563216eabaf61aee227f736d3fd4be548763e825a1d4`
