@@ -1735,7 +1735,7 @@ function runWalkForwardBacktest(candles, A, options = {}) {
   const warmup = effWarmup;
   const K = 4;
   const minTrainBars = 300;
-  const minTrainTrades = 5;
+  const minTrainTrades = 2;
   const minTestPerFold = 60;
   const tfMinutes = Number.isFinite(+options.tfMinutes) && +options.tfMinutes > 0 ? +options.tfMinutes : 60;
   const trialMultiplier = Number.isFinite(+options.trialMultiplier) && Number.isInteger(+options.trialMultiplier) && +options.trialMultiplier >= 1 ? +options.trialMultiplier : 1;
@@ -1786,7 +1786,7 @@ function runWalkForwardBacktest(candles, A, options = {}) {
       const trainTrades = simulated.filter(t => t.exitBar != null && t.exitBar < testStart);
       const purgedByT1 = simulated.length - trainTrades.length;
       const stats = evaluateTrades(trainTrades);
-      const obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) : -Infinity;
+      const obj = stats.total >= minTrainTrades ? stats.exp * Math.sqrt(stats.total) * (1 - 1 / (1 + stats.total)) : -Infinity;
       if (obj > bestScore) {
         bestScore = obj;
         bestParams = params;
