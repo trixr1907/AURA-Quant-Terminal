@@ -47,6 +47,7 @@ MANIFEST = [
     "RELEASE_v1.1.8.md",
     "RELEASE_v1.2.0.md",
     "RELEASE_v1.2.1.md",
+    "RELEASE_v1.2.2.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     # docker & containers
