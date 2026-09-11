@@ -21,8 +21,10 @@ import base64
 import json
 import logging
 import os
+import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -98,26 +100,81 @@ def open_tradingview_desktop(url: Any) -> bool:
     safe_url = _valid_tradingview_url(url)
     if safe_url is None:
         return False
-    if not os.environ.get("WSL_DISTRO_NAME"):
-        return False
     desktop_url = f"tradingview://{safe_url.removeprefix('https://')}"
-    try:
-        powershell = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
-        escaped_url = desktop_url.replace("'", "''")
-        command_text = f"Start-Process -FilePath '{escaped_url}'"
-        encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
-        completed = subprocess.run(
-            [powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-            check=False,
-        )
-        if completed.returncode != 0:
+
+    # 1. Native Windows (CPython on Windows NT)
+    if sys.platform == "win32" or os.name == "nt":
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(desktop_url)  # type: ignore[attr-defined]
+                return True
+        except OSError:
+            pass
+        try:
+            escaped_url = desktop_url.replace("'", "''")
+            command_text = f"Start-Process -FilePath '{escaped_url}'"
+            encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
+            completed = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            return completed.returncode == 0
+        except (OSError, subprocess.SubprocessError):
             return False
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return True
+
+    # 2. WSL running on Windows host
+    if os.environ.get("WSL_DISTRO_NAME") or os.path.exists("/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"):
+        try:
+            powershell = (
+                shutil.which("powershell.exe")
+                or "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+            )
+            escaped_url = desktop_url.replace("'", "''")
+            command_text = f"Start-Process -FilePath '{escaped_url}'"
+            encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
+            completed = subprocess.run(
+                [powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            return completed.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    # 3. macOS
+    if sys.platform == "darwin":
+        try:
+            completed = subprocess.run(
+                ["open", desktop_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            return completed.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    # 4. Native Linux desktop
+    if sys.platform.startswith("linux"):
+        try:
+            completed = subprocess.run(
+                ["xdg-open", desktop_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            return completed.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    return False
 
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))

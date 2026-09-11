@@ -3229,12 +3229,16 @@ async function openInTradingView(symbol, timeframe, btn = null) {
   try {
     // On the locally served PC dashboard the relay can reliably hand the HTTPS
     // chart link to Windows, whose TradingView association opens Desktop.
-    const response = await fetch('/api/open-tradingview', {
+    const endpoint = (typeof relayBase === 'function' ? relayBase() : '') + '/api/open-tradingview';
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: tvUrl })
     });
-    desktopOpened = response.ok;
+    if (response.ok) {
+      const data = await response.json().catch(() => ({}));
+      desktopOpened = !!data.ok;
+    }
   } catch (_) {}
 
   if (desktopOpened) {
