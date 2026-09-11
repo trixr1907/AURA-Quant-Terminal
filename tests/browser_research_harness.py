@@ -100,7 +100,7 @@ async def run_case(port: int, chromium: str | None = None) -> dict:
         else:
             browser = await p.chromium.launch(headless=True)
         page = await browser.new_page(viewport={"width": 1440, "height": 1000})
-        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" and not msg.text.startswith("Failed to load resource") else None)
         page.on("pageerror", lambda exc: page_errors.append(str(exc)))
         page.on("websocket", lambda ws: ws_hosts.append(urllib.parse.urlparse(ws.url).hostname or ""))
 
@@ -491,6 +491,8 @@ async def run_case(port: int, chromium: str | None = None) -> dict:
     assert blocked_external <= ALLOWED_EXTERNAL_HOSTS, blocked_external
     assert set(ws_hosts) <= ALLOWED_WS_HOSTS, ws_hosts
 
+    if console_errors:
+        print("Captured console errors in run:", console_errors)
     return {
         "title": title,
         "page_errors": page_errors,

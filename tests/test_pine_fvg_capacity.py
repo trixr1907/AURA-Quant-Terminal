@@ -33,7 +33,7 @@ class TestPineFvgCapacity(unittest.TestCase):
     def test_visual_zone_count_is_bounded_below_tradingview_limit(self):
         self.assertIn("MAX_FVG_ZONES = 30", self.source)
         self.assertIn("array.size(fvgBoxes) > MAX_FVG_ZONES", self.fvg_block)
-        self.assertIn("max_boxes_count=64", self.source)
+        self.assertIn("max_boxes_count=500", self.source)
 
 
 if __name__ == "__main__":

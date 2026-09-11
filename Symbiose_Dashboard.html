@@ -819,7 +819,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.2?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.3?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -837,7 +837,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.2.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.2.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3298,6 +3298,12 @@ function buildCustomTradingViewPine(pine, s) {
   res = res.replace(/fcRiskPct\s*=\s*input\.float\([^,]+/, `fcRiskPct  = input.float(${riskVal}`);
   res = res.replace(/fcLev\s*=\s*input\.int\([^,]+/, `fcLev      = input.int(${levVal}`);
   res = res.replace(/fcNote\s*=\s*input\.string\("[^"]*"/, `fcNote     = input.string("${noteVal}"`);
+  if (!res.includes('fcMode     = input.string("Custom"') ||
+      !res.includes(`fcDir      = input.string("${dirStr}"`) ||
+      !res.includes(`fcEntry    = input.float(${entryVal}`) ||
+      !res.includes(`fcSl       = input.float(${slVal}`)) {
+    return '';
+  }
   return res;
 }
 
@@ -3311,8 +3317,8 @@ function findActiveTradeForPine(symbol) {
   return null;
 }
 
-function getTradingViewPineText(activeTradeOrSetup = null) {
-  if (!tradingViewPineText) return '';
+function getTradingViewPineText(activeTradeOrSetup = null, pineSource = tradingViewPineText) {
+  if (!pineSource) return '';
   const setup = activeTradeOrSetup || findActiveTradeForPine(App.symbol) || (App.data && App.data.live && (App.data.live.longSig || App.data.live.shortSig) ? {
     coin: App.symbol,
     dir: App.data.live.longSig ? 1 : App.data.live.shortSig ? -1 : 0,
@@ -3323,8 +3329,8 @@ function getTradingViewPineText(activeTradeOrSetup = null) {
     tp3: App.data.live.tp3,
     leverage: App.leverage || 10
   } : null);
-  if (!setup || (!setup.entry && !setup.sl)) return tradingViewPineText;
-  return buildCustomTradingViewPine(tradingViewPineText, setup);
+  if (!setup || (!setup.entry && !setup.sl)) return pineSource;
+  return buildCustomTradingViewPine(pineSource, setup);
 }
 
 async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSetup = null) {
@@ -3333,12 +3339,13 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
   const tvUrl = buildTradingViewUrl(sym, tf, App.tradingView || {});
   const desktopUrl = buildTradingViewDesktopUrl(sym, tf, App.tradingView || {});
 
-  if (!tradingViewPineText) {
-    try { await preloadTradingViewPine(); } catch (_) {}
+  let pineSource = tradingViewPineText;
+  if (!pineSource) {
+    try { pineSource = await preloadTradingViewPine(); } catch (_) { pineSource = ''; }
   }
 
   const setupObj = activeTradeOrSetup || findActiveTradeForPine(sym);
-  const pineText = getTradingViewPineText(setupObj);
+  const pineText = getTradingViewPineText(setupObj, pineSource);
   const hasForecast = !!(setupObj && (setupObj.entry || setupObj.sl));
   let pineCopied = false;
   let clipboardWrite = null;
