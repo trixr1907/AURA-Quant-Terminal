@@ -277,15 +277,21 @@ def run_gui() -> int:
 
 
 def print_banner():
-    print("\n" + "=" * 60)
-    print("       AURA Quant Terminal — Quant Research & Setup Discovery v1.2.2")
-    print("=" * 60)
-    print(f"  Dashboard: {BASE_URL}/")
-    print(f"  Tutorial:  {BASE_URL}/tutorial")
-    print(f"  Universum: {universe_text()}")
-    print("  Modus:     READ-ONLY RESEARCH")
-    print("  [b] Browser  [t] Tutorial  [s] Sync  [r] Check  [q] Ende")
-    print("=" * 60)
+    banner = rf"""
+ ╔══════════════════════════════════════════════════════════════════════════╗
+ ║    ___   __  ______  ___        AURA — CONFLUENCE TERMINAL               ║
+ ║   /   | / / / / __ \/   |       Quantitative Edge · Visual Precision     ║
+ ║  / /| |/ / / / /_/ / /| |       Pure Execution · v1.2.2                  ║
+ ║ / ___ / /_/ / _, _/ ___ |       Quant Research & Setup Discovery         ║
+ ║/_/  |_\____/_/ |_/_/  |_|       Bitget Perpetuals · Confluence Engine    ║
+ ╚══════════════════════════════════════════════════════════════════════════╝
+   Dashboard: {BASE_URL}/
+   Tutorial:  {BASE_URL}/tutorial
+   Universum: {universe_text()}
+   Modus:     READ-ONLY RESEARCH & PRECISION DISCOVERY
+   [b] Dashboard öffnen  [t] Tutorial  [s] Sync  [r] Check  [q] Beenden
+ ──────────────────────────────────────────────────────────────────────────"""
+    print(banner)
 
 
 def run_cli(open_dashboard_on_start: bool = True) -> int:
@@ -297,7 +303,7 @@ def run_cli(open_dashboard_on_start: bool = True) -> int:
     print_banner()
     while True:
         try:
-            cmd = input("AURA Quant Terminal > ").strip().lower()
+            cmd = input("AURA Terminal > ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             break
         if cmd in ("q", "quit", "exit"):

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AURA Quant Terminal</title>
+<title>AURA — Confluence Terminal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300F2FE'/%3E%3Cstop offset='100%25' stop-color='%2300F5A0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 6 L8 54 L20 54 L32 30 L44 54 L56 54 Z' fill='%230E1726' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M17 44 L47 44' stroke='url(%23g)' stroke-width='2' stroke-linecap='round'/%3E%3Cpolygon points='32,22 38,32 32,42 26,32' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
 #risk-warning{display:block;font-size:9px;margin-top:2px;min-height:13px;opacity:0;transition:opacity .15s}
 
@@ -19,11 +20,15 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);scroll-behavior:smooth}
-body{min-height:100%;background:radial-gradient(circle at 18% -10%,rgba(56,189,248,.09),transparent 34%),var(--bg);color:var(--txt);font:13px/1.0.05 var(--sans);padding:0 18px 42px}
+body{min-height:100%;background:radial-gradient(circle at 18% -10%,rgba(0,242,254,.08),transparent 34%),var(--bg);color:var(--txt);font:13px/1.0.05 var(--sans);padding:0 18px 42px}
 button,input,select{font:inherit}button{color:inherit}.wrap{max-width:1680px;margin:auto}
 header{min-height:74px;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--line);position:relative}
-.logo{display:flex;align-items:center;gap:11px;min-width:max-content}.logo .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(145deg,var(--cyn),var(--grn));color:#021018;font:900 15px var(--mono);box-shadow:0 0 24px rgba(56,189,248,.2)}
-.logo h1{font-size:15px;letter-spacing:.06em}.logo h1 span{color:var(--mut);font-weight:500}.logo small{display:block;margin-top:2px;color:var(--dim);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.logo{display:flex;align-items:center;gap:12px;min-width:max-content}
+.logo .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#0e1726,#06090f);border:1px solid rgba(0,242,254,.35);box-shadow:0 0 20px rgba(0,242,254,.15);transition:all .2s ease;padding:3px}
+.logo .mark:hover{border-color:rgba(0,245,160,.6);box-shadow:0 0 28px rgba(0,245,160,.25);transform:scale(1.04)}
+.logo .mark svg{width:100%;height:100%;display:block}
+.logo h1{font-size:15px;letter-spacing:.08em;font-weight:900}.logo h1 span{color:var(--cyn);font-weight:600}
+.logo small{display:block;margin-top:2px;color:var(--dim);font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
 .ctl{margin-left:auto;display:flex;align-items:end;justify-content:flex-end;gap:8px;flex-wrap:wrap}.ctl>div{min-width:0}.lbl{color:var(--dim);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
 select,input[type=text],input[type=number]{height:34px;background:rgba(15,23,42,.75);border:1px solid var(--line);border-radius:8px;color:var(--txt);outline:0;padding:0 9px;font:11px var(--mono);min-width:82px;transition:.15s}
 select:hover,input:hover{background:var(--surface-2)}select:focus,input:focus{border-color:rgba(56,189,248,.65);box-shadow:0 0 0 3px rgba(56,189,248,.09)}input[type=range]{accent-color:var(--cyn);width:86px}
@@ -249,10 +254,36 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <!-- ================= HEADER ================= -->
   <header>
     <div class="logo">
-      <div class="mark">A</div>
+      <div class="mark">
+        <svg viewBox="0 0 48 48" fill="none">
+          <defs>
+            <linearGradient id="hdrLaser" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00F2FE"/>
+              <stop offset="100%" stop-color="#00F5A0"/>
+            </linearGradient>
+            <linearGradient id="hdrFacet" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#142238"/>
+              <stop offset="100%" stop-color="#06090F"/>
+            </linearGradient>
+            <linearGradient id="hdrCore" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#38BDF8"/>
+              <stop offset="100%" stop-color="#00F5A0"/>
+            </linearGradient>
+            <filter id="hdrGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <circle cx="24" cy="24" r="22" fill="#00F2FE" fill-opacity="0.08"/>
+          <path d="M24 5 L6 41 L15 41 L24 23 L33 41 L42 41 Z" fill="url(#hdrFacet)" stroke="url(#hdrLaser)" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M24 5 L42 41 L33 41 L24 23 Z" fill="#142238" fill-opacity="0.7"/>
+          <path d="M12 34 L36 34" stroke="url(#hdrLaser)" stroke-width="1.5" stroke-linecap="round"/>
+          <polygon points="24,15 29,24 24,33 19,24" fill="url(#hdrCore)" stroke="#FFFFFF" stroke-width="0.5" filter="url(#hdrGlow)"/>
+        </svg>
+      </div>
       <div>
-        <h1>AURA <span>Quant Terminal</span></h1>
-        <small>QUANT RESEARCH · SETUP DISCOVERY · READ ONLY</small>
+        <h1>AURA <span>Confluence Terminal</span></h1>
+        <small>QUANTITATIVE EDGE · VISUAL PRECISION · PURE EXECUTION</small>
       </div>
     </div>
     <div class="ctl">
