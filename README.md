@@ -1,9 +1,16 @@
-# AURA v1.1.6 — Smart Quant Terminal
+# AURA v1.1.7 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.1.6 — Stabilisierung, Transparenz & Docker-Readiness (aktuelle Fassung)
+### v1.1.7 — Setup Discovery, Edge-Auswahl & Radar-Ranking (aktuelle Fassung)
+
+- **Hero Top-Setups Quick-Picks:** Interaktive 1-Klick-Chips für die bis zu 4 stärksten Radar-Kandidaten direkt in der Hero-Fußzeile. Ein Klick lädt sofort den stärksten Timeframe und rechnet den 1.500-Kerzen Walk-Forward-Backtest sowie den mathematischen Kelly-Edge.
+- **Smarte 3-Stufen Radar-Gruppierung:** Saubere Trennung im 🎯 Top-Edge-Modus in *🔥 Hot Setups (Ausführbar)*, *🎯 Top Setup-Kandidaten* (starkes Signal kurz vor Trigger) und *👀 Watchlist & Universum*.
+- **Echter Signal-Score in der Radar-Gesamtansicht:** Die Score-Spalte in der Gesamtansicht (`all`) zeigt den tatsächlichen Score des stärksten Timeframes inklusive Timeframe-Kennzeichnung (z. B. `86.0 (4h)`) statt des verwässerten 4-TF-Durchschnitts.
+- **Verifizierte Modellintegrität & Release-Gates:** Neuer TDD-Prüfpfad `test_radar_top_candidates.js` im Release-Check; das reale Modellverdikt `MODEL_NO_EVIDENCE` bleibt unverändert fail-closed.
+
+### v1.1.6 — Stabilisierung, Transparenz & Docker-Readiness
 
 - **Ehrliche Produktsemantik & Paper-CTA:** Paper Autobot und Paper-Simulation klar als risikofreie Simulation ohne Orderausführung ausgewiesen; Hero Paper-Trade Button fail-closed gesperrt ohne vollständiges Setup mit statistischem Edge (`MODEL_NO_EVIDENCE`).
 - **Fail-Closed Liquidität:** Statische Fallback-Liquidität wird als unüberprüft (`liquidityVerified: false`) markiert und schützt den Paper Autobot vor Scheinausführungen bei fehlenden Marktdaten.
@@ -203,4 +210,4 @@ Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet 
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.1.6 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.1.7 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.

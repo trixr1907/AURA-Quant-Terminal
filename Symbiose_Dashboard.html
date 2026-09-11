@@ -50,6 +50,11 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .hero-levels{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:7px}.hero-lvl{padding:10px 11px;background:rgba(148,163,184,.045);border-radius:9px}.hero-lvl b{display:block;font:800 16px var(--mono)}.hero-lvl span{display:block;margin-top:3px;color:var(--dim);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}.hero-lvl.sl b{color:var(--red2)}.hero-lvl.tp b{color:var(--grn2)}.hero-why{padding:9px 11px;border-radius:8px;background:rgba(148,163,184,.045);color:var(--mut);font-size:11.5px;line-height:1.0.0}.hero-why b{color:var(--txt)}.hero-block-title{color:var(--amb);font-weight:800}.hero-unlock{color:var(--grn2)}
 .hero-paper-btn{height:30px;border:1px solid rgba(56,189,248,.4);border-radius:7px;background:linear-gradient(135deg,rgba(14,165,233,.22),rgba(2,132,199,.28));color:#38bdf8;padding:0 12px;font:800 10px var(--mono);letter-spacing:.04em;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;text-transform:uppercase}.hero-paper-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(14,165,233,.38),rgba(2,132,199,.45));color:#fff;border-color:#38bdf8;box-shadow:0 0 12px rgba(56,189,248,.25)}.hero-paper-btn:disabled{cursor:not-allowed;opacity:.55;filter:saturate(.35)}
 .hero-size-col{padding:18px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;gap:7px}.hero-size-val{font:900 18px var(--mono)}.hero-size-sub,.hero-size-risk{color:var(--mut);font:10.5px var(--mono)}.hero-size-risk{margin-top:5px;padding-top:8px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:3px}.hero-size-risk .k{color:var(--dim);font:10px var(--sans)}.hero-kelly-chip{padding:0;color:var(--vio)}.hero-source{min-height:34px;padding:7px 18px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);color:var(--dim);font-size:10px}.source-label{font-weight:800;letter-spacing:.1em;text-transform:uppercase}.hero-radar-link{margin-left:auto;color:var(--cyn);cursor:pointer}
+.hero-top-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:5px;font:700 9.5px var(--mono);background:rgba(148,163,184,.08);border:1px solid var(--line);color:var(--txt);cursor:pointer;transition:.14s}
+.hero-top-chip:hover{background:rgba(56,189,248,.18);border-color:#38bdf8;color:#fff}
+.hero-top-chip.active{border-color:#38bdf8;background:rgba(56,189,248,.14);color:#38bdf8}
+.hero-top-chip.bull{border-left:3px solid var(--grn2)}
+.hero-top-chip.bear{border-left:3px solid var(--red2)}
 .pricestrip{display:grid;grid-template-columns:1.25fr repeat(9,minmax(78px,1fr));background:rgba(11,17,27,.82);border:1px solid var(--line);border-radius:12px;overflow:hidden}.pricestrip>div{min-width:0;padding:9px 11px;border-right:1px solid var(--line)}.pricestrip>div:last-child{border:0}.pricestrip .px{font:900 19px var(--mono)}.pricestrip .lbl,.kv span{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.kv b{display:block;overflow:hidden;text-overflow:ellipsis;font:700 11px var(--mono);white-space:nowrap}
 .radar-head{padding:14px;border-bottom:1px solid var(--line)}.radar-headline{display:flex;align-items:center;gap:8px}.radar-headline h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase}.radar-sub{margin-top:4px;color:var(--dim);font-size:10.5px}.radar-tabs{padding:9px 10px;display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid var(--line)}.radar-tab{border:0;background:transparent;color:var(--dim);padding:5px 7px;border-radius:6px;font:700 10px var(--mono);cursor:pointer;white-space:nowrap}.radar-tab:hover{background:rgba(148,163,184,.07);color:var(--txt)}.radar-tab.on{background:rgba(56,189,248,.1);color:#7dd3fc}#radarlist{padding:8px;overflow-y:auto;min-height:180px;flex:1}.radar-progress{height:3px;background:rgba(148,163,184,.08)}.radar-progress i{display:block;height:100%;background:linear-gradient(90deg,var(--cyn),var(--grn));transition:width .2s}.radar-progress-copy{padding:7px 11px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;color:var(--dim);font:10px var(--mono)}.radar-group{margin-bottom:10px}.radar-group-title{position:sticky;top:-8px;z-index:2;padding:7px 6px;background:rgba(11,17,27,.97);color:var(--dim);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.radar-row{display:grid;grid-template-columns:47px minmax(0,1fr) 34px;grid-template-areas:"sym badge score" "pills pills pills";align-items:center;gap:5px 7px;padding:9px 8px;border-radius:9px;cursor:pointer;transition:.14s}.radar-row:hover{background:rgba(148,163,184,.075)}.rr-sym{grid-area:sym;font:900 11px var(--mono)}.radar-row>.badge{grid-area:badge;justify-self:start;min-height:20px;padding:0 6px}.rr-score{grid-area:score;text-align:right;font:800 10px var(--mono)}.rr-tf-pills{grid-area:pills;display:flex;gap:3px}.rr-pill{padding:2px 5px;border-radius:4px;background:rgba(148,163,184,.07);color:var(--dim);font:700 10px var(--mono)}.rr-pill.bull{background:rgba(45,212,191,.1);color:var(--grn2)}.rr-pill.bear{background:rgba(251,113,133,.1);color:var(--red2)}
 .validation-grid{display:grid;grid-template-columns:minmax(0,1.0.05fr) minmax(300px,.75fr);gap:14px}.chartcard{min-width:0}.chart-body{padding:10px}#chart{width:100%;height:560px;display:block;border-radius:9px;background:#080d15;cursor:crosshair}.chartleg{display:flex;gap:5px;flex-wrap:wrap;padding:9px 2px 0}.chartleg span{padding:4px 7px;border-radius:6px;background:rgba(148,163,184,.05);color:var(--mut);font-size:10px;cursor:pointer}.chartleg span:hover{background:rgba(148,163,184,.1)}.chartleg span.off{opacity:.35;text-decoration:line-through}.chartleg i{display:inline-block;width:9px;height:2px;margin-right:4px}.chartfoot{padding:8px 2px 0;display:flex;align-items:center;gap:6px;color:var(--dim);font-size:10px}.cbtn{border:0;border-radius:5px;background:rgba(148,163,184,.07);color:var(--mut);padding:3px 7px;font:700 10px var(--mono);cursor:pointer}.cbtn:hover{color:var(--txt);background:rgba(148,163,184,.13)}#barslider{flex:1}
@@ -700,16 +705,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.6?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.7?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update schließt zentrale Härtungen für ehrliche Produktsemantik, fail-closed Liquiditätsprüfung, Relay-Lastschutz (Singleflight & Backoff), Radar-Transparenz und verifizierte Docker-Starter ab. Das reale Modellverdikt <b>MODEL_NO_EVIDENCE</b> bleibt unverändert.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update fokussiert die <b>Setup-Discovery und Edge-Auswahl</b> direkt im Cockpit: Die stärksten Marktchancen werden unmittelbar im Hero-Widget serviert und im Action Radar intelligent nach Ausführbarkeit und Signalstärke priorisiert.</p>
     <ul style="color:var(--txt);line-height:1.6;margin:0 0 18px;padding-left:20px">
-      <li><b>Ehrliche Produktsemantik:</b> Paper Autobot und Paper-Simulation klar als Simulation ohne Orderausführung ausgewiesen; Hero Paper-Trade Button fail-closed gesperrt ohne statistischen Edge.</li>
-      <li><b>Fail-Closed Liquidität:</b> Statische Fallback-Daten werden als unüberprüft markiert und sperren den Paper Autobot fail-closed vor Scheinausführungen.</li>
-      <li><b>Relay-Lastschutz:</b> Thread-safe Singleflight für GETs, Upstream-429-Backoff mit Retry-After-Respektierung und getrennter <tt>/ready</tt> Marktdaten-Readiness-Endpunkt.</li>
-      <li><b>Radar-Transparenz:</b> Begrenzte Parallelität (<tt>RADAR_CONCURRENCY</tt>), separate Zähler für Erfolg/Fehler/Skipped und gemessene Restzeitschätzung.</li>
-      <li><b>Docker-Starter:</b> Bounded Readiness-Polling vor Erfolgsmeldung und Browserstart in Starter-Skripten mit klarer LAN-Host-Konfiguration.</li>
+      <li><b>Top-Setups Quick-Picks im Hero-Widget:</b> Bis zu 4 Top-Kandidaten aus dem Radar-Scan werden direkt im Footer der Hero-Opportunity als interaktive 1-Klick-Chips angezeigt. Ein Klick startet sofort den 1.500-Kerzen Walk-Forward und ermittelt den Kelly-Edge.</li>
+      <li><b>Smarte 3-Stufen Radar-Gruppierung:</b> Saubere Trennung in <i>🔥 Hot Setups (Ausführbar)</i>, <i>🎯 Top Setup-Kandidaten</i> und <i>👀 Watchlist & Universum</i> im 🎯 Top-Edge-Modus.</li>
+      <li><b>Echter Timeframe-Score im Radar:</b> In der Gesamtansicht (<tt>all</tt>) zeigt die Score-Spalte den aussagekräftigen Score des stärksten Timeframes (z. B. <tt>86.0 4h</tt>) statt eines verwässerten Durchschnitts.</li>
+      <li><b>Verifizierte Modellintegrität:</b> Vollständige deterministische Suite-Abdeckung, strenge Fail-Closed Gates und unverändertes reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -718,7 +722,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.1.6</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.1.7</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3723,11 +3727,13 @@ function sortRadarCandidates(rows, viewTF = 'all', sortMode = 'quality') {
 function groupRadarCandidates(rows, sortMode = 'quality') {
   if (sortMode !== 'quality') return [{ label: '📡 Sortierte Ergebnisse', rows }];
   const hotRows = rows.filter(r => r.executable && r.bestInfo && (r.bestInfo.quality || 0) > 0);
-  const watchRows = rows.filter(r => !(r.executable && r.bestInfo && (r.bestInfo.quality || 0) > 0));
-  return [
-    { label: '🔥 Hot Setups', rows: hotRows },
-    { label: hotRows.length ? '👀 Watchlist' : '📡 Radar Universe', rows: watchRows }
-  ];
+  const candidateRows = rows.filter(r => !r.executable && r.bestInfo && r.bestInfo.candidate);
+  const watchRows = rows.filter(r => !r.executable && !(r.bestInfo && r.bestInfo.candidate));
+  const groups = [];
+  if (hotRows.length) groups.push({ label: '🔥 Hot Setups (Ausführbar)', rows: hotRows });
+  if (candidateRows.length) groups.push({ label: '🎯 Top Setup-Kandidaten', rows: candidateRows });
+  if (watchRows.length) groups.push({ label: (hotRows.length || candidateRows.length) ? '👀 Watchlist' : '📡 Radar Universe', rows: watchRows });
+  return groups.length ? groups : [{ label: '📡 Radar Universe', rows }];
 }
 
 function renderRadar() {
@@ -3791,7 +3797,8 @@ function renderRadar() {
 
   const renderRow = r => {
     const sc = (viewTF === 'all') ? r.avgScore : (r.tfScores[viewTF]?.score ?? r.avgScore);
-    const dir = (viewTF === 'all') ? r.mtfDir : (r.tfScores[viewTF]?.dir ?? (sc >= 60 ? 1 : sc <= 40 ? -1 : 0));
+    const bestScore = (r.bestInfo && isFinite(r.bestInfo.score)) ? r.bestInfo.score : sc;
+    const dir = (viewTF === 'all') ? (r.bestInfo?.dir ?? r.mtfDir) : (r.tfScores[viewTF]?.dir ?? (sc >= 60 ? 1 : sc <= 40 ? -1 : 0));
     const st = r.bestInfo ? r.bestInfo.status : 'no_signal';
     const isCurrent = r.symbol === App.symbol;
 
@@ -3834,12 +3841,14 @@ function renderRadar() {
 
     const btcBlockBadge = r.btcBlock ? '<span style="font-size:10px;color:var(--amb);margin-left:3px">BTC-Block</span>' : '';
     const activeBorder = isCurrent ? ' style="border-left:3px solid #38bdf8;background:rgba(56,189,248,.09)"' : (r.btcBlock ? ' style="opacity:0.65"' : '');
+    const displayScore = (viewTF === 'all' && isFinite(bestScore)) ? bestScore : sc;
+    const tfSub = (viewTF === 'all' && r.bestTF) ? `<small style="display:block;font-size:8.5px;color:var(--dim);margin-top:-2px">${r.bestTF}</small>` : '';
 
     return `<div class="radar-row" data-sym="${esc(r.symbol)}" data-besttf="${r.bestTF}" title="${esc(r.symbol)} · ${why} · bester TF ${r.bestTF}"${activeBorder}>
       <span class="rr-sym">${esc(r.symbol).replace('USDT', '')}${isCurrent ? ' <small style="color:#38bdf8;font-size:10px">●</small>' : ''}</span>
       ${badge}${btcBlockBadge}
       <div class="rr-tf-pills">${pills}</div>
-      <span class="rr-score">${isFinite(sc) ? sc.toFixed(1) : '—'}</span>
+      <span class="rr-score" title="Bester Timeframe: ${r.bestTF} (${isFinite(bestScore) ? bestScore.toFixed(1) : '—'}) · Ø Score: ${isFinite(sc) ? sc.toFixed(1) : '—'}">${isFinite(displayScore) ? displayScore.toFixed(1) : '—'}${tfSub}</span>
     </div>`;
   };
   list.innerHTML = groups.filter(group => group.rows.length).map(group =>
@@ -4430,10 +4439,31 @@ function renderHero(force = false) {
     $('hero-kelly').textContent     = '—';
   }
 
-  // --- Source footer: TF pills from radar top ---
+  // --- Source footer: TF pills from radar top & Top Setups Quick-Picks ---
   const tfPillsEl  = $('hero-source-tfs');
   const alignedEl  = $('hero-source-aligned');
   const btcBlockEl = $('hero-btc-block');
+
+  // Top candidates from radar across universe for instant 1-click Edge & Setup Validation
+  const topCandidates = (radar && radar.length)
+    ? radar.filter(r => r && (r.executable || (r.bestInfo && r.bestInfo.candidate) || (r.bestInfo && r.bestInfo.status === 'watch'))).slice(0, 4)
+    : [];
+
+  let topChipsHtml = '';
+  if (topCandidates.length) {
+    topChipsHtml = '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px"><b style="font-size:9.5px;color:var(--txt);letter-spacing:.05em;text-transform:uppercase">Top:</b>' +
+      topCandidates.map(tc => {
+        const isCur = tc.symbol === displayAsset;
+        const dir = tc.bestInfo?.dir ?? tc.mtfDir ?? 0;
+        const dirCls = dir === 1 ? 'bull' : dir === -1 ? 'bear' : '';
+        const dirArrow = dir === 1 ? '▲' : dir === -1 ? '▼' : '●';
+        const bestSc = tc.bestInfo && isFinite(tc.bestInfo.score) ? tc.bestInfo.score.toFixed(0) : (isFinite(tc.avgScore) ? tc.avgScore.toFixed(0) : '—');
+        const activeCls = isCur ? ' active' : '';
+        const symLabel = esc(tc.symbol.replace('USDT', ''));
+        const badgeHot = tc.executable ? '★ ' : '';
+        return `<button class="hero-top-chip ${dirCls}${activeCls}" type="button" data-sym="${esc(tc.symbol)}" data-tf="${tc.bestTF || '1h'}" title="Zu ${esc(tc.symbol)} (${tc.bestTF || '1h'}) wechseln · Score: ${bestSc}, MTF: ${tc.aligned}/4">${badgeHot}${dirArrow} ${symLabel} <span style="font-size:9px;opacity:.8">${tc.bestTF || '1h'}:${bestSc}</span></button>`;
+      }).join('') + '</span>';
+  }
 
   // Show radar info for the displayed asset
   const footerAsset = radarTop && radarTop.symbol === displayAsset ? radarTop : null;
@@ -4442,17 +4472,29 @@ function renderHero(force = false) {
       if (!isFinite(v.score)) return '';
       const cls = v.dir === 1 ? 'bull' : v.dir === -1 ? 'bear' : '';
       return `<span class="rr-pill ${cls}">${tf}</span>`;
-    }).join('');
+    }).join('') + topChipsHtml;
     alignedEl.textContent = footerAsset.aligned + '/4 Timeframes aligned';
     btcBlockEl.style.display = footerAsset.btcBlock ? 'inline' : 'none';
   } else if (L) {
-    tfPillsEl.textContent = '';
+    tfPillsEl.innerHTML = topChipsHtml;
     alignedEl.textContent = (L.aligned || 0) + '/4 Timeframes aligned';
     btcBlockEl.style.display = (L.btcBlock) ? 'inline' : 'none';
   } else {
-    tfPillsEl.textContent = '';
+    tfPillsEl.innerHTML = topChipsHtml;
     alignedEl.textContent = '';
     btcBlockEl.style.display = 'none';
+  }
+
+  const hsEl = $('hero-source');
+  if (hsEl) {
+    hsEl.querySelectorAll('.hero-top-chip').forEach(btn => {
+      btn.addEventListener('click', ev => {
+        ev.stopPropagation();
+        const sym = btn.getAttribute('data-sym');
+        const tf = btn.getAttribute('data-tf') || App.chartTF;
+        if (sym) switchToAsset(sym, tf);
+      });
+    });
   }
 }
 
@@ -7890,7 +7932,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.1.6');
+  showReleaseNotesOnce('1.1.7');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

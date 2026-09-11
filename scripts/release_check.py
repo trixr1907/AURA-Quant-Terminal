@@ -399,6 +399,9 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_radar_sorting.js"])
     add(check("radar smart sorting", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_radar_top_candidates.js"])
+    add(check("radar top candidates tiering", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
     rc, out, err = run(["node", "tests/test_radar_focus_selection.js"])
     add(check("radar focus selection", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
