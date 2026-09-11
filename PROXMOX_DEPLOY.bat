@@ -39,17 +39,10 @@ if errorlevel 1 (
 )
 
 :: Uebertrage alles in einem einzigen SCP-Aufruf
-scp deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
+scp deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html VERSION %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
 if errorlevel 1 (
     echo [FEHLER] Die AURA-Dateien konnten nicht vollstaendig uebertragen werden.
     echo Starte diese BAT direkt aus dem entpackten AURA-Projektordner.
-    pause
-    exit /b 1
-)
-scp -r data %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
-if errorlevel 1 (
-    echo [FEHLER] Der data-Ordner konnte nicht uebertragen werden.
-    echo Pruefe, ob der Download vollstaendig entpackt wurde.
     pause
     exit /b 1
 )
