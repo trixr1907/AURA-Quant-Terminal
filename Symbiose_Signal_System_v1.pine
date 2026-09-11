@@ -5,17 +5,17 @@
 //  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
 //  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
 //  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
-//  AURA v1.2.2 — Confluence Trading Signal System (Pine Script v6)
+//  AURA v1.2.3 — Confluence Trading Signal System (Pine Script v6)
 // ============================================================================
 //  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
-//          2) Multi-Timeframe Alignment (15m, 1h, 4h, 1d)
-//          3) On-Chain & Derivate (Open Interest, Funding-Rate, Basis-Spread)
-//          4) Smart Money Concepts (FVG, Order Blocks, Liquidity Sweeps)
+//          2) SMC / Orderflow (FVG, Order Blocks, Liquidity Sweeps, Sessions)
+//          3) Quant-Statistik (Squeeze Momentum, Regimewechsel, ADX)
+//          4) Multi-Timeframe Matrix (15m, 1h, 4h, 1d)
 //          5) Marktkontext (Regime-Filter, Liquiditätspools, Fear & Greed)
 //
-//  v1.2.2 CURRENT:
+//  v1.2.3 CURRENT:
 //   - Dynamic TP1, SuperTrend trailing, time-stop, macro veto/multiplier
-//   - JS/Pine mathematical parity and current symbiose.v1.2.2 alert contract
+//   - JS/Pine mathematical parity and current symbiose.v1.2.3 alert contract
 //
 //  HISTORICAL v1.0.3 NOTES:
 //   - These original feature notes remain historical context only.
@@ -39,7 +39,7 @@
 //  einzige Ausnahme ist der request.security-Kontext (f_mtf), wo ta.* erlaubt ist.
 // ============================================================================
 //@version=6
-indicator("AURA — Confluence Signal-System", "AURA", overlay=true, max_bars_back=500, max_boxes_count=64, max_labels_count=96, max_lines_count=32, dynamic_requests=false)
+indicator("AURA — Confluence Signal-System", "AURA", overlay=true, max_bars_back=500, max_boxes_count=500, max_labels_count=500, max_lines_count=500, dynamic_requests=false)
 
 // ============================================================================
 //  EINGABEN
@@ -833,7 +833,7 @@ else if not na(lastSigEntry) and lastSigEntry > 0.0 and lastSigDir != 0
 else
     posEntry := close
     posDir := totalScore >= 50.0 ? 1 : -1
-    atrDist = na(atr) or atr <= 0.0 ? close * 0.015 : atr * 1.5
+    atrDist = na(atrR) or atrR <= 0.0 ? close * 0.015 : atrR * 1.5
     posSl := posDir == 1 ? close - atrDist : close + atrDist
     diff = math.abs(posEntry - posSl)
     posTp1 := posDir == 1 ? posEntry + diff * 1.5 : posEntry - diff * 1.5
@@ -913,7 +913,7 @@ f_cell(ro, tx, vl, tc, bg) =>
     table.cell(dash, 0, ro, tx, text_color=color.new(#94a3b8, 0), text_size=size.tiny, bgcolor=color.new(#0f172a, 0))
     table.cell(dash, 1, ro, vl, text_color=tc, text_size=size.tiny, bgcolor=bg, text_halign=text.align_right)
 
-f_hdr(0, "AURA v1.2.2", syminfo.ticker + " · " + timeframe.period)
+f_hdr(0, "AURA v1.2.3", syminfo.ticker + " · " + timeframe.period)
 
 sClr = totalScore >= thLong ? color.new(#4ade80, 0) : totalScore <= thShort ? color.new(#f87171, 0) : color.new(#e2e8f0, 0)
 sigClr = showLong ? color.new(#4ade80, 0) : showShort ? color.new(#f87171, 0) : (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#64748b, 0)
@@ -989,8 +989,8 @@ if showLong or showShort
     sNot  = str.tostring(sSize * entryPx, "#.##")
     sMtf  = str.tostring(mtfS1, "#.#") + "," + str.tostring(mtfS2, "#.#") + "," + str.tostring(mtfS3, "#.#") + "," + str.tostring(mtfS4, "#.#")
     sRunnerMode = showLong ? (runnerUltraL ? "INSTANT_ST" : "POST_TP1") : (runnerUltraS ? "INSTANT_ST" : "POST_TP1")
-    // JSON-Payload includes v1.2.2 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
-    jsn = '{"type":"symbiose.v1.2.2","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeStr + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopBars) + ',"ts":' + str.tostring(time_close) + '}'
+    // JSON-Payload includes v1.2.3 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
+    jsn = '{"type":"symbiose.v1.2.3","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeTxt + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopN) + ',"ts":' + str.tostring(time_close) + '}'
     alert(jsn, alert.freq_once_per_bar_close)
 
 // ============================================================================

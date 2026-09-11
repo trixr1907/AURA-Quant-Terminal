@@ -1,250 +1,197 @@
-# AURA v1.2.2 — Confluence Terminal
+<p align="center">
+  <img src="assets/aura_logo_horizontal.svg" width="520" alt="AURA Confluence Terminal">
+</p>
 
-**Quantitative Edge · Visual Precision · Pure Execution**
+<p align="center">
+  <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
+</p>
 
-Read-only Quant-Research-, Confluence-Scanner- und Setup-Discovery-Station für Bitget USDT-M Perpetual Futures.
-Das System verbindet mathematische Multi-Timeframe-Confluence mit direkter TradingView-Desktop-Visualisierung und risikofreier Paper-Trade-Simulation.
+# AURA v1.2.3 — Confluence Terminal
 
-[![Brand](https://img.shields.io/badge/Brand-AURA%20Terminal-00F2FE?style=flat-square)](docs/brand_design.md)
-[![Version](https://img.shields.io/badge/Version-1.2.2-00F5A0?style=flat-square)](VERSION)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+<p align="center">
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.3-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.2.3"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
+  <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
+  <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">
+</p>
 
-### v1.2.2 — TradingView Long/Short Position Tool & Robuste Desktop-Umschaltung (aktuelle Fassung)
+<p align="center">
+  <a href="#schnellstart">Schnellstart</a> ·
+  <a href="#tradingview-positionen">TradingView</a> ·
+  <a href="#architektur">Architektur</a> ·
+  <a href="#qualitaet-und-grenzen">Qualität</a>
+</p>
 
-- **1:1 TradingView Long/Short Position Drawing Tool:** Detailgetreue Nachbildung der Support-Spezifikationen (`43000517002` & `43000516992`) in Pine Script v6 mit Gewinnboxen (`#089981`), Verlustboxen (`#f23645`), TP1/TP2/TP3 und Positions-Badge.
-- **Robuste Desktop-Umschaltung:** Loopback-Origin-Freigabe im Relay für direkte Desktop-App-Umschaltung ohne Web-Browser-Umwege.
-- **Praxistaugliche Defaultwerte:** 1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindest-Tagesvolumen (ermöglicht aktive Altcoin-Setups) und 8 OOS-Trades.
-- **Transparenz & Einsteiger-Schnellguide:** Mikro-Erklärungen unter jedem Parameter und integrierter Leitfaden zu Risiko, DSR und OOS-Tests ohne Fachchinesisch.
-- **1-Klick TV Visualisierung:** Jede aktive Autobot-Position schaltet per Klick TradingView um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Trade-Levels.
+---
 
-### v1.2.1 — Pine Trade Forecasting, TV Desktop & Einsteiger-Transparenz
+## Was ist AURA?
 
-- **Pine Script Trade Forecasting & Overlay:** Automatische Projektion aktiver Trades mit Entry, Stop-Loss, TP1–TP3 und Gewinn/Verlust-Boxen direkt auf dem TradingView Chart.
-- **1-Klick TV Visualisierung:** Jede aktive Autobot-Position schaltet per Klick TradingView um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Trade-Levels.
-- **Praxistaugliche Defaultwerte:** 1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindest-Tagesvolumen (ermöglicht aktive Altcoin-Setups) und 8 OOS-Trades.
-- **Transparenz & Einsteiger-Schnellguide:** Mikro-Erklärungen unter jedem Parameter und integrierter Leitfaden zu Risiko, DSR und OOS-Tests ohne Fachchinesisch.
-- **TradingView Desktop Direktumschaltung:** Verhindert redundante Browser-Tabs bei aktiver Windows Desktop-App.
+AURA ist ein lokales, read-only Research-Terminal für Bitget USDT-M Perpetual Futures. Es reduziert Marktrauschen durch Multi-Timeframe-Confluence, Liquiditäts- und Regime-Gates, bewertet Setups und visualisiert Entry, Stop sowie Ziele in TradingView.
 
-### v1.2.0 — USDT-M-Fokus, lesbare Marktstruktur & Autobot-Profile
+> [!IMPORTANT]
+> AURA platziert keine echten Orders und benötigt keine privaten Exchange-Zugangsdaten. Scores und Backtests sind Research-Ergebnisse, keine Gewinnversprechen oder Anlageberatung.
 
-- **Striktes Bitget-USDT-M-Universum:** Dashboard, Offline-Snapshot und Sync akzeptieren ausschließlich aktive Bitget `USDT-FUTURES`-Perpetuals mit USDT als Quote.
-- **Lesbare BOS/CHoCH-Markierungen:** Konfigurierbare Textgröße, ATR-/Tick-basierter Kerzenabstand, höherer Kontrast und erklärende Tooltips.
-- **Nachvollziehbare Autobot-Aktivität:** Ausgewogenes Standardprofil (Score 65, MTF 2/4) plus defensive und aktive Presets; OOS-Stichprobe und Setup-DSR sind sichtbar einstellbar, ohne das positive-Edge-Gate zu entfernen.
-- **TradingView Desktop zuerst:** Der lokale WSL-Relay versucht auf dem PC zunächst das installierte TradingView-Protokoll und öffnet nur bei Fehlschlag die Web-Version; mobil bleibt das normale TradingView-Verhalten erhalten.
+| Bereich | Aufgabe |
+| --- | --- |
+| **Action Radar** | Durchsucht aktive Bitget USDT-M Perpetuals und priorisiert vollständige Setups. |
+| **Confluence Engine** | Verbindet Trend, Momentum, Volumen, Marktstruktur und vier Zeitfenster. |
+| **Risk Gates** | Prüft Regime, Liquidität, Funding/OI, BTC-Kontext und OOS-Evidenz fail-closed. |
+| **Paper Autobot** | Simuliert qualifizierte Trades lokal inklusive SL, TP1–TP3 und Time-Stop. |
+| **TradingView Bridge** | Öffnet den passenden Bitget-Chart und kopiert ein Pine-v6-Overlay mit konkreten Trade-Levels. |
 
-### v1.1.8 — TradingView Basic Bridge
+## Schnellstart
 
-- **Free-only TradingView Bridge:** Öffnet den geladenen Coin und Timeframe auf Bitget Perpetual, Binance Perpetual oder Bitget Spot und kopiert das vollständige AURA-Pine-Script.
-- **Gespeichertes AURA-Layout:** Eine optionale TradingView-Layout-ID wird lokal gespeichert, damit der kostenlose Einzel-Chart direkt im eigenen AURA-Layout startet.
-- **Radar-Navigation und Top-30-Listen:** Vor-/Zurück-Navigation durch die besten vollständigen Radar-Kandidaten sowie kopierbare Gesamt-, LONG- und SHORT-Symbollisten mit hartem 30-Symbol-Limit.
-- **Kostenloser Preisalarm-Assistent:** Kopierbare Entry-, Stop- und TP1-Vorlagen ohne Webhooks oder technische Premium-Alarme.
-- **Setup-Notiz und Rücksprung-Link:** Reproduzierbarer Link lädt Symbol und Timeframe zurück in AURA und berechnet den Kontext frisch; `MODEL_NO_EVIDENCE` bleibt unverändert fail-closed.
+### Windows
 
-### v1.1.7 — Setup Discovery, Edge-Auswahl & Radar-Ranking
+1. Aktuelles Paket aus den [GitHub Releases](https://github.com/trixr1907/AURA-Quant-Terminal/releases/latest) herunterladen und entpacken.
+2. `START.bat` ausführen.
+3. Das Dashboard unter `http://127.0.0.1:8787` öffnen.
 
-- **Hero Top-Setups Quick-Picks:** Interaktive 1-Klick-Chips für die bis zu 4 stärksten Radar-Kandidaten direkt in der Hero-Fußzeile. Ein Klick lädt sofort den stärksten Timeframe und rechnet den 1.500-Kerzen Walk-Forward-Backtest sowie den mathematischen Kelly-Edge.
-- **Smarte 3-Stufen Radar-Gruppierung:** Saubere Trennung im 🎯 Top-Edge-Modus in *🔥 Hot Setups (Ausführbar)*, *🎯 Top Setup-Kandidaten* (starkes Signal kurz vor Trigger) und *👀 Watchlist & Universum*.
-- **Echter Signal-Score in der Radar-Gesamtansicht:** Die Score-Spalte in der Gesamtansicht (`all`) zeigt den tatsächlichen Score des stärksten Timeframes inklusive Timeframe-Kennzeichnung (z. B. `86.0 (4h)`) statt des verwässerten 4-TF-Durchschnitts.
-- **Verifizierte Modellintegrität & Release-Gates:** Neuer TDD-Prüfpfad `test_radar_top_candidates.js` im Release-Check; das reale Modellverdikt `MODEL_NO_EVIDENCE` bleibt unverändert fail-closed.
+### Linux / macOS
 
-### v1.1.6 — Stabilisierung, Transparenz & Docker-Readiness
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 start.py --no-gui
+```
 
-- **Ehrliche Produktsemantik & Paper-CTA:** Paper Autobot und Paper-Simulation klar als risikofreie Simulation ohne Orderausführung ausgewiesen; Hero Paper-Trade Button fail-closed gesperrt ohne vollständiges Setup mit statistischem Edge (`MODEL_NO_EVIDENCE`).
-- **Fail-Closed Liquidität:** Statische Fallback-Liquidität wird als unüberprüft (`liquidityVerified: false`) markiert und schützt den Paper Autobot vor Scheinausführungen bei fehlenden Marktdaten.
-- **Relay-Lastschutz & Singleflight:** Thread-safe Coalescing identischer Cache-Misses (Singleflight), exponentielles Upstream-429-Backoff mit `Retry-After`-Respektierung und getrennter `/ready` Marktdaten-Readiness-Endpunkt neben `/serving`.
-- **Radar-Transparenz:** Kontrollierte Parallelität via `RADAR_CONCURRENCY`, getrennte Statuszähler für Erfolg/Fehler/Skipped und gemessene Restzeitschätzung.
-- **Docker-Starter & LAN-Sicherheit:** Bounded Readiness-Polling vor Erfolgsmeldung und Browserstart in `docker_start.sh` und `DOCKER_START.bat`; saubere `AURA_ALLOWED_HOSTS`-Konfiguration.
+Das Terminal läuft anschließend lokal unter `http://127.0.0.1:8787`.
 
-### v1.1.5 — Institutional Audit Patches & UX-Härtung
+<details>
+<summary><strong>Weitere Startvarianten</strong></summary>
 
-- **Signal-Integrität:** Hero-Richtung entkoppelt vom Markt-Scoring; BTC-Trend-Veto ('wait') fest verankert; Radar-State-Key berücksichtigt Sortierung & TF.
-- **Risk-Management:** Autobot-Position-Sizing vollständig mit dynamischem Fractional Kelly (`calcKelly`) harmonisiert (Fail-closed bei mangelndem Edge).
-- **Stabilität & Kausalität:** Look-Ahead-invariantes Warmup für junge Tokens ($N < 295$) fixiert (Metamorphic-Tests verifiziert).
-- **Netzwerk & Performance:** WebSocket-Tick-Drosselung via `requestAnimationFrame`, Stale-Data-Guard (`⚠️ STALE`), Relay Token-Bucket auf 15/30 optimiert und Radar-Batchgröße auf 4 reduziert.
-- **UI/UX & Accessibility:** RenderCache-State-Keys repariert, CSS-Ausblendung für Mobile-Controls entfernt (Flex-Wrap) und Schriften/Kontraste auf WCAG AA gehärtet.
+| Variante | Befehl |
+| --- | --- |
+| Windows ohne Launcher-GUI | `START_OHNE_GUI.bat` |
+| Unix Shell | `./start.sh --no-gui` |
+| Docker | `docker compose up --build` |
+| Manueller Relay-Start | `python3 bitget_relay.py` |
 
-### v1.1.4 — Zuverlässige Radar-Fokusauswahl
+</details>
 
-- Radar-Zeilen und Timeframe-Pills wechseln Symbol und Timeframe über einen gemeinsamen atomaren Fokuspfad.
-- Setup Validation invalidiert ihren Render-Cache beim Assetwechsel und berücksichtigt nur tatsächlich dargestellte Live-Felder.
-- Fokus-Setup, Setup Validation, Symbolfelder und Timeframe-Schalter bleiben damit synchron.
-- Der tag-basierte Release-Workflow erlaubt den erwarteten aktuellen Release-Tag, ohne Konsistenz- oder Qualitäts-Gates zu umgehen.
-- Scores, OOS-/DSR-Gates und das ehrliche Modellverdikt `MODEL_NO_EVIDENCE` bleiben unverändert.
+## TradingView-Positionen
 
-### v1.1.3 — Laufzeitstabilität und Autobot-Diagnose
+TradingView erlaubt externen Programmen nicht, native Maus-Zeichenobjekte direkt in ein Cloud-Layout zu injizieren. AURA bildet das **Long-/Short-Position-Werkzeug deshalb als Pine-Script-Overlay** nach: grüne Gewinnzone, rote Verlustzone, Entry, SL, TP1–TP3, CRV, Risiko und Positionsgröße.
 
-- Das Pine-Script hält FVG-Zeichnungen deterministisch begrenzt und läuft auch dann weiter, wenn alle gespeicherten Zonen noch aktiv sind.
-- Der Autobot-Funnel zeigt modellneutral an, an welchem technischen, statistischen oder operativen Gate Kandidaten abgelehnt wurden.
-- Externe Fehlermeldungen werden weder roh gespeichert noch synchronisiert; persistierte Diagnosecodes sind strikt allowlist-basiert.
-- Scores, OOS-/DSR-Gates und das ehrliche Modellverdikt `MODEL_NO_EVIDENCE` bleiben unverändert.
+### Einen AURA-Trade im Chart anzeigen
 
-### v1.1.2 — Objektiv-Fix und Research-Abschluss
+1. Im Dashboard einen aktiven Paper-Trade öffnen.
+2. **„In TV visualisieren“** anklicken.
+3. AURA öffnet TradingView Desktop auf dem passenden `BITGET:<SYMBOL>.P`-Chart und kopiert das angepasste Pine Script.
+4. In TradingView unten **Pine Editor** öffnen.
+5. Editor-Inhalt vollständig ersetzen (`Strg+A`, `Strg+V`).
+6. **Speichern** und **Zum Chart hinzufügen** auswählen.
 
-- Das Walk-Forward-Selektionsobjektiv behandelt kleine Trainingsstichproben ab zwei Trades regularisiert statt sie bis fünf Trades pauschal auszuschließen.
-- Die Edge-Forschung A–D ist konsolidiert; das ehrliche Abschlussverdikt bleibt `MODEL_NO_EVIDENCE` (aggregierter OOS-DSR 0.038 bei T=45).
-- B3 (TP1/R:R-Tuning) wurde gemäß vorab festgelegter Stopp-Regel nicht durchgeführt.
-- Präregistrierungen müssen künftig durch einen eigenen vorausgehenden Git-Commit belegt sein.
+> [!NOTE]
+> Der Button allein kann das native Werkzeug aus TradingViews Seitenleiste nicht fernsteuern. Das ist eine Plattformgrenze. Nach dem einmaligen Einfügen zeichnet der AURA-Indikator die Trade-Levels selbst; für einen neuen Dashboard-Trade muss der neu kopierte Script-Stand im Pine Editor übernommen werden.
 
-### v1.1.1 — Release-Prozess und Messintegrität
+### Wenn nichts eingezeichnet wird
 
-- Fail-closed Release-Pipeline ohne Bypass-Flags.
-- Kanonische Millisekunden-Zeitstempel und synchronisierte Provenienz.
+- In den Indikator-Einstellungen muss **„7) Trade Forecasting & Long/Short Position Tool“ → „Position Tool visualisieren“** aktiviert sein.
+- Der kopierte Stand muss `Modus = Custom` sowie gültige Werte für Entry und Stop enthalten.
+- Alte AURA-Indikatorinstanzen entfernen, das neue Script speichern und erneut zum Chart hinzufügen.
+- Der TradingView-Chart muss zum im Dashboard gewählten Bitget-Perpetual passen.
+
+## Workflow
+
+```text
+Bitget Public Market Data
+          │
+          ▼
+Action Radar ──► Confluence Score ──► Risk & OOS Gates
+                                           │
+                               ┌───────────┴───────────┐
+                               ▼                       ▼
+                         Rejected Setup          Paper Candidate
+                                                       │
+                                        ┌──────────────┴──────────────┐
+                                        ▼                             ▼
+                                  Local Tracker             TradingView Overlay
+```
+
+1. **Scannen:** Der Radar lädt das aktive USDT-M-Perpetual-Universum progressiv.
+2. **Bewerten:** Der Core-Score kombiniert Trend, Momentum, Volumen und Struktur.
+3. **Gaten:** MTF, Regime, Liquidität, BTC-Kontext und OOS-Evidenz können ein Setup ablehnen.
+4. **Validieren:** Anchored Walk-Forward und DSR trennen technische Qualität von statistischer Evidenz.
+5. **Visualisieren:** Qualifizierte Paper-Trades werden lokal verfolgt und optional nach TradingView übertragen.
+
+## Modell
+
+```text
+Core Score = 0.30 × Trend
+           + 0.25 × Momentum
+           + 0.25 × Volumen
+           + 0.20 × Struktur
+```
+
+Zusätzliche Freigaben:
+
+- Multi-Timeframe-Konfluenz auf `15m`, `1h`, `4h` und `1d`
+- Regime- und Squeeze-Gate
+- Mindestliquidität und aktive Bitget-USDT-M-Kontrakte
+- Funding-, Open-Interest- und Basis-Kontext
+- BTC-Regime für Altcoin-Setups
+- Anchored Walk-Forward mit t1-Schutz
+- Positiver OOS-Edge und Deflated Sharpe Ratio
+- Fractional Kelly; negativer Edge ergibt null Research-Sizing
 
 ## Architektur
 
 ```text
-Öffentliche Bitget-Marktdaten
-            │
-            ▼
-Read-only CORS-Proxy (/api/public)
-            │
-            ▼
-Smart Quant Terminal
-  ├─ Makro-Wetter
-  ├─ Top Opportunity
-  ├─ Action Radar
-  └─ Chart & Walk-Forward-Validierung
+Symbiose_Dashboard.html          Browser UI, Radar, Modell und Paper-Trades
+bitget_relay.py                  Lokaler Relay, Public-API-Proxy, Desktop-Bridge
+Symbiose_Signal_System_v1.pine   Pine-v6-Indikator und Position-Overlay
+start.py                         Plattformübergreifender Launcher
+scripts/                         Release-, Paket- und Datensynchronisation
+assets/                          AURA Brand Assets
 ```
 
-Zentrale Artefakte:
+Die Runtime ist bewusst lokal und read-only. Der Relay erlaubt nur öffentliche Marktdatenpfade und stellt Dashboard, Tutorial und Pine Script bereit.
 
-| Datei | Zweck |
-|---|---|
-| `Symbiose_Dashboard.html` | Single-File Smart Quant Terminal |
-| `bitget_relay.py` | Lokaler Webserver und Public-Data-CORS-Proxy |
-| `Symbiose_Signal_System_v1.pine` | Pine-v6-Spiegel für TradingView-Analyse und Golden Master |
-| `SYMBIOSE_Tutorial.html` | Research-Workflow und Modellinterpretation |
-| `SYMBIOSE_Model_Validation.md` | Grenzen und statistische Validierung |
-| `RELEASE_CHECKLIST.md` | Reproduzierbare Qualitäts-Gates |
+## Entwicklung
 
-## Versionierung
-
-AURA verwendet ab `1.0.0` Semantic Versioning (`MAJOR.MINOR.PATCH`). Die Datei `VERSION` ist die kanonische Versionsquelle.
-
-- `PATCH` (`1.0.0`): kompatible Fehlerbehebung, Dokumentations- oder Sicherheitskorrektur ohne neue Schnittstelle.
-- `MINOR` (`1.1.0`): rückwärtskompatible neue Funktion.
-- `MAJOR` (`2.0.0`): inkompatible Änderung an Verhalten, Datenformat oder öffentlicher Schnittstelle.
-
-Jedes veröffentlichte Update muss die Version erhöhen, den Release-Check bestehen, als Git-Tag `v<Version>` markiert und zusätzlich als GitHub Release veröffentlicht werden. Der GitHub Release enthält das geprüfte `symbiose.zip` als Download-Artefakt. Der Release-Check blockiert fehlende oder inkonsistente `MAJOR.MINOR.PATCH`-Versionen.
-
-## Start
-
-Windows:
-
-```text
-START.bat
+```bash
+python3 -m pytest -q
+node tests/test_tradingview_position_bridge.js
+node tests/test_pine_forecast_generation.js
+python3 tests/pine_static_check.py
 ```
 
-Linux / WSL:
+Release-Prüfung und reproduzierbares Paket:
 
-```text
-./start.sh
-```
-
-CLI ohne GUI:
-
-```text
-python3 start.py --cli
-```
-
-Danach läuft das Terminal unter `http://127.0.0.1:8787/`.
-
-Der Relay stellt ausschließlich bereit:
-
-- `GET /` — Dashboard
-- `GET /tutorial` — Tutorial
-- `GET /serving` — Read-only Health-Status
-- `POST /api/public` — transparente öffentliche Bitget-Marktdaten
-
-Andere API-Pfade werden abgewiesen.
-
-## Task-oriented Oberfläche
-
-1. Makro-Wetter: BTC-Regime, Fear & Greed, Funding/OI-Extreme sowie SMC-Session- und Killzone-Kontext (UTC). Killzones sind reine Liquiditäts- und Volatilitätsfenster zur Orientierung, kein automatisches Kauf-/Verkaufssignal und kein eigenes GO-Gate.
-2. Top Opportunity: bestes vollständig gegatetes Setup mit Richtung, Entry, Stop, TP1 und Kelly-Edge.
-3. Action Radar: vollständiges Exchange-Universum, progressiv in 10er-Batches gerendert und nach Qualität sortiert.
-4. Chart & Validation: technische Prüfung, Liquiditätsstruktur und Anchored t1-safe Walk-Forward-Auswertung.
-
-Der Radar überspringt Instrumente früh, wenn Daily- oder 4H-Kerzen kein positives Volumen besitzen. Das spart Requests auf niedrigeren Zeitfenstern. Ein Radar-Ranking ist Orientierung, keine Ausführungsfreigabe. Der Hero nutzt ausschließlich das vollständig gegatete Live-Ergebnis.
-
-## Modell
-
-Core-Score:
-
-```text
-Score = 0.30 × Trend + 0.25 × Momentum + 0.25 × Volumen + 0.20 × Struktur
-```
-
-Weitere Gates:
-
-- Multi-Timeframe-Konfluenz: mindestens 3 von 4 Zeitfenstern
-- Regime: kein Sideways/Squeeze für Trendsetups
-- Funding, Open Interest und Basis
-- BTC-Regime für Altcoins
-- Anchored K=4 Walk-Forward mit exaktem t1-Schutz (300 Train-Bars, mindestens 5 geschlossene Train-Trades), transparenten Train/Test-Stunden und Deflated Sharpe Ratio
-- TimeStop- und Autobot-Auswahl verwenden ihre tatsächliche Trialfamilie; Autobot akzeptiert nur OOS-Evidenz mit mindestens 15 geschlossenen Trades, positivem Edge und DSR ≥ 0.5
-- Fractional Kelly; negativer Edge ergibt exakt null Research-Sizing
-
-Scores sind keine garantierten Wahrscheinlichkeiten. Backtests beschreiben historische Stichproben, nicht die Zukunft.
-
-## Datenquellen
-
-Der Primärpfad nutzt öffentliche Bitget-Futures-Endpunkte über `/api/public`. Weitere öffentliche Quellen dienen ausschließlich als explizite Analyse-Fallbacks. Es sind keine Schlüssel oder privaten Kontodaten nötig.
-
-## Tests
-
-Vollständiger Check:
-
-```text
+```bash
 python3 scripts/release_check.py
-```
-
-Wichtige Einzeltests:
-
-```text
-node tests/test_radar_progressive.js
-node tests/test_engine_full.js
-node tests/test_live_trade_tracker.js
-node tests/test_smc_sessions.js
-python3 -m unittest tests/test_relay_full.py
-python3 -m unittest tests/test_release_sync.py
-python3 -m unittest tests/test_launcher.py tests/test_research_cleanup.py
-SYM_BROWSER_RUNS=1 python3 tests/browser_research_harness.py
-```
-
-Golden-Master-Parität & Authentizität:
-
-```text
-node tests/compare_pine_js_golden.js
-```
-
-Für den Golden-Master-Nachweis zählen ausschließlich echte, unabhängige TradingView/Pine-Exporte oder separat implementierte Referenzquellen mit maschinenlesbarer Provenance (`provenance.json`). Das zirkuläre Erzeugen erwarteter `GM ... Score`-Werte mit der JavaScript-Engine und anschließender JS-Vergleich ist strikt verboten und wird vom Release-Gate als `GOLDEN_MASTER_UNVERIFIED` abgewiesen. Parität ist erst bei unabhängig verifizierter Provenance belegt.
-
-## Ehrliches Release-Verdict
-
-Die Software-Gates und Pine↔JavaScript-Parität können grün sein, während statistische Edge-Evidenz fehlt. In diesem Fall lautet das Verdict bewusst:
-
-```text
-SOFTWARE_GO / MODEL_NO_EVIDENCE
-```
-
-Das bedeutet: technisch als Research-Tool nutzbar, aber kein belastbarer Profitabilitätsnachweis.
-
-## Paket bauen
-
-```text
 python3 scripts/build_package.py
 ```
 
-Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet SHA-256 und testet das entpackte Paket im Smoke-Test.
+## Qualitaet und Grenzen
 
-## Grenzen
+| Verifiziert | Bewusste Grenze |
+| --- | --- |
+| Lokale Python-, Node- und Pine-Static-Tests | Lokale Tests ersetzen keine Kompilierung auf TradingViews Servern. |
+| Deterministische Golden-Master-Fixtures mit Provenance | Historische Ergebnisse beweisen keine zukünftige Profitabilität. |
+| Fail-closed OOS-, Edge- und Liquiditäts-Gates | Keine echte Order-Ausführung oder Kontoverwaltung. |
+| Öffentliche Bitget-Daten ohne API-Schlüssel | Pine kann externe Funding-/OI-REST-Daten nicht selbst laden. |
 
-- Keine Order-Ausführung.
-- Keine privaten API-Aufrufe oder Schlüssel.
-- Kein Positions- oder Kontomanagement.
-- Keine Profitabilitätsgarantie.
-- Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
-- TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
+Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bedeutet: Die Software funktioniert als Research-Werkzeug, aber die geprüfte Stichprobe liefert keinen belastbaren Profitabilitätsnachweis.
 
-AURA v1.1.8 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+## Dokumentation
+
+- [Interaktives Tutorial](SYMBIOSE_Tutorial.html)
+- [Modellvalidierung](SYMBIOSE_Model_Validation.md)
+- [Brand Design](docs/brand_design.md)
+- [Release Notes v1.2.2](RELEASE_v1.2.2.md)
+- [Release Checklist](RELEASE_CHECKLIST.md)
+- [Security Policy](SECURITY.md)
+
+## Lizenz
+
+Veröffentlicht unter der [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  <strong>AURA — Confluence Terminal</strong><br>
+  <sub>Research only · No order execution · No financial advice</sub>
+</p>

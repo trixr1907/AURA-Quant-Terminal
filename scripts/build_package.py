@@ -41,16 +41,13 @@ MANIFEST = [
     "bitget_relay.py",
     "Symbiose_Dashboard.html",
     "Symbiose_Signal_System_v1.pine",
-    # documentation
+    # documentation and brand assets
     "README.md",
-    "RELEASE_CHECKLIST.md",
-    "RELEASE_v1.1.8.md",
-    "RELEASE_v1.2.0.md",
-    "RELEASE_v1.2.1.md",
     "RELEASE_v1.2.2.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
-    # docker & containers
+    "assets/",
+    # optional Docker runtime
     "Dockerfile",
     "docker-compose.yml",
     "docker_start.sh",
@@ -59,23 +56,8 @@ MANIFEST = [
     "DOCKER_GUIDE.md",
     ".dockerignore",
     ".env.example",
-    # proxmox & homelab deployment
-    "proxmox_lxc_install.sh",
-    "smart_homelab_installer.sh",
-    "PROXMOX_DEPLOY.bat",
-    "PROXMOX_GUIDE.md",
-    "deep_infrastructure_scanner.sh",
-    # scripts
-    "scripts/release_check.py",
-    "scripts/build_package.py",
-    "scripts/sync_market_data.py",
-    # data — only the public static dataset; never recurse over data/
+    # public universe snapshot
     "data/bitget_usdt_futures_universe.json",
-    # tests + fixtures
-    "pytest.ini",
-    "tests/",
-    # Reference-oracle support imported by tests/reference_backtest.py
-    "tools/fold_geometry.js",
 ]
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".hermes", ".git", "node_modules"}
 EXCLUDE_SUFFIXES = {".pyc", ".png", ".log", ".zip"}
@@ -213,32 +195,10 @@ def guard() -> None:
 
 
 def smoke_test(extract_dir: Path) -> int:
-    """Non-browser smoke tests inside a clean extraction."""
+    """Runtime smoke tests inside a clean end-user extraction."""
     cmds = [
-        [sys.executable, "-m", "py_compile", "start.py", "bitget_relay.py", "tests/browser_research_harness.py"],
-        [sys.executable, "-m", "unittest", "tests/test_launcher.py"],
-        [sys.executable, "-m", "unittest", "tests/test_research_cleanup.py"],
-        ["node", "tests/test_radar_progressive.js"],
-        ["node", "tests/test_radar_snapshot.js"],
-        ["node", "tests/test_radar_persistence.js"],
-        ["node", "tests/test_autobot_entry_gate.js"],
-        ["node", "tests/test_autobot_selection.js"],
-        ["node", "tests/test_radar_refresh_cycle.js"],
-        ["node", "tests/test_autobot_timeframe_edge.js"],
-        ["node", "tests/test_autobot_statistical_edge.js"],
-        ["node", "tests/test_release_notes_overlay.js"],
-        ["node", "tests/test_autobot_revalidation_object.js"],
-        ["node", "tests/test_radar_continuous_cycle.js"],
-        ["node", "tests/test_timestop_timeframe_scaling.js"],
-        ["node", "tests/test_trade_clickable_data.js"],
-        ["node", "tests/test_autobot_profiles.js"],
-        ["node", "tests/test_tradingview_desktop_fallback.js"],
-        ["node", "tests/test_cross_device_sync.js"],
-        ["node", "tests/test_engine_full.js"],
-        [sys.executable, "tests/reference_backtest.py"],
-        [sys.executable, "-m", "unittest", "tests/test_relay_full.py"],
-        [sys.executable, "-m", "unittest", "tests/test_bitget_usdt_futures_universe.py"],
-        [sys.executable, "-m", "unittest", "tests/test_pine_structure_labels.py"],
+        [sys.executable, "-m", "py_compile", "start.py", "bitget_relay.py"],
+        [sys.executable, "-c", "import bitget_relay; assert bitget_relay.VERSION"],
     ]
     failed = 0
     for cmd in cmds:

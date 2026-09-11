@@ -20,6 +20,9 @@ class TestPineForecastOverlay(unittest.TestCase):
         self.assertIn('fcLineEntry := line.new', text)
         self.assertIn('fcBoxProfit := box.new', text)
         self.assertIn('fcBoxLoss   := box.new', text)
+        self.assertIn('max_boxes_count=500', text)
+        self.assertIn('max_labels_count=500', text)
+        self.assertIn('max_lines_count=500', text)
         self.assertIn('fcLabelCard := label.new', text)
 
 if __name__ == "__main__":
