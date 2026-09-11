@@ -44,6 +44,7 @@ MANIFEST = [
     # documentation
     "README.md",
     "RELEASE_CHECKLIST.md",
+    "RELEASE_v1.1.8.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     # docker & containers

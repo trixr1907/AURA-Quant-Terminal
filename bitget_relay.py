@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.1.7 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.1.8 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.1.7", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.1.8", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -35,7 +35,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.1.7"
+VERSION = "1.1.8"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -597,6 +597,16 @@ class RelayHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self._write_body(body)
 
+    def _send_text(self, body: bytes, status: int = 200):
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for k, v in CORS_HEADERS.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self._write_body(body)
+
     def _read_body(self) -> dict | None:
         try:
             length = int(self.headers.get("Content-Length", 0))
@@ -638,6 +648,12 @@ class RelayHandler(BaseHTTPRequestHandler):
                 self._send_html(tutorial.read_bytes())
             except OSError:
                 self._send_json({"code": "ERR_TUTORIAL_NOT_FOUND"}, 404)
+        elif path in ("/pine", "/Symbiose_Signal_System_v1.pine"):
+            pine_file = Path(__file__).resolve().with_name("Symbiose_Signal_System_v1.pine")
+            try:
+                self._send_text(pine_file.read_bytes())
+            except OSError:
+                self._send_json({"code": "ERR_PINE_NOT_FOUND"}, 404)
         elif path == "/serving":
             self._send_json({
                 "ok": True,
@@ -763,7 +779,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.1.7 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.1.8 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()

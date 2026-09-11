@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title AURA v1.1.7 - Zuverlaessiger CLI-Modus
+title AURA v1.1.8 - Zuverlaessiger CLI-Modus
 set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if not exist "%POWERSHELL%" (
     echo [FEHLER] Windows PowerShell wurde unter dem Systempfad nicht gefunden:

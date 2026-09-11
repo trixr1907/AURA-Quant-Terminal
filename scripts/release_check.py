@@ -402,6 +402,15 @@ def main() -> int:
     rc, out, err = run(["node", "tests/test_radar_top_candidates.js"])
     add(check("radar top candidates tiering", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_tradingview_link.js"])
+    add(check("tradingview link integration", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_tradingview_basic_qol.js"])
+    add(check("tradingview basic qol", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
+    rc, out, err = run(["node", "tests/test_tradingview_return_link.js"])
+    add(check("tradingview return link", "PASS" if rc == 0 else "FAIL",
+              (out or err).strip()[:300]))
     rc, out, err = run(["node", "tests/test_radar_focus_selection.js"])
     add(check("radar focus selection", "PASS" if rc == 0 else "FAIL",
               (out or err).strip()[:300]))

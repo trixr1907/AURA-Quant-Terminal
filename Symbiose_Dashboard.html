@@ -41,9 +41,11 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .cap-chg.up{color:var(--grn2)}
 .cap-chg.down{color:var(--red2)}
 .cap-reg{font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(148,163,184,.12);color:var(--mut)}
-.copy-intel-btn,.hero-copy-btn{height:28px;border:1px solid rgba(56,189,248,.35);border-radius:6px;background:rgba(56,189,248,.12);color:#38bdf8;padding:0 10px;font:800 10px var(--mono);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:.15s;text-transform:uppercase}
+.copy-intel-btn,.hero-copy-btn,.hero-tv-btn{height:28px;border:1px solid rgba(56,189,248,.35);border-radius:6px;background:rgba(56,189,248,.12);color:#38bdf8;padding:0 10px;font:800 10px var(--mono);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:.15s;text-transform:uppercase}
+.hero-tv-btn{border-color:rgba(59,130,246,.45);background:rgba(37,99,235,.15);color:#60a5fa}
+.hero-tv-btn:hover{background:rgba(37,99,235,.3);color:#fff;border-color:#38bdf8;box-shadow:0 0 10px rgba(59,130,246,.4)}
 .copy-intel-btn:hover,.hero-copy-btn:hover{background:rgba(56,189,248,.25);color:#fff;border-color:#38bdf8;box-shadow:0 0 10px rgba(56,189,248,.3)}
-.copy-intel-btn.copied,.hero-copy-btn.copied{background:rgba(45,212,191,.25);color:var(--grn2);border-color:var(--grn2)}
+.copy-intel-btn.copied,.hero-copy-btn.copied,.hero-tv-btn.copied{background:rgba(45,212,191,.25);color:var(--grn2);border-color:var(--grn2)}
 #hero{position:relative;overflow:hidden;background:linear-gradient(130deg,rgba(15,23,42,.95),rgba(8,14,23,.96));border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);transition:.25s}#hero.hero-go{border-color:rgba(45,212,191,.42);box-shadow:0 20px 65px rgba(45,212,191,.1)}#hero.hero-short{border-color:rgba(251,113,133,.42)}#hero.hero-wait{border-color:rgba(251,191,36,.3)}
 .hero-kicker{padding:13px 18px 0;color:var(--dim);font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase}.hero-inner{display:grid;grid-template-columns:132px minmax(0,1fr) 190px}.hero-go-col{padding:18px;display:flex;flex-direction:column;justify-content:center;gap:6px;border-right:1px solid var(--line)}.hero-go-label,.hero-size-label{color:var(--dim);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.hero-go-badge{font:900 25px/1 var(--mono)}.hero-go-badge.go{color:var(--grn2)}.hero-go-badge.short{color:var(--red2)}.hero-go-badge.wait{color:var(--amb)}.hero-go-badge.nogo{color:var(--dim)}.hero-go-sub{font:700 10px var(--mono);color:var(--mut)}
 .hero-main{padding:14px 20px 18px;display:flex;flex-direction:column;gap:12px}.hero-top-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.hero-coin{font:900 34px/1 var(--mono);letter-spacing:-.05em}.hero-coin small{display:block;margin-top:5px;color:var(--dim);font:600 10px var(--sans);letter-spacing:.04em}.hero-dir-badge,.hero-score-chip,.hero-when-chip,.hero-kelly-chip,.badge{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border-radius:999px;font:800 10px var(--mono);letter-spacing:.04em}.hero-dir-badge.long,.badge.long{background:rgba(45,212,191,.12);color:var(--grn2)}.hero-dir-badge.short,.badge.short{background:rgba(251,113,133,.12);color:var(--red2)}.hero-dir-badge.none,.badge.open{background:rgba(148,163,184,.08);color:var(--mut)}.hero-score-chip{background:rgba(56,189,248,.1);color:#7dd3fc}.hero-when-chip.now{background:rgba(45,212,191,.12);color:var(--grn2)}.hero-when-chip.wait{background:rgba(251,191,36,.1);color:var(--amb)}.hero-when-chip.none{background:rgba(148,163,184,.07);color:var(--dim)}
@@ -55,6 +57,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .hero-top-chip.active{border-color:#38bdf8;background:rgba(56,189,248,.14);color:#38bdf8}
 .hero-top-chip.bull{border-left:3px solid var(--grn2)}
 .hero-top-chip.bear{border-left:3px solid var(--red2)}
+.tv-basic-panel{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(59,130,246,.3);border-radius:12px;background:linear-gradient(135deg,rgba(37,99,235,.09),rgba(56,189,248,.035));display:grid;gap:10px}.tv-basic-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.tv-basic-head h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase}.tv-basic-badge{padding:4px 8px;border:1px solid rgba(74,222,128,.35);border-radius:999px;color:var(--grn2);background:rgba(34,197,94,.1);font:800 9px var(--mono)}.tv-basic-controls,.tv-basic-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.tv-basic-controls label{display:flex;align-items:center;gap:5px;color:var(--dim);font-size:10px}.tv-basic-controls select,.tv-basic-controls input{height:29px;border:1px solid var(--line);border-radius:7px;background:rgba(15,23,42,.9);color:var(--txt);padding:0 8px;font:700 10px var(--mono)}.tv-basic-controls input{width:135px}.tv-basic-actions button{height:29px;border:1px solid rgba(59,130,246,.35);border-radius:7px;background:rgba(37,99,235,.12);color:#7dd3fc;padding:0 9px;font:800 9.5px var(--mono);cursor:pointer}.tv-basic-actions button:hover{border-color:#38bdf8;color:#fff}.tv-basic-actions button:disabled{opacity:.38;cursor:not-allowed;border-color:var(--line)}.tv-basic-help{color:var(--dim);font-size:9.5px;line-height:1.45}.tv-basic-status{min-height:14px;color:var(--cyn);font:700 9.5px var(--mono)}
 .pricestrip{display:grid;grid-template-columns:1.25fr repeat(9,minmax(78px,1fr));background:rgba(11,17,27,.82);border:1px solid var(--line);border-radius:12px;overflow:hidden}.pricestrip>div{min-width:0;padding:9px 11px;border-right:1px solid var(--line)}.pricestrip>div:last-child{border:0}.pricestrip .px{font:900 19px var(--mono)}.pricestrip .lbl,.kv span{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.kv b{display:block;overflow:hidden;text-overflow:ellipsis;font:700 11px var(--mono);white-space:nowrap}
 .radar-head{padding:14px;border-bottom:1px solid var(--line)}.radar-headline{display:flex;align-items:center;gap:8px}.radar-headline h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase}.radar-sub{margin-top:4px;color:var(--dim);font-size:10.5px}.radar-tabs{padding:9px 10px;display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid var(--line)}.radar-tab{border:0;background:transparent;color:var(--dim);padding:5px 7px;border-radius:6px;font:700 10px var(--mono);cursor:pointer;white-space:nowrap}.radar-tab:hover{background:rgba(148,163,184,.07);color:var(--txt)}.radar-tab.on{background:rgba(56,189,248,.1);color:#7dd3fc}#radarlist{padding:8px;overflow-y:auto;min-height:180px;flex:1}.radar-progress{height:3px;background:rgba(148,163,184,.08)}.radar-progress i{display:block;height:100%;background:linear-gradient(90deg,var(--cyn),var(--grn));transition:width .2s}.radar-progress-copy{padding:7px 11px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;color:var(--dim);font:10px var(--mono)}.radar-group{margin-bottom:10px}.radar-group-title{position:sticky;top:-8px;z-index:2;padding:7px 6px;background:rgba(11,17,27,.97);color:var(--dim);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.radar-row{display:grid;grid-template-columns:47px minmax(0,1fr) 34px;grid-template-areas:"sym badge score" "pills pills pills";align-items:center;gap:5px 7px;padding:9px 8px;border-radius:9px;cursor:pointer;transition:.14s}.radar-row:hover{background:rgba(148,163,184,.075)}.rr-sym{grid-area:sym;font:900 11px var(--mono)}.radar-row>.badge{grid-area:badge;justify-self:start;min-height:20px;padding:0 6px}.rr-score{grid-area:score;text-align:right;font:800 10px var(--mono)}.rr-tf-pills{grid-area:pills;display:flex;gap:3px}.rr-pill{padding:2px 5px;border-radius:4px;background:rgba(148,163,184,.07);color:var(--dim);font:700 10px var(--mono)}.rr-pill.bull{background:rgba(45,212,191,.1);color:var(--grn2)}.rr-pill.bear{background:rgba(251,113,133,.1);color:var(--red2)}
 .validation-grid{display:grid;grid-template-columns:minmax(0,1.0.05fr) minmax(300px,.75fr);gap:14px}.chartcard{min-width:0}.chart-body{padding:10px}#chart{width:100%;height:560px;display:block;border-radius:9px;background:#080d15;cursor:crosshair}.chartleg{display:flex;gap:5px;flex-wrap:wrap;padding:9px 2px 0}.chartleg span{padding:4px 7px;border-radius:6px;background:rgba(148,163,184,.05);color:var(--mut);font-size:10px;cursor:pointer}.chartleg span:hover{background:rgba(148,163,184,.1)}.chartleg span.off{opacity:.35;text-decoration:line-through}.chartleg i{display:inline-block;width:9px;height:2px;margin-right:4px}.chartfoot{padding:8px 2px 0;display:flex;align-items:center;gap:6px;color:var(--dim);font-size:10px}.cbtn{border:0;border-radius:5px;background:rgba(148,163,184,.07);color:var(--mut);padding:3px 7px;font:700 10px var(--mono);cursor:pointer}.cbtn:hover{color:var(--txt);background:rgba(148,163,184,.13)}#barslider{flex:1}
@@ -358,6 +361,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="hero-paper-btn" id="btn-paper-trade" type="button" disabled title="Paper-Simulation erst nach vollständiger Live-Freigabe möglich">⚡ Paper-Simulation gesperrt</button>
             <button class="hero-copy-btn" id="btn-hero-copy" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button>
+            <button class="hero-tv-btn" id="btn-hero-tv" type="button" title="Öffnet den geladenen Coin mit Timeframe in TradingView und kopiert das Pine Script">📊 In TradingView öffnen</button>
             <button class="hero-paper-btn" id="hero-radar-open" type="button" aria-controls="radarcard" aria-expanded="false">⌁ Action Radar</button>
             <div class="hero-why" id="hero-why" style="flex:1;margin:0">Scanne Markt …</div><div style="width:100%;color:var(--amb);font-size:10px;font-weight:800">Globale Release-Wahrheit: MODEL_NO_EVIDENCE — lokales Setup ist keine global validierte Strategie.</div>
           </div>
@@ -372,15 +376,36 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       <div class="hero-source" id="hero-source"><span class="source-label">Radar-Kontext</span><span id="hero-source-tfs"></span><span id="hero-source-aligned"></span><span id="hero-btc-block" style="color:var(--amb);font-weight:700;display:none">BTC-Regime-Block</span><span class="hero-radar-link" id="hero-radar-link" role="button" tabindex="0" aria-controls="radarcard" aria-expanded="false">Radar öffnen →</span></div>
     </section>
 
+    <section class="tv-basic-panel" id="tv-basic-panel" aria-labelledby="tv-basic-title">
+      <div class="tv-basic-head"><h2 id="tv-basic-title">📊 TradingView Bridge</h2><span class="tv-basic-badge">✓ BASIC / FREE KOMPATIBEL</span><span class="tag" id="tv-current-symbol">BITGET:BTCUSDT.P · 1H</span></div>
+      <div class="tv-basic-controls">
+        <label>Markt <select id="tv-market"><option value="bitget_perp">Bitget Perpetual</option><option value="binance_perp">Binance Perpetual</option><option value="bitget_spot">Bitget Spot</option></select></label>
+        <label>Gespeichertes Layout <input id="tv-layout" type="text" maxlength="80" placeholder="optional: AbC123" aria-label="TradingView Layout-ID"></label>
+        <button class="cbtn" id="tv-save-settings" type="button">Speichern</button>
+      </div>
+      <div class="tv-basic-actions">
+        <button id="tv-open-current" type="button">📊 Coin + Pine öffnen</button>
+        <button id="tv-prev-setup" type="button">← Voriges Setup</button>
+        <button id="tv-next-setup" type="button">Nächstes Setup →</button>
+        <button id="tv-copy-top30" type="button">📋 Top-30 Symbole</button>
+        <button id="tv-copy-longs" type="button">▲ LONG-Liste</button>
+        <button id="tv-copy-shorts" type="button">▼ SHORT-Liste</button>
+        <button id="tv-copy-alerts" type="button">⏰ 3 Preisalarme</button>
+        <button id="tv-copy-note" type="button">📝 Setup-Notiz</button>
+      </div>
+      <div class="tv-basic-help">Free-only Workflow: ein Chart, ein gespeichertes AURA-Layout, ein All-in-one-Pine-Indikator und maximal 30 Symbole. Preisalarme werden nur als kopierbare Entry-/Stop-/TP1-Vorlage vorbereitet; AURA legt keine Premium- oder Webhook-Alarme an. Layout-ID: der Teil direkt nach <b>/chart/</b> in deiner gespeicherten TradingView-URL.</div>
+      <div class="tv-basic-status" id="tv-basic-status" role="status">Bereit · kein TradingView-Abo erforderlich</div>
+    </section>
+
     <section class="pricestrip" id="pricestrip" aria-label="Setup-Metriken">
       <div><div class="px" id="ps-price">—</div><div class="lbl">Preis · <span id="ps-sym">BTCUSDT</span></div></div>
       <div class="kv"><span>24h</span><b id="ps-chg">—</b></div><div class="kv"><span>Hoch</span><b id="ps-hi">—</b></div><div class="kv"><span>Tief</span><b id="ps-lo">—</b></div><div class="kv"><span>Volumen</span><b id="ps-vol">—</b></div><div class="kv"><span>ATR 14</span><b id="ps-atr">—</b></div><div class="kv"><span>Regime</span><b id="ps-reg">—</b></div><div class="kv"><span>Funding</span><b id="ps-fund">—</b></div><div class="kv"><span>Open Interest</span><b id="ps-oi">—</b></div><div class="kv"><span>Basis</span><b id="ps-basis">—</b></div>
     </section>
 
     <section class="validation-grid" aria-label="Chart und Setup-Validierung">
-      <article class="panel chartcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Chart &amp; Price Action</h2><div id="chart-asset-badge" class="chart-asset-pill"><span class="cap-sym" id="cap-sym">BTCUSDT</span><span class="cap-tf" id="cap-tf">1H</span><span class="cap-px" id="cap-px">—</span><span class="cap-chg" id="cap-chg">—</span><span class="cap-reg" id="cap-reg">—</span></div><span class="tag" id="chart-src" style="margin-left:auto">—</span></div><div class="chart-body"><canvas id="chart"></canvas><div class="chartleg" id="chartleg"><span data-ov="e20"><i style="background:#22d3ee"></i>EMA 20</span><span data-ov="e50"><i style="background:#f59e0b"></i>EMA 50</span><span data-ov="e200"><i style="background:#a855f7"></i>EMA 200</span><span data-ov="st"><i style="background:#22c55e"></i>SuperTrend</span><span data-ov="vwap"><i style="background:#e2e8f0"></i>VWAP</span><span data-ov="vol"><i style="background:#3b82f6"></i>Volumen</span><span data-ov="fvg"><i style="background:rgba(34,197,94,.8)"></i>FVG Zonen</span><span data-ov="liq"><i style="background:#f59e0b"></i>EQH/EQL Pools</span><span data-ov="kz"><i style="background:rgba(56,189,248,.6)"></i>Killzones</span></div><div class="chartfoot"><span>Bars</span><button class="cbtn" id="btn-zoom-in">+</button><button class="cbtn" id="btn-zoom-out">−</button><button class="cbtn" id="btn-zoom-100">100</button><button class="cbtn" id="btn-zoom-260">260</button><button class="cbtn" id="btn-zoom-500">500</button><input type="range" id="barslider" min="60" max="600" value="260" step="10"><span id="barsval">260</span><span>Scroll = Zoom · Hover = Detail</span></div></div></article>
+      <article class="panel chartcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Chart &amp; Price Action</h2><div id="chart-asset-badge" class="chart-asset-pill"><span class="cap-sym" id="cap-sym">BTCUSDT</span><span class="cap-tf" id="cap-tf">1H</span><span class="cap-px" id="cap-px">—</span><span class="cap-chg" id="cap-chg">—</span><span class="cap-reg" id="cap-reg">—</span></div><button class="copy-intel-btn" id="btn-chart-tv" type="button" style="margin-left:auto;background:rgba(37,99,235,.15);border-color:rgba(59,130,246,.4);color:#60a5fa" title="Öffnet den aktuellen Coin mit Timeframe in TradingView und kopiert das Pine Script">📊 TradingView</button><span class="tag" id="chart-src">—</span></div><div class="chart-body"><canvas id="chart"></canvas><div class="chartleg" id="chartleg"><span data-ov="e20"><i style="background:#22d3ee"></i>EMA 20</span><span data-ov="e50"><i style="background:#f59e0b"></i>EMA 50</span><span data-ov="e200"><i style="background:#a855f7"></i>EMA 200</span><span data-ov="st"><i style="background:#22c55e"></i>SuperTrend</span><span data-ov="vwap"><i style="background:#e2e8f0"></i>VWAP</span><span data-ov="vol"><i style="background:#3b82f6"></i>Volumen</span><span data-ov="fvg"><i style="background:rgba(34,197,94,.8)"></i>FVG Zonen</span><span data-ov="liq"><i style="background:#f59e0b"></i>EQH/EQL Pools</span><span data-ov="kz"><i style="background:rgba(56,189,248,.6)"></i>Killzones</span></div><div class="chartfoot"><span>Bars</span><button class="cbtn" id="btn-zoom-in">+</button><button class="cbtn" id="btn-zoom-out">−</button><button class="cbtn" id="btn-zoom-100">100</button><button class="cbtn" id="btn-zoom-260">260</button><button class="cbtn" id="btn-zoom-500">500</button><input type="range" id="barslider" min="60" max="600" value="260" step="10"><span id="barsval">260</span><span>Scroll = Zoom · Hover = Detail</span></div></div></article>
       <div class="research-stack">
-        <article class="panel sigcard" id="sigcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Setup Validation</h2><div id="sig-asset-badge" class="sig-asset-pill"><span class="cap-sym" id="sig-sym-badge">BTCUSDT</span><span class="tag ok" id="sig-tf">1H</span></div><button class="copy-intel-btn" id="btn-copy-setup" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button></div><div class="panel-body"><div class="sighead"><div class="gaugewrap"><svg id="gauge" viewBox="0 0 200 120"></svg></div><div class="sigmain"><div id="sigscoren">— <small>/100</small></div><div id="sigstrength">—</div><div id="sigbadge">LADE…</div><div id="sigplain">Lade Daten …</div></div></div><div class="subscores"><div class="subrow"><span>Trend</span><div class="sbar"><i id="sb-trend"></i></div><b id="n-trend">—</b></div><div class="subrow"><span>Momentum</span><div class="sbar"><i id="sb-mom"></i></div><b id="n-mom">—</b></div><div class="subrow"><span>Volumen</span><div class="sbar"><i id="sb-vol"></i></div><b id="n-vol">—</b></div><div class="subrow"><span>Struktur</span><div class="sbar"><i id="sb-str"></i></div><b id="n-str">—</b></div><div class="subrow"><span>Funding Z</span><div class="sbar"><i id="sb-fund"></i></div><b id="n-fund">—</b></div><div class="subrow"><span>OI</span><div class="sbar"><i id="sb-oi"></i></div><b id="n-oi">—</b></div></div><div class="spark"><canvas id="scspark"></canvas></div><div class="trades" id="trades"></div></div></article>
+        <article class="panel sigcard" id="sigcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Setup Validation</h2><div id="sig-asset-badge" class="sig-asset-pill"><span class="cap-sym" id="sig-sym-badge">BTCUSDT</span><span class="tag ok" id="sig-tf">1H</span></div><button class="copy-intel-btn" id="btn-copy-setup" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button><button class="copy-intel-btn" id="btn-sig-tv" type="button" style="background:rgba(37,99,235,.15);border-color:rgba(59,130,246,.4);color:#60a5fa" title="Öffnet das aktuelle Setup in TradingView und kopiert das Pine Script">📊 TV</button></div><div class="panel-body"><div class="sighead"><div class="gaugewrap"><svg id="gauge" viewBox="0 0 200 120"></svg></div><div class="sigmain"><div id="sigscoren">— <small>/100</small></div><div id="sigstrength">—</div><div id="sigbadge">LADE…</div><div id="sigplain">Lade Daten …</div></div></div><div class="subscores"><div class="subrow"><span>Trend</span><div class="sbar"><i id="sb-trend"></i></div><b id="n-trend">—</b></div><div class="subrow"><span>Momentum</span><div class="sbar"><i id="sb-mom"></i></div><b id="n-mom">—</b></div><div class="subrow"><span>Volumen</span><div class="sbar"><i id="sb-vol"></i></div><b id="n-vol">—</b></div><div class="subrow"><span>Struktur</span><div class="sbar"><i id="sb-str"></i></div><b id="n-str">—</b></div><div class="subrow"><span>Funding Z</span><div class="sbar"><i id="sb-fund"></i></div><b id="n-fund">—</b></div><div class="subrow"><span>OI</span><div class="sbar"><i id="sb-oi"></i></div><b id="n-oi">—</b></div></div><div class="spark"><canvas id="scspark"></canvas></div><div class="trades" id="trades"></div></div></article>
         <section class="time-stop-optimizer" id="time-stop-optimizer" aria-labelledby="time-stop-title"><div><b id="time-stop-title">Time-Stop Optimizer</b><span>Testet für den aktuell geladenen Coin 5–30 Bars im Anchored Walk-Forward und übernimmt das beste DSR-/Erwartungs-Ergebnis.</span></div><button class="act" id="auto-timestop" type="button" title="Time-Stop für das aktuelle Setup automatisch optimieren">⚡ Auto-Optimiere Time-Stop</button><span id="timestop-status" role="status">Bereit · aktueller Wert: 15 Bars</span></section>
         <article class="panel"><div class="panel-head"><h2>Liquidity &amp; Structure</h2><span class="tag">Validation</span></div><div class="panel-body" id="liqlist"></div></article>
       </div>
@@ -705,15 +730,16 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.7?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.8?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update fokussiert die <b>Setup-Discovery und Edge-Auswahl</b> direkt im Cockpit: Die stärksten Marktchancen werden unmittelbar im Hero-Widget serviert und im Action Radar intelligent nach Ausführbarkeit und Signalstärke priorisiert.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt eine <b>TradingView Basic / Free Bridge</b> ins Cockpit: Coin, Timeframe, Pine Script, Radar-Navigation und manuelle Preisalarm-Vorlagen spielen ohne Premium-Funktionen zusammen.</p>
     <ul style="color:var(--txt);line-height:1.6;margin:0 0 18px;padding-left:20px">
-      <li><b>Top-Setups Quick-Picks im Hero-Widget:</b> Bis zu 4 Top-Kandidaten aus dem Radar-Scan werden direkt im Footer der Hero-Opportunity als interaktive 1-Klick-Chips angezeigt. Ein Klick startet sofort den 1.500-Kerzen Walk-Forward und ermittelt den Kelly-Edge.</li>
-      <li><b>Smarte 3-Stufen Radar-Gruppierung:</b> Saubere Trennung in <i>🔥 Hot Setups (Ausführbar)</i>, <i>🎯 Top Setup-Kandidaten</i> und <i>👀 Watchlist & Universum</i> im 🎯 Top-Edge-Modus.</li>
-      <li><b>Echter Timeframe-Score im Radar:</b> In der Gesamtansicht (<tt>all</tt>) zeigt die Score-Spalte den aussagekräftigen Score des stärksten Timeframes (z. B. <tt>86.0 4h</tt>) statt eines verwässerten Durchschnitts.</li>
-      <li><b>Verifizierte Modellintegrität:</b> Vollständige deterministische Suite-Abdeckung, strenge Fail-Closed Gates und unverändertes reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
+      <li><b>Coin + Pine mit einem Klick:</b> Öffnet Bitget Perpetual, Binance Perpetual oder Bitget Spot im aktuellen Timeframe und kopiert das vollständige Pine-v6-Script.</li>
+      <li><b>Ein kostenloses AURA-Layout:</b> Eine optionale TradingView-Layout-ID wird lokal gespeichert und beim Öffnen wiederverwendet.</li>
+      <li><b>Radar-Navigation &amp; Listen:</b> Voriges/nächstes Top-Setup sowie kopierbare Top-30-, LONG- und SHORT-Listen mit hartem Basic-Limit.</li>
+      <li><b>Preisalarm-Assistent &amp; Rücksprung:</b> Kopiert Entry-, Stop- und TP1-Vorlagen sowie eine Setup-Notiz mit sicher validiertem AURA-Link; keine Webhooks oder Premium-Alarme.</li>
+      <li><b>Unveränderte Modellintegrität:</b> Frische Revalidierung beim Rücksprung, strenge Fail-Closed Gates und reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -722,7 +748,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.1.7</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.1.8</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2214,6 +2240,7 @@ const App = {
   spec: null, specSym: null,                 // Bitget-Kontrakt-Specs (gecacht)
   fees: { taker: null, maker: null }, slippage: 0,
   data: { chart: null, mtf: {}, ticker: null, fng: null, cg: null, crypto: null, wf: null, bt: [], probMap: null, live: null },
+  tradingView: { market: 'bitget_perp', layout: '' }, // TradingView Basic: one preferred market and optional saved layout
   universe: null,                              // dynamische Top-Coins aus Bitget-Tickern (Sort nach 24h-Volumen)
   radarTF: 'all',                              // aktiver Filter im Signal-Radar ('all' | '15m' | '1h' | '4h' | '1d')
   gen: 0,                                      // monotonic load-generation token: guards against stale async writes
@@ -2231,6 +2258,18 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 // ============================================================================
 //  DATA-LOADING
 // ============================================================================
+function applyTradingViewContextFromUrl(search = null) {
+  const query = search == null && typeof location !== 'undefined' ? location.search : search;
+  const params = new URLSearchParams(String(query || ''));
+  if (params.get('source') !== 'tradingview') return false;
+  const symbol = String(params.get('symbol') || '').toUpperCase();
+  const tf = String(params.get('tf') || '').toLowerCase();
+  if (!/^[A-Z0-9_-]{3,30}USDT$/.test(symbol) || !['15m', '1h', '4h', '1d'].includes(tf)) return false;
+  App.symbol = symbol;
+  App.chartTF = tf;
+  return true;
+}
+
 async function loadChartData() {
   const gen = App.gen;            // generation token: discard if a newer load started
   const sym = App.symbol;
@@ -2993,6 +3032,310 @@ Generiert: ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC (AURA 
     fallbackCopy(text);
     triggerFeedback(buttonEl);
   }
+}
+
+function mapTradingViewInterval(tf) {
+  const tfMap = {
+    '15m': '15',
+    '1h': '60',
+    '4h': '240',
+    '1d': 'D'
+  };
+  return tfMap[String(tf || '').toLowerCase()] || '60';
+}
+
+const TRADINGVIEW_SETTINGS_KEY = 'aura-tradingview-settings-v1';
+let tradingViewPineText = '';
+let tradingViewPineLoad = null;
+const TRADINGVIEW_MARKETS = {
+  bitget_perp: { exchange: 'BITGET', suffix: '.P' },
+  binance_perp: { exchange: 'BINANCE', suffix: '.P' },
+  bitget_spot: { exchange: 'BITGET', suffix: '' }
+};
+
+function normalizeTradingViewSettings(settings = {}) {
+  const market = Object.prototype.hasOwnProperty.call(TRADINGVIEW_MARKETS, settings.market)
+    ? settings.market : 'bitget_perp';
+  const layout = String(settings.layout || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+  return { market, layout };
+}
+
+function loadTradingViewSettings() {
+  try {
+    return normalizeTradingViewSettings(JSON.parse(localStorage.getItem(TRADINGVIEW_SETTINGS_KEY) || '{}'));
+  } catch (_) {
+    return normalizeTradingViewSettings();
+  }
+}
+
+function saveTradingViewSettings(settings) {
+  const normalized = normalizeTradingViewSettings(settings);
+  App.tradingView = normalized;
+  try { localStorage.setItem(TRADINGVIEW_SETTINGS_KEY, JSON.stringify(normalized)); } catch (_) {}
+  return normalized;
+}
+
+function formatTradingViewSymbol(sym, market = 'bitget_perp') {
+  const raw = String(sym || 'BTCUSDT').toUpperCase().trim();
+  const qualified = raw.match(/^([A-Z0-9_]+):([A-Z0-9_-]+(?:\.P)?)$/);
+  if (qualified) return `${qualified[1]}:${qualified[2]}`;
+  const clean = raw.replace(/[^A-Z0-9_-]/g, '').replace(/\.P$/, '');
+  const marketInfo = TRADINGVIEW_MARKETS[market] || TRADINGVIEW_MARKETS.bitget_perp;
+  return `${marketInfo.exchange}:${clean}${marketInfo.suffix}`;
+}
+
+function buildTradingViewUrl(sym, tf, settings = {}) {
+  const normalized = normalizeTradingViewSettings(settings);
+  const tvSym = formatTradingViewSymbol(sym, normalized.market);
+  const interval = mapTradingViewInterval(tf);
+  const layoutPath = normalized.layout ? `${normalized.layout}/` : '';
+  return `https://www.tradingview.com/chart/${layoutPath}?symbol=${encodeURIComponent(tvSym)}&interval=${interval}`;
+}
+
+function selectTradingViewCandidates(rows, options = {}) {
+  const limit = Math.min(30, Math.max(1, Number(options.limit) || 30));
+  const direction = Number(options.direction) || 0;
+  const seen = new Set();
+  const candidates = (rows || [])
+    .filter(row => row && row.symbol && !row.incomplete && !row.btcBlock)
+    .filter(row => row.executable || row.bestInfo?.candidate || row.bestInfo?.status === 'watch')
+    .filter(row => !direction || Number(row.bestInfo?.dir ?? row.mtfDir ?? 0) === direction);
+  const fallback = (rows || [])
+    .filter(row => row && row.symbol && !row.incomplete && !row.btcBlock)
+    .filter(row => !direction || Number(row.bestInfo?.dir ?? row.mtfDir ?? 0) === direction);
+  const source = candidates.length ? candidates : fallback;
+  return source
+    .slice()
+    .sort((a, b) => (Number(b.rankScore) || 0) - (Number(a.rankScore) || 0))
+    .filter(row => {
+      if (seen.has(row.symbol)) return false;
+      seen.add(row.symbol);
+      return true;
+    })
+    .slice(0, limit);
+}
+
+function buildTradingViewWatchlist(rows, market = 'bitget_perp') {
+  return selectTradingViewCandidates(rows, { limit: 30 })
+    .map(row => formatTradingViewSymbol(row.symbol, market))
+    .join('\n');
+}
+
+function buildAuraReturnUrl(symbol, timeframe, origin = '') {
+  const base = String(origin || (typeof location !== 'undefined' ? location.origin : '') || 'http://127.0.0.1:8765').replace(/\/$/, '');
+  const params = new URLSearchParams({
+    symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+    tf: String(timeframe || '1h').toLowerCase(),
+    source: 'tradingview'
+  });
+  return `${base}/?${params.toString()}`;
+}
+
+function tradingViewDirection(live) {
+  if (live?.longSig) return 'LONG';
+  if (live?.shortSig) return 'SHORT';
+  return 'KEIN AKTIVES SIGNAL';
+}
+
+function buildTradingViewPriceAlerts({ symbol, timeframe, live, origin } = {}) {
+  if (!live) return [];
+  const sym = String(symbol || 'BTCUSDT').toUpperCase();
+  const tf = String(timeframe || '1h').toLowerCase();
+  const link = buildAuraReturnUrl(sym, tf, origin);
+  const values = [['ENTRY', live.entry], ['STOP', live.sl], ['TP1', live.tp1]];
+  return values.filter(([, price]) => Number.isFinite(Number(price)) && Number(price) > 0).map(([kind, price]) => ({
+    kind,
+    price: Number(price),
+    message: `AURA ${kind} · ${sym} · ${tf.toUpperCase()} · ${tradingViewDirection(live)} · ${Number(price)} · ${link}`
+  }));
+}
+
+function buildTradingViewSetupNote({ symbol, timeframe, live, origin, nowIso } = {}) {
+  const sym = String(symbol || 'BTCUSDT').toUpperCase();
+  const tf = String(timeframe || '1h').toUpperCase();
+  const safe = value => Number.isFinite(Number(value)) ? Number(value) : '—';
+  const edge = live?.kelly?.hasEdge && Number.isFinite(Number(live.kelly.edge))
+    ? `+${Number(live.kelly.edge).toFixed(1)}% (lokal gemessen, keine globale Strategie-Evidenz)`
+    : 'nicht nachgewiesen';
+  return [
+    `AURA · ${sym} · ${tf}`,
+    `Richtung: ${tradingViewDirection(live)}`,
+    `Entry: ${safe(live?.entry)}`,
+    `SL: ${safe(live?.sl)}`,
+    `TP1 / TP2 / TP3: ${safe(live?.tp1)} / ${safe(live?.tp2)} / ${safe(live?.tp3)}`,
+    `Score / MTF: ${safe(live?.total)} / ${safe(live?.aligned)}/4`,
+    `Edge: ${edge}`,
+    `Geprüft: ${nowIso || new Date().toISOString()}`,
+    `AURA-Link: ${buildAuraReturnUrl(sym, timeframe, origin)}`,
+    'Research only · MODEL_NO_EVIDENCE · keine Anlageberatung'
+  ].join('\n');
+}
+
+function preloadTradingViewPine() {
+  if (tradingViewPineText) return Promise.resolve(tradingViewPineText);
+  if (tradingViewPineLoad) return tradingViewPineLoad;
+  tradingViewPineLoad = fetch('/Symbiose_Signal_System_v1.pine', { cache: 'force-cache' })
+    .then(resp => resp.ok ? resp.text() : '')
+    .then(text => {
+      tradingViewPineText = text && text.includes('Pine Script') ? text : '';
+      return tradingViewPineText;
+    })
+    .catch(() => '')
+    .finally(() => { tradingViewPineLoad = null; });
+  return tradingViewPineLoad;
+}
+
+function getTradingViewPineText() {
+  return tradingViewPineText;
+}
+
+async function openInTradingView(symbol, timeframe, btn = null) {
+  const sym = symbol || App.symbol || 'BTCUSDT';
+  const tf = timeframe || App.chartTF || '1h';
+  const tvUrl = buildTradingViewUrl(sym, tf, App.tradingView || {});
+  const pineText = getTradingViewPineText();
+  let pineCopied = false;
+  let clipboardWrite = null;
+
+  // Start the clipboard request inside the original click activation, but do
+  // not await it before opening the tab: both privileged calls are initiated
+  // synchronously from the same user gesture.
+  if (pineText) {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        clipboardWrite = navigator.clipboard.writeText(pineText);
+      } else {
+        fallbackCopy(pineText);
+        pineCopied = true;
+      }
+    } catch (_) {
+      try { fallbackCopy(pineText); pineCopied = true; } catch (_) {}
+    }
+  }
+
+  let opened = null;
+  if (typeof window !== 'undefined' && typeof window.open === 'function') {
+    opened = window.open(tvUrl, '_blank');
+    if (opened) opened.opener = null;
+  }
+
+  if (clipboardWrite) {
+    try {
+      await clipboardWrite;
+      pineCopied = true;
+    } catch (_) {
+      try { fallbackCopy(pineText); pineCopied = true; } catch (_) {}
+    }
+  }
+
+  if (!pineText) preloadTradingViewPine();
+
+  if (btn) {
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = pineCopied ? '✓ Pine kopiert & TV geöffnet!' : '✓ TV geöffnet · Pine nicht kopiert';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.innerHTML = origHtml;
+      btn.classList.remove('copied');
+    }, 2400);
+  }
+
+  return { opened: !!opened, pineCopied, url: tvUrl };
+}
+
+function setTradingViewStatus(message, isError = false) {
+  const el = $('tv-basic-status');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red2)' : 'var(--cyn)';
+}
+
+function renderTradingViewBridge() {
+  const settings = App.tradingView || normalizeTradingViewSettings();
+  const market = $('tv-market'), layout = $('tv-layout'), badge = $('tv-current-symbol');
+  if (market) market.value = settings.market;
+  if (layout && document.activeElement !== layout) layout.value = settings.layout;
+  if (badge) badge.textContent = `${formatTradingViewSymbol(App.symbol, settings.market)} · ${String(App.chartTF).toUpperCase()}`;
+  const candidates = selectTradingViewCandidates(App.data.radar || []);
+  const index = candidates.findIndex(row => row.symbol === App.symbol);
+  const prev = $('tv-prev-setup'), next = $('tv-next-setup');
+  if (prev) prev.disabled = candidates.length < 2 || index < 0;
+  if (next) next.disabled = candidates.length < 2;
+}
+
+function tradingViewCandidateStep(direction) {
+  const candidates = selectTradingViewCandidates(App.data.radar || []);
+  if (!candidates.length) {
+    setTradingViewStatus('Noch keine Radar-Kandidaten verfügbar.', true);
+    return false;
+  }
+  let index = candidates.findIndex(row => row.symbol === App.symbol);
+  if (index < 0) index = direction > 0 ? -1 : 0;
+  const target = candidates[(index + direction + candidates.length) % candidates.length];
+  switchToAsset(target.symbol, target.bestTF || '1h');
+  setTradingViewStatus(`${target.symbol} · ${String(target.bestTF || '1h').toUpperCase()} geladen — TradingView-Button ist bereit.`);
+  return true;
+}
+
+function copyTradingViewList(direction = 0, button = null) {
+  const rows = selectTradingViewCandidates(App.data.radar || [], { limit: 30, direction });
+  if (!rows.length) {
+    setTradingViewStatus('Keine passenden vollständigen Radar-Zeilen verfügbar.', true);
+    return false;
+  }
+  const text = buildTradingViewWatchlist(rows, App.tradingView?.market || 'bitget_perp');
+  copyTextToClipboard(text, button);
+  setTradingViewStatus(`${rows.length} TradingView-Symbole kopiert (Basic-Limit: 30).`);
+  return true;
+}
+
+function copyTradingViewAlerts(button = null) {
+  const alerts = buildTradingViewPriceAlerts({
+    symbol: App.symbol, timeframe: App.chartTF, live: App.data.live,
+    origin: typeof location !== 'undefined' ? location.origin : ''
+  });
+  if (alerts.length !== 3) {
+    setTradingViewStatus('Entry, Stop und TP1 sind noch nicht vollständig berechnet.', true);
+    return false;
+  }
+  const text = alerts.map(alert => `${alert.kind}\nPreis: ${alert.price}\nNachricht: ${alert.message}`).join('\n\n');
+  copyTextToClipboard(text, button);
+  setTradingViewStatus('Drei kostenlose Preisalarm-Vorlagen kopiert: Entry, Stop und TP1.');
+  return true;
+}
+
+function copyTradingViewNote(button = null) {
+  const text = buildTradingViewSetupNote({
+    symbol: App.symbol, timeframe: App.chartTF, live: App.data.live,
+    origin: typeof location !== 'undefined' ? location.origin : ''
+  });
+  copyTextToClipboard(text, button);
+  setTradingViewStatus('Setup-Notiz mit AURA-Rücksprung-Link kopiert.');
+  return true;
+}
+
+function bindTradingViewBridge() {
+  App.tradingView = loadTradingViewSettings();
+  preloadTradingViewPine().then(text => {
+    if (text) setTradingViewStatus('Bereit · Pine Script vorgeladen · kein TradingView-Abo erforderlich');
+  });
+  const market = $('tv-market'), layout = $('tv-layout');
+  const persist = () => {
+    saveTradingViewSettings({ market: market?.value, layout: layout?.value });
+    renderTradingViewBridge();
+    setTradingViewStatus('TradingView-Markt und Layout lokal gespeichert.');
+  };
+  const save = $('tv-save-settings'); if (save) save.onclick = persist;
+  if (market) market.onchange = persist;
+  const open = $('tv-open-current'); if (open) open.onclick = () => openInTradingView(App.symbol, App.chartTF, open);
+  const prev = $('tv-prev-setup'); if (prev) prev.onclick = () => tradingViewCandidateStep(-1);
+  const next = $('tv-next-setup'); if (next) next.onclick = () => tradingViewCandidateStep(1);
+  const top = $('tv-copy-top30'); if (top) top.onclick = () => copyTradingViewList(0, top);
+  const longs = $('tv-copy-longs'); if (longs) longs.onclick = () => copyTradingViewList(1, longs);
+  const shorts = $('tv-copy-shorts'); if (shorts) shorts.onclick = () => copyTradingViewList(-1, shorts);
+  const alerts = $('tv-copy-alerts'); if (alerts) alerts.onclick = () => copyTradingViewAlerts(alerts);
+  const note = $('tv-copy-note'); if (note) note.onclick = () => copyTradingViewNote(note);
+  renderTradingViewBridge();
 }
 
 function renderPrice(force = false) {
@@ -4503,6 +4846,7 @@ function renderAll(force = false) {
     RenderCache.invalidate();
   }
   App.data.live = computeLive();
+  renderTradingViewBridge();
   if (App.data.live && App.data.btcRegime != null && App.symbol !== 'BTCUSDT') {
     // Annotate live signal with BTC block — only if current symbol is an altcoin
     const L = App.data.live;
@@ -4988,8 +5332,9 @@ function resetMarketState() {
 function buildSymbols() {
   const sel = $('symsel');
   populateSymbols();
-  sel.addEventListener('change', () => { App.symbol = sel.value; $('symcustom').value = App.symbol; restart(); });
   const ci = $('symcustom');
+  if (ci) ci.value = App.symbol;
+  sel.addEventListener('change', () => { App.symbol = sel.value; $('symcustom').value = App.symbol; restart(); });
   ci.addEventListener('change', () => {
     const v = ci.value.trim().toUpperCase();
     if (/^[A-Z0-9]{3,24}$/.test(v) && v.endsWith('USDT')) { App.symbol = v; sel.value = v; restart(); }
@@ -4998,6 +5343,7 @@ function buildSymbols() {
 }
 function bindTF() {
   document.querySelectorAll('#tfgrp button').forEach(b => {
+    b.classList.toggle('on', b.dataset.tf === App.chartTF);
     b.addEventListener('click', () => {
       document.querySelectorAll('#tfgrp button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
@@ -7921,6 +8267,7 @@ function showReleaseNotesOnce(version) {
 }
 
 function init() {
+  applyTradingViewContextFromUrl();
   buildSymbols(); bindTF(); bindRadarTabs(); bindSound(); bindTradeTracker(); bindRadarDrawer(); Autobot.init(); SyncEngine.init();
   const releaseModal = $('release-notes-modal');
   const closeReleaseNotes = () => {
@@ -7932,11 +8279,18 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.1.7');
+  showReleaseNotesOnce('1.1.8');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
   if (bHeroCopy) bHeroCopy.onclick = () => copySetupToClipboard(null, bHeroCopy);
+  const bHeroTv = $('btn-hero-tv');
+  if (bHeroTv) bHeroTv.onclick = () => openInTradingView(App.symbol, App.chartTF, bHeroTv);
+  const bChartTv = $('btn-chart-tv');
+  if (bChartTv) bChartTv.onclick = () => openInTradingView(App.symbol, App.chartTF, bChartTv);
+  const bSigTv = $('btn-sig-tv');
+  if (bSigTv) bSigTv.onclick = () => openInTradingView(App.symbol, App.chartTF, bSigTv);
+  bindTradingViewBridge();
   const rt=$('radar-toggle'); if(rt) rt.onclick=()=>{ App.radarPaused=!App.radarPaused; rt.textContent=App.radarPaused?'▶':'⏸'; rt.setAttribute('aria-label',App.radarPaused?'Radar-Scan fortsetzen':'Radar-Scan pausieren'); if(!App.radarPaused){const w=App.radarPauseWaiters.splice(0);w.forEach(r=>r());} };
   const at=$('auto-timestop'); if(at) at.onclick=autoOptimizeTimeStop;
   const src = $('source');

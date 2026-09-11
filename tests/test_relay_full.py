@@ -286,6 +286,19 @@ class TestHTTPServer(unittest.TestCase):
             self.assertIn("text/html", resp.headers.get("Content-Type", ""))
             self.assertIn("AURA", body)
 
+    def test_get_pine_script_serves_pine_content(self):
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/Symbiose_Signal_System_v1.pine", timeout=5) as resp:
+            body = resp.read().decode()
+            self.assertEqual(resp.status, 200)
+            self.assertIn("text/plain", resp.headers.get("Content-Type", ""))
+            self.assertIn("Pine Script", body)
+
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/pine", timeout=5) as resp:
+            body = resp.read().decode()
+            self.assertEqual(resp.status, 200)
+            self.assertIn("text/plain", resp.headers.get("Content-Type", ""))
+            self.assertIn("Pine Script", body)
+
     def test_state_route_rejects_foreign_origin(self):
         status, body = self._get_status("/api/state", {"Origin": "https://evil.example"})
         self.assertEqual(status, 403)
