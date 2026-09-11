@@ -1,9 +1,16 @@
-# AURA v1.1.8 — Smart Quant Terminal
+# AURA v1.2.0 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.1.8 — TradingView Basic Bridge (aktuelle Fassung)
+### v1.2.0 — USDT-M-Fokus, lesbare Marktstruktur & Autobot-Profile (aktuelle Fassung)
+
+- **Striktes Bitget-USDT-M-Universum:** Dashboard, Offline-Snapshot und Sync akzeptieren ausschließlich aktive Bitget `USDT-FUTURES`-Perpetuals mit USDT als Quote.
+- **Lesbare BOS/CHoCH-Markierungen:** Konfigurierbare Textgröße, ATR-/Tick-basierter Kerzenabstand, höherer Kontrast und erklärende Tooltips.
+- **Nachvollziehbare Autobot-Aktivität:** Ausgewogenes Standardprofil (Score 65, MTF 2/4) plus defensive und aktive Presets; OOS-Stichprobe und Setup-DSR sind sichtbar einstellbar, ohne das positive-Edge-Gate zu entfernen.
+- **TradingView Desktop zuerst:** Der lokale WSL-Relay versucht auf dem PC zunächst das installierte TradingView-Protokoll und öffnet nur bei Fehlschlag die Web-Version; mobil bleibt das normale TradingView-Verhalten erhalten.
+
+### v1.1.8 — TradingView Basic Bridge
 
 - **Free-only TradingView Bridge:** Öffnet den geladenen Coin und Timeframe auf Bitget Perpetual, Binance Perpetual oder Bitget Spot und kopiert das vollständige AURA-Pine-Script.
 - **Gespeichertes AURA-Layout:** Eine optionale TradingView-Layout-ID wird lokal gespeichert, damit der kostenlose Einzel-Chart direkt im eigenen AURA-Layout startet.

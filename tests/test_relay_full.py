@@ -28,6 +28,7 @@ from bitget_relay import (
     _canonical_request,
     _parse_allowed_hosts,
     _request,
+    _valid_tradingview_url,
 )
 
 
@@ -42,6 +43,13 @@ class TestCanonicalRequest(unittest.TestCase):
     def test_allowed_hosts_parser_rejects_ports_and_userinfo(self):
         hosts = _parse_allowed_hosts("192.168.8.115:8787, user@evil.example, valid.example")
         self.assertEqual(hosts, {"127.0.0.1", "localhost", "valid.example"})
+
+    def test_tradingview_desktop_url_is_strictly_allowlisted(self):
+        url = "https://www.tradingview.com/chart/?symbol=BITGET%3ABTCUSDT.P&interval=60"
+        self.assertEqual(_valid_tradingview_url(url), url)
+        self.assertIsNone(_valid_tradingview_url("https://evil.example/chart/?symbol=BTC"))
+        self.assertIsNone(_valid_tradingview_url("file:///etc/passwd"))
+        self.assertIsNone(_valid_tradingview_url("https://www.tradingview.com/markets/"))
 
     def test_canonical_get_includes_query_in_url(self):
         path, body_bytes, url = _canonical_request("GET", "/api/v2/mix/market/candles", {
@@ -285,6 +293,12 @@ class TestHTTPServer(unittest.TestCase):
             self.assertEqual(resp.status, 200)
             self.assertIn("text/html", resp.headers.get("Content-Type", ""))
             self.assertIn("AURA", body)
+
+    def test_get_universe_snapshot_serves_strict_dataset(self):
+        status, body = self._get("/data/bitget_usdt_futures_universe.json")
+        self.assertEqual(status, 200)
+        self.assertGreater(body["total_contracts"], 100)
+        self.assertTrue(all(row["productType"] == "USDT-FUTURES" for row in body["contracts"]))
 
     def test_get_pine_script_serves_pine_content(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/Symbiose_Signal_System_v1.pine", timeout=5) as resp:

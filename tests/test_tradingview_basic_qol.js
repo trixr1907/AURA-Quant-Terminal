@@ -35,9 +35,8 @@ assert.deepStrictEqual(
   'invalid markets must fail closed to Bitget perpetual and layout IDs must be sanitized',
 );
 assert.strictEqual(api.formatTradingViewSymbol('SOLUSDT', 'bitget_perp'), 'BITGET:SOLUSDT.P');
-assert.strictEqual(api.formatTradingViewSymbol('SOLUSDT', 'binance_perp'), 'BINANCE:SOLUSDT.P');
-assert.strictEqual(api.formatTradingViewSymbol('SOLUSDT', 'bitget_spot'), 'BITGET:SOLUSDT');
-assert.strictEqual(api.formatTradingViewSymbol('BINANCE:BTCUSDT.P', 'bitget_spot'), 'BINANCE:BTCUSDT.P');
+assert.strictEqual(api.formatTradingViewSymbol('BINANCE:BTCUSDT.P', 'bitget_perp'), 'BITGET:BTCUSDT.P');
+assert.strictEqual(api.formatTradingViewSymbol('BITGET:SOLUSDT.P', 'bitget_perp'), 'BITGET:SOLUSDT.P');
 assert.strictEqual(
   api.buildTradingViewUrl('SOLUSDT', '4h', { market: 'bitget_perp', layout: 'AbC-12' }),
   'https://www.tradingview.com/chart/AbC-12/?symbol=BITGET%3ASOLUSDT.P&interval=240',

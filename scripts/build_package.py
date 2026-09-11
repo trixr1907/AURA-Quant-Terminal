@@ -45,6 +45,7 @@ MANIFEST = [
     "README.md",
     "RELEASE_CHECKLIST.md",
     "RELEASE_v1.1.8.md",
+    "RELEASE_v1.2.0.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     # docker & containers
@@ -228,10 +229,14 @@ def smoke_test(extract_dir: Path) -> int:
         ["node", "tests/test_radar_continuous_cycle.js"],
         ["node", "tests/test_timestop_timeframe_scaling.js"],
         ["node", "tests/test_trade_clickable_data.js"],
+        ["node", "tests/test_autobot_profiles.js"],
+        ["node", "tests/test_tradingview_desktop_fallback.js"],
         ["node", "tests/test_cross_device_sync.js"],
         ["node", "tests/test_engine_full.js"],
         [sys.executable, "tests/reference_backtest.py"],
         [sys.executable, "-m", "unittest", "tests/test_relay_full.py"],
+        [sys.executable, "-m", "unittest", "tests/test_bitget_usdt_futures_universe.py"],
+        [sys.executable, "-m", "unittest", "tests/test_pine_structure_labels.py"],
     ]
     failed = 0
     for cmd in cmds:

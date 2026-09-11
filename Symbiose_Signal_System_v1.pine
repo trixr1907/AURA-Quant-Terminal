@@ -5,7 +5,7 @@
 //  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
 //  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
 //  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
-//  AURA v1.1.8 — Confluence Trading Signal System (Pine Script v6)
+//  AURA v1.2.0 — Confluence Trading Signal System (Pine Script v6)
 // ============================================================================
 //  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
 //          2) Confluence-Scoring (0-100, gewichtet, Signal ab 75/25)
@@ -13,9 +13,9 @@
 //          4) Multi-Timeframe (15m / 1H / 4H / Daily, >= 3 von 4 aligned)
 //          5) Marktkontext (Regime-Filter, Liquiditätspools, Fear & Greed)
 //
-//  v1.1.8 CURRENT:
+//  v1.2.0 CURRENT:
 //   - Dynamic TP1, SuperTrend trailing, time-stop, macro veto/multiplier
-//   - JS/Pine mathematical parity and current symbiose.v1.1.8 alert contract
+//   - JS/Pine mathematical parity and current symbiose.v1.2.0 alert contract
 //
 //  HISTORICAL v1.0.3 NOTES:
 //   - These original feature notes remain historical context only.
@@ -87,6 +87,10 @@ inOIBias      = input.float(0.0, "OI Bias (-100..+100)", minval=-100.0, maxval=1
 inOISpike     = input.bool(false, "OI-Spike aktiv (Topping-Warnung)", tooltip="Aktiviert wenn OI-Quadrant = 'OI-Spike / Topping-Warnung'.", group=grpF)
 inBasisBias   = input.float(0.0, "Perp Basis Bias (-100..+100)", minval=-100.0, maxval=100.0, step=1.0, tooltip="Perp-Basis / Premium Bias (-100..+100).", group=grpF)
 inCalibP      = input.float(50.0, "Kalibrierte P(Long) % (aus Webhook)", minval=0.0, maxval=100.0, step=0.5, tooltip="Empirische Out-of-Sample Gewinnwahrscheinlichkeit P(Long) in % aus dem Walk-Forward-Backtest.", group=grpF)
+
+grpV = "6) Darstellung"
+structureLabelSize = input.string("Normal", "BOS/CHoCH Textgröße", options=["Klein", "Normal", "Groß"], group=grpV)
+structureLabelOffsetAtr = input.float(0.35, "BOS/CHoCH Abstand (ATR)", minval=0.1, maxval=2.0, step=0.05, tooltip="Vertikaler Abstand der Struktur-Labels zur Kerze. Höhere Werte verhindern Überlappungen.", group=grpV)
 
 // ============================================================================
 //  HILFSFUNKTIONEN
@@ -707,26 +711,28 @@ plot(showLong ? lngSize : showShort ? shtSize : 0, "GM Position Size", display=d
 plot(showLong ? lngSize / ctValB : showShort ? shtSize / ctValB : 0, "GM Contracts", display=display.data_window)
 
 // BOS/CHoCH-Labels
+strLabelSize = structureLabelSize == "Groß" ? size.large : structureLabelSize == "Klein" ? size.small : size.normal
+strLabelOffset = math.max(syminfo.mintick * 10, atrR * structureLabelOffsetAtr)
 if showStr and bosBullAgo == 0
-    lbl = label.new(bar_index, high, "BOS ▲", style=label.style_label_down, color=color.new(#22c55e, 20), textcolor=color.new(#22c55e, 0), size=size.tiny)
+    lbl = label.new(bar_index, high + strLabelOffset, "BOS ▲", style=label.style_label_down, color=color.new(#22c55e, 0), textcolor=color.white, size=strLabelSize, tooltip="Bullischer Break of Structure")
     array.push(strLabels, lbl)
     if array.size(strLabels) > 40
         oldL = array.shift(strLabels)
         label.delete(oldL)
 if showStr and bosBearAgo == 0
-    lbl = label.new(bar_index, low, "BOS ▼", style=label.style_label_up, color=color.new(#ef4444, 20), textcolor=color.new(#ef4444, 0), size=size.tiny)
+    lbl = label.new(bar_index, low - strLabelOffset, "BOS ▼", style=label.style_label_up, color=color.new(#ef4444, 0), textcolor=color.white, size=strLabelSize, tooltip="Bärischer Break of Structure")
     array.push(strLabels, lbl)
     if array.size(strLabels) > 40
         oldL = array.shift(strLabels)
         label.delete(oldL)
 if showStr and chBullAgo == 0
-    lbl = label.new(bar_index, high, "CHoCH ▲", style=label.style_label_down, color=color.new(#f59e0b, 20), textcolor=color.new(#f59e0b, 0), size=size.tiny)
+    lbl = label.new(bar_index, high + strLabelOffset * 1.35, "CHoCH ▲", style=label.style_label_down, color=color.new(#f59e0b, 0), textcolor=color.white, size=strLabelSize, tooltip="Bullischer Change of Character · mögliche Trendwende")
     array.push(strLabels, lbl)
     if array.size(strLabels) > 40
         oldL = array.shift(strLabels)
         label.delete(oldL)
 if showStr and chBearAgo == 0
-    lbl = label.new(bar_index, low, "CHoCH ▼", style=label.style_label_up, color=color.new(#f59e0b, 20), textcolor=color.new(#f59e0b, 0), size=size.tiny)
+    lbl = label.new(bar_index, low - strLabelOffset * 1.35, "CHoCH ▼", style=label.style_label_up, color=color.new(#f59e0b, 0), textcolor=color.white, size=strLabelSize, tooltip="Bärischer Change of Character · mögliche Trendwende")
     array.push(strLabels, lbl)
     if array.size(strLabels) > 40
         oldL = array.shift(strLabels)
@@ -745,7 +751,7 @@ f_cell(ro, tx, vl, tc, bg) =>
     table.cell(dash, 0, ro, tx, text_color=color.new(#94a3b8, 0), text_size=size.tiny, bgcolor=color.new(#0f172a, 0))
     table.cell(dash, 1, ro, vl, text_color=tc, text_size=size.tiny, bgcolor=bg, text_halign=text.align_right)
 
-f_hdr(0, "AURA v1.1.8", syminfo.ticker + " · " + timeframe.period)
+f_hdr(0, "AURA v1.2.0", syminfo.ticker + " · " + timeframe.period)
 
 sClr = totalScore >= thLong ? color.new(#4ade80, 0) : totalScore <= thShort ? color.new(#f87171, 0) : color.new(#e2e8f0, 0)
 sigClr = showLong ? color.new(#4ade80, 0) : showShort ? color.new(#f87171, 0) : (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#64748b, 0)
@@ -781,7 +787,7 @@ f_cell(20, "Regime-Gate Status", regimeGate ? (showLong or showShort ? "FREIGEGE
 
 // v1.1.5 Trailing-State
 trailStatusTxt = trDir != 0 ? (str.tostring(trBars) + " Bars · Runner: " + (trTrail ? "ST-TRAIL" : (trTP1Hit ? "BE-Stop" : "SL-Schutz")) + " · rNet: " + str.tostring(rNet, "+#.##;-#.##") + "R") : "—"
-f_cell(21, "Trade-State (v1.1.8)", trailStatusTxt, trDir == 1 ? color.new(#4ade80, 0) : trDir == -1 ? color.new(#f87171, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
+f_cell(21, "Trade-State (v1.2.0)", trailStatusTxt, trDir == 1 ? color.new(#4ade80, 0) : trDir == -1 ? color.new(#f87171, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
 f_cell(22, "Time-Stop", str.tostring(timeStopN) + " Bars · " + (timeStopActive ? "AUSLÖSUNG: rNet=" + str.tostring(rNet, "#.##") + "R" : "inaktiv"), timeStopActive ? color.new(#f59e0b, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
 
 f_cell(23, "RSI / StochRSI", str.tostring(rsiV, "#.#") + " / " + str.tostring(srsiK, "#.#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
@@ -821,12 +827,12 @@ if showLong or showShort
     sNot  = str.tostring(sSize * entryPx, "#.##")
     sMtf  = str.tostring(mtfS1, "#.#") + "," + str.tostring(mtfS2, "#.#") + "," + str.tostring(mtfS3, "#.#") + "," + str.tostring(mtfS4, "#.#")
     sRunnerMode = showLong ? (runnerUltraL ? "INSTANT_ST" : "POST_TP1") : (runnerUltraS ? "INSTANT_ST" : "POST_TP1")
-    // JSON-Payload includes v1.1.8 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
-    jsn = '{"type":"symbiose.v1.1.8","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"macro_adj":' + str.tostring(macroAdj, "#.##") + ',"macro_veto":' + (macroVetoL or macroVetoS ? "true" : "false") + ',"regime":"' + regimeTxt + '","fg":' + str.tostring(inFG, "#.#") + ',"entry":' + str.tostring(entryPx, "#.######") + ',"sl":' + sSl + ',"tp1":' + sTp1 + ',"tp1_split":0.5,"tp2":' + sTp2 + ',"tp3":' + sTp3 + ',"runner_split":0.5,"runner_mode":"' + sRunnerMode + '","time_stop_bars":' + str.tostring(timeStopN) + ',"risk_usd":' + str.tostring(riskAmt, "#.##") + ',"size":' + sSiz + ',"notional":' + sNot + ',"mtf":[' + sMtf + '],"mtf_aligned":' + str.tostring(math.max(alignedBull, alignedBear)) + ',"order_type":"limit","force":"post_only"}'
+    // JSON-Payload includes v1.2.0 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
+    jsn = '{"type":"symbiose.v1.2.0","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"macro_adj":' + str.tostring(macroAdj, "#.##") + ',"macro_veto":' + (macroVetoL or macroVetoS ? "true" : "false") + ',"regime":"' + regimeTxt + '","fg":' + str.tostring(inFG, "#.#") + ',"entry":' + str.tostring(entryPx, "#.######") + ',"sl":' + sSl + ',"tp1":' + sTp1 + ',"tp1_split":0.5,"tp2":' + sTp2 + ',"tp3":' + sTp3 + ',"runner_split":0.5,"runner_mode":"' + sRunnerMode + '","time_stop_bars":' + str.tostring(timeStopN) + ',"risk_usd":' + str.tostring(riskAmt, "#.##") + ',"size":' + sSiz + ',"notional":' + sNot + ',"mtf":[' + sMtf + '],"mtf_aligned":' + str.tostring(math.max(alignedBull, alignedBear)) + ',"order_type":"limit","force":"post_only"}'
     alert(jsn, alert.freq_once_per_bar_close)
 
 // ============================================================================
-//  ENDE — AURA v1.1.8 (Pine v6)
+//  ENDE — AURA v1.2.0 (Pine v6)
 //  Einstieg: nächster Kerzen-Open als Maker-Limit-Order.
 //  50% bei dyn. TP1 ([1R,2R] · opposing FVG/EQH/EQL), 50% SuperTrend-Runner.
 //  Time-Stop nach N Bars wenn rNet <= 0.

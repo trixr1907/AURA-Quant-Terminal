@@ -33,7 +33,7 @@ function extractFunction(name) {
 
 const fallbackContext = {
   STATIC_TOP_UNIVERSE: ['BTCUSDT', 'ETHUSDT'],
-  jfetch: async () => { throw new Error('offline'); },
+  fetch: async () => { throw new Error('offline'); },
 };
 vm.createContext(fallbackContext);
 vm.runInContext(`${extractFunction('fetchUniverseFallback')}
@@ -44,8 +44,8 @@ this.fetchUniverseFallback = fetchUniverseFallback;`, fallbackContext);
   assert.deepStrictEqual(
     JSON.parse(JSON.stringify(staticRows)),
     [
-      { symbol: 'BTCUSDT', vol: null, funding: null, marketDataSource: 'static_fallback', liquidityVerified: false },
-      { symbol: 'ETHUSDT', vol: null, funding: null, marketDataSource: 'static_fallback', liquidityVerified: false },
+      { symbol: 'BTCUSDT', quoteCoin: 'USDT', productType: 'USDT-FUTURES', contractType: 'perpetual', symbolStatus: 'normal', vol: null, funding: null, marketDataSource: 'static_bitget_usdt_futures', liquidityVerified: false },
+      { symbol: 'ETHUSDT', quoteCoin: 'USDT', productType: 'USDT-FUTURES', contractType: 'perpetual', symbolStatus: 'normal', vol: null, funding: null, marketDataSource: 'static_bitget_usdt_futures', liquidityVerified: false },
     ],
     'static fallback must not invent volume or funding and must be explicitly unverified',
   );

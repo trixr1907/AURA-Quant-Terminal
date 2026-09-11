@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.1.8 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.2.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.1.8", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.2.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -17,10 +17,12 @@ API-Vertrag (für das Dashboard):
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
 import socket
+import subprocess
 import threading
 import time
 import urllib.error
@@ -35,7 +37,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.1.8"
+VERSION = "1.2.0"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -69,6 +71,54 @@ def _parse_allowed_hosts(raw: str) -> set[str]:
 
 
 ALLOWED_HOSTS = _parse_allowed_hosts(os.environ.get("AURA_ALLOWED_HOSTS", ""))
+
+
+def _valid_tradingview_url(url: Any) -> str | None:
+    """Accept only canonical HTTPS TradingView chart links."""
+    if not isinstance(url, str) or len(url) > 2000:
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(url)
+    except (TypeError, ValueError):
+        return None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"tradingview.com", "www.tradingview.com"}
+        or not parsed.path.startswith("/chart/")
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in {None, 443}
+    ):
+        return None
+    return urllib.parse.urlunsplit(("https", "www.tradingview.com", parsed.path, parsed.query, ""))
+
+
+def open_tradingview_desktop(url: Any) -> bool:
+    """Ask the host OS to route a chart URL into TradingView Desktop."""
+    safe_url = _valid_tradingview_url(url)
+    if safe_url is None:
+        return False
+    if not os.environ.get("WSL_DISTRO_NAME"):
+        return False
+    desktop_url = f"tradingview://{safe_url.removeprefix('https://')}"
+    try:
+        powershell = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+        escaped_url = desktop_url.replace("'", "''")
+        command_text = f"Start-Process -FilePath '{escaped_url}'"
+        encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
+        completed = subprocess.run(
+            [powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return False
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return True
+
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
 STATE_FILE = STATE_DIR / "aura_shared_state.json"
@@ -496,7 +546,7 @@ def _public_request_cached(method: str, path: str, params: dict) -> tuple[dict, 
 # ---------------------------------------------------------------------------
 
 class RelayHandler(BaseHTTPRequestHandler):
-    _PRIVILEGED_PATHS = {"/api/state"}
+    _PRIVILEGED_PATHS = {"/api/state", "/api/open-tradingview"}
     _ALLOWED_HOSTS = ALLOWED_HOSTS
 
     def log_message(self, format, *args):  # suppress default server log  # noqa: A002
@@ -654,6 +704,12 @@ class RelayHandler(BaseHTTPRequestHandler):
                 self._send_text(pine_file.read_bytes())
             except OSError:
                 self._send_json({"code": "ERR_PINE_NOT_FOUND"}, 404)
+        elif path == "/data/bitget_usdt_futures_universe.json":
+            universe_file = Path(__file__).resolve().parent / "data" / "bitget_usdt_futures_universe.json"
+            try:
+                self._send_json(json.loads(universe_file.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                self._send_json({"code": "ERR_UNIVERSE_NOT_FOUND"}, 404)
         elif path == "/serving":
             self._send_json({
                 "ok": True,
@@ -691,6 +747,17 @@ class RelayHandler(BaseHTTPRequestHandler):
         payload = self._read_body()
         if payload is None:
             self._send_json({"code": "ERR_BAD_JSON", "msg": "Request body must be a JSON object"}, 400)
+            return
+
+        if path == "/api/open-tradingview":
+            url = payload.get("url")
+            if _valid_tradingview_url(url) is None:
+                self._send_json({"code": "ERR_INVALID_TRADINGVIEW_URL"}, 400, cors_headers=self._privileged_cors_headers())
+                return
+            if not open_tradingview_desktop(url):
+                self._send_json({"code": "ERR_TRADINGVIEW_DESKTOP"}, 503, cors_headers=self._privileged_cors_headers())
+                return
+            self._send_json({"ok": True, "target": "desktop_association"}, cors_headers=self._privileged_cors_headers())
             return
 
         if path == "/api/state":
@@ -779,7 +846,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.1.8 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v1.2.0 listening on http://%s:%d", HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()
