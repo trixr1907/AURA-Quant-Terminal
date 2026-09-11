@@ -58,8 +58,8 @@ assert.strictEqual(
 );
 assert.strictEqual(
   context.buildTradingViewUrl('BINANCE:BTCUSDT.P', '1h'),
-  'https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P&interval=60',
-  'A Binance-qualified symbol must not gain a second exchange prefix or perpetual suffix'
+  'https://www.tradingview.com/chart/?symbol=BITGET%3ABTCUSDT.P&interval=60',
+  'Symbols must normalize strictly to Bitget perpetual'
 );
 
 console.log('PASS TradingView link generation and timeframe mapping');

@@ -275,13 +275,8 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         </div>
       </div>
       <div>
-        <div class="lbl">Datenquelle</div>
-        <select id="source">
-          <option value="bitget" selected>Bitget (USDT Futures)</option>
-          <option value="binance">Binance Futures</option>
-          <option value="bybit">Bybit Derivatives</option>
-          <option value="auto">Auto (Bitget &gt; Binance)</option>
-        </select>
+        <div class="lbl">Markt</div>
+        <input type="text" value="Bitget USDT-M Futures" readonly aria-label="Fester Markt: Bitget USDT-M Futures" style="min-width:170px;color:var(--grn2)">
       </div>
       <div>
         <div class="lbl">Konto (USDT)</div>
@@ -361,7 +356,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="hero-paper-btn" id="btn-paper-trade" type="button" disabled title="Paper-Simulation erst nach vollständiger Live-Freigabe möglich">⚡ Paper-Simulation gesperrt</button>
             <button class="hero-copy-btn" id="btn-hero-copy" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button>
-            <button class="hero-tv-btn" id="btn-hero-tv" type="button" title="Öffnet den geladenen Coin mit Timeframe in TradingView und kopiert das Pine Script">📊 In TradingView öffnen</button>
+            <button class="hero-tv-btn" id="btn-hero-tv" type="button" title="Versucht auf dem PC zuerst TradingView Desktop, nutzt sonst die Web-Version, und kopiert das Pine Script">📊 In TradingView öffnen</button>
             <button class="hero-paper-btn" id="hero-radar-open" type="button" aria-controls="radarcard" aria-expanded="false">⌁ Action Radar</button>
             <div class="hero-why" id="hero-why" style="flex:1;margin:0">Scanne Markt …</div><div style="width:100%;color:var(--amb);font-size:10px;font-weight:800">Globale Release-Wahrheit: MODEL_NO_EVIDENCE — lokales Setup ist keine global validierte Strategie.</div>
           </div>
@@ -379,12 +374,12 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
     <section class="tv-basic-panel" id="tv-basic-panel" aria-labelledby="tv-basic-title">
       <div class="tv-basic-head"><h2 id="tv-basic-title">📊 TradingView Bridge</h2><span class="tv-basic-badge">✓ BASIC / FREE KOMPATIBEL</span><span class="tag" id="tv-current-symbol">BITGET:BTCUSDT.P · 1H</span></div>
       <div class="tv-basic-controls">
-        <label>Markt <select id="tv-market"><option value="bitget_perp">Bitget Perpetual</option><option value="binance_perp">Binance Perpetual</option><option value="bitget_spot">Bitget Spot</option></select></label>
+        <label>Markt <input type="text" value="Bitget USDT-M Perpetual" readonly aria-label="TradingView-Markt: Bitget USDT-M Perpetual"></label>
         <label>Gespeichertes Layout <input id="tv-layout" type="text" maxlength="80" placeholder="optional: AbC123" aria-label="TradingView Layout-ID"></label>
         <button class="cbtn" id="tv-save-settings" type="button">Speichern</button>
       </div>
       <div class="tv-basic-actions">
-        <button id="tv-open-current" type="button">📊 Coin + Pine öffnen</button>
+        <button id="tv-open-current" type="button" title="PC: TradingView Desktop zuerst, Web-Fallback wenn nicht installiert">📊 Coin + Pine öffnen</button>
         <button id="tv-prev-setup" type="button">← Voriges Setup</button>
         <button id="tv-next-setup" type="button">Nächstes Setup →</button>
         <button id="tv-copy-top30" type="button">📋 Top-30 Symbole</button>
@@ -441,8 +436,8 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <!-- Strategy Summary & Status Bar -->
         <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);font-size:10px;color:var(--txt);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
-            <div id="ab-strategy-summary"><b>Strategie:</b> SOTA Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">78</span>, MTF &ge; <span id="cfg-disp-mtf">3/4</span>, Dynamic Scale-Out &amp; Trailing-SL).</div>
-            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Paper-Simulation · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Scan-Funnel: Bereit · Grid 18 · Option B (Setup-DSR &ge; 0.5)</div>
+            <div id="ab-strategy-summary"><b>Strategie:</b> Einstellbares Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">65</span>, MTF &ge; <span id="cfg-disp-mtf">2/4</span>, positive OOS-Evidenz, Dynamic Scale-Out &amp; Trailing-SL).</div>
+            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Paper-Simulation · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.35 · OOS &ge; 10 Trades</div>
           </div>
           <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">2.0%</b> · Max Hebel: <b id="cfg-disp-lev">15x</b> · Max Slots: <b id="cfg-disp-max">3</b></div>
         </div>
@@ -454,6 +449,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <button id="btn-save-ab-config" type="button" class="act" style="height:26px;padding:0 10px;font-size:9.5px">✓ Speichern &amp; Anwenden</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px 14px">
+            <div>
+              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Scan-Profil</label>
+              <select id="ab-cfg-profile" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+                <option value="balanced" selected>Ausgewogen (65 · 2/4)</option>
+                <option value="aggressive">Aktiv (58 · 1/4)</option>
+                <option value="strict">Strikt (75 · 3/4)</option>
+                <option value="custom">Benutzerdefiniert</option>
+              </select>
+            </div>
             <div>
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Startkapital (USDT)</label>
               <input id="ab-cfg-equity" type="number" step="100" min="100" max="1000000" value="10000" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
@@ -468,7 +472,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             </div>
             <div>
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. Setup-Score (Long / Short Threshold)</label>
-              <input id="ab-cfg-min-score" type="number" step="1" min="65" max="95" value="78" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <input id="ab-cfg-min-score" type="number" step="1" min="50" max="95" value="65" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
             </div>
             <div>
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Maximaler Hebel (Leverage)</label>
@@ -478,13 +482,22 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">MTF Mindest-Übereinstimmung</label>
               <select id="ab-cfg-mtf-need" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
                 <option value="4">4 / 4 Timeframes (Ultra-Strikt)</option>
-                <option value="3" selected>3 / 4 Timeframes (Empfohlen)</option>
-                <option value="2">2 / 4 Timeframes (Aggressiv)</option>
+                <option value="3">3 / 4 Timeframes (Strikt)</option>
+                <option value="2" selected>2 / 4 Timeframes (Ausgewogen)</option>
+                <option value="1">1 / 4 Timeframes (Aktiv)</option>
               </select>
             </div>
             <div>
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. 24h Volumen (USDT)</label>
               <input id="ab-cfg-min-vol" type="number" step="500000" min="0" max="100000000" value="2000000" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+            </div>
+            <div>
+              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. OOS Trades</label>
+              <input id="ab-cfg-min-oos-samples" type="number" step="1" min="5" max="50" value="10" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+            </div>
+            <div>
+              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. Setup-DSR (0–1)</label>
+              <input id="ab-cfg-min-setup-dsr" type="number" step="0.05" min="0" max="0.95" value="0.35" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
             </div>
             <div>
               <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Stagnations Time-Stop (Std.)</label>
@@ -730,16 +743,16 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.1.8?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt eine <b>TradingView Basic / Free Bridge</b> ins Cockpit: Coin, Timeframe, Pine Script, Radar-Navigation und manuelle Preisalarm-Vorlagen spielen ohne Premium-Funktionen zusammen.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update fokussiert AURA vollständig auf <b>aktive Bitget USDT-M Perpetual Futures</b>, macht Marktstruktur im Pine-Script lesbarer und zeigt die entscheidenden Autobot-Gates direkt als Profile.</p>
     <ul style="color:var(--txt);line-height:1.6;margin:0 0 18px;padding-left:20px">
-      <li><b>Coin + Pine mit einem Klick:</b> Öffnet Bitget Perpetual, Binance Perpetual oder Bitget Spot im aktuellen Timeframe und kopiert das vollständige Pine-v6-Script.</li>
-      <li><b>Ein kostenloses AURA-Layout:</b> Eine optionale TradingView-Layout-ID wird lokal gespeichert und beim Öffnen wiederverwendet.</li>
-      <li><b>Radar-Navigation &amp; Listen:</b> Voriges/nächstes Top-Setup sowie kopierbare Top-30-, LONG- und SHORT-Listen mit hartem Basic-Limit.</li>
-      <li><b>Preisalarm-Assistent &amp; Rücksprung:</b> Kopiert Entry-, Stop- und TP1-Vorlagen sowie eine Setup-Notiz mit sicher validiertem AURA-Link; keine Webhooks oder Premium-Alarme.</li>
-      <li><b>Unveränderte Modellintegrität:</b> Frische Revalidierung beim Rücksprung, strenge Fail-Closed Gates und reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
+      <li><b>Nur Bitget USDT-M:</b> Universe, freie Symbolwahl, Marktdatenpfad und TradingView Bridge akzeptieren ausschließlich aktive Bitget USDT-M Perpetuals.</li>
+      <li><b>BOS/CHoCH lesbar:</b> Einstellbare Labelgröße, ATR-/Tick-Abstand, höherer Kontrast und erklärende Tooltips.</li>
+      <li><b>Autobot-Profile:</b> Ausgewogen startet bei Score 65 und MTF 2/4; Aktiv und Strikt sowie OOS-/DSR-Regler machen den vollständigen Funnel nachvollziehbar.</li>
+      <li><b>TradingView Desktop zuerst:</b> Der lokale Windows/WSL-Pfad startet zuerst die Desktop-App und verwendet bei Fehlschlag die Web-Version.</li>
+      <li><b>Unveränderte Modellintegrität:</b> Positive OOS-Expectancy und vollständige Revalidierung bleiben Pflicht; reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -748,7 +761,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.1.8</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.2.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2094,34 +2107,19 @@ async function cgKlines(coinId) {
 }
 
 async function fetchKlines(symbol, tf, target) {
-  // Quellkette je nach Modus: Bitget zuerst (Default), Binance als Fallback
-  const mode = App.sourceMode;
-  const chain = mode === 'binance' ? ['binance', 'bitget'] : ['bitget', 'binance'];
-  const errs = [];
-  for (const src of chain) {
-    try {
-      if (src === 'bitget') return await bitgetKlines(symbol, tf, target);
-      return await binanceKlinesPaged(symbol, tf, target);
-    } catch (e) { errs.push((src === 'bitget' ? 'Bitget' : 'Binance') + ': ' + e.message); }
+  try {
+    return await bitgetKlines(symbol, tf, target);
+  } catch (error) {
+    throw new Error('Bitget USDT-M Futures: ' + String(error && error.message || error));
   }
-  try { return await bybitKlines(symbol, tf, target); } catch (e) { errs.push(e.message); }
-  try { return await cgKlines(COINS[symbol]); } catch (e) { errs.push(e.message); }
-  throw new Error('Alle OHLCV-Quellen fehlgeschlagen: ' + errs.join(' || '));
 }
 
 async function fetchTicker(symbol) {
-  if (App.sourceMode !== 'binance') {
-    try { return await bitgetTicker(symbol); } catch (e) { /* weiter mit Binance */ }
-  }
   try {
-    const j = await jfetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbol=${symbol}`);
-    if (j && j.lastPrice != null) return {
-      price: +j.lastPrice, bid: +j.bidPrice, ask: +j.askPrice, ts: +(j.closeTime || Date.now()),
-      chg: +j.priceChangePercent, hi: +j.highPrice, lo: +j.lowPrice, vol: +j.quoteVolume,
-      funding: null, src: 'Binance 24h'
-    };
-  } catch (e) { /* weiter */ }
-  throw new Error('Ticker nicht verfügbar');
+    return await bitgetTicker(symbol);
+  } catch (error) {
+    throw new Error('Bitget USDT-M Futures Ticker: ' + String(error && error.message || error));
+  }
 }
 
 async function fetchFNG() {
@@ -2235,7 +2233,7 @@ async function fetchCryptoFeatures(symbol, currentPrice, price4hAgo) {
 const App = {
   symbol: 'BTCUSDT', chartTF: '1h', equity: 10000, riskPct: 1.0, visible: 260,
   timeStopBars: SYM.timeStopBars,
-  sourceMode: 'auto', leverage: 1,
+  sourceMode: 'bitget', leverage: 1,
   radarPaused: false, radarPauseWaiters: [],
   spec: null, specSym: null,                 // Bitget-Kontrakt-Specs (gecacht)
   fees: { taker: null, maker: null }, slippage: 0,
@@ -2283,18 +2281,16 @@ async function loadChartData() {
   App.data.probMap = App.data.wf.probMap;
   App.data.candles = r.candles;
   App.data.chartSrc = r.source;
-  // Bitget-Kontrakt-Specs laden (echte ctVal + Fees) — einmal pro Symbol, gecacht
-  if (App.sourceMode !== 'binance') {
-    try {
-      if (!App.spec || App.specSym !== App.symbol) {
-        const spec = await bitgetContracts(App.symbol);
-        if (gen !== App.gen || sym !== App.symbol) return;  // stale response
-        App.spec = spec;
-        App.specSym = App.symbol;
-        App.fees.taker = spec.takerFee; App.fees.maker = spec.makerFee;
-      }
-    } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; }
-  } else { App.spec = null; App.fees.taker = null; App.fees.maker = null; }
+  // Load Bitget contract specifications for the selected USDT-M perpetual.
+  try {
+    if (!App.spec || App.specSym !== App.symbol) {
+      const spec = await bitgetContracts(App.symbol);
+      if (gen !== App.gen || sym !== App.symbol) return;  // stale response
+      App.spec = spec;
+      App.specSym = App.symbol;
+      App.fees.taker = spec.takerFee; App.fees.maker = spec.makerFee;
+    }
+  } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; }
 
   // Ticker-Cache VOR dem Fetch zwingend zurücksetzen, um Mismatches zwischen Symbolen zu verhindern
   App.data.ticker = null;
@@ -2937,8 +2933,19 @@ function copyTextToClipboard(text, el) {
   }
 }
 
+function isUniverseSymbol(symbol) {
+  const candidate = String(symbol || '').toUpperCase();
+  return universeSymbols().includes(candidate);
+}
+
 function switchToAsset(symbol, tf) {
-  if (!symbol) return;
+  if (!symbol) return false;
+  if (typeof isUniverseSymbol === 'function' && !isUniverseSymbol(symbol)) {
+    if (typeof showGlobalError === 'function') {
+      showGlobalError('Dieses Paar ist nicht als aktiver Bitget USDT-M Future verfügbar.');
+    }
+    return false;
+  }
   const targetTf = tf || App.chartTF || '1h';
   App.symbol = symbol;
   App.chartTF = targetTf;
@@ -2952,6 +2959,7 @@ function switchToAsset(symbol, tf) {
   if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  return true;
 }
 
 function copySetupToClipboard(customSetup, buttonEl) {
@@ -3048,9 +3056,7 @@ const TRADINGVIEW_SETTINGS_KEY = 'aura-tradingview-settings-v1';
 let tradingViewPineText = '';
 let tradingViewPineLoad = null;
 const TRADINGVIEW_MARKETS = {
-  bitget_perp: { exchange: 'BITGET', suffix: '.P' },
-  binance_perp: { exchange: 'BINANCE', suffix: '.P' },
-  bitget_spot: { exchange: 'BITGET', suffix: '' }
+  bitget_perp: { exchange: 'BITGET', suffix: '.P' }
 };
 
 function normalizeTradingViewSettings(settings = {}) {
@@ -3077,10 +3083,10 @@ function saveTradingViewSettings(settings) {
 
 function formatTradingViewSymbol(sym, market = 'bitget_perp') {
   const raw = String(sym || 'BTCUSDT').toUpperCase().trim();
-  const qualified = raw.match(/^([A-Z0-9_]+):([A-Z0-9_-]+(?:\.P)?)$/);
-  if (qualified) return `${qualified[1]}:${qualified[2]}`;
-  const clean = raw.replace(/[^A-Z0-9_-]/g, '').replace(/\.P$/, '');
-  const marketInfo = TRADINGVIEW_MARKETS[market] || TRADINGVIEW_MARKETS.bitget_perp;
+  const qualified = raw.match(/^[A-Z0-9_]+:([A-Z0-9_-]+(?:\.P)?)$/);
+  const core = (qualified ? qualified[1] : raw).replace(/\.P$/, '');
+  const clean = core.replace(/[^A-Z0-9]/g, '');
+  const marketInfo = TRADINGVIEW_MARKETS.bitget_perp;
   return `${marketInfo.exchange}:${clean}${marketInfo.suffix}`;
 }
 
@@ -3090,6 +3096,10 @@ function buildTradingViewUrl(sym, tf, settings = {}) {
   const interval = mapTradingViewInterval(tf);
   const layoutPath = normalized.layout ? `${normalized.layout}/` : '';
   return `https://www.tradingview.com/chart/${layoutPath}?symbol=${encodeURIComponent(tvSym)}&interval=${interval}`;
+}
+
+function buildTradingViewDesktopUrl(sym, tf, settings = {}) {
+  return buildTradingViewUrl(sym, tf, settings).replace(/^https:\/\//, 'tradingview://');
 }
 
 function selectTradingViewCandidates(rows, options = {}) {
@@ -3193,13 +3203,14 @@ async function openInTradingView(symbol, timeframe, btn = null) {
   const sym = symbol || App.symbol || 'BTCUSDT';
   const tf = timeframe || App.chartTF || '1h';
   const tvUrl = buildTradingViewUrl(sym, tf, App.tradingView || {});
+  const desktopUrl = buildTradingViewDesktopUrl(sym, tf, App.tradingView || {});
   const pineText = getTradingViewPineText();
   let pineCopied = false;
   let clipboardWrite = null;
+  let openTarget = 'web';
 
   // Start the clipboard request inside the original click activation, but do
-  // not await it before opening the tab: both privileged calls are initiated
-  // synchronously from the same user gesture.
+  // not await it before opening TradingView.
   if (pineText) {
     try {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -3214,9 +3225,34 @@ async function openInTradingView(symbol, timeframe, btn = null) {
   }
 
   let opened = null;
-  if (typeof window !== 'undefined' && typeof window.open === 'function') {
-    opened = window.open(tvUrl, '_blank');
-    if (opened) opened.opener = null;
+  let desktopOpened = false;
+  try {
+    // On the locally served PC dashboard the relay can reliably hand the HTTPS
+    // chart link to Windows, whose TradingView association opens Desktop.
+    const response = await fetch('/api/open-tradingview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: tvUrl })
+    });
+    desktopOpened = response.ok;
+  } catch (_) {}
+
+  if (desktopOpened) {
+    openTarget = 'desktop';
+  } else if (typeof window !== 'undefined') {
+    // Mobile browsers already route TradingView links into the installed app.
+    // Desktop browsers get one protocol attempt; if the page stays visible the
+    // ordinary TradingView web chart opens as a deterministic fallback.
+    try { window.location.href = desktopUrl; } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 900));
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+      if (typeof window.open === 'function') {
+        opened = window.open(tvUrl, '_blank');
+        if (opened) opened.opener = null;
+      }
+    } else {
+      openTarget = 'desktop';
+    }
   }
 
   if (clipboardWrite) {
@@ -3232,7 +3268,8 @@ async function openInTradingView(symbol, timeframe, btn = null) {
 
   if (btn) {
     const origHtml = btn.innerHTML;
-    btn.innerHTML = pineCopied ? '✓ Pine kopiert & TV geöffnet!' : '✓ TV geöffnet · Pine nicht kopiert';
+    const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TV Web-Fallback geöffnet';
+    btn.innerHTML = pineCopied ? `✓ Pine kopiert & ${targetLabel}!` : `✓ ${targetLabel} · Pine nicht kopiert`;
     btn.classList.add('copied');
     setTimeout(() => {
       btn.innerHTML = origHtml;
@@ -3240,7 +3277,7 @@ async function openInTradingView(symbol, timeframe, btn = null) {
     }, 2400);
   }
 
-  return { opened: !!opened, pineCopied, url: tvUrl };
+  return { opened: desktopOpened || !!opened, desktopOpened, pineCopied, url: tvUrl, desktopUrl, target: openTarget };
 }
 
 function setTradingViewStatus(message, isError = false) {
@@ -3252,8 +3289,7 @@ function setTradingViewStatus(message, isError = false) {
 
 function renderTradingViewBridge() {
   const settings = App.tradingView || normalizeTradingViewSettings();
-  const market = $('tv-market'), layout = $('tv-layout'), badge = $('tv-current-symbol');
-  if (market) market.value = settings.market;
+  const layout = $('tv-layout'), badge = $('tv-current-symbol');
   if (layout && document.activeElement !== layout) layout.value = settings.layout;
   if (badge) badge.textContent = `${formatTradingViewSymbol(App.symbol, settings.market)} · ${String(App.chartTF).toUpperCase()}`;
   const candidates = selectTradingViewCandidates(App.data.radar || []);
@@ -3319,14 +3355,13 @@ function bindTradingViewBridge() {
   preloadTradingViewPine().then(text => {
     if (text) setTradingViewStatus('Bereit · Pine Script vorgeladen · kein TradingView-Abo erforderlich');
   });
-  const market = $('tv-market'), layout = $('tv-layout');
+  const layout = $('tv-layout');
   const persist = () => {
-    saveTradingViewSettings({ market: market?.value, layout: layout?.value });
+    saveTradingViewSettings({ market: 'bitget_perp', layout: layout?.value });
     renderTradingViewBridge();
-    setTradingViewStatus('TradingView-Markt und Layout lokal gespeichert.');
+    setTradingViewStatus('TradingView-Layout lokal gespeichert · Markt bleibt Bitget USDT-M Perpetual.');
   };
   const save = $('tv-save-settings'); if (save) save.onclick = persist;
-  if (market) market.onchange = persist;
   const open = $('tv-open-current'); if (open) open.onclick = () => openInTradingView(App.symbol, App.chartTF, open);
   const prev = $('tv-prev-setup'); if (prev) prev.onclick = () => tradingViewCandidateStep(-1);
   const next = $('tv-next-setup'); if (next) next.onclick = () => tradingViewCandidateStep(1);
@@ -4281,88 +4316,71 @@ function populateSymbols() {
   if (sel) sel.value = App.symbol;
 }
 
-const STATIC_TOP_UNIVERSE = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ZECUSDT", "SNDKUSDT", "XAUUSDT", "SOXLUSDT", "MUUSDT", "DOGEUSDT", "HYPEUSDT", "USELESSUSDT", "KORUUSDT", "XAGUSDT", "SUIUSDT", "MARSCOINUSDT", "SNXXUSDT", "ENAUSDT", "PONSUSDT", "ADAUSDT", "SKHYUSDT", "MSTRUSDT", "SKHYNIXUSDT", "SPCXUSDT", "CLUSDT", "DRAMUSDT", "UNIUSDT", "TRUMPUSDT", "TSLAUSDT", "NEARUSDT", "LINKUSDT", "PEPEUSDT", "XAUTUSDT", "CRCLUSDT", "PUMPUSDT", "ARBUSDT", "INTCUSDT", "MAGMAUSDT", "BNBUSDT", "CHIPUSDT", "ONDOUSDT", "TRIAUSDT", "EDGEUSDT", "SOXSUSDT", "NVDAUSDT", "PAXGUSDT", "SKRUSDT", "WLDUSDT", "XMRUSDT", "SAMSUNGUSDT", "BZUSDT", "PENGUUSDT", "TAOUSDT", "\u725b\u6765USDT", "FLOCKUSDT", "AAVEUSDT", "FILUSDT", "DASHUSDT", "QQQUSDT", "MRVLUSDT", "UAIUSDT", "CYSUSDT", "ASTERUSDT", "BCHUSDT", "MRNAUSDT", "INJUSDT", "CBRSUSDT", "LITUSDT", "HOODUSDT", "AVAXUSDT", "DOTUSDT", "XLMUSDT", "VIRTUALUSDT", "AKEUSDT", "XPLUSDT", "CRVUSDT", "FARTCOINUSDT", "ONGUSDT", "AVGOUSDT", "MUUUSDT", "CPUSDT", "LTCUSDT", "ICPUSDT", "SHIBUSDT", "AMDUSDT", "APTUSDT", "GOOGLUSDT", "VELVETUSDT", "PROMUSDT", "AAOIUSDT", "1000BONKUSDT", "TUTUSDT", "RKLBUSDT", "COINUSDT", "ANTHROPICUSDT", "APRUSDT", "WIFUSDT", "ZENUSDT", "CAPUSDT", "DELLUSDT", "AZTECUSDT", "FETUSDT", "AAPLUSDT", "\u9f99\u867eUSDT", "MUBARAKUSDT", "EGLDUSDT", "TRXUSDT", "PLTRUSDT", "4USDT", "RIVERUSDT", "JTOUSDT", "OPUSDT", "MINIMAXUSDT", "TUSDT", "QUSDT", "SPYUSDT", "JUPUSDT", "AMZNUSDT", "NBISUSDT", "ZROUSDT"];
+function isActiveBitgetUsdtFuture(contract) {
+  if (!contract || typeof contract !== 'object') return false;
+  const symbol = String(contract.symbol || '').toUpperCase();
+  const quoteCoin = String(contract.quoteCoin || '').toUpperCase();
+  const status = String(contract.symbolStatus || '').toLowerCase();
+  const type = String(contract.symbolType || contract.contractType || 'perpetual').toLowerCase();
+  const deliveryTime = String(contract.deliveryTime || '').trim();
+  return quoteCoin === 'USDT' && symbol.endsWith('USDT') && !symbol.includes('_') &&
+    type === 'perpetual' && (status === 'normal' || status === 'online') &&
+    (deliveryTime === '' || deliveryTime === '0');
+}
+
+function normalizeUniverseRows(contracts, tickers = []) {
+  const tickerMap = new Map((tickers || []).filter(Boolean).map(row => [String(row.symbol || '').toUpperCase(), row]));
+  return (contracts || [])
+    .filter(isActiveBitgetUsdtFuture)
+    .map(contract => {
+      const symbol = String(contract.symbol).toUpperCase();
+      const ticker = tickerMap.get(symbol) || contract;
+      const vol = Number(ticker.usdtVolume ?? ticker.quoteVolume);
+      return {
+        symbol,
+        quoteCoin: 'USDT', productType: 'USDT-FUTURES', contractType: 'perpetual',
+        symbolStatus: String(contract.symbolStatus || '').toLowerCase(),
+        vol: Number.isFinite(vol) && vol >= 0 ? vol : null,
+        chg: Number.isFinite(Number(ticker.change24h)) ? Number(ticker.change24h) : null,
+        funding: Number.isFinite(Number(ticker.fundingRate)) ? Number(ticker.fundingRate) : null,
+        oi: Number.isFinite(Number(ticker.holdingAmount)) ? Number(ticker.holdingAmount) : null,
+        price: Number.isFinite(Number(ticker.lastPr ?? ticker.lastPrice)) ? Number(ticker.lastPr ?? ticker.lastPrice) : null,
+        marketDataSource: tickerMap.has(symbol) ? 'bitget_ticker_contract' : 'bitget_contract_snapshot',
+        liquidityVerified: tickerMap.has(symbol) && Number.isFinite(vol) && vol >= 0
+      };
+    })
+    .sort((a, b) => (b.vol ?? -1) - (a.vol ?? -1));
+}
+
+const STATIC_TOP_UNIVERSE = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "DOGEUSDT", "SUIUSDT", "ENAUSDT", "ADAUSDT", "UNIUSDT", "NEARUSDT", "LINKUSDT", "PEPEUSDT", "BNBUSDT", "ONDOUSDT", "WLDUSDT", "XMRUSDT", "AAVEUSDT", "FILUSDT", "DASHUSDT", "BCHUSDT", "INJUSDT", "AVAXUSDT", "DOTUSDT", "XLMUSDT", "CRVUSDT", "LTCUSDT", "ICPUSDT", "SHIBUSDT", "APTUSDT", "FETUSDT", "EGLDUSDT", "TRXUSDT", "JTOUSDT", "OPUSDT", "JUPUSDT", "ZROUSDT"];
 
 async function fetchUniverseFallback() {
-  // Fallback 1: Binance Spot Tickers
   try {
-    const j = await jfetch('https://api.binance.com/api/v3/ticker/24hr');
-    if (Array.isArray(j) && j.length > 50) {
-      return j.filter(t => t.symbol && t.symbol.endsWith('USDT') && !t.symbol.includes('UP') && !t.symbol.includes('DOWN'))
-              .map(t => {
-                const vol = Number(t.quoteVolume);
-                return {
-                  symbol: t.symbol, vol: Number.isFinite(vol) && vol >= 0 ? vol : null,
-                  chg: Number.isFinite(Number(t.priceChangePercent)) ? Number(t.priceChangePercent) / 100 : null,
-                  funding: null, oi: null, price: Number.isFinite(Number(t.lastPrice)) ? Number(t.lastPrice) : null,
-                  marketDataSource: 'binance_ticker', liquidityVerified: Number.isFinite(vol) && vol >= 0
-                };
-              })
-              .sort((a, b) => (b.vol ?? -1) - (a.vol ?? -1));
+    const response = await fetch('/data/bitget_usdt_futures_universe.json', { cache: 'no-store' });
+    if (response.ok) {
+      const snapshot = await response.json();
+      const rows = normalizeUniverseRows(snapshot?.contracts || []);
+      if (rows.length) return rows;
     }
   } catch (_) {}
-  // Fallback 2: Binance Vision
-  try {
-    const j = await jfetch('https://data-api.binance.vision/api/v3/ticker/24hr');
-    if (Array.isArray(j) && j.length > 50) {
-      return j.filter(t => t.symbol && t.symbol.endsWith('USDT') && !t.symbol.includes('UP') && !t.symbol.includes('DOWN'))
-              .map(t => {
-                const vol = Number(t.quoteVolume);
-                return {
-                  symbol: t.symbol, vol: Number.isFinite(vol) && vol >= 0 ? vol : null,
-                  chg: Number.isFinite(Number(t.priceChangePercent)) ? Number(t.priceChangePercent) / 100 : null,
-                  funding: null, oi: null, price: Number.isFinite(Number(t.lastPrice)) ? Number(t.lastPrice) : null,
-                  marketDataSource: 'binance_ticker', liquidityVerified: Number.isFinite(vol) && vol >= 0
-                };
-              })
-              .sort((a, b) => (b.vol ?? -1) - (a.vol ?? -1));
-    }
-  } catch (_) {}
-  // Fallback 3: Bybit Spot / Linear
-  try {
-    const j = await jfetch('https://api.bybit.com/v5/market/tickers?category=linear');
-    if (j && j.result && Array.isArray(j.result.list) && j.result.list.length > 50) {
-      return j.result.list.filter(t => t.symbol && t.symbol.endsWith('USDT'))
-              .map(t => {
-                const vol = Number(t.turnover24h);
-                return {
-                  symbol: t.symbol, vol: Number.isFinite(vol) && vol >= 0 ? vol : null,
-                  chg: Number.isFinite(Number(t.price24hPcnt)) ? Number(t.price24hPcnt) : null,
-                  funding: Number.isFinite(Number(t.fundingRate)) ? Number(t.fundingRate) : null,
-                  oi: Number.isFinite(Number(t.openInterest)) ? Number(t.openInterest) : null,
-                  price: Number.isFinite(Number(t.lastPrice)) ? Number(t.lastPrice) : null,
-                  marketDataSource: 'bybit_ticker', liquidityVerified: Number.isFinite(vol) && vol >= 0
-                };
-              })
-              .sort((a, b) => (b.vol ?? -1) - (a.vol ?? -1));
-    }
-  } catch (_) {}
-  // Fallback 4: static symbols support manual selection only; no market evidence is fabricated.
-  return STATIC_TOP_UNIVERSE.map(sym => ({
-    symbol: sym, vol: null, funding: null, marketDataSource: 'static_fallback', liquidityVerified: false
+  // Offline fallback remains Bitget USDT-M only. Without live tickers its
+  // liquidity evidence is deliberately unavailable, so Autobot stays closed.
+  return STATIC_TOP_UNIVERSE.map(symbol => ({
+    symbol, quoteCoin: 'USDT', productType: 'USDT-FUTURES', contractType: 'perpetual',
+    symbolStatus: 'normal', vol: null, funding: null,
+    marketDataSource: 'static_bitget_usdt_futures', liquidityVerified: false
   }));
 }
 
 async function loadUniverse() {
-  const SYM_RE = /^[A-Z0-9]{2,24}USDT$/;
   try {
-    const j = await bgGet('/api/v2/mix/market/tickers?productType=USDT-FUTURES');
-    if (j && j.code === '00000' && Array.isArray(j.data) && j.data.length > 20) {
-      App.universe = j.data
-        .filter(t => t.symbol && SYM_RE.test(t.symbol))
-        .map(t => {
-          const vol = Number(t.usdtVolume ?? t.quoteVolume);
-          return {
-            symbol: t.symbol, vol: Number.isFinite(vol) && vol >= 0 ? vol : null,
-            chg: Number.isFinite(Number(t.change24h)) ? Number(t.change24h) : null,
-            funding: Number.isFinite(Number(t.fundingRate)) ? Number(t.fundingRate) : null,
-            oi: Number.isFinite(Number(t.holdingAmount)) ? Number(t.holdingAmount) : null,
-            price: Number.isFinite(Number(t.lastPr)) ? Number(t.lastPr) : null,
-            marketDataSource: 'bitget_ticker', liquidityVerified: Number.isFinite(vol) && vol >= 0
-          };
-        })
-        .filter(r => r.symbol && r.symbol.endsWith('USDT'))
-        .sort((a, b) => (b.vol ?? -1) - (a.vol ?? -1));
+    const [contractsResponse, tickersResponse] = await Promise.all([
+      bgGet('/api/v2/mix/market/contracts?productType=USDT-FUTURES'),
+      bgGet('/api/v2/mix/market/tickers?productType=USDT-FUTURES')
+    ]);
+    if (contractsResponse?.code === '00000' && Array.isArray(contractsResponse.data) &&
+        tickersResponse?.code === '00000' && Array.isArray(tickersResponse.data)) {
+      App.universe = normalizeUniverseRows(contractsResponse.data, tickersResponse.data);
     } else {
       App.universe = await fetchUniverseFallback();
     }
@@ -4370,9 +4388,14 @@ async function loadUniverse() {
     App.universe = await fetchUniverseFallback();
   }
   if (!App.universe || !App.universe.length) {
-    App.universe = STATIC_TOP_UNIVERSE.map(sym => ({
-      symbol: sym, vol: null, funding: null, marketDataSource: 'static_fallback', liquidityVerified: false
+    App.universe = STATIC_TOP_UNIVERSE.map(symbol => ({
+      symbol, quoteCoin: 'USDT', productType: 'USDT-FUTURES', contractType: 'perpetual',
+      symbolStatus: 'normal', vol: null, funding: null,
+      marketDataSource: 'static_bitget_usdt_futures', liquidityVerified: false
     }));
+  }
+  if (App.universe && App.universe.length && !isUniverseSymbol(App.symbol)) {
+    App.symbol = App.universe[0].symbol;
   }
   populateSymbols();
   renderMarketPulse();
@@ -4386,7 +4409,7 @@ function renderMarketPulse(force = false) {
   if (!force && !RenderCache.isDirty('marketPulse', stateKey)) return;
   const tag = $('pulse-tag');
   const source = uni && uni[0] ? uni[0].marketDataSource : null;
-  if (tag) tag.textContent = uni ? `${uni.length} Paare · ${source === 'static_fallback' ? 'Fallback-Modus' : source || 'Quelle unbekannt'}` : 'Bitget';
+  if (tag) tag.textContent = uni ? `${uni.length} Paare · ${source === 'static_bitget_usdt_futures' ? 'Bitget USDT-M Offline-Fallback' : source || 'Quelle unbekannt'}` : 'Bitget';
   if (!uni) {
     moversEl.innerHTML = fundEl.innerHTML = '<span style="color:var(--mut);font-size:11px">lade …</span>';
     return;
@@ -5334,11 +5357,15 @@ function buildSymbols() {
   populateSymbols();
   const ci = $('symcustom');
   if (ci) ci.value = App.symbol;
-  sel.addEventListener('change', () => { App.symbol = sel.value; $('symcustom').value = App.symbol; restart(); });
+  sel.addEventListener('change', () => { switchToAsset(sel.value, App.chartTF); });
   ci.addEventListener('change', () => {
     const v = ci.value.trim().toUpperCase();
-    if (/^[A-Z0-9]{3,24}$/.test(v) && v.endsWith('USDT')) { App.symbol = v; sel.value = v; restart(); }
-    else { ci.value = App.symbol; showGlobalError('Ungültiges Paar — Format z. B. BTCUSDT (USDT-Quote erforderlich).'); }
+    if (/^[A-Z0-9]{3,24}USDT$/.test(v) && isUniverseSymbol(v)) {
+      switchToAsset(v, App.chartTF);
+    } else {
+      ci.value = App.symbol;
+      showGlobalError('Dieses Paar ist nicht als aktiver Bitget USDT-M Future verfügbar.');
+    }
   });
 }
 function bindTF() {
@@ -7350,6 +7377,15 @@ const SyncEngine = {
 // ============================================================================
 const AUTOBOT_KEY = 'aura-autobot-state-v2';
 
+function autobotProfileSettings(profile) {
+  const profiles = {
+    balanced: { minScore: 65, mtfNeed: 2, min24hVol: 2000000, minOosSamples: 10, minSetupDsr: 0.35 },
+    aggressive: { minScore: 58, mtfNeed: 1, min24hVol: 1000000, minOosSamples: 8, minSetupDsr: 0.25 },
+    strict: { minScore: 75, mtfNeed: 3, min24hVol: 5000000, minOosSamples: 15, minSetupDsr: 0.5 }
+  };
+  return profiles[profile] ? { ...profiles[profile] } : null;
+}
+
 function collectAutobotCandidates(radar) {
   if (!Array.isArray(radar)) return [];
   // Current radar state is a flat ranked array. Keep grouped input support for
@@ -7462,6 +7498,7 @@ function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
 
 function evaluateAutobotEdge(wf, minSamples = 15, options = null) {
   const opts = (options && typeof options === 'object') ? options : (typeof options === 'boolean' ? { strictUniverseGate: options } : {});
+  const minDsr = Number.isFinite(+opts.minDsr) ? Math.max(0, Math.min(0.99, +opts.minDsr)) : 0.5;
   const rejected = { accepted: false, edge: 0, sampleSize: 0, dsr: 0, setupDsr: 0, universeDsr: 0, effectiveTrials: 0, setupTrials: 18, strictApplied: false };
   if (!wf || wf.evidenceStatus !== 'OOS' || !wf.stats || !wf.dsr) return rejected;
   const stats = wf.stats, total = +stats.total;
@@ -7480,7 +7517,7 @@ function evaluateAutobotEdge(wf, minSamples = 15, options = null) {
       !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
       !Number.isFinite(testDsr) || !effectiveTrials || +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
   const edge = (+stats.wr * +stats.avgWinR) - ((1 - +stats.wr) * +stats.avgLossR);
-  if (!Number.isFinite(edge) || edge <= 0 || testDsr < 0.5) {
+  if (!Number.isFinite(edge) || edge <= 0 || testDsr < minDsr) {
     return {
       accepted: false,
       edge: Number.isFinite(edge) ? edge : 0,
@@ -7512,9 +7549,10 @@ const Autobot = {
   equity: 10000,
   maxOpenTrades: 3,
   riskPerTradePct: 2.0,
-  minScore: 78,
+  profile: 'balanced',
+  minScore: 65,
   maxLeverage: 15,
-  mtfNeed: 3,
+  mtfNeed: 2,
   btcFilter: true,
   autoBe: true,
   scaleOut: true,
@@ -7522,6 +7560,8 @@ const Autobot = {
   strictUniverseGate: false,
   lastScanFunnel: null,
   min24hVol: 2000000,
+  minOosSamples: 10,
+  minSetupDsr: 0.35,
   stagnationHours: 12,
   trades: [],
   history: [],
@@ -7538,6 +7578,7 @@ const Autobot = {
         if (typeof stored.enabled === 'boolean') this.enabled = stored.enabled;
         if (Number.isFinite(stored.maxOpenTrades)) this.maxOpenTrades = stored.maxOpenTrades;
         if (Number.isFinite(stored.riskPerTradePct)) this.riskPerTradePct = stored.riskPerTradePct;
+        if (typeof stored.profile === 'string') this.profile = stored.profile;
         if (Number.isFinite(stored.minScore)) this.minScore = stored.minScore;
         if (Number.isFinite(stored.maxLeverage)) this.maxLeverage = stored.maxLeverage;
         if (Number.isFinite(stored.mtfNeed)) this.mtfNeed = stored.mtfNeed;
@@ -7548,6 +7589,8 @@ const Autobot = {
         if (typeof stored.strictUniverseGate === 'boolean') this.strictUniverseGate = stored.strictUniverseGate;
         if (stored.lastScanFunnel && typeof stored.lastScanFunnel === 'object') this.lastScanFunnel = stored.lastScanFunnel;
         if (Number.isFinite(stored.min24hVol)) this.min24hVol = stored.min24hVol;
+        if (Number.isFinite(stored.minOosSamples)) this.minOosSamples = stored.minOosSamples;
+        if (Number.isFinite(stored.minSetupDsr)) this.minSetupDsr = stored.minSetupDsr;
         if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
         if (Array.isArray(stored.trades)) this.trades = stored.trades;
         if (Array.isArray(stored.history)) this.history = stored.history;
@@ -7566,6 +7609,7 @@ const Autobot = {
     if (typeof stored.enabled === 'boolean') this.enabled = stored.enabled;
     if (Number.isFinite(stored.maxOpenTrades)) this.maxOpenTrades = stored.maxOpenTrades;
     if (Number.isFinite(stored.riskPerTradePct)) this.riskPerTradePct = stored.riskPerTradePct;
+    if (typeof stored.profile === 'string') this.profile = stored.profile;
     if (Number.isFinite(stored.minScore)) this.minScore = stored.minScore;
     if (Number.isFinite(stored.maxLeverage)) this.maxLeverage = stored.maxLeverage;
     if (Number.isFinite(stored.mtfNeed)) this.mtfNeed = stored.mtfNeed;
@@ -7576,6 +7620,8 @@ const Autobot = {
     if (typeof stored.strictUniverseGate === 'boolean') this.strictUniverseGate = stored.strictUniverseGate;
     if (stored.lastScanFunnel && typeof stored.lastScanFunnel === 'object') this.lastScanFunnel = stored.lastScanFunnel;
     if (Number.isFinite(stored.min24hVol)) this.min24hVol = stored.min24hVol;
+    if (Number.isFinite(stored.minOosSamples)) this.minOosSamples = stored.minOosSamples;
+    if (Number.isFinite(stored.minSetupDsr)) this.minSetupDsr = stored.minSetupDsr;
     if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
     if (Array.isArray(stored.trades)) this.trades = stored.trades;
     if (Array.isArray(stored.history)) this.history = stored.history;
@@ -7589,6 +7635,7 @@ const Autobot = {
       equity: this.equity,
       maxOpenTrades: this.maxOpenTrades,
       riskPerTradePct: this.riskPerTradePct,
+      profile: this.profile,
       minScore: this.minScore,
       maxLeverage: this.maxLeverage,
       mtfNeed: this.mtfNeed,
@@ -7599,6 +7646,8 @@ const Autobot = {
       strictUniverseGate: this.strictUniverseGate,
       lastScanFunnel: this.lastScanFunnel,
       min24hVol: this.min24hVol,
+      minOosSamples: this.minOosSamples,
+      minSetupDsr: this.minSetupDsr,
       stagnationHours: this.stagnationHours,
       trades: this.trades,
       history: this.history,
@@ -7638,6 +7687,7 @@ const Autobot = {
       btnConfig.onclick = () => {
         cfgBox.classList.toggle('hidden');
         if (!cfgBox.classList.contains('hidden')) {
+          $('ab-cfg-profile').value = this.profile;
           $('ab-cfg-equity').value = this.initialEquity;
           $('ab-cfg-risk').value = this.riskPerTradePct;
           $('ab-cfg-max-trades').value = this.maxOpenTrades;
@@ -7650,9 +7700,28 @@ const Autobot = {
           $('ab-cfg-trailing-sl').checked = this.trailingSl;
           if ($('ab-cfg-strict-universe-gate')) $('ab-cfg-strict-universe-gate').checked = this.strictUniverseGate;
           if ($('ab-cfg-min-vol')) $('ab-cfg-min-vol').value = this.min24hVol || 2000000;
+          if ($('ab-cfg-min-oos-samples')) $('ab-cfg-min-oos-samples').value = this.minOosSamples;
+          if ($('ab-cfg-min-setup-dsr')) $('ab-cfg-min-setup-dsr').value = this.minSetupDsr;
           if ($('ab-cfg-stagnation-hours')) $('ab-cfg-stagnation-hours').value = this.stagnationHours || 12;
         }
       };
+    }
+
+    const profileSelect = $('ab-cfg-profile');
+    if (profileSelect) {
+      profileSelect.onchange = () => {
+        const preset = autobotProfileSettings(profileSelect.value);
+        if (!preset) return;
+        $('ab-cfg-min-score').value = preset.minScore;
+        $('ab-cfg-mtf-need').value = preset.mtfNeed;
+        $('ab-cfg-min-vol').value = preset.min24hVol;
+        $('ab-cfg-min-oos-samples').value = preset.minOosSamples;
+        $('ab-cfg-min-setup-dsr').value = preset.minSetupDsr;
+      };
+      ['ab-cfg-min-score', 'ab-cfg-mtf-need', 'ab-cfg-min-vol', 'ab-cfg-min-oos-samples', 'ab-cfg-min-setup-dsr'].forEach(id => {
+        const control = $(id);
+        if (control) control.addEventListener('input', () => { profileSelect.value = 'custom'; });
+      });
     }
 
     const btnSaveCfg = $('btn-save-ab-config');
@@ -7665,19 +7734,22 @@ const Autobot = {
         }
         this.riskPerTradePct = +$('ab-cfg-risk').value || 2.0;
         this.maxOpenTrades = +$('ab-cfg-max-trades').value || 3;
-        this.minScore = +$('ab-cfg-min-score').value || 78;
+        this.profile = $('ab-cfg-profile').value || 'custom';
+        this.minScore = Math.max(50, Math.min(95, +$('ab-cfg-min-score').value || 65));
         this.maxLeverage = +$('ab-cfg-max-lev').value || 15;
-        this.mtfNeed = +$('ab-cfg-mtf-need').value || 3;
+        this.mtfNeed = Math.max(1, Math.min(4, +$('ab-cfg-mtf-need').value || 2));
         this.btcFilter = Boolean($('ab-cfg-btc-filter').checked);
         this.autoBe = Boolean($('ab-cfg-auto-be').checked);
         this.scaleOut = Boolean($('ab-cfg-scale-out').checked);
         this.trailingSl = Boolean($('ab-cfg-trailing-sl').checked);
         if ($('ab-cfg-strict-universe-gate')) this.strictUniverseGate = Boolean($('ab-cfg-strict-universe-gate').checked);
-        if ($('ab-cfg-min-vol')) this.min24hVol = +$('ab-cfg-min-vol').value || 2000000;
+        if ($('ab-cfg-min-vol')) this.min24hVol = Math.max(0, +$('ab-cfg-min-vol').value || 0);
+        if ($('ab-cfg-min-oos-samples')) this.minOosSamples = Math.max(5, Math.min(50, +$('ab-cfg-min-oos-samples').value || 10));
+        if ($('ab-cfg-min-setup-dsr')) this.minSetupDsr = Math.max(0, Math.min(0.95, +$('ab-cfg-min-setup-dsr').value || 0));
         if ($('ab-cfg-stagnation-hours')) this.stagnationHours = +$('ab-cfg-stagnation-hours').value || 12;
 
         cfgBox.classList.add('hidden');
-        this.log(`⚙ Parameter aktualisiert: Risk=${this.riskPerTradePct}%, MinScore=${this.minScore}, MaxLev=${this.maxLeverage}x, MTF=${this.mtfNeed}/4, Slots=${this.maxOpenTrades}, GateMode=${this.strictUniverseGate ? 'Option A (Strikt: Uni-DSR ≥ 0.5)' : 'Option B (Standard: Setup-DSR ≥ 0.5)'}, MinVol=${fmtBig(this.min24hVol)}, TimeStop=${this.stagnationHours}h`);
+        this.log(`⚙ Parameter aktualisiert: Profil=${this.profile}, Risk=${this.riskPerTradePct}%, MinScore=${this.minScore}, MaxLev=${this.maxLeverage}x, MTF=${this.mtfNeed}/4, OOS≥${this.minOosSamples}, Setup-DSR≥${this.minSetupDsr.toFixed(2)}, Slots=${this.maxOpenTrades}, GateMode=${this.strictUniverseGate ? 'Option A (Strikt: Uni-DSR)' : 'Option B (Setup-DSR)'}, MinVol=${fmtBig(this.min24hVol)}, TimeStop=${this.stagnationHours}h`);
         this.save();
         this.render();
       };
@@ -7962,7 +8034,10 @@ const Autobot = {
           slippage: App.slippage, timeStopBars: App.timeStopBars,
           trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
         });
-        const edgeGate = evaluateAutobotEdge(freshWalkForward, 15, { strictUniverseGate: this.strictUniverseGate });
+        const edgeGate = evaluateAutobotEdge(freshWalkForward, this.minOosSamples, {
+          strictUniverseGate: this.strictUniverseGate,
+          minDsr: this.minSetupDsr
+        });
         if (!edgeGate.accepted) {
           addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
           continue;
@@ -8092,7 +8167,7 @@ const Autobot = {
       if (this.lastScanFunnel) {
         const f = this.lastScanFunnel;
         const tEff = 18 * f.wfEvaluated;
-        const mode = this.strictUniverseGate ? '<span style="color:var(--amb)">[Option A: Strikt (Uni-DSR &ge; 0.5)]</span>' : '<span style="color:#c084fc">[Option B: Standard (Setup-DSR &ge; 0.5)]</span>';
+        const mode = this.strictUniverseGate ? `<span style="color:var(--amb)">[Strikt: Uni-DSR &ge; ${this.minSetupDsr.toFixed(2)}]</span>` : `<span style="color:#c084fc">[Setup-DSR &ge; ${this.minSetupDsr.toFixed(2)} · OOS &ge; ${this.minOosSamples}]</span>`;
         const numMarkets = Math.round(f.scanned / 4) || f.scanned;
         const rejectSummary = autobotRejectSummary(f);
         const diagnostics = rejectSummary ? ` &middot; Abgelehnt: <b>${rejectSummary}</b>` : '';
@@ -8105,7 +8180,7 @@ const Autobot = {
           funnelEl.appendChild(errorEl);
         }
       } else {
-        funnelEl.textContent = `Bereit: Scanne Universum mit Grid 18 & Universe-Adjustierung (${this.strictUniverseGate ? 'Option A: Strikt' : 'Option B: Standard'}).`;
+        funnelEl.textContent = `Bereit: Profil ${this.profile} · Score ≥ ${this.minScore} · MTF ≥ ${this.mtfNeed}/4 · OOS ≥ ${this.minOosSamples} · DSR ≥ ${this.minSetupDsr.toFixed(2)}.`;
       }
     }
 
@@ -8279,7 +8354,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.1.8');
+  showReleaseNotesOnce('1.2.0');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
@@ -8293,8 +8368,6 @@ function init() {
   bindTradingViewBridge();
   const rt=$('radar-toggle'); if(rt) rt.onclick=()=>{ App.radarPaused=!App.radarPaused; rt.textContent=App.radarPaused?'▶':'⏸'; rt.setAttribute('aria-label',App.radarPaused?'Radar-Scan fortsetzen':'Radar-Scan pausieren'); if(!App.radarPaused){const w=App.radarPauseWaiters.splice(0);w.forEach(r=>r());} };
   const at=$('auto-timestop'); if(at) at.onclick=autoOptimizeTimeStop;
-  const src = $('source');
-  if (src) src.addEventListener('change', () => { App.sourceMode = src.value; restart(); });
   $('risk').addEventListener('input', e => {
     App.riskPct = +e.target.value;
     $('riskval').textContent = App.riskPct.toFixed(2).replace(/0$/, '') + '%';
