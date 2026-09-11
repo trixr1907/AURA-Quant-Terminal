@@ -1,9 +1,17 @@
-# AURA v1.1.7 — Smart Quant Terminal
+# AURA v1.1.8 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.1.7 — Setup Discovery, Edge-Auswahl & Radar-Ranking (aktuelle Fassung)
+### v1.1.8 — TradingView Basic Bridge (aktuelle Fassung)
+
+- **Free-only TradingView Bridge:** Öffnet den geladenen Coin und Timeframe auf Bitget Perpetual, Binance Perpetual oder Bitget Spot und kopiert das vollständige AURA-Pine-Script.
+- **Gespeichertes AURA-Layout:** Eine optionale TradingView-Layout-ID wird lokal gespeichert, damit der kostenlose Einzel-Chart direkt im eigenen AURA-Layout startet.
+- **Radar-Navigation und Top-30-Listen:** Vor-/Zurück-Navigation durch die besten vollständigen Radar-Kandidaten sowie kopierbare Gesamt-, LONG- und SHORT-Symbollisten mit hartem 30-Symbol-Limit.
+- **Kostenloser Preisalarm-Assistent:** Kopierbare Entry-, Stop- und TP1-Vorlagen ohne Webhooks oder technische Premium-Alarme.
+- **Setup-Notiz und Rücksprung-Link:** Reproduzierbarer Link lädt Symbol und Timeframe zurück in AURA und berechnet den Kontext frisch; `MODEL_NO_EVIDENCE` bleibt unverändert fail-closed.
+
+### v1.1.7 — Setup Discovery, Edge-Auswahl & Radar-Ranking
 
 - **Hero Top-Setups Quick-Picks:** Interaktive 1-Klick-Chips für die bis zu 4 stärksten Radar-Kandidaten direkt in der Hero-Fußzeile. Ein Klick lädt sofort den stärksten Timeframe und rechnet den 1.500-Kerzen Walk-Forward-Backtest sowie den mathematischen Kelly-Edge.
 - **Smarte 3-Stufen Radar-Gruppierung:** Saubere Trennung im 🎯 Top-Edge-Modus in *🔥 Hot Setups (Ausführbar)*, *🎯 Top Setup-Kandidaten* (starkes Signal kurz vor Trigger) und *👀 Watchlist & Universum*.
@@ -210,4 +218,4 @@ Der Builder prüft das Release-Verdict-Stamp, erzeugt `symbiose.zip`, berechnet 
 - Pine kann externe Funding-/OI-Daten nicht selbst abrufen.
 - TradingView-Kompilierung bleibt ein externer Prüfpfad; die lokalen Tests ersetzen sie nicht.
 
-AURA v1.1.7 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
+AURA v1.1.8 dient ausschließlich Quant Research, Setup Discovery und reproduzierbarer Modellvalidierung. Keine Anlageberatung.
