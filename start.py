@@ -78,7 +78,7 @@ def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 
 
 def check_relay_health() -> dict | None:
     try:
-        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.0"})
+        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.1"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
@@ -278,7 +278,7 @@ def run_gui() -> int:
 
 def print_banner():
     print("\n" + "=" * 60)
-    print("       AURA Quant Terminal — Quant Research & Setup Discovery v1.2.0")
+    print("       AURA Quant Terminal — Quant Research & Setup Discovery v1.2.1")
     print("=" * 60)
     print(f"  Dashboard: {BASE_URL}/")
     print(f"  Tutorial:  {BASE_URL}/tutorial")

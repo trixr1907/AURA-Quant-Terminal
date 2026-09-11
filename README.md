@@ -1,9 +1,17 @@
-# AURA v1.2.0 — Smart Quant Terminal
+# AURA v1.2.1 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.2.0 — USDT-M-Fokus, lesbare Marktstruktur & Autobot-Profile (aktuelle Fassung)
+### v1.2.1 — Pine Trade Forecasting, TV Desktop & Einsteiger-Transparenz (aktuelle Fassung)
+
+- **Pine Script Trade Forecasting & Overlay:** Automatische Projektion aktiver Trades mit Entry, Stop-Loss, TP1–TP3 und Gewinn/Verlust-Boxen direkt auf dem TradingView Chart.
+- **1-Klick TV Visualisierung:** Jede aktive Autobot-Position schaltet per Klick TradingView um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Trade-Levels.
+- **Praxistaugliche Defaultwerte:** 1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindest-Tagesvolumen (ermöglicht aktive Altcoin-Setups) und 8 OOS-Trades.
+- **Transparenz & Einsteiger-Schnellguide:** Mikro-Erklärungen unter jedem Parameter und integrierter Leitfaden zu Risiko, DSR und OOS-Tests ohne Fachchinesisch.
+- **TradingView Desktop Direktumschaltung:** Verhindert redundante Browser-Tabs bei aktiver Windows Desktop-App.
+
+### v1.2.0 — USDT-M-Fokus, lesbare Marktstruktur & Autobot-Profile
 
 - **Striktes Bitget-USDT-M-Universum:** Dashboard, Offline-Snapshot und Sync akzeptieren ausschließlich aktive Bitget `USDT-FUTURES`-Perpetuals mit USDT als Quote.
 - **Lesbare BOS/CHoCH-Markierungen:** Konfigurierbare Textgröße, ATR-/Tick-basierter Kerzenabstand, höherer Kontrast und erklärende Tooltips.
