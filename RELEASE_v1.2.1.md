@@ -8,10 +8,11 @@ AURA v1.2.1 bringt ein interaktives **Trade-Forecasting-Overlay in Pine Script v
 
 ## Neu in v1.2.1
 
-### 1. 📊 Pine Script Trade Forecasting & Execution Overlay (v6)
-* **Visuelle Trade-Projektion:** In `Symbiose_Signal_System_v1.pine` wurde die Input-Gruppe `7) Trade Forecasting & Execution` integriert.
-* **Exakte Preislevels & R:R-Boxen:** Zeichnet dynamisch Entry (Cyan), Stop-Loss (Rot), TP1 (+1.5R Hellgrün), TP2 (+3.0R Grün) und TP3 (+5.0R Smaragdgrün) sowie halbtransparente Gewinn- und Verlustzonen in die Zukunft.
-* **Status-Badge:** Informatives Karten-Badge am rechten Rand mit Hebel, Trade-Notiz, prozentualem Risiko und Take-Profit-Distanzen.
+### 1. 📊 1:1 TradingView Long/Short Position Tool & Trade Forecasting (v6)
+* **1:1 TradingView Position-Tool (Solutions 43000517002 & 43000516992):** In `Symbiose_Signal_System_v1.pine` wurde das native TradingView Long & Short Position Drawing Tool vollständig nachgebildet.
+* **Exakte Preislevels & R:R-Boxen:** Zeichnet dynamisch Entry (Grau/Cyan), Stop-Loss (Rot), TP1 (+1.5R Hellgrün), TP2 (+3.0R Grün) und TP3 (+5.0R Smaragdgrün) sowie halbtransparente Gewinn- (`#089981`) und Verlustzonen (`#f23645`) in den Chart.
+* **Live-Statistik-Badge:** Informatives TradingView-Positions-Badge mit Kontogröße, Risiko ($ und %), Hebel (10x), Notional, Margin und exaktem Chance-Risiko-Verhältnis (R:R).
+* **Universelle Persistenz:** Zeigt auch auf historischen Candles oder neuen Charts sofort die passenden Levels und bleibt niemals unsichtbar.
 * **1-Klick-Visualisierung:** Jede aktive Autobot-Position verfügt über den Button `📊 In TV visualisieren`. Ein Klick schaltet TradingView auf das Asset um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Entry-, SL- und TP-Werten in die Zwischenablage.
 
 ### 2. 🛡️ Verbesserte, praxistaugliche Defaultwerte

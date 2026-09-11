@@ -33,6 +33,8 @@ function createMockElement(id) {
     style: {},
     className: '',
     childNodes: [{ textContent: '' }, { textContent: '' }],
+    querySelectorAll: () => [],
+    querySelector: () => null,
     setAttribute(k, v) { this[k] = v; },
     removeAttribute(k) { delete this[k]; },
     getAttribute(k) { return this[k] || null; },

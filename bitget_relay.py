@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.2.1 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.2.2 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.2.1", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.2.2", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -39,7 +39,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -137,12 +137,14 @@ foreach ($c in $candidates) {{
 
 if ($found) {{
     Start-Process -FilePath $found -ArgumentList $url
+    exit 0
 }} else {{
     $cmd = Get-Command TradingView.exe -ErrorAction SilentlyContinue
     if ($cmd) {{
         Start-Process -FilePath 'TradingView.exe' -ArgumentList $url
+        exit 0
     }} else {{
-        Start-Process -FilePath $url
+        exit 1
     }}
 }}
 """
@@ -649,7 +651,7 @@ class RelayHandler(BaseHTTPRequestHandler):
         if not origin:
             return {}
         return {
-            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Origin": origin if origin != "null" else "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
             "Vary": "Origin",
@@ -668,8 +670,14 @@ class RelayHandler(BaseHTTPRequestHandler):
             self._send_json({"code": "ERR_FORBIDDEN_HOST"}, 403, cors_headers={})
             return False
 
+        path = self._request_path()
         origin_value = self.headers.get("Origin")
         if origin_value is None:
+            return True
+        if path == "/api/open-tradingview" and (
+            origin_value == "null"
+            or origin_value.startswith(("http://127.0.0.1", "http://localhost", "https://127.0.0.1", "https://localhost"))
+        ):
             return True
         try:
             origin = urllib.parse.urlsplit(origin_value)

@@ -1,9 +1,17 @@
-# AURA v1.2.1 — Smart Quant Terminal
+# AURA v1.2.2 — Smart Quant Terminal
 
 Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
 Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
 
-### v1.2.1 — Pine Trade Forecasting, TV Desktop & Einsteiger-Transparenz (aktuelle Fassung)
+### v1.2.2 — TradingView Long/Short Position Tool & Robuste Desktop-Umschaltung (aktuelle Fassung)
+
+- **1:1 TradingView Long/Short Position Drawing Tool:** Detailgetreue Nachbildung der Support-Spezifikationen (`43000517002` & `43000516992`) in Pine Script v6 mit Gewinnboxen (`#089981`), Verlustboxen (`#f23645`), TP1/TP2/TP3 und Positions-Badge.
+- **Robuste Desktop-Umschaltung:** Loopback-Origin-Freigabe im Relay für direkte Desktop-App-Umschaltung ohne Web-Browser-Umwege.
+- **Praxistaugliche Defaultwerte:** 1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindest-Tagesvolumen (ermöglicht aktive Altcoin-Setups) und 8 OOS-Trades.
+- **Transparenz & Einsteiger-Schnellguide:** Mikro-Erklärungen unter jedem Parameter und integrierter Leitfaden zu Risiko, DSR und OOS-Tests ohne Fachchinesisch.
+- **1-Klick TV Visualisierung:** Jede aktive Autobot-Position schaltet per Klick TradingView um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Trade-Levels.
+
+### v1.2.1 — Pine Trade Forecasting, TV Desktop & Einsteiger-Transparenz
 
 - **Pine Script Trade Forecasting & Overlay:** Automatische Projektion aktiver Trades mit Entry, Stop-Loss, TP1–TP3 und Gewinn/Verlust-Boxen direkt auf dem TradingView Chart.
 - **1-Klick TV Visualisierung:** Jede aktive Autobot-Position schaltet per Klick TradingView um und kopiert den maßgeschneiderten Pine-Script-Code mit den konkreten Trade-Levels.
