@@ -51,7 +51,7 @@ class ResearchOnlyCleanupTests(unittest.TestCase):
 
     def test_risk_slider_and_warning_have_stable_layout_contract(self):
         html = (ROOT / "Symbiose_Dashboard.html").read_text(encoding="utf-8")
-        self.assertRegex(html, r'<input[^>]+id="risk"[^>]+min="0\.5"[^>]+value="1\.0"[^>]+step="0\.5"')
+        self.assertRegex(html, r'<input[^>]+id="risk"[^>]+min="0\.5"[^>]+value="5\.0"[^>]+step="0\.5"')
         self.assertIn("#risk-warning", html)
         self.assertRegex(html, r'#risk-warning\s*\{[^}]*display:block[^}]*font-size:9px[^}]*margin-top:2px[^}]*min-height:13px')
         self.assertIn("rw.style.opacity", html)

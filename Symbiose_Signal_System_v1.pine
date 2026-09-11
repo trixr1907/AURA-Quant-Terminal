@@ -92,6 +92,19 @@ grpV = "6) Darstellung"
 structureLabelSize = input.string("Normal", "BOS/CHoCH Textgröße", options=["Klein", "Normal", "Groß"], group=grpV)
 structureLabelOffsetAtr = input.float(0.35, "BOS/CHoCH Abstand (ATR)", minval=0.1, maxval=2.0, step=0.05, tooltip="Vertikaler Abstand der Struktur-Labels zur Kerze. Höhere Werte verhindern Überlappungen.", group=grpV)
 
+grpFC = "7) Trade Forecasting & Execution"
+fcShow     = input.bool(true, "Trade Forecast visualisieren", group=grpFC, tooltip="Zeigt das aktive Trade-Setup mit Entry, SL, TP1–TP3 und Risiko/Ertrags-Projektionsboxen direkt auf dem Chart.")
+fcMode     = input.string("Auto", "Forecast-Modus", options=["Auto", "Custom", "Aus"], group=grpFC, tooltip="Auto = Nutzt das letzte AURA-Signal; Custom = Nutzt die manuellen Entry/SL/TP-Parameter unten.")
+fcDir      = input.string("Auto", "Richtung (Custom)", options=["Auto", "Long", "Short"], group=grpFC)
+fcEntry    = input.float(0.0, "Entry Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
+fcSl       = input.float(0.0, "Stop Loss (Custom)", minval=0.0, step=0.0001, group=grpFC)
+fcTp1      = input.float(0.0, "TP1 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
+fcTp2      = input.float(0.0, "TP2 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
+fcTp3      = input.float(0.0, "TP3 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
+fcLev      = input.int(10, "Hebel (Leverage)", minval=1, maxval=125, group=grpFC)
+fcNote     = input.string("AURA Active Trade", "Trade Notiz / ID", group=grpFC)
+fcBars     = input.int(20, "Forecast-Länge (Bars)", minval=5, maxval=100, group=grpFC)
+
 // ============================================================================
 //  HILFSFUNKTIONEN
 // ============================================================================
@@ -737,6 +750,58 @@ if showStr and chBearAgo == 0
     if array.size(strLabels) > 40
         oldL = array.shift(strLabels)
         label.delete(oldL)
+
+// ============================================================================
+//  TRADE FORECASTING & EXECUTION OVERLAY (v1.2.0)
+// ============================================================================
+var line fcLineEntry = na
+var line fcLineSl    = na
+var line fcLineTp1   = na
+var line fcLineTp2   = na
+var line fcLineTp3   = na
+var box  fcBoxProfit = na
+var box  fcBoxLoss   = na
+var label fcLabelCard = na
+
+isCustomFc = fcMode == "Custom" or (fcMode == "Auto" and fcEntry > 0.0 and fcSl > 0.0)
+fcActiveDir = isCustomFc ? (fcDir == "Short" ? -1 : fcDir == "Long" ? 1 : (fcEntry >= fcSl ? 1 : -1)) : (showLong ? 1 : showShort ? -1 : 0)
+fcActiveEntry = isCustomFc ? fcEntry : entryPx
+fcActiveSl = isCustomFc ? fcSl : (fcActiveDir == 1 ? lngSL : shtSL)
+fcDiffSl = math.abs(fcActiveEntry - fcActiveSl)
+fcActiveTp1 = isCustomFc ? (fcTp1 > 0.0 ? fcTp1 : (fcActiveDir == 1 ? fcActiveEntry + fcDiffSl * 1.5 : fcActiveEntry - fcDiffSl * 1.5)) : (fcActiveDir == 1 ? lngTP1 : shtTP1)
+fcActiveTp2 = isCustomFc ? (fcTp2 > 0.0 ? fcTp2 : (fcActiveDir == 1 ? fcActiveEntry + fcDiffSl * 3.0 : fcActiveEntry - fcDiffSl * 3.0)) : (fcActiveDir == 1 ? lngTP2 : shtTP2)
+fcActiveTp3 = isCustomFc ? (fcTp3 > 0.0 ? fcTp3 : (fcActiveDir == 1 ? fcActiveEntry + fcDiffSl * 5.0 : fcActiveEntry - fcDiffSl * 5.0)) : (fcActiveDir == 1 ? lngTP3 : shtTP3)
+
+if fcShow and fcMode != "Aus" and fcActiveEntry > 0.0 and fcActiveSl > 0.0 and fcActiveDir != 0
+    if barstate.islast
+        line.delete(fcLineEntry)
+        line.delete(fcLineSl)
+        line.delete(fcLineTp1)
+        line.delete(fcLineTp2)
+        line.delete(fcLineTp3)
+        box.delete(fcBoxProfit)
+        box.delete(fcBoxLoss)
+        label.delete(fcLabelCard)
+
+        x1 = bar_index
+        x2 = bar_index + fcBars
+
+        fcLineEntry := line.new(x1, fcActiveEntry, x2, fcActiveEntry, color=color.new(#38bdf8, 0), width=2, style=line.style_dotted)
+        fcLineSl    := line.new(x1, fcActiveSl, x2, fcActiveSl, color=color.new(#ef4444, 0), width=2, style=line.style_solid)
+        fcLineTp1   := line.new(x1, fcActiveTp1, x2, fcActiveTp1, color=color.new(#4ade80, 0), width=1, style=line.style_dashed)
+        fcLineTp2   := line.new(x1, fcActiveTp2, x2, fcActiveTp2, color=color.new(#22c55e, 0), width=2, style=line.style_dashed)
+        fcLineTp3   := line.new(x1, fcActiveTp3, x2, fcActiveTp3, color=color.new(#10b981, 0), width=1, style=line.style_solid)
+
+        fcBoxProfit := box.new(x1, math.max(fcActiveEntry, fcActiveTp2), x2, math.min(fcActiveEntry, fcActiveTp2), border_color=color.new(#22c55e, 60), bgcolor=color.new(#22c55e, 85))
+        fcBoxLoss   := box.new(x1, math.max(fcActiveEntry, fcActiveSl), x2, math.min(fcActiveEntry, fcActiveSl), border_color=color.new(#ef4444, 60), bgcolor=color.new(#ef4444, 85))
+
+        riskPctVal = fcActiveEntry > 0.0 ? (math.abs(fcActiveEntry - fcActiveSl) / fcActiveEntry) * 100.0 : 0.0
+        tp2PctVal  = fcActiveEntry > 0.0 ? (math.abs(fcActiveTp2 - fcActiveEntry) / fcActiveEntry) * 100.0 : 0.0
+        dirStr = fcActiveDir == 1 ? "LONG ▲" : "SHORT ▼"
+        cardText = "⚡ " + fcNote + " (" + dirStr + " · " + str.tostring(fcLev) + "x)\n" + "Entry: " + str.tostring(fcActiveEntry, "#.####") + "\n" + "SL: " + str.tostring(fcActiveSl, "#.####") + " (-" + str.tostring(riskPctVal, "#.##") + "%)\n" + "TP1 (+1.5R): " + str.tostring(fcActiveTp1, "#.####") + "\n" + "TP2 (+3.0R): " + str.tostring(fcActiveTp2, "#.####") + " (+" + str.tostring(tp2PctVal, "#.##") + "%)\n" + "TP3 (+5.0R): " + str.tostring(fcActiveTp3, "#.####")
+
+        cardBg = fcActiveDir == 1 ? color.new(#065f46, 15) : color.new(#7f1d1d, 15)
+        fcLabelCard := label.new(x2, fcActiveEntry, cardText, style=label.style_label_left, color=cardBg, textcolor=color.white, size=size.small)
 
 // ============================================================================
 //  DASHBOARD-TABLE (Score, Signal, SL/TP, MTF-Status, Position-Size, v1.0.7)

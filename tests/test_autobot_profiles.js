@@ -39,15 +39,15 @@ vm.runInContext(
 
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.autobotProfileSettings('balanced'))),
-  { minScore: 65, mtfNeed: 2, min24hVol: 2000000, minOosSamples: 10, minSetupDsr: 0.35 },
+  { minScore: 65, mtfNeed: 2, min24hVol: 500000, minOosSamples: 8, minSetupDsr: 0.10, maxLeverage: 10 },
 );
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.autobotProfileSettings('aggressive'))),
-  { minScore: 58, mtfNeed: 1, min24hVol: 1000000, minOosSamples: 8, minSetupDsr: 0.25 },
+  { minScore: 58, mtfNeed: 1, min24hVol: 250000, minOosSamples: 6, minSetupDsr: 0.05, maxLeverage: 15 },
 );
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.autobotProfileSettings('strict'))),
-  { minScore: 75, mtfNeed: 3, min24hVol: 5000000, minOosSamples: 15, minSetupDsr: 0.5 },
+  { minScore: 75, mtfNeed: 3, min24hVol: 1000000, minOosSamples: 12, minSetupDsr: 0.30, maxLeverage: 5 },
 );
 
 const candidate = {

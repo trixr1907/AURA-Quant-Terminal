@@ -280,11 +280,11 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       </div>
       <div>
         <div class="lbl">Konto (USDT)</div>
-        <input type="number" id="equity" value="10000" min="100" step="500" style="min-width:92px">
+        <input type="number" id="equity" value="1000" min="100" step="100" style="min-width:92px" title="Simuliertes oder reales Kontoguthaben in USDT">
       </div>
       <div>
-        <div class="lbl">Risiko <b id="riskval" style="color:var(--grn2)">1.0%</b> <span id="risk-warning" style="color:var(--red2)">Warnung: Hohes Ruinrisiko</span></div>
-        <input type="range" id="risk" min="0.5" max="35" value="1.0" step="0.5">
+        <div class="lbl">Risiko <b id="riskval" style="color:var(--grn2)">5.0%</b> <span id="risk-warning" style="color:var(--red2)">Warnung: Hohes Ruinrisiko</span></div>
+        <input type="range" id="risk" min="0.5" max="35" value="5.0" step="0.5" title="Prozentualer Kontoverlust bei Stop-Loss-Treffer">
       </div>
       <div>
         <div class="lbl">Time-Stop (Bars)</div>
@@ -437,90 +437,135 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);font-size:10px;color:var(--txt);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
             <div id="ab-strategy-summary"><b>Strategie:</b> Einstellbares Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">65</span>, MTF &ge; <span id="cfg-disp-mtf">2/4</span>, positive OOS-Evidenz, Dynamic Scale-Out &amp; Trailing-SL).</div>
-            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Paper-Simulation · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.35 · OOS &ge; 10 Trades</div>
+            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Paper-Simulation · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.10 · OOS &ge; 8 Trades</div>
           </div>
-          <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">2.0%</b> · Max Hebel: <b id="cfg-disp-lev">15x</b> · Max Slots: <b id="cfg-disp-max">3</b></div>
+          <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">5.0%</b> · Max Hebel: <b id="cfg-disp-lev">10x</b> · Max Slots: <b id="cfg-disp-max">5</b></div>
         </div>
 
         <!-- Config Panel (collapsible / toggleable) -->
-        <div id="ab-config-box" class="hidden" style="margin-bottom:12px;padding:12px;background:rgba(15,23,42,.92);border:1px solid rgba(168,85,247,.35);border-radius:8px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,.1)">
-            <b style="font-size:11px;color:#c084fc">⚙ Paper-Autobot-Parameter &amp; Risikosteuerung</b>
-            <button id="btn-save-ab-config" type="button" class="act" style="height:26px;padding:0 10px;font-size:9.5px">✓ Speichern &amp; Anwenden</button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px 14px">
+        <div id="ab-config-box" class="hidden" style="margin-bottom:12px;padding:14px;background:rgba(15,23,42,.95);border:1px solid rgba(168,85,247,.4);border-radius:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(148,163,184,.15)">
             <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Scan-Profil</label>
-              <select id="ab-cfg-profile" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
-                <option value="balanced" selected>Ausgewogen (65 · 2/4)</option>
-                <option value="aggressive">Aktiv (58 · 1/4)</option>
-                <option value="strict">Strikt (75 · 3/4)</option>
+              <b style="font-size:12px;color:#c084fc">⚙ Paper-Autobot Parameter &amp; Risikosteuerung</b>
+              <div style="font-size:10px;color:var(--txt3);margin-top:2px">Konfiguriere Simulationskapital, Filter-Schwellen und Schutzmechanismen. Änderungen werden sofort aktiv.</div>
+            </div>
+            <button id="btn-save-ab-config" type="button" class="act" style="height:28px;padding:0 12px;font-size:10px;font-weight:700">✓ Speichern &amp; Anwenden</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:12px 16px">
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:#c084fc;text-transform:uppercase;margin-bottom:4px">🎯 Scan-Profil</label>
+              <select id="ab-cfg-profile" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+                <option value="balanced" selected>Ausgewogen (Score 65 · 2/4 MTF · 500k Vol)</option>
+                <option value="aggressive">Aktiv (Score 58 · 1/4 MTF · 250k Vol)</option>
+                <option value="strict">Strikt (Score 75 · 3/4 MTF · 1M Vol)</option>
                 <option value="custom">Benutzerdefiniert</option>
               </select>
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Schnellwahl: Passt Schwellenwerte automatisch an dein Risikoprofil an.</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Startkapital (USDT)</label>
-              <input id="ab-cfg-equity" type="number" step="100" min="100" max="1000000" value="10000" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">💵 Startkapital (USDT)</label>
+              <input id="ab-cfg-equity" type="number" step="100" min="100" max="1000000" value="1000" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Simuliertes Paper-Startguthaben (Standard: 1.000 USDT).</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Risiko pro Trade (%)</label>
-              <input id="ab-cfg-risk" type="number" step="0.5" min="0.5" max="10" value="2.0" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">🛡️ Risiko pro Trade (%)</label>
+              <input id="ab-cfg-risk" type="number" step="0.5" min="0.5" max="20" value="5.0" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">% Kontoverlust bei vollem Stop-Loss-Treffer (Standard: 5.0%).</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Max. Gleichzeitige Trades</label>
-              <input id="ab-cfg-max-trades" type="number" step="1" min="1" max="10" value="3" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">📊 Max. Offene Trades</label>
+              <input id="ab-cfg-max-trades" type="number" step="1" min="1" max="10" value="5" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Maximale gleichzeitige Positionen / Slots (Standard: 5).</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. Setup-Score (Long / Short Threshold)</label>
-              <input id="ab-cfg-min-score" type="number" step="1" min="50" max="95" value="65" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">📈 Min. Setup-Score (0–100)</label>
+              <input id="ab-cfg-min-score" type="number" step="1" min="50" max="95" value="65" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Mindest-Signalstärke (Trend, Momentum, Struktur). 65 = solide Basis.</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Maximaler Hebel (Leverage)</label>
-              <input id="ab-cfg-max-lev" type="number" step="1" min="1" max="50" value="15" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">⚡ Maximaler Hebel (Leverage)</label>
+              <input id="ab-cfg-max-lev" type="number" step="1" min="1" max="50" value="10" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Obergrenze für Hebelwirkung (Standard: 10x für stabilen Margin-Puffer).</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">MTF Mindest-Übereinstimmung</label>
-              <select id="ab-cfg-mtf-need" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
-                <option value="4">4 / 4 Timeframes (Ultra-Strikt)</option>
-                <option value="3">3 / 4 Timeframes (Strikt)</option>
-                <option value="2" selected>2 / 4 Timeframes (Ausgewogen)</option>
-                <option value="1">1 / 4 Timeframes (Aktiv)</option>
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">⏱️ MTF Mindest-Übereinstimmung</label>
+              <select id="ab-cfg-mtf-need" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+                <option value="4">4 / 4 Timeframes (Ultra-Strikt · Höchste Bestätigung)</option>
+                <option value="3">3 / 4 Timeframes (Strikt · Hohe Bestätigung)</option>
+                <option value="2" selected>2 / 4 Timeframes (Ausgewogen · Standard)</option>
+                <option value="1">1 / 4 Timeframes (Aktiv · Frühe Einstiege)</option>
               </select>
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Wie viele Zeiteinheiten (15m, 1h, 4h, 1d) in die gleiche Richtung zeigen müssen.</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. 24h Volumen (USDT)</label>
-              <input id="ab-cfg-min-vol" type="number" step="500000" min="0" max="100000000" value="2000000" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">💧 Min. 24h Volumen (USDT)</label>
+              <input id="ab-cfg-min-vol" type="number" step="100000" min="0" max="100000000" value="500000" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Mindesthandelsvolumen (Standard: 500k $). Filtert illiquide Schrottcoins heraus.</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. OOS Trades</label>
-              <input id="ab-cfg-min-oos-samples" type="number" step="1" min="5" max="50" value="10" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">🧪 Min. OOS Trades (Historientest)</label>
+              <input id="ab-cfg-min-oos-samples" type="number" step="1" min="3" max="50" value="8" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Mindestanzahl historischer Test-Trades (Standard: 8). Sichert statistische Relevanz.</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Min. Setup-DSR (0–1)</label>
-              <input id="ab-cfg-min-setup-dsr" type="number" step="0.05" min="0" max="0.95" value="0.35" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">🎲 Min. Setup-DSR (Zufallsschutz)</label>
+              <input id="ab-cfg-min-setup-dsr" type="number" step="0.05" min="0" max="0.95" value="0.10" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Deflated Sharpe Ratio (0–1). Filtert Zufallstreffer heraus (Standard: 0.10).</div>
             </div>
-            <div>
-              <label style="display:block;font-size:9px;color:var(--dim);text-transform:uppercase;margin-bottom:3px">Stagnations Time-Stop (Std.)</label>
-              <input id="ab-cfg-stagnation-hours" type="number" step="1" min="2" max="72" value="12" style="width:100%;padding:5px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+
+            <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
+              <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">⌛ Stagnations Time-Stop (Std.)</label>
+              <input id="ab-cfg-stagnation-hours" type="number" step="1" min="2" max="72" value="12" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
+              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Schließt unbewegliche Trades nach X Std. automatisch (Standard: 12h).</div>
             </div>
           </div>
-          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,.08);font-size:9.5px">
-            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">
-              <input id="ab-cfg-btc-filter" type="checkbox" checked> BTC-Makro Confluence-Filter (keine Longs in Bären-Trend)
+
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,163,184,.12);font-size:10px">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="Verhindert Long-Einstiege, wenn Bitcoin im 4h/1d-Bärentrend steht.">
+              <input id="ab-cfg-btc-filter" type="checkbox" checked> <b>BTC-Makro Confluence-Filter</b> (keine Longs in Bären-Trend)
             </label>
-            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">
-              <input id="ab-cfg-auto-be" type="checkbox" checked> Auto Break-Even bei +1R Profit
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="Zieht den Stop-Loss automatisch auf Einstiegspreis (±0), sobald +1R Gewinn erreicht ist.">
+              <input id="ab-cfg-auto-be" type="checkbox" checked> <b>Auto Break-Even</b> bei +1R Profit
             </label>
-            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">
-              <input id="ab-cfg-scale-out" type="checkbox" checked> 50% Teilgewinn-Mitnahme bei TP2 (+2R)
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="Schließt automatisch 50% der Position bei Take-Profit 2 (+2R bis +3R).">
+              <input id="ab-cfg-scale-out" type="checkbox" checked> <b>50% Teilgewinn-Mitnahme</b> bei TP2
             </label>
-            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">
-              <input id="ab-cfg-trailing-sl" type="checkbox" checked> Trailing-SL Sicherung
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" title="Sichert verbleibende Rest-Positionen mit dynamischem Trailing-Stop ab.">
+              <input id="ab-cfg-trailing-sl" type="checkbox" checked> <b>Trailing-SL</b> Sicherung
             </label>
-            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:#c084fc">
-              <input id="ab-cfg-strict-universe-gate" type="checkbox"> Striktes Universe-Gate (Option A: erfordert Uni-DSR &ge; 0.5 statt Setup-DSR)
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:#c084fc" title="Option A (Wissenschaftlicher Multi-Market-Test): Verlangt DSR ≥ 0.5 über den gesamten Markt statt pro Setup.">
+              <input id="ab-cfg-strict-universe-gate" type="checkbox"> <b>Striktes Universe-Gate</b> (erfordert Uni-DSR &ge; 0.5)
             </label>
           </div>
+
+          <!-- Beginner Guide Collapsible -->
+          <details style="margin-top:10px;padding:8px 10px;background:rgba(2,6,23,.6);border:1px solid rgba(148,163,184,.15);border-radius:6px">
+            <summary style="font-size:10px;color:#38bdf8;font-weight:700;cursor:pointer">💡 Schnell-Guide für Einsteiger: Was bedeuten diese Werte einfach erklärt?</summary>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:8px;margin-top:8px;font-size:9.5px;line-height:1.4;color:var(--txt2)">
+              <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
+                <b style="color:var(--grn2)">🛡️ Risiko &amp; Hebel:</b> Die Positionsgröße wird dynamisch berechnet, sodass bei Erreichen des Stop-Loss exakt 5% deines Guthabens verloren gehen. Ein Hebel von 10x sorgt für genug Margin-Puffer weit vor der Liquidation.
+              </div>
+              <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
+                <b style="color:#38bdf8">🧪 OOS-Trades (Historientest):</b> Das System testet jedes Setup an den echten Kursbewegungen der Vorwochen. Mindestens 8 historische Trades beweisen, dass die Strategie nicht nur ein Einzeltreffer ist.
+              </div>
+              <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
+                <b style="color:#c084fc">🎲 Setup-DSR (Zufallsschutz):</b> Die <i>Deflated Sharpe Ratio</i> nach Prof. Marcos López de Prado prüft, ob Backtest-Ergebnisse echtes Können oder Zufall waren. Ein Wert ab 0.10 schützt vor Überanpassung (Overfitting).
+              </div>
+              <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
+                <b style="color:var(--amb)">⌛ Time-Stop &amp; Volumen:</b> Steht ein Trade 12 Stunden lang auf der Stelle, wird er automatisch geschlossen, um Kapital freizumachen. Das 500k-Mindestvolumen schützt vor illiquiden Spreads.
+              </div>
+            </div>
+          </details>
         </div>
 
         <div id="ab-trades-container" style="margin-bottom:12px">
@@ -2231,7 +2276,7 @@ async function fetchCryptoFeatures(symbol, currentPrice, price4hAgo) {
 //  APP-ZUSTAND
 // ============================================================================
 const App = {
-  symbol: 'BTCUSDT', chartTF: '1h', equity: 10000, riskPct: 1.0, visible: 260,
+  symbol: 'BTCUSDT', chartTF: '1h', equity: 1000, riskPct: 5.0, visible: 260,
   timeStopBars: SYM.timeStopBars,
   sourceMode: 'bitget', leverage: 1,
   radarPaused: false, radarPauseWaiters: [],
@@ -3195,16 +3240,64 @@ function preloadTradingViewPine() {
   return tradingViewPineLoad;
 }
 
-function getTradingViewPineText() {
-  return tradingViewPineText;
+function buildCustomTradingViewPine(pine, s) {
+  if (!pine || !s) return pine || '';
+  let res = pine;
+  const dirStr = s.dir === 1 ? 'Long' : s.dir === -1 ? 'Short' : 'Auto';
+  const entryVal = Number(s.entry || 0).toFixed(4);
+  const slVal = Number(s.sl || s.currentSl || 0).toFixed(4);
+  const tp1Val = Number(s.tp1 || 0).toFixed(4);
+  const tp2Val = Number(s.tp2 || 0).toFixed(4);
+  const tp3Val = Number(s.tp3 || 0).toFixed(4);
+  const levVal = Math.round(s.leverage || s.lev || 10);
+  const noteVal = (s.note || `AURA ${s.coin || App.symbol || ''} ${dirStr} ${levVal}x`).replace(/"/g, "'");
+
+  res = res.replace(/fcMode\s*=\s*input\.string\("[^"]*"/, 'fcMode     = input.string("Custom"');
+  res = res.replace(/fcDir\s*=\s*input\.string\("[^"]*"/, `fcDir      = input.string("${dirStr}"`);
+  res = res.replace(/fcEntry\s*=\s*input\.float\([^,]+/, `fcEntry    = input.float(${entryVal}`);
+  res = res.replace(/fcSl\s*=\s*input\.float\([^,]+/, `fcSl       = input.float(${slVal}`);
+  res = res.replace(/fcTp1\s*=\s*input\.float\([^,]+/, `fcTp1      = input.float(${tp1Val}`);
+  res = res.replace(/fcTp2\s*=\s*input\.float\([^,]+/, `fcTp2      = input.float(${tp2Val}`);
+  res = res.replace(/fcTp3\s*=\s*input\.float\([^,]+/, `fcTp3      = input.float(${tp3Val}`);
+  res = res.replace(/fcLev\s*=\s*input\.int\([^,]+/, `fcLev      = input.int(${levVal}`);
+  res = res.replace(/fcNote\s*=\s*input\.string\("[^"]*"/, `fcNote     = input.string("${noteVal}"`);
+  return res;
 }
 
-async function openInTradingView(symbol, timeframe, btn = null) {
+function findActiveTradeForPine(symbol) {
+  const sym = String(symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!sym) return null;
+  if (typeof Autobot !== 'undefined' && Array.isArray(Autobot.trades)) {
+    const found = Autobot.trades.find(t => t && t.coin && t.coin.toUpperCase().replace(/[^A-Z0-9]/g, '') === sym);
+    if (found) return found;
+  }
+  return null;
+}
+
+function getTradingViewPineText(activeTradeOrSetup = null) {
+  if (!tradingViewPineText) return '';
+  const setup = activeTradeOrSetup || findActiveTradeForPine(App.symbol) || (App.data && App.data.live && (App.data.live.longSig || App.data.live.shortSig) ? {
+    coin: App.symbol,
+    dir: App.data.live.longSig ? 1 : App.data.live.shortSig ? -1 : 0,
+    entry: App.data.live.entry,
+    sl: App.data.live.sl,
+    tp1: App.data.live.tp1,
+    tp2: App.data.live.tp2,
+    tp3: App.data.live.tp3,
+    leverage: App.leverage || 10
+  } : null);
+  if (!setup || (!setup.entry && !setup.sl)) return tradingViewPineText;
+  return buildCustomTradingViewPine(tradingViewPineText, setup);
+}
+
+async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSetup = null) {
   const sym = symbol || App.symbol || 'BTCUSDT';
   const tf = timeframe || App.chartTF || '1h';
   const tvUrl = buildTradingViewUrl(sym, tf, App.tradingView || {});
   const desktopUrl = buildTradingViewDesktopUrl(sym, tf, App.tradingView || {});
-  const pineText = getTradingViewPineText();
+  const setupObj = activeTradeOrSetup || findActiveTradeForPine(sym);
+  const pineText = getTradingViewPineText(setupObj);
+  const hasForecast = !!(setupObj && (setupObj.entry || setupObj.sl));
   let pineCopied = false;
   let clipboardWrite = null;
   let openTarget = 'web';
@@ -3266,12 +3359,13 @@ async function openInTradingView(symbol, timeframe, btn = null) {
   if (btn) {
     const origHtml = btn.innerHTML;
     const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TV Web-Fallback geöffnet';
-    btn.innerHTML = pineCopied ? `✓ Pine kopiert & ${targetLabel}!` : `✓ ${targetLabel} · Pine nicht kopiert`;
+    const fcLabel = hasForecast ? ' (mit Trade-Forecast)' : '';
+    btn.innerHTML = pineCopied ? `✓ Pine kopiert${fcLabel} & ${targetLabel}!` : `✓ ${targetLabel} · Pine nicht kopiert`;
     btn.classList.add('copied');
     setTimeout(() => {
       btn.innerHTML = origHtml;
       btn.classList.remove('copied');
-    }, 2400);
+    }, 2800);
   }
 
   return { opened: desktopOpened || !!opened, desktopOpened, pineCopied, url: tvUrl, desktopUrl, target: openTarget };
@@ -7376,9 +7470,9 @@ const AUTOBOT_KEY = 'aura-autobot-state-v2';
 
 function autobotProfileSettings(profile) {
   const profiles = {
-    balanced: { minScore: 65, mtfNeed: 2, min24hVol: 2000000, minOosSamples: 10, minSetupDsr: 0.35 },
-    aggressive: { minScore: 58, mtfNeed: 1, min24hVol: 1000000, minOosSamples: 8, minSetupDsr: 0.25 },
-    strict: { minScore: 75, mtfNeed: 3, min24hVol: 5000000, minOosSamples: 15, minSetupDsr: 0.5 }
+    balanced: { minScore: 65, mtfNeed: 2, min24hVol: 500000, minOosSamples: 8, minSetupDsr: 0.10, maxLeverage: 10 },
+    aggressive: { minScore: 58, mtfNeed: 1, min24hVol: 250000, minOosSamples: 6, minSetupDsr: 0.05, maxLeverage: 15 },
+    strict: { minScore: 75, mtfNeed: 3, min24hVol: 1000000, minOosSamples: 12, minSetupDsr: 0.30, maxLeverage: 5 }
   };
   return profiles[profile] ? { ...profiles[profile] } : null;
 }
@@ -7542,13 +7636,13 @@ function evaluateAutobotEdge(wf, minSamples = 15, options = null) {
 
 const Autobot = {
   enabled: false,
-  initialEquity: 10000,
-  equity: 10000,
-  maxOpenTrades: 3,
-  riskPerTradePct: 2.0,
+  initialEquity: 1000,
+  equity: 1000,
+  maxOpenTrades: 5,
+  riskPerTradePct: 5.0,
   profile: 'balanced',
   minScore: 65,
-  maxLeverage: 15,
+  maxLeverage: 10,
   mtfNeed: 2,
   btcFilter: true,
   autoBe: true,
@@ -7556,9 +7650,9 @@ const Autobot = {
   trailingSl: true,
   strictUniverseGate: false,
   lastScanFunnel: null,
-  min24hVol: 2000000,
-  minOosSamples: 10,
-  minSetupDsr: 0.35,
+  min24hVol: 500000,
+  minOosSamples: 8,
+  minSetupDsr: 0.10,
   stagnationHours: 12,
   trades: [],
   history: [],
@@ -8251,7 +8345,8 @@ const Autobot = {
               <div class="tc-pnl">
                 <span class="${pnlCol} copyable-val" data-copy-val="${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT" title="PnL kopieren" style="font-size:14px;font-weight:900">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT</span>
                 <small class="${pnlCol} copyable-val" data-copy-val="${(roi >= 0 ? '+' : '') + roi.toFixed(1)}% · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R" title="ROI kopieren" style="font-size:11px;font-weight:700">(${(roi >= 0 ? '+' : '') + roi.toFixed(1)}% · ${(rMult >= 0 ? '+' : '') + rMult.toFixed(2)}R)</small>
-                <button class="tc-btn" data-copy-ab-idx="${idx}" type="button" style="margin-left:6px;padding:3px 7px;font-size:10px" title="Kopiert Setup-Parameter">📋 Setup</button>
+                <button class="tc-btn" data-tv-ab-idx="${idx}" type="button" style="margin-left:6px;padding:3px 8px;font-size:10px;color:#38bdf8;border-color:rgba(56,189,248,.4)" title="TradingView für ${esc(t.coin)} öffnen und diesen Trade als Forecast einzeichnen">📊 In TV visualisieren</button>
+                <button class="tc-btn" data-copy-ab-idx="${idx}" type="button" style="margin-left:4px;padding:3px 7px;font-size:10px" title="Kopiert Setup-Parameter">📋 Setup</button>
                 <button class="tc-btn danger" data-close-ab-idx="${idx}" type="button" style="margin-left:4px;padding:3px 7px;font-size:10px" title="Paper-Autobot-Position in der Simulation manuell schließen">✕ Schließen</button>
               </div>
             </div>
@@ -8283,6 +8378,16 @@ const Autobot = {
             const coin = span.getAttribute('data-switch-coin');
             const tf = span.getAttribute('data-switch-tf');
             if (coin) switchToAsset(coin, tf);
+          };
+        });
+
+        container.querySelectorAll('[data-tv-ab-idx]').forEach(btn => {
+          btn.onclick = () => {
+            const idx = +btn.dataset.tvAbIdx;
+            const t = this.trades[idx];
+            if (t) {
+              openInTradingView(t.coin, t.signalTf || '1h', btn, t);
+            }
           };
         });
 
