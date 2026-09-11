@@ -788,16 +788,16 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
-    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update fokussiert AURA vollständig auf <b>aktive Bitget USDT-M Perpetual Futures</b>, macht Marktstruktur im Pine-Script lesbarer und zeigt die entscheidenden Autobot-Gates direkt als Profile.</p>
+    <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
     <ul style="color:var(--txt);line-height:1.6;margin:0 0 18px;padding-left:20px">
-      <li><b>Nur Bitget USDT-M:</b> Universe, freie Symbolwahl, Marktdatenpfad und TradingView Bridge akzeptieren ausschließlich aktive Bitget USDT-M Perpetuals.</li>
-      <li><b>BOS/CHoCH lesbar:</b> Einstellbare Labelgröße, ATR-/Tick-Abstand, höherer Kontrast und erklärende Tooltips.</li>
-      <li><b>Autobot-Profile:</b> Ausgewogen startet bei Score 65 und MTF 2/4; Aktiv und Strikt sowie OOS-/DSR-Regler machen den vollständigen Funnel nachvollziehbar.</li>
-      <li><b>TradingView Desktop zuerst:</b> Der lokale Windows/WSL-Pfad startet zuerst die Desktop-App und verwendet bei Fehlschlag die Web-Version.</li>
-      <li><b>Unveränderte Modellintegrität:</b> Positive OOS-Expectancy und vollständige Revalidierung bleiben Pflicht; reales Modellverdikt <b>MODEL_NO_EVIDENCE</b>.</li>
+      <li><b>Trade Forecasting in Pine:</b> Aktive Trades werden direkt als Entry-, SL- und TP1-3-Projektion mit Risk/Reward-Boxen im TradingView Chart visualisiert.</li>
+      <li><b>1-Klick Trade-Visualisierung:</b> Button <i>📊 In TV visualisieren</i> schaltet TradingView um und kopiert maßgeschneidertes Pine Script mit konkreten Trade-Levels.</li>
+      <li><b>Bessere Defaultwerte:</b> 1.000 USDT Guthaben, 5% Risiko, 10x Hebel, 500.000 $ 24h-Volumen (mehr liquide Altcoins) und 8 OOS-Trades.</li>
+      <li><b>Einsteiger-Guide:</b> Mikro-Erklärungen unter jedem Parameter und integrierter Schnellguide ohne Fachchinesisch.</li>
+      <li><b>Nahtlose TV Desktop App:</b> Schaltet zuverlässig direkt in der App um, ohne doppelten Browser-Tab.</li>
     </ul>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
       <a href="/tutorial#checkliste" style="color:var(--cyn);padding:9px 12px">Perfekten Trade im Tutorial ansehen</a>
@@ -806,7 +806,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Quant Terminal v1.2.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v1.2.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -8456,7 +8456,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.2.0');
+  showReleaseNotesOnce('1.2.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
