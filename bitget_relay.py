@@ -100,41 +100,54 @@ def open_tradingview_desktop(url: Any) -> bool:
     safe_url = _valid_tradingview_url(url)
     if safe_url is None:
         return False
-    desktop_url = f"tradingview://{safe_url.removeprefix('https://')}"
 
-    # 1. Native Windows (CPython on Windows NT)
-    if sys.platform == "win32" or os.name == "nt":
-        try:
-            if hasattr(os, "startfile"):
-                os.startfile(desktop_url)  # type: ignore[attr-defined]
-                return True
-        except OSError:
-            pass
-        try:
-            escaped_url = desktop_url.replace("'", "''")
-            command_text = f"Start-Process -FilePath '{escaped_url}'"
-            encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
-            completed = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-                check=False,
-            )
-            return completed.returncode == 0
-        except (OSError, subprocess.SubprocessError):
-            return False
+    # 1. Windows (Native Python on Windows NT or WSL)
+    is_win = sys.platform == "win32" or os.name == "nt"
+    is_wsl = bool(os.environ.get("WSL_DISTRO_NAME")) or os.path.exists("/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
 
-    # 2. WSL running on Windows host
-    if os.environ.get("WSL_DISTRO_NAME") or os.path.exists("/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"):
+    if is_win or is_wsl:
+        powershell = (
+            "powershell.exe"
+            if is_win
+            else (shutil.which("powershell.exe") or "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+        )
+        escaped_url = safe_url.replace("'", "''")
+        ps_code = f"""
+$url = '{escaped_url}'
+$candidates = @()
+try {{
+    $pkg = Get-AppxPackage *TradingView* -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pkg -and $pkg.InstallLocation) {{
+        $candidates += Join-Path $pkg.InstallLocation 'TradingView.exe'
+    }}
+}} catch {{}}
+$candidates += (Get-ChildItem -Path "$env:ProgramFiles\\WindowsApps\\TradingView.Desktop_*\\TradingView.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+$candidates += "$env:ProgramFiles\\TradingView Desktop\\TradingView.exe"
+$candidates += "${{env:ProgramFiles(x86)}}\\TradingView Desktop\\TradingView.exe"
+$candidates += "$env:LOCALAPPDATA\\Programs\\TradingView\\TradingView.exe"
+$candidates += "$env:LOCALAPPDATA\\Programs\\TradingView Desktop\\TradingView.exe"
+
+$found = $null
+foreach ($c in $candidates) {{
+    if ($c -and (Test-Path $c)) {{
+        $found = $c
+        break
+    }}
+}}
+
+if ($found) {{
+    Start-Process -FilePath $found -ArgumentList $url
+}} else {{
+    $cmd = Get-Command TradingView.exe -ErrorAction SilentlyContinue
+    if ($cmd) {{
+        Start-Process -FilePath 'TradingView.exe' -ArgumentList $url
+    }} else {{
+        Start-Process -FilePath $url
+    }}
+}}
+"""
         try:
-            powershell = (
-                shutil.which("powershell.exe")
-                or "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
-            )
-            escaped_url = desktop_url.replace("'", "''")
-            command_text = f"Start-Process -FilePath '{escaped_url}'"
-            encoded = base64.b64encode(command_text.encode("utf-16le")).decode("ascii")
+            encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
             completed = subprocess.run(
                 [powershell, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
                 stdout=subprocess.DEVNULL,
@@ -146,11 +159,20 @@ def open_tradingview_desktop(url: Any) -> bool:
         except (OSError, subprocess.SubprocessError):
             return False
 
-    # 3. macOS
+    # 2. macOS
     if sys.platform == "darwin":
         try:
             completed = subprocess.run(
-                ["open", desktop_url],
+                ["open", "-a", "TradingView", safe_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            if completed.returncode == 0:
+                return True
+            completed = subprocess.run(
+                ["open", safe_url],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=5,
@@ -160,11 +182,20 @@ def open_tradingview_desktop(url: Any) -> bool:
         except (OSError, subprocess.SubprocessError):
             return False
 
-    # 4. Native Linux desktop
+    # 3. Native Linux desktop
     if sys.platform.startswith("linux"):
         try:
             completed = subprocess.run(
-                ["xdg-open", desktop_url],
+                ["tradingview", safe_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            if completed.returncode == 0:
+                return True
+            completed = subprocess.run(
+                ["xdg-open", safe_url],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=5,
@@ -175,6 +206,7 @@ def open_tradingview_desktop(url: Any) -> bool:
             return False
 
     return False
+
 
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
