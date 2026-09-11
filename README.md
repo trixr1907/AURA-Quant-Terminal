@@ -1,7 +1,13 @@
-# AURA v1.2.2 — Smart Quant Terminal
+# AURA v1.2.2 — Confluence Terminal
 
-Read-only Quant-Research- und Setup-Discovery-Station für Kryptomärkte.
-Das System analysiert öffentliche Marktdaten, rankt Setups und validiert das Modell. Es kann keine Orders senden, besitzt keine API-Authentifizierung und verwaltet keine Positionen.
+**Quantitative Edge · Visual Precision · Pure Execution**
+
+Read-only Quant-Research-, Confluence-Scanner- und Setup-Discovery-Station für Bitget USDT-M Perpetual Futures.
+Das System verbindet mathematische Multi-Timeframe-Confluence mit direkter TradingView-Desktop-Visualisierung und risikofreier Paper-Trade-Simulation.
+
+[![Brand](https://img.shields.io/badge/Brand-AURA%20Terminal-00F2FE?style=flat-square)](docs/brand_design.md)
+[![Version](https://img.shields.io/badge/Version-1.2.2-00F5A0?style=flat-square)](VERSION)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 ### v1.2.2 — TradingView Long/Short Position Tool & Robuste Desktop-Umschaltung (aktuelle Fassung)
 
