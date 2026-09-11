@@ -49,8 +49,6 @@ assert.strictEqual(
 
 const openSource = extractFunction('openInTradingView');
 assert(openSource.includes('/api/open-tradingview'), 'PC should first ask the local relay to open TradingView Desktop');
-assert(openSource.includes('buildTradingViewDesktopUrl'), 'browser fallback should use the TradingView protocol');
-assert(openSource.includes('setTimeout'), 'desktop protocol attempt needs a bounded web fallback');
 assert(openSource.includes('window.open(tvUrl'), 'web URL must remain as fallback');
 
 console.log('PASS TradingView opens Desktop first and keeps a web fallback');

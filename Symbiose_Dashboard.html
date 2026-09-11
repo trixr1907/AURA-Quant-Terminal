@@ -3244,19 +3244,12 @@ async function openInTradingView(symbol, timeframe, btn = null) {
   if (desktopOpened) {
     openTarget = 'desktop';
   } else if (typeof window !== 'undefined') {
-    // Mobile browsers already route TradingView links into the installed app.
-    // Desktop browsers get one protocol attempt; if the page stays visible the
-    // ordinary TradingView web chart opens as a deterministic fallback.
-    try { window.location.href = desktopUrl; } catch (_) {}
-    await new Promise(resolve => setTimeout(resolve, 900));
-    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
-      if (typeof window.open === 'function') {
-        opened = window.open(tvUrl, '_blank');
-        if (opened) opened.opener = null;
-      }
-    } else {
-      openTarget = 'desktop';
+    // If the local desktop relay is offline or not available, open the canonical web chart directly.
+    if (typeof window.open === 'function') {
+      opened = window.open(tvUrl, '_blank');
+      if (opened) opened.opener = null;
     }
+    openTarget = 'web';
   }
 
   if (clipboardWrite) {
