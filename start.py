@@ -175,7 +175,7 @@ def universe_text() -> str:
 def run_gui() -> int:
     tk, _messagebox, scrolledtext = load_tkinter()
     root = tk.Tk()
-    root.title("AURA Quant Terminal")
+    root.title("AURA — Confluence Terminal")
     root.geometry("900x680")
     root.minsize(760, 580)
     root.configure(bg="#0b1220")
@@ -189,8 +189,8 @@ def run_gui() -> int:
     header = tk.Frame(root, bg=colors["bg"], padx=28, pady=20)
     header.grid(row=0, column=0, sticky="ew")
     header.grid_columnconfigure(0, weight=1)
-    tk.Label(header, text="AURA Quant Terminal", fg=colors["cyan"], bg=colors["bg"], font=title_font).grid(row=0, column=0, sticky="w")
-    tk.Label(header, text="Read-only Research & Setup Discovery", fg=colors["muted"], bg=colors["bg"], font=font).grid(row=1, column=0, sticky="w")
+    tk.Label(header, text="AURA — Confluence Terminal", fg=colors["cyan"], bg=colors["bg"], font=title_font).grid(row=0, column=0, sticky="w")
+    tk.Label(header, text="Quantitative Edge · Visual Precision · Pure Execution", fg=colors["muted"], bg=colors["bg"], font=font).grid(row=1, column=0, sticky="w")
 
     status_frame = tk.Frame(root, bg=colors["panel"], padx=20, pady=14)
     status_frame.grid(row=1, column=0, sticky="ew", padx=28, pady=(0, 14))
@@ -266,7 +266,7 @@ def run_gui() -> int:
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_close)
-    log("AURA Quant Terminal gestartet.")
+    log("AURA Confluence Terminal gestartet.")
     refresh_status()
     if universe_snapshot_is_stale():
         log("Marktuniversum ist älter als 24 Stunden — aktualisiere im Hintergrund …")
@@ -324,7 +324,7 @@ def run_cli(open_dashboard_on_start: bool = True) -> int:
 def main() -> int:
     signal.signal(signal.SIGINT, lambda _s, _f: sys.exit(0))
     signal.signal(signal.SIGTERM, lambda _s, _f: sys.exit(0))
-    print("Initialisiere AURA Quant Terminal …")
+    print("Initialisiere AURA Confluence Terminal …")
     if not start_relay():
         return 1
     if gui_available():
