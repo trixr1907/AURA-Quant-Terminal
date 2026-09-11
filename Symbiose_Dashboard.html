@@ -3229,10 +3229,12 @@ function buildTradingViewSetupNote({ symbol, timeframe, live, origin, nowIso } =
 function preloadTradingViewPine() {
   if (tradingViewPineText) return Promise.resolve(tradingViewPineText);
   if (tradingViewPineLoad) return tradingViewPineLoad;
-  tradingViewPineLoad = fetch('/Symbiose_Signal_System_v1.pine', { cache: 'force-cache' })
-    .then(resp => resp.ok ? resp.text() : '')
+  const base = typeof relayBase === 'function' ? relayBase() : '';
+  const url = base ? `${base}/pine` : '/Symbiose_Signal_System_v1.pine';
+  tradingViewPineLoad = fetch(url, { cache: 'force-cache' })
+    .then(resp => resp.ok ? resp.text() : fetch('/pine').then(r => r.ok ? r.text() : fetch('/Symbiose_Signal_System_v1.pine').then(r2 => r2.text())))
     .then(text => {
-      tradingViewPineText = text && text.includes('Pine Script') ? text : '';
+      tradingViewPineText = text && (text.includes('Pine Script') || text.includes('indicator(')) ? text : '';
       return tradingViewPineText;
     })
     .catch(() => '')
@@ -3299,6 +3301,11 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
   const tf = timeframe || App.chartTF || '1h';
   const tvUrl = buildTradingViewUrl(sym, tf, App.tradingView || {});
   const desktopUrl = buildTradingViewDesktopUrl(sym, tf, App.tradingView || {});
+
+  if (!tradingViewPineText) {
+    try { await preloadTradingViewPine(); } catch (_) {}
+  }
+
   const setupObj = activeTradeOrSetup || findActiveTradeForPine(sym);
   const pineText = getTradingViewPineText(setupObj);
   const hasForecast = !!(setupObj && (setupObj.entry || setupObj.sl));
@@ -3362,8 +3369,8 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
 
   if (btn) {
     const origHtml = btn.innerHTML;
-    const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TV Web-Fallback geöffnet';
-    const fcLabel = hasForecast ? ' (mit Trade-Forecast)' : '';
+    const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TV Web geöffnet';
+    const fcLabel = hasForecast ? ' (mit Position-Tool)' : '';
     btn.innerHTML = pineCopied ? `✓ Pine kopiert${fcLabel} & ${targetLabel}!` : `✓ ${targetLabel} · Pine nicht kopiert`;
     btn.classList.add('copied');
     setTimeout(() => {

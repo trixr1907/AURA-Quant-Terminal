@@ -796,6 +796,9 @@ var line fcLineTp3   = na
 var box  fcBoxProfit = na
 var box  fcBoxLoss   = na
 var label fcLabelCard = na
+var label fcLblEntry  = na
+var label fcLblTp2    = na
+var label fcLblSl     = na
 
 isCustomFc = fcMode == "Custom" or (fcMode == "Auto" and fcEntry > 0.0 and fcSl > 0.0)
 
@@ -848,6 +851,9 @@ if fcShow and fcMode != "Aus" and posEntry > 0.0 and posSl > 0.0 and posDir != 0
         box.delete(fcBoxProfit)
         box.delete(fcBoxLoss)
         label.delete(fcLabelCard)
+        label.delete(fcLblEntry)
+        label.delete(fcLblTp2)
+        label.delete(fcLblSl)
 
         x1 = posStartBar
         x2 = bar_index + fcBars
@@ -859,10 +865,10 @@ if fcShow and fcMode != "Aus" and posEntry > 0.0 and posSl > 0.0 and posDir != 0
         fcLineTp3   := line.new(x1, posTp3, x2, posTp3, color=color.new(#10b981, 0), width=1, style=line.style_dotted)
 
         // Long/Short Position Tool Boxes (TV native style)
-        profitTop = posDir == 1 ? posTp2 : posEntry
-        profitBot = posDir == 1 ? posEntry : posTp2
-        lossTop   = posDir == 1 ? posEntry : posSl
-        lossBot   = posDir == 1 ? posSl : posEntry
+        profitTop = math.max(posEntry, posTp2)
+        profitBot = math.min(posEntry, posTp2)
+        lossTop   = math.max(posEntry, posSl)
+        lossBot   = math.min(posEntry, posSl)
 
         fcBoxProfit := box.new(x1, profitTop, x2, profitBot, border_color=color.new(#089981, 30), bgcolor=color.new(#089981, 80))
         fcBoxLoss   := box.new(x1, lossTop, x2, lossBot, border_color=color.new(#f23645, 30), bgcolor=color.new(#f23645, 80))
@@ -880,7 +886,7 @@ if fcShow and fcMode != "Aus" and posEntry > 0.0 and posSl > 0.0 and posDir != 0
 
         dirHeader = posDir == 1 ? "LONG POSITION" : "SHORT POSITION"
         cardText = "┌─ " + dirHeader + " (" + str.tostring(fcLev) + "x) ─┐\n" +
-                   "• Chance-Risiko-Verhältnis: 1 : " + str.tostring(rrRatio, "#.##") + "\n" +
+                   "• CRV (R:R): 1 : " + str.tostring(rrRatio, "#.##") + "\n" +
                    "• Einstieg: " + str.tostring(posEntry, "#.####") + "\n" +
                    "• Stop Loss: " + str.tostring(posSl, "#.####") + " (-" + str.tostring(slDistPct, "#.##") + "% · -$" + str.tostring(posRiskAmt, "#.##") + ")\n" +
                    "• TP1 (+1.5R): " + str.tostring(posTp1, "#.####") + "\n" +
@@ -890,6 +896,9 @@ if fcShow and fcMode != "Aus" and posEntry > 0.0 and posSl > 0.0 and posDir != 0
 
         cardBg = posDir == 1 ? color.new(#064e3b, 10) : color.new(#7f1d1d, 10)
         fcLabelCard := label.new(x2, posEntry, cardText, style=label.style_label_left, color=cardBg, textcolor=color.white, size=size.normal)
+        fcLblEntry  := label.new(x1, posEntry, "EINSTIEG: " + str.tostring(posEntry, "#.####"), style=label.style_label_right, color=color.new(#787b86, 0), textcolor=color.white, size=size.small)
+        fcLblTp2    := label.new(x1, posTp2, "ZIEL (TP2): " + str.tostring(posTp2, "#.####") + " (+" + str.tostring(tpDistPct, "#.##") + "%)", style=label.style_label_right, color=color.new(#089981, 0), textcolor=color.white, size=size.small)
+        fcLblSl     := label.new(x1, posSl, "STOPP: " + str.tostring(posSl, "#.####") + " (-" + str.tostring(slDistPct, "#.##") + "%)", style=label.style_label_right, color=color.new(#f23645, 0), textcolor=color.white, size=size.small)
 
 // ============================================================================
 //  DASHBOARD-TABLE (Score, Signal, SL/TP, MTF-Status, Position-Size, v1.0.7)
