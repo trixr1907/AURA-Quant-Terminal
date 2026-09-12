@@ -13,7 +13,8 @@ const calcBegin = script.indexOf('function erf(');
 const calcEnd = script.indexOf('\n// ============================================================================', calcBegin + 1);
 const sandbox = { console, Float64Array, Date, Math, Array, Object, JSON, Number };
 vm.createContext(sandbox);
-vm.runInContext(script.slice(calcBegin, calcEnd) + '\n__calcDSR = calcDSR;', sandbox);
+const trustedDsrSource = script.slice(calcBegin, calcEnd);
+vm.runInContext(trustedDsrSource + '\n__calcDSR = calcDSR;', sandbox); // NOSONAR -- static source extracted from the reviewed local dashboard.
 
 assert.match(source, /const LEDGER_TRIALS = loadVerifiedLedgerTrials\(\)/);
 assert.match(source, /Math\.max\(LEGACY_PHASE_D_TRIALS, LEDGER_TRIALS\)/);
