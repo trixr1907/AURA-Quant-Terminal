@@ -947,7 +947,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.2.1 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v%s listening on http://%s:%d", VERSION, HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()
