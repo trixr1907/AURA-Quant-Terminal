@@ -1,130 +1,110 @@
-# AURA — Forschungs- und Qualitätsbericht Runde 11: Dashboard-Produkt-Fixes (UX & Feed-Verlässlichkeit)
+# AURA — Abschlussbericht Runde 11: Dashboard-Produkt-Fixes & Feed-Verlässlichkeit (v1.2.11)
 
 **Datum:** 2026-09-12  
-**Autor:** Hermes Agent (Senior Quant Systems Auditor & Engineer)  
+**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
 **Ausgangsversion:** `1.2.10`  
 **Zielversion / Veröffentlichte Version:** `1.2.11`  
-**Kanonischer Release-Branch:** `fix/round11-dashboard-product-quality`  
-**Release-Urteil:** `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Exit 0)  
+**Kanonischer Release-Tag:** `v1.2.11` (Tag-Objekt: `4dda742a4fe835240f981f81000cc7023bf310bf`, peeled: `a0bb774a3d0d521db59347b5ad84fa55f6695b8f`)  
+**Release-Urteil:** `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Exit 0)
 
 ---
 
-## 1. Executive Summary & Zielsetzung
+## 1. Executive Summary
 
-Runde 11 ist eine dedizierte **Produktqualitäts- und Zuverlässigkeitsrunde** für das im täglichen Praxiseinsatz betriebene AURA Quant Terminal. Nach dem formalen Abschluss des 21-Punkte-Gesamtaudits (F-01 bis F-21) mit v1.2.10 wurden sieben konkrete UX-, Feed- und Auswerte-Schwachstellen (PF-1 bis PF-7) isoliert und testgetrieben behoben:
+In Runde 11 wurden sieben konkrete Produkt- und UX-Qualitätsbefunde (PF-1 bis PF-7) für das AURA Quant Terminal umgesetzt, verifiziert und über den geregelten Release-Zyklus veröffentlicht. 
 
-1. **PF-1 (Bitget WebSocket Live-Feed primär):** Umstellung des Dashboard-Live-Candle-Streams von Binance auf Bitget Public WebSocket v2 (`wss://ws.bitget.com/v2/ws/public`) mit deterministischer Binance-Fallback-Kette und automatischem Reconnect innerhalb von 15 s.
-2. **PF-2 (Datenalter & Visibility-Resume):** Implementierung eines kontinuierlichen Header-Status-Pills (`LIVE · <Quelle> · vor <N>s` bzw. rot `WS offline seit Xs`) und `visibilitychange`/`focus`-Ereignishandlern zur verzögerungsfreien Aufholjagd nach Tab-Throttling.
-3. **PF-3 (Radar-Volumenfilter):** Anzeige-Umschalter für das Action-Radar (`Alle`, `≥ 500k`, `≥ 1M`, `≥ 5M`) mit dynamischen Echtzeit-Zählern und `localStorage`-Persistenz ohne Beeinflussung quantitativer Scan-Gates.
-4. **PF-4 (Win-Rate-Semantik & Partial-Close):** Vollständige Tranchen-Gewichtung in `calculateHistoryStats` (`realizedWinRatePct` neben Event-`winRatePct`), Erfassung von `PARTIAL_CLOSE`-Ereignissen bei TP1/TP2 und fehlerfreie Abwärtskompatibilität zu Legacy-Trades.
-5. **PF-5 (Aktueller Preis in aktiven Trades):** Explizite „Aktuell"-Spalte mit Marktpreis, farbcodiertem Entry-Delta (%) und visuellem Alter-Indikator bei Daten älter als 30 s.
-6. **PF-6 (Autobot-Zyklusstatus & Event-Log):** Transparenter Scan-Status (`Letzter Scan: vor <N>s`, geprüfte/qualifizierte Kandidaten, Abweisungsgründe) und direkt in der Autobot-Card integriertes Decision-Log.
-7. **PF-7 (TradingView-URL & schneller Relay-Fallback):** Korrekte Link-Generierung auf das Bitget-Perpetual-Format (`BITGET:<SYMBOL>.P`), 400 ms Abort-Timeout für Offline-Relays und klare visuelle Rückmeldung.
+Die Änderungen betreffen ausschließlich Frontend-UX, Datenfluss-Resilienz und WebSocket-Stabilität. Die quantitativen Berechnungsformeln (Signal-Score, CVD-Parität, DSR-Gate) blieben unverändert.
 
-**Regelkonformität & Hygiene:**
-- Keine Änderung an Signal-Scores, Indikator-Parametern oder statistischen Modellen.
-- Strikte XSS-/DOM-Hygiene: Alle neuen Werte nutzen `textContent` oder `esc()`; `grep -c innerHTML Symbiose_Dashboard.html` bleibt exakt bei **51**.
-- Ledger-Einordnung: Reine UX-/Feed-Optimierung ohne Signal-Logik-Anteil; der Pine-paritätsgeprüfte CVD-Range-Approximationspfad (`v*(2c-h-l)/(h-l)`) bleibt unverändert aktiv.
+### Release-Gates & Hygiene-Bestätigungen
+- **DOM-Sicherheit / XSS-Hygiene:** `grep -c innerHTML Symbiose_Dashboard.html` = **51** (exakt 51 Vorkommen, neue UI-Elemente nutzen strikt `textContent` / `esc()`).
+- **Python Test-Suite (pytest):** **216 passed, 57 subtests passed**.
+- **Node Test-Suite:** **53/53 Tests passed** (inklusive aller neuen PF-1 bis PF-7 Test-Suiten).
+- **Release-Gate (`scripts/release_check.py`):** **EXIT=0**, Urteil `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
 
 ---
 
-## 2. Detailanalyse der 7 Produkt-Fixes (PF-1 bis PF-7)
+## 2. Detaillierte Implementierung der Produkt-Fixes (PF-1 bis PF-7)
 
-### 2.1 PF-1: Bitget-Public-WebSocket als primärer Candle-Feed
+### PF-1 — Bitget WebSocket als primärer Candle-Feed mit deterministischem Reconnect
+- **Problem:** Binance WebSocket war primär konfiguriert; Bitget v2 WS fehlte als nativer Feed für Bitget Futures Candlesticks.
+- **Lösung:** Bitget Public WebSocket v2 (`wss://ws.bitget.com/v2/ws/public`) ist jetzt die primäre Feed-Quelle (`candle15m`, `candle1H`, `candle4H`, `candle1D`). Binance (`stream.binance.com`, `data-stream.binance.vision`) dient als geordnete Fallback-Kette.
+- **CVD-Semantik:** Bitget Klines liefern kein Taker-Buy-Volume (`tbv`). Bewusst bleibt `tbv` undefiniert, sodass die Pine-paritätsgeprüfte Bar-Range-Approximation `v*(2c-h-l)/(h-l)` greift (0 Flips über 64.859 Bars).
+- **Test:** `tests/test_bitget_websocket_reconnect.js` (PASS).
 
-- **Problem:** Die Live-Kerzen im Terminal bezogen ihre Daten primär von `wss://stream.binance.com:9443` (bzw. Fallback `data-stream.binance.vision`). In Regionen mit Binance-Restriktionen oder WebSocket-Verbindungsabbrüchen fror der Chart ein, während REST-Abfragen an Bitget weiterliefen.
-- **Lösung:**
-  - Konfiguration der prioritären Feed-Kette `WS_FEEDS`:
-    1. Bitget v2 Public WebSocket (`wss://ws.bitget.com/v2/ws/public`, Topic `candle<TF>`)
-    2. Binance Primary (`wss://stream.binance.com:9443/ws/<sym>@kline_<tf>`)
-    3. Binance Public Vision Mirror (`wss://data-stream.binance.vision/ws/<sym>@kline_<tf>`)
-  - **CVD-Mathematik & Parität:** Bitget-Public-Candles liefern kein Taker-Buy-Volumen (`tbv`). In `Symbiose_Dashboard.html` wird `tbv` beim Bitget-Empfang bewusst weggelassen, wodurch der deterministische Bar-Range-Pfad greift:
-    $$\Delta V = \text{volume} \cdot \frac{2 \cdot \text{close} - \text{high} - \text{low}}{\text{high} - \text{low}}$$
-    Dies ist exakt die in Runde 10 Pine-paritätsgeprüfte Variante (0 Flips über 64.859 Bars).
-- **Testnachweis:** `tests/test_bitget_websocket_reconnect.js` belegt Stream-Parsing, Topic-Subscription und automatisches Failover/Reconnect bei Verbindungsabbruch.
+### PF-2 — Datenalter-Pill & Tab-Rückkehr-Aufholjagd
+- **Problem:** Keine sichtbare Anzeige der Datenfrische im Dashboard; Hintergrund-Tabs veralteten durch Browser-Throttling.
+- **Lösung:** `#feed-status-pill` im Header zeigt Feed-Typ und Alter (`LIVE · bitget-ws · vor 3s`). `visibilitychange`- und `window.focus`-Handler rufen bei Datenalter > 60 s sofort `loadAll()` auf.
+- **Test:** `tests/test_data_freshness_resume.js` (PASS).
 
-### 2.2 PF-2: Datenalter-Pill & Tab-Rückkehr-Aufholjagd
+### PF-3 — Radar-Volumenfilter mit Live-Zählern
+- **Problem:** Action Radar war bei Hunderten Paaren unübersichtlich; Filtermöglichkeit nach 24h-Quote-Volumen fehlte.
+- **Lösung:** `#radar-volume-filter` (`Alle`, `≥ 500k`, `≥ 1M`, `≥ 5M`) mit dynamischer Universum-Zählung (z. B. `Alle (787)`, `≥ 500k (188)`). Reiner Display-Filter (`filterRadarByVolume`), keine Beeinflussung der Signalberechnung, Speicherung in `localStorage`.
+- **Test:** `tests/test_radar_volume_filter.js` (PASS).
 
-- **Problem:** Hintergrund-Tabs wurden von modernen Browsern nach wenigen Minuten gedrosselt; bei Rückkehr zeigte das Dashboard veraltete Stände, ohne dass der Nutzer das Alter der Daten erkennen konnte.
-- **Lösung:**
-  - Im Header wurde ein permanenter Status-Pill integriert: `#feed-status-pill`. Er aktualisiert sich sekündlich und zeigt bei aktivem Feed `LIVE · bitget-ws · vor 1s` bzw. bei getrenntem WebSocket auffällig rot `WS offline seit 45s`.
-  - Es wurden Event-Listener für `visibilitychange` (`document.visibilityState === 'visible'`) und `window.focus` registriert (`bindResumeRefresh`). Ist der letzte vollständige Datenabruf älter als 60 s, wird sofort `loadAll()` ausgeführt.
-- **Testnachweis:** `tests/test_data_freshness_resume.js` prüft die Event-Listener-Registrierung, Auslösung bei Tab-Fokus und die sekundengenaue Alter-Formatierung.
+### PF-4 — Tranchen-gewichtete Realized Win-Rate & PARTIAL_CLOSE Events
+- **Problem:** Teilverkäufe (Scale-Outs) verzerrten die Trade-Historien-Statistik oder wurden wie Voll-Schließungen gezählt.
+- **Lösung:** `PARTIAL_CLOSE` Events erfassen `fractionClosed: 0.5`. `calculateHistoryStats` berechnet `realizedWinRatePct` gewichtet nach geschlossenen Tranchen und weist Brutto- sowie Netto-PnL exakt aus.
+- **Test:** `tests/test_partial_close_winrate_stats.js` (PASS).
 
-### 2.3 PF-3: Radar-Volumenfilter (Display-Filter)
+### PF-5 — Aktueller Preis & Datenalter in Live-Trade-Karten
+- **Problem:** Bei offenen Trades war der aktuelle Marktpreis nicht direkt neben dem Entry-Preis ersichtlich.
+- **Lösung:** Live-Markpreis, farbkodierte prozentuale Entry-Abweichung (`+8.00%`) und Stale-Data-Warnung (roter Dot bei Alter > 30s) direkt in der Trade-Karte.
+- **Test:** `tests/test_live_trade_current_price_render.js` (PASS).
 
-- **Problem:** Das Bitget-Perpetual-Universum umfasst über 780 aktive Märkte. Im Action-Radar fehlte eine schnelle optische Filterung nach Mindestliquidität.
-- **Lösung:**
-  - Im Radar-Steuerungsbereich wurde ein Select-Filter `#radar-volume-filter` mit den Stufen `Alle`, `≥ 500k`, `≥ 1M`, `≥ 5M` implementiert.
-  - Die Filterstufen zeigen live die exakte Anzahl passender Symbole (z. B. `Alle (787)`, `≥ 500k (188)`, `≥ 1M (126)`, `≥ 5M (52)`).
-  - Der Filter wirkt ausschließlich auf die visuelle Darstellung (`filterRadarByVolume`), manipuliert keine quantitativen Scan-Kriterien und persistiert die Nutzerauswahl in `localStorage`.
-- **Testnachweis:** `tests/test_radar_volume_filter.js` validiert Filterlogik, Symbol-Zähler und Schwellenwertprüfung.
+### PF-6 — Autobot-Zyklusstatus, Funnel-Diagnostik & Decision-Log
+- **Problem:** Der Autobot-Zustand war intransparent bezüglich des letzten Scan-Zeitpunkts und Ablehnungsgründen.
+- **Lösung:** `#ab-funnel-summary` mit `Letzter Scan: vor 4s`, Funnel-Durchsatz (`12 Hypothesen → 1 qualifiziert`) und ausklappbares `#ab-live-log` mit detaillierten Ablehnungsgründen (`MODEL_NO_EVIDENCE`, `DSR_GATE`).
+- **Test:** `tests/test_autobot_cycle_status_log.js` (PASS).
 
-### 2.4 PF-4: Partial-Close-Historie & Tranchen-gewichtete Win-Rate
-
-- **Problem:** Teilgewinnmitnahmen (z. B. 50% TP2 im Autobot oder manuelle Scale-Outs) schrieben bisher kein Historien-Event, solange der Rest-Trade (Runner) aktiv war. Dies führte zu einer verzerrten Win-Rate von 0%, obwohl erhebliche Gewinne realisiert worden waren.
-- **Lösung:**
-  - Teilverkäufe erzeugen sofort ein `PARTIAL_CLOSE`-Event mit `fractionClosed: 0.5`, `realizedPnlGross` und Grund (`PARTIAL_TAKE_PROFIT_TP2`).
-  - `calculateHistoryStats` berechnet sowohl die Event-basierte Win-Rate (`winRatePct`) als auch die **tranchen-gewichtete realisierte Win-Rate** (`realizedWinRatePct`):
-    $$\text{Realized WR} = \frac{\sum_{\text{Wins}} \text{fractionClosed}}{\sum_{\text{All}} \text{fractionClosed}} \times 100$$
-  - Vollständige Rückwärtskompatibilität: Legacy-Einträge ohne `fractionClosed` werden automatisch mit `1.0` (bzw. `0.5` bei historischen Partials) normalisiert.
-- **Testnachweis:** `tests/test_partial_close_winrate_stats.js` belegt exakte Tranchen-Gewichtung, Win-Rate-Berechnung bei Teiltreffern und Toleranz historischer Daten.
-
-### 2.5 PF-5: Live-Tradepreis und Alter-Indikator
-
-- **Problem:** In der Übersicht aktiver Trades wurde der Markpreis zwar für PnL-Berechnungen herangezogen, aber nicht übersichtlich als eigene Spalte mit Entry-Delta und Alter dargestellt.
-- **Lösung:**
-  - Jede Trade-Karte enthält nun ein dezidiertes `tc-item` „Aktuell" mit aktuellem Preis, farbcodiertem Abstand zum Einstieg (`+8.00%`) und einem optischen Indikator (`stale-price-dot`), wenn der Markpreis älter als 30 s ist.
-- **Testnachweis:** `tests/test_live_trade_current_price_render.js` prüft die Rendering-Pipeline unter verschiedenen Preiskonstellationen und Altersstufen.
-
-### 2.6 PF-6: Autobot-Zyklusstatus & In-Card Event-Log
-
-- **Problem:** Nach automatischen Markt-Scans war für den Nutzer unklar, wann der letzte Scan stattfand und aus welchen Gründen Kandidaten abgewiesen wurden.
-- **Lösung:**
-  - Die Zusammenfassungszeile `#ab-funnel-summary` zeigt sekundengenau den Zyklusstatus an:  
-    `Letzter Scan: vor 4s · Funnel: 12 Hypothesen (3 Märkte × 4 TFs) → 1 qualifiziert · [Setup-DSR ≥ 0.10 · OOS ≥ 8] · Abgelehnt: MODEL_NO_EVIDENCE:3`.
-  - Das ausklappbare Decision-Log `#ab-live-log` rendert die neuesten Ereignisse direkt in der Karte.
-- **Testnachweis:** `tests/test_autobot_cycle_status_log.js` validiert Funnel-Diagnostik, Zeitstempel-Aktualisierung und Log-Ausgabe.
-
-### 2.7 PF-7: TradingView-URL-Generierung & schneller Relay-Fallback
-
-- **Problem:** Die externe Chart-Öffnung erzeugte vereinzelt Binance-Präfixe; war der lokale Desktop-Relay-Server offline, entstand eine störende 2-Sekunden-Verzögerung vor dem Web-Fallback.
-- **Lösung:**
-  - Generierung von sauberen Bitget-Perpetual-URLs (`BITGET:<SYMBOL>.P`).
-  - Einbindung eines `AbortController`-Signals mit 400 ms Timeout für Relay-Anfragen (`/api/open-tradingview`), sodass bei Offline-Relay sofort der direkte Browser-Tab geöffnet wird.
-  - Klare Dokumentation der Docker/Host-Relay-Architektur im Quellcode.
-- **Testnachweis:** `tests/test_tradingview_url_and_fast_fallback.js` belegt URL-Struktur und Fallback-Ausführung unter 500 ms.
+### PF-7 — TradingView URL-Standardisierung & Schneller Relay-Fallback
+- **Problem:** Falsche Formatierung für Bitget Futures URLs und Hänger bei Relay-Anfragen in Docker-/Desktop-Umgebungen.
+- **Lösung:** Standardformat `BITGET:<SYMBOL>.P`. 400ms `AbortController`-Timeout für Desktop-Relay-Anfragen mit sofortigem Fallback auf direkten Web-Browser-Aufruf.
+- **Test:** `tests/test_tradingview_url_and_fast_fallback.js` (PASS).
 
 ---
 
-## 3. Test- & Verifikationsübersicht
+## 3. GitHub Release- & Verifikations-Evidenz (API-Belege)
 
-Alle neuen und bestehenden Test-Suites wurden im Rahmen des Release-Gates ausgeführt:
+### 3.1 Produkt Pull Request & Merge Commit
+- **Pull Request:** [#8 (fix(dashboard): resolve Round 11 product quality issues PF-1 to PF-7 (v1.2.11))](https://github.com/trixr1907/AURA-Quant-Terminal/pull/8)
+- **Merge-Methode:** Normaler Merge-Commit (`--merge`, kein Squash)
+- **Merge Commit SHA:** `a0bb774a3d0d521db59347b5ad84fa55f6695b8f`
+- **Merge-Parents (2 Parents nachgewiesen):**
+  - Parent 1 (`main` vor PR #8): `1753c963dbe02cd2d5000af62069b4939cf988ec`
+  - Parent 2 (`fix/round11-dashboard-product-quality` HEAD): `8259e610a9c87be144010899bde465a74c69db89`
 
-| Test-Suite | Fokus | Status |
-|:---|:---|:---:|
-| `node tests/test_bitget_websocket_reconnect.js` | PF-1 Bitget WS Feed & Reconnect | **PASS (0)** |
-| `node tests/test_data_freshness_resume.js` | PF-2 Visibility & Data Age | **PASS (0)** |
-| `node tests/test_radar_volume_filter.js` | PF-3 Radar Volume Filter & Counters | **PASS (0)** |
-| `node tests/test_partial_close_winrate_stats.js` | PF-4 Partial-Close & Win-Rate | **PASS (0)** |
-| `node tests/test_live_trade_current_price_render.js` | PF-5 Live Trade Price & Stale Dot | **PASS (0)** |
-| `node tests/test_autobot_cycle_status_log.js` | PF-6 Autobot Funnel & Event Log | **PASS (0)** |
-| `node tests/test_tradingview_url_and_fast_fallback.js` | PF-7 Bitget TV URL & Fast Fallback | **PASS (0)** |
-| `node tests/test_live_trade_tracker.js` | Regression Trade Tracker & Cockpit | **PASS (0)** |
-| `node tests/test_websocket_generation.js` | Regression WebSocket Stream Handlers | **PASS (0)** |
-| `node tests/test_radar_sorting.js` | Regression Action Radar Sort Modes | **PASS (0)** |
-| `node tests/test_autobot_scan_diagnostics.js` | Regression Autobot Scan Gates | **PASS (0)** |
-| `node tests/test_tradingview_link.js` | Regression TV Link Builder | **PASS (0)** |
-| `node tests/test_tradingview_desktop_fallback.js` | Regression TV Desktop Fallback | **PASS (0)** |
-| `python3 -m pytest -q` | Pytest Backend & Parity Suites | **PASS (0)** |
-| `python3 scripts/verify_ledger.py` | Immutable Hash-Chain Check | **PASS (0)** |
-| `python3 scripts/release_check.py` | Full Autonomous Release Gate | **PASS (0)** |
+### 3.2 Annotierter Release-Tag
+- **Tag:** `v1.2.11`
+- **Tag-Objekt SHA:** `4dda742a4fe835240f981f81000cc7023bf310bf`
+- **Tag-Peel SHA (`v1.2.11^{commit}`):** `a0bb774a3d0d521db59347b5ad84fa55f6695b8f`
+- **Tag-Message:** `AURA v1.2.11 — Confluence Terminal (read-only research)`
+
+### 3.3 GitHub Actions Check-Run Conclusions auf Merge Commit `a0bb774a`
+- `SonarCloud Code Analysis`: status=`completed`, conclusion=`neutral`
+- `Socket Security: Project Report`: status=`completed`, conclusion=`success`
+- `Test Suite & Quality Gates`: status=`completed`, conclusion=`success`
+- `publish`: status=`completed`, conclusion=`success`
+
+### 3.4 GitHub Release Asset (`symbiose.zip`)
+Das Asset wurde nach dem Upload via GitHub API heruntergeladen und unabhängig gehasht:
+- **Download-URL:** `https://github.com/trixr1907/AURA-Quant-Terminal/releases/download/v1.2.11/symbiose.zip`
+- **Asset-Dateigröße:** `226.020 Bytes`
+- **SHA-256 (nach Download verifiziert):**  
+  `e727872314240ce508f2fa01aac799f5a3234192a2bbb153f5f8b7e0662d022b`
+- **Dateianzahl im ZIP-Archiv:** `26`
+- **VERSION im ZIP-Archiv:** `1.2.11`
+- **Enthaltene Pflichtdateien:** `LICENSE` (vorhanden), `RELEASE_v1.2.11.md` (vorhanden), `README.md` (vorhanden), `VERSION` (vorhanden).
 
 ---
 
-## 4. Fazit & Release-Urteil
+## 4. Finale Bestätigung der Prüfkriterien
 
-Mit v1.2.11 erhält das AURA Quant Terminal eine signifikante Aufwertung in Alltagstauglichkeit, visueller Klarheit und Netzwerk-Resilienz, ohne die quantitativ auditierten Modellgrenzen zu verletzen.
-
-- **Gesamtergebnis:** `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Exit-Code 0)
-- **Produktionsreife:** Vollständig für automatisiertes Proxmox/Docker-Deployment via Webhook freigegeben.
+| Prüfkriterium | Soll-Vorgabe | Ist-Wert / Nachweis | Status |
+|---|---|---|---|
+| `innerHTML` Vorkommen | Exakt 51 | `grep -c 'innerHTML' Symbiose_Dashboard.html` = **51** | PASS |
+| Pytest Testsuite | Alle Tests grün | **216 passed, 57 subtests passed in 2.68s** | PASS |
+| Node Testsuite | Alle Tests grün | **53 passed, 0 failed** | PASS |
+| Release-Gate (`release_check.py`) | EXIT = 0 | Urteil: `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Exit 0) | PASS |
+| Git Merge Struktur | 2 Parents (kein Squash) | `1753c96...` + `8259e61...` -> `a0bb774...` | PASS |
+| Tag Peel Parität | Zeigt auf Merge-Commit | `v1.2.11^{commit}` == `a0bb774...` | PASS |
+| Release Asset SHA-256 | Post-Upload Hash | `e727872314240ce508f2fa01aac799f5a3234192a2bbb153f5f8b7e0662d022b` | PASS |
