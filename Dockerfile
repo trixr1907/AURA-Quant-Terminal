@@ -7,7 +7,7 @@ FROM python:3.12-alpine
 # Set build & runtime metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="1.2.12"
+LABEL version="1.2.13"
 
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -26,6 +26,7 @@ WORKDIR /app
 
 # Copy application files
 COPY --chown=aura:aura bitget_relay.py .
+COPY --chown=aura:aura VERSION .
 COPY --chown=aura:aura Symbiose_Dashboard.html .
 COPY --chown=aura:aura SYMBIOSE_Tutorial.html .
 COPY --chown=aura:aura data/ ./data/
