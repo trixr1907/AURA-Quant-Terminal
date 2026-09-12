@@ -575,6 +575,40 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         self.assertEqual(status, "FAIL")
         self.assertIn("non-finite numeric metric", detail)
 
+    def test_golden_parity_trend_fails_on_boolean_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures[0]["maxDelta"] = False
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-numeric metric", detail)
+
+    def test_golden_parity_trend_fails_on_missing_required_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        del fixtures[0]["softRate"]
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-numeric metric", detail)
+
     def test_golden_parity_trend_fails_on_artificial_regression(self):
         reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
         report = {
@@ -652,7 +686,10 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
     def test_ci_release_gate_does_not_allow_current_version(self):
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("python3 scripts/release_check.py", workflow)
-        self.assertNotIn("release_check.py --allow-current-version", workflow)
+        self.assertIsNone(
+            re.search(r"release_check\.py\s+--allow-current-version\b", workflow),
+            "normal CI must not bypass version progression",
+        )
 
     def test_pinned_playwright_and_chromium_system_dependencies_precede_release_gate(self):
         workflow = self.WORKFLOW.read_text(encoding="utf-8")
