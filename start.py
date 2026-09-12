@@ -78,7 +78,7 @@ def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 
 
 def check_relay_health() -> dict | None:
     try:
-        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.10"})
+        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.11"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))

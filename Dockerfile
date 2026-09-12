@@ -7,7 +7,7 @@ FROM python:3.12-alpine
 # Set build & runtime metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="1.2.10"
+LABEL version="1.2.11"
 
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \

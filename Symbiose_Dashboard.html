@@ -23,6 +23,7 @@ html{background:var(--bg);scroll-behavior:smooth}
 body{min-height:100%;background:radial-gradient(circle at 18% -10%,rgba(0,242,254,.08),transparent 34%),var(--bg);color:var(--txt);font:13px/1.0.05 var(--sans);padding:0 18px 42px}
 button,input,select{font:inherit}button{color:inherit}.wrap{max-width:1680px;margin:auto}
 header{min-height:74px;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--line);position:relative}
+.feed-status-pill{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border:1px solid var(--line);border-radius:999px;font:800 9px var(--mono);letter-spacing:.04em;white-space:nowrap}.feed-status-pill.live{color:var(--grn2);border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.08)}.feed-status-pill.offline{color:var(--red2);border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.12)}
 .logo{display:flex;align-items:center;gap:12px;min-width:max-content}
 .logo .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#0e1726,#06090f);border:1px solid rgba(0,242,254,.35);box-shadow:0 0 20px rgba(0,242,254,.15);transition:all .2s ease;padding:3px}
 .logo .mark:hover{border-color:rgba(0,245,160,.6);box-shadow:0 0 28px rgba(0,245,160,.25);transform:scale(1.04)}
@@ -320,6 +321,10 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       <div>
         <div class="lbl">Time-Stop (Bars)</div>
         <input type="number" id="timestop" value="15" min="1" max="100" step="1" style="min-width:70px" title="Gilt nur für das aktuell geladene Setup. Schließt den Trade nach X Bars, falls er im Verlust oder bei ±0 steht (Kapital-Effizienz).">
+      </div>
+      <div>
+        <div class="lbl">Feed-Status</div>
+        <span id="feed-status-pill" class="feed-status-pill offline" role="status" aria-live="polite">WS offline seit 0s</span>
       </div>
       <div>
         <div class="lbl">&nbsp;</div>
@@ -808,6 +813,12 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   <div class="radar-tabs"><button class="radar-tab on" data-rtf="all">Alle</button><button class="radar-tab" data-rtf="15m">15m</button><button class="radar-tab" data-rtf="1h">1H</button><button class="radar-tab" data-rtf="4h">4H</button><button class="radar-tab" data-rtf="1d">1D</button></div>
   <div style="display:flex;gap:5px;align-items:center;padding:6px 10px">
     <input id="radar-search" type="search" placeholder="🔍 Suchen (z.B. SOL, DOGE)..." aria-label="Radar Suche" style="flex:1;min-width:0;padding:4px 8px;font-size:9.5px;border-radius:6px;background:rgba(15,23,42,.8);border:1px solid var(--line);color:var(--txt)">
+    <select id="radar-volume-filter" aria-label="Radar Mindestvolumen" style="padding:4px 6px;font-size:9.5px;border-radius:6px;background:rgba(15,23,42,.9);border:1px solid var(--line);color:var(--txt)">
+      <option id="radar-vol-all" value="0">Alle (0)</option>
+      <option id="radar-vol-500k" value="500000">≥ 500k (0)</option>
+      <option id="radar-vol-1m" value="1000000">≥ 1M (0)</option>
+      <option id="radar-vol-5m" value="5000000">≥ 5M (0)</option>
+    </select>
     <select id="radar-sort-mode" aria-label="Radar Sortierung" style="padding:4px 6px;font-size:9.5px;border-radius:6px;background:rgba(15,23,42,.9);border:1px solid var(--line);color:var(--txt)">
       <option value="quality">🎯 Top Edge</option><option value="score_desc">📈 Score ▼</option><option value="score_asc">📉 Score ▲ (Short)</option><option value="long_only">🟢 Nur Longs</option><option value="short_only">🔴 Nur Shorts</option><option value="squeeze">🌪️ Squeeze-Alarm</option><option value="mtf_aligned">⚡ 4/4 MTF</option><option value="alpha">🔤 A-Z</option>
     </select>
@@ -819,7 +830,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.10?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.11?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -2340,10 +2351,16 @@ const App = {
   tradingView: { market: 'bitget_perp', layout: '' }, // TradingView Basic: one preferred market and optional saved layout
   universe: null,                              // dynamische Top-Coins aus Bitget-Tickern (Sort nach 24h-Volumen)
   radarTF: 'all',                              // aktiver Filter im Signal-Radar ('all' | '15m' | '1h' | '4h' | '1d')
+  radarVolumeMin: 0,                           // display-only 24h quote-volume filter; does not alter scan/model gates
   gen: 0,                                      // monotonic load-generation token: guards against stale async writes
   abortCtrl: null,                             // AbortController for the current chart/ticker load
   chartOverlays: { e20: true, e50: true, e200: true, st: true, vwap: true, vol: true, fvg: true, liq: true, kz: true }, // Indikatoren-Sichtbarkeit
-  status: { bin: '', fng: '', cg: '', ws: '' }, ws: null, wsTimer: null, reanaTimer: null
+  status: {
+    bin: '', fng: '', cg: '', ws: '', wsSource: '',
+    wsLastMessageAt: 0, wsOfflineSince: Date.now(), radarRefreshAt: 0, tradePricesRefreshAt: 0
+  },
+  lastRefreshAt: 0,
+  ws: null, wsTimer: null, reanaTimer: null
 };
 const $ = id => document.getElementById(id);
 
@@ -2469,6 +2486,56 @@ async function loadContext() {
   } catch (e) { App.data.crypto = null; }
 }
 
+function formatAgeSeconds(timestamp, now = Date.now()) {
+  if (!Number.isFinite(+timestamp) || +timestamp <= 0) return '—';
+  return `${Math.max(0, Math.floor((now - +timestamp) / 1000))}s`;
+}
+
+function buildFeedStatus(status, now = Date.now()) {
+  const s = status || {};
+  const offline = s.ws !== 'live';
+  const offlineSince = s.wsOfflineSince || now;
+  const wsAge = formatAgeSeconds(s.wsLastMessageAt, now);
+  return {
+    offline,
+    text: offline
+      ? `WS offline seit ${formatAgeSeconds(offlineSince, now)}`
+      : `LIVE · ${s.wsSource || 'unbekannt'} · vor ${wsAge}`,
+    title: `Kerzen ${offline ? 'offline' : `vor ${wsAge}`} · Radar vor ${formatAgeSeconds(s.radarRefreshAt, now)} · Trade-Preise vor ${formatAgeSeconds(s.tradePricesRefreshAt, now)}`
+  };
+}
+
+function renderFeedStatus(now = Date.now()) {
+  const pill = $('feed-status-pill');
+  if (!pill) return;
+  const view = buildFeedStatus(App.status, now);
+  pill.textContent = view.text;
+  pill.className = `feed-status-pill ${view.offline ? 'offline' : 'live'}`;
+  pill.title = view.title;
+}
+
+function shouldRefreshAfterResume(lastRefreshAt, intervalMs = 60000, now = Date.now()) {
+  return !Number.isFinite(+lastRefreshAt) || now - +lastRefreshAt > intervalMs;
+}
+
+async function refreshAfterResume(now = Date.now()) {
+  if (typeof document !== 'undefined' && document.hidden) return false;
+  if (App.status.ws !== 'live') connectWS();
+  if (!shouldRefreshAfterResume(App.lastRefreshAt, 60000, now)) {
+    renderFeedStatus(now);
+    return false;
+  }
+  await loadAll();
+  renderAll();
+  renderFeedStatus(Date.now());
+  return true;
+}
+
+function bindResumeRefresh() {
+  document.addEventListener('visibilitychange', refreshAfterResume);
+  window.addEventListener('focus', refreshAfterResume);
+}
+
 async function loadAll() {
   const btn = $('refresh'); if (btn) btn.disabled = true;
   let hasError = false;
@@ -2504,6 +2571,8 @@ async function loadAll() {
       lu.textContent = formatUtcTime();
     }
   }
+  if (!chartFailed && App.data.chart) App.lastRefreshAt = Date.now();
+  renderFeedStatus();
   renderAll();
   if (btn) btn.disabled = false;
   if (shouldStartRadarScan(App.radarProgress, App.data.radar?.length || 0, false)) {
@@ -3655,13 +3724,21 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
   } catch (_) {}
 
   try {
-    // 2. On the locally served PC dashboard the relay can also hand the HTTPS chart link
+    // 2. On the locally served PC dashboard the relay can also hand the HTTPS chart link.
+    // Docker/Relay-Host Note: When AURA is deployed in a Docker container (e.g. Proxmox),
+    // localhost:4242 refers to the container environment or the client desktop relay.
+    // To prevent any UI freeze when the local relay is offline or blocked by CORS,
+    // a 400ms AbortController timeout immediately falls back to direct browser window.open.
     const endpoint = (typeof relayBase === 'function' ? relayBase() : '') + '/api/open-tradingview';
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => { try { controller.abort(); } catch (_) {} }, 400) : null;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: tvUrl })
+      body: JSON.stringify({ url: tvUrl }),
+      signal: controller ? controller.signal : undefined
     });
+    if (timeoutId) clearTimeout(timeoutId);
     if (response.ok) {
       const data = await response.json().catch(() => ({}));
       if (data.ok) desktopOpened = true;
@@ -3691,7 +3768,7 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
 
   if (btn) {
     const origHtml = btn.innerHTML;
-    const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TV Web geöffnet';
+    const targetLabel = openTarget === 'desktop' ? 'TV Desktop geöffnet' : 'TradingView im Browser geöffnet';
     const fcLabel = hasForecast ? ' (mit Position-Tool)' : '';
     btn.innerHTML = pineCopied ? `✓ Pine kopiert${fcLabel} & ${targetLabel}!` : `✓ ${targetLabel} · Pine nicht kopiert`;
     btn.classList.add('copied');
@@ -4437,7 +4514,11 @@ async function loadRadar(options = {}) {
     const batchResults = await scanBatch(batch);
     const batchDurationMs = Math.max(0, Date.now() - batchStartedAt);
     if (radarGen !== App.radarGen) return;
-    batchResults.forEach(r => App.radarMap.set(r.symbol, r));
+    batchResults.forEach(r => {
+      const market = (App.universe || []).find(item => item && item.symbol === r.symbol);
+      App.radarMap.set(r.symbol, { ...r, vol: market && Number.isFinite(+market.vol) ? +market.vol : null });
+    });
+    if (App.status) App.status.radarRefreshAt = Date.now();
     scannedCount += batch.length;
     const allResults = Array.from(App.radarMap.values());
     App.data.radar = rankRadarCandidates(allResults, 'all');
@@ -4490,6 +4571,34 @@ async function loadRadar(options = {}) {
       if (App.radarTimer && typeof App.radarTimer.unref === 'function') App.radarTimer.unref();
     }
   }
+}
+
+/** Apply the display-only 24h quote-volume threshold without changing scan gates. */
+function filterRadarByVolume(rows, minimum = 0) {
+  const min = Math.max(0, Number(minimum) || 0);
+  if (!min) return (rows || []).slice();
+  return (rows || []).filter(row => Number.isFinite(+row.vol) && +row.vol >= min);
+}
+
+function radarVolumeCounts(rows) {
+  const list = rows || [];
+  return {
+    all: list.length,
+    500000: filterRadarByVolume(list, 500000).length,
+    1000000: filterRadarByVolume(list, 1000000).length,
+    5000000: filterRadarByVolume(list, 5000000).length
+  };
+}
+
+function updateRadarVolumeOptions(rows) {
+  const counts = radarVolumeCounts(rows);
+  const labels = [
+    ['radar-vol-all', `Alle (${counts.all})`],
+    ['radar-vol-500k', `≥ 500k (${counts[500000]})`],
+    ['radar-vol-1m', `≥ 1M (${counts[1000000]})`],
+    ['radar-vol-5m', `≥ 5M (${counts[5000000]})`]
+  ];
+  labels.forEach(([id, label]) => { const option = $(id); if (option) option.textContent = label; });
 }
 
 /** Apply user-selected filtering/sorting to already ranked radar rows. */
@@ -4557,6 +4666,7 @@ function renderRadar() {
     App.radarSortMode,
     App.radarTF,
     App.radarSearchQuery,
+    App.radarVolumeMin,
     all.length,
     all.map(r => `${r.symbol}:${r.avgScore}:${r.aligned}:${r.executable}`).join(',')
   ];
@@ -4574,7 +4684,11 @@ function renderRadar() {
     const eta = progress.scanning && Number.isFinite(progress.etaMs) ? ` · Restzeit ≈ ${Math.ceil(progress.etaMs / 1000)}s` : '';
     progressCopy.textContent = `${mode}: ${progress.done}/${progress.total} · ${progress.succeeded || 0} erfolgreich · ${progress.failed || 0} unvollständig · ${progress.skipped || 0} übersprungen${eta}${source}`;
   }
-  let ok = all.filter(r => isFinite(r.avgScore) || (r.tfScores && Object.values(r.tfScores).some(v => isFinite(v.score))));
+  updateRadarVolumeOptions(all);
+  let ok = filterRadarByVolume(
+    all.filter(r => isFinite(r.avgScore) || (r.tfScores && Object.values(r.tfScores).some(v => isFinite(v.score)))),
+    App.radarVolumeMin
+  );
 
   // User Search Filter
   const q = (App.radarSearchQuery || '').trim().toUpperCase();
@@ -4695,6 +4809,21 @@ function bindRadarTabs() {
     rSearch.addEventListener('input', e => {
       App.radarSearchQuery = e.target.value;
       renderRadar();
+    });
+  }
+
+  const rVolume = $('radar-volume-filter');
+  if (rVolume) {
+    try {
+      const saved = Number(localStorage.getItem('symbiose_radar_volume_filter'));
+      App.radarVolumeMin = [0, 500000, 1000000, 5000000].includes(saved) ? saved : 0;
+    } catch (_) { App.radarVolumeMin = 0; }
+    rVolume.value = String(App.radarVolumeMin);
+    rVolume.addEventListener('change', e => {
+      const selected = Number(e.target.value) || 0;
+      App.radarVolumeMin = selected;
+      try { localStorage.setItem('symbiose_radar_volume_filter', String(selected)); } catch (_) {}
+      renderRadar(true);
     });
   }
 
@@ -5697,12 +5826,19 @@ function drawSpark(cv, vals, color, opts) {
 // ============================================================================
 //  WEBSOCKET (Live-Kerzen-Update) + INIT
 // ============================================================================
-function setWs(st) { App.status.ws = st; }
-// Fallback-Kette für den Live-Stream: primärer Binance-Stream, bei
-// Geo-Block/Ausfall automatischer Wechsel auf den Public-Data-Mirror.
-const WS_URLS = [
-  'wss://stream.binance.com:9443/ws/',
-  'wss://data-stream.binance.vision/ws/'
+function setWs(st) {
+  App.status.ws = st;
+  if (st === 'live') App.status.wsOfflineSince = null;
+  else if (!App.status.wsOfflineSince) App.status.wsOfflineSince = Date.now();
+  renderFeedStatus();
+}
+const BITGET_CANDLE_CHANNELS = { '15m': 'candle15m', '1h': 'candle1H', '4h': 'candle4H', '1d': 'candle1D' };
+// Bitget is the primary public candle stream. Binance endpoints remain an
+// explicit fallback chain for network-specific outages.
+const WS_FEEDS = [
+  { source: 'bitget-ws', url: 'wss://ws.bitget.com/v2/ws/public', kind: 'bitget' },
+  { source: 'binance-fallback', url: 'wss://stream.binance.com:9443/ws/', kind: 'binance' },
+  { source: 'binance-vision-fallback', url: 'wss://data-stream.binance.vision/ws/', kind: 'binance' }
 ];
 let wsTry = 0;
 function connectWS() {
@@ -5710,30 +5846,53 @@ function connectWS() {
   clearTimeout(App.wsTimer);
   clearTimeout(App.reanaTimer);
   try {
-    if (wsTry >= WS_URLS.length) wsTry = 0;
+    if (wsTry >= WS_FEEDS.length) wsTry = 0;
     const gen = App.gen;
     const sym = App.symbol;
     const tf = App.chartTF;
-    const url = WS_URLS[wsTry] + sym.toLowerCase() + '@kline_' + tf;
-    wsTry++;
+    const feedIndex = wsTry++;
+    const feed = WS_FEEDS[feedIndex];
+    const url = feed.kind === 'bitget' ? feed.url : feed.url + sym.toLowerCase() + '@kline_' + tf;
     const ws = new WebSocket(url);
     const isCurrent = () => App.ws === ws && App.gen === gen && App.symbol === sym && App.chartTF === tf;
-    ws.onopen = () => { if (!isCurrent()) return; setWs('live'); wsTry = 0; };
+    ws.onopen = () => {
+      if (!isCurrent()) return;
+      setWs('live');
+      App.status.wsSource = feed.source;
+      App.status.wsLastMessageAt = Date.now();
+      renderFeedStatus();
+      if (feed.kind === 'bitget') {
+        ws.send(JSON.stringify({
+          op: 'subscribe',
+          args: [{ instType: 'USDT-FUTURES', channel: BITGET_CANDLE_CHANNELS[tf], instId: sym }]
+        }));
+      }
+    };
     ws.onmessage = ev => {
       try {
         if (!isCurrent()) return;
         const m = JSON.parse(ev.data);
-        if (!m || !m.k) return;
-        const k = m.k;
+        let rec = null;
+        if (feed.kind === 'bitget') {
+          if (!m || !m.arg || m.arg.instId !== sym || !Array.isArray(m.data) || !m.data.length) return;
+          const k = m.data[m.data.length - 1];
+          // Bitget candles expose no taker-buy volume. Keep tbv empty so CVD
+          // deliberately uses the Pine-parity-verified range approximation:
+          // v * (2c - h - l) / (h - l), verified over 64,859 bars in round 10.
+          rec = { t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], tbv: null };
+        } else {
+          if (!m || !m.k) return;
+          const k = m.k;
+          rec = { t: +k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, tbv: +k.V };
+        }
         const cd = App.data.candles;
-        if (!cd) return;
-        const t = +k.t;
+        if (!cd || !rec || !Number.isFinite(rec.t) || !Number.isFinite(rec.c)) return;
         const last = cd[cd.length - 1];
-        const rec = { t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, tbv: +k.V };
-        App.data.ticker = { ...(App.data.ticker || {}), price: rec.c, src: 'WebSocket' };
+        App.status.wsLastMessageAt = Date.now();
+        App.data.ticker = { ...(App.data.ticker || {}), price: rec.c, src: feed.source };
         tradePrices[App.symbol] = rec.c;
-        if (last && last.t === t) cd[cd.length - 1] = rec;
-        else if (last && t > last.t) { cd.push(rec); if (cd.length > 1600) cd.shift(); }
+        if (last && last.t === rec.t) cd[cd.length - 1] = rec;
+        else if (last && rec.t > last.t) { cd.push(rec); if (cd.length > 1600) cd.shift(); }
         clearTimeout(App.reanaTimer);
         App.reanaTimer = setTimeout(() => {
           if (!isCurrent()) return;
@@ -5741,19 +5900,22 @@ function connectWS() {
           App.data.bt = backtest(cd, App.data.chart);
           renderAll();
         }, 4000);
-        // Preis und Chart sofort aktualisieren; Live-Trades-DOM über RAF gedrosselt; Analyse bleibt 4s-gedebounced.
+        // Price and chart update immediately; analysis remains debounced by 4s.
         renderPrice(); renderChart(); scheduleLiveTradesRender();
-      } catch (e) { /* ignorieren */ }
+      } catch (e) { /* ignore malformed public-feed messages */ }
     };
     ws.onerror = () => { if (isCurrent()) setWs('off'); };
     ws.onclose = () => {
       if (!isCurrent()) return;
       setWs('off');
-      // bei Ausfall sofort die nächste Stream-Quelle probieren, sonst 15 s Pause
-      App.wsTimer = setTimeout(connectWS, wsTry < WS_URLS.length ? 2500 : 15000);
+      // Advance through the explicit fallback chain; retry a new cycle after 15s.
+      App.wsTimer = setTimeout(connectWS, wsTry < WS_FEEDS.length ? 2500 : 15000);
     };
     App.ws = ws;
-  } catch (e) { setWs('off'); }
+  } catch (e) {
+    setWs('off');
+    App.wsTimer = setTimeout(connectWS, wsTry < WS_FEEDS.length ? 2500 : 15000);
+  }
 }
 
 function resetMarketState() {
@@ -5771,6 +5933,9 @@ function resetMarketState() {
   App.specSym = null;
   App.status.bin = 'DATA_LOADING';
   App.status.ws = 'DATA_LOADING';
+  App.status.wsSource = '';
+  App.status.wsLastMessageAt = 0;
+  if (!App.status.wsOfflineSince) App.status.wsOfflineSince = Date.now();
 }
 
 function buildSymbols() {
@@ -6167,6 +6332,9 @@ function calculateHistoryStats(history) {
       losses: 0,
       beCount: 0,
       winRatePct: 0,
+      realizedWinRatePct: 0,
+      tpHits: 0,
+      partialWins: 0,
       grossPnl: 0,
       grossWin: 0,
       grossLoss: 0,
@@ -6182,15 +6350,29 @@ function calculateHistoryStats(history) {
   let grossPnl = 0, grossWin = 0, grossLoss = 0;
   let sumR = 0, sumHolding = 0;
   let bestPnl = -Infinity, worstPnl = Infinity;
+  let winWeight = 0, totalWeight = 0;
+  let tpHits = 0, partialWins = 0;
   
   for (const h of hList) {
     const pnl = Number.isFinite(+h.realizedPnlGross) ? +h.realizedPnlGross : (Number.isFinite(+h.realizedPnl) ? +h.realizedPnl : 0);
     const r = Number.isFinite(+h.realizedR) ? +h.realizedR : 0;
     const holding = Number.isFinite(+h.holdingMs) ? +h.holdingMs : 0;
+    const fraction = Number.isFinite(+h.fractionClosed) && +h.fractionClosed > 0 ? Math.min(1.0, +h.fractionClosed) : 1.0;
     
-    if (pnl > 0) { wins++; grossWin += pnl; }
-    else if (pnl < 0) { losses++; grossLoss += Math.abs(pnl); }
-    else { beCount++; }
+    totalWeight += fraction;
+    const isTp = String(h.reason || '').includes('TP') || String(h.reason || '').includes('TAKE_PROFIT') || h.eventType === 'PARTIAL_CLOSE';
+    if (pnl > 0) {
+      wins++;
+      grossWin += pnl;
+      winWeight += fraction;
+      if (isTp) tpHits++;
+      if (h.eventType === 'PARTIAL_CLOSE' || fraction < 1.0) partialWins++;
+    } else if (pnl < 0) {
+      losses++;
+      grossLoss += Math.abs(pnl);
+    } else {
+      beCount++;
+    }
     
     grossPnl += pnl;
     sumR += r;
@@ -6200,6 +6382,7 @@ function calculateHistoryStats(history) {
   }
   
   const winRatePct = Math.round((wins / totalEvents) * 1000) / 10;
+  const realizedWinRatePct = totalWeight > 0 ? Math.round((winWeight / totalWeight) * 1000) / 10 : 0.0;
   grossPnl = Math.round(grossPnl * 100) / 100;
   grossWin = Math.round(grossWin * 100) / 100;
   grossLoss = Math.round(grossLoss * 100) / 100;
@@ -6213,6 +6396,9 @@ function calculateHistoryStats(history) {
     losses,
     beCount,
     winRatePct,
+    realizedWinRatePct,
+    tpHits,
+    partialWins,
     grossPnl,
     grossWin,
     grossLoss,
@@ -6645,7 +6831,10 @@ function renderTradeHistory() {
   const stats = calculateHistoryStats(filtered);
   const hkCount = $('hkpi-count'), hkWr = $('hkpi-wr'), hkPnl = $('hkpi-pnl'), hkPf = $('hkpi-pf'), hkAvgR = $('hkpi-avgr'), hkHolding = $('hkpi-holding'), hkExt = $('hkpi-ext');
   if (hkCount) hkCount.textContent = `${stats.totalEvents}`;
-  if (hkWr) hkWr.textContent = `${stats.winRatePct.toFixed(1)}% (${stats.wins}W/${stats.losses}L/${stats.beCount}BE)`;
+  if (hkWr) {
+    hkWr.textContent = `${stats.winRatePct.toFixed(1)}% (${stats.realizedWinRatePct.toFixed(1)}% Realisiert · ${stats.wins}W/${stats.losses}L/${stats.beCount}BE · ${stats.tpHits} TP)`;
+    hkWr.title = `Realisierte Win-Rate: ${stats.realizedWinRatePct.toFixed(1)}% (tranche-gewichtet) · Events: ${stats.winRatePct.toFixed(1)}% · TP-Treffer: ${stats.tpHits}`;
+  }
   if (hkPnl) {
     hkPnl.textContent = `${stats.grossPnl >= 0 ? '+' : ''}${stats.grossPnl.toFixed(2)} USDT`;
     hkPnl.style.color = stats.grossPnl >= 0 ? 'var(--grn2)' : 'var(--red2)';
@@ -6661,7 +6850,7 @@ function renderTradeHistory() {
   const histStatsSummary = $('trade-history-stats');
   if (histStatsSummary) {
     if (filtered.length > 0) {
-      histStatsSummary.innerHTML = `Filter: <b>${filtered.length}</b> Events · WR <b>${stats.winRatePct.toFixed(1)}%</b> · Brutto <b style="color:${stats.grossPnl >= 0 ? 'var(--grn2)' : 'var(--red2)'}">${stats.grossPnl >= 0 ? '+' : ''}${stats.grossPnl.toFixed(2)} USDT</b> (Ø ${stats.avgR.toFixed(2)}R)`;
+      histStatsSummary.innerHTML = `Filter: <b>${filtered.length}</b> Events · Realisierte Win-Rate <b>${stats.realizedWinRatePct.toFixed(1)}%</b> (Events: ${stats.winRatePct.toFixed(1)}% · ${stats.tpHits} TP-Treffer) · Brutto <b style="color:${stats.grossPnl >= 0 ? 'var(--grn2)' : 'var(--red2)'}">${stats.grossPnl >= 0 ? '+' : ''}${stats.grossPnl.toFixed(2)} USDT</b> (Ø ${stats.avgR.toFixed(2)}R)`;
     } else {
       histStatsSummary.textContent = allHist.length > 0 ? 'Keine Treffer für aktiven Filter.' : 'Noch keine geschlossenen Trades.';
     }
@@ -6867,7 +7056,8 @@ function renderLiveTrades() {
           </div>
         </div>
         <div class="tc-grid">
-          <div class="tc-item"><span>Einstieg / Mark</span><b><span class="copyable-val" data-copy-val="${(+t.entry).toFixed(2)}" title="Einstieg kopieren">${(+t.entry).toFixed(2)}</span> → <span class="${pnlClass} copyable-val" data-copy-val="${(+px).toFixed(2)}" title="Markpreis kopieren">${(+px).toFixed(2)}</span> <small class="${pnlClass} copyable-val" data-copy-val="${m.priceDiffPct.toFixed(2)}%">(${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%)</small></b></div>
+          <div class="tc-item"><span>Einstieg</span><b><span class="copyable-val" data-copy-val="${(+t.entry).toFixed(2)}" title="Einstieg kopieren">${(+t.entry).toFixed(2)}</span></b></div>
+          <div class="tc-item"><span>Aktuell ${markAgeSec > 30 ? '<span class="stale-price-dot" title="Daten älter als 30s" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--dim);margin-left:2px;vertical-align:middle"></span>' : '<span class="live-price-dot" title="Live" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--grn2);margin-left:2px;vertical-align:middle"></span>'}</span><b><span class="${pnlClass} copyable-val" data-copy-val="${(+px).toFixed(2)}" title="Markpreis kopieren">${(+px).toFixed(2)}</span> <small class="${pnlClass} copyable-val" data-copy-val="${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%">(${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%)</small></b></div>
           <div class="tc-item"><span>Margin / Notional</span><b><span class="copyable-val" data-copy-val="${(+(t.remainingMargin || t.margin)).toFixed(2)}" title="Margin kopieren">${(+(t.remainingMargin || t.margin)).toFixed(2)} $</span> / <span class="copyable-val" data-copy-val="${m.notional.toFixed(2)}" title="Notional kopieren">${m.notional.toFixed(2)} $</span> <small class="copyable-val" data-copy-val="${m.quantity.toFixed(4)}" title="Menge (Qty) kopieren" style="color:var(--dim)">(${m.quantity.toFixed(4)} Qty)</small></b></div>
           <div class="tc-item"><span>Stop-Loss (SL)</span><b style="color:var(--red2)"><span class="copyable-val" data-copy-val="${(+t.currentSl).toFixed(2)}" title="Stop-Loss kopieren">${(+t.currentSl).toFixed(2)}</span> <small class="copyable-val" data-copy-val="-${m.distSlPct.toFixed(2)}%" title="SL-Abstand kopieren" style="color:var(--dim)">(-${m.distSlPct.toFixed(2)}%)</small></b></div>
           <div class="tc-item"><span>Take-Profit (TP)</span><b style="color:var(--grn2)"><span class="copyable-val" data-copy-val="${(+t.tp).toFixed(2)}" title="Take-Profit kopieren">${(+t.tp).toFixed(2)}</span> <small class="copyable-val" data-copy-val="+${m.distTpPct.toFixed(2)}%" title="TP-Abstand kopieren" style="color:var(--dim)">(+${m.distTpPct.toFixed(2)}%)</small></b></div>
@@ -8259,6 +8449,30 @@ const Autobot = {
           t.scaledOut = true;
           // Trailing SL hinterherziehen
           t.currentSl = t.dir === 1 ? Math.max(t.currentSl, t.entry + riskSpan * 0.75) : Math.min(t.currentSl, t.entry - riskSpan * 0.75);
+
+          const partialRecord = {
+            id: typeof generateDeterministicOid === 'function' ? generateDeterministicOid('ab_th') : `ab_th_${Date.now()}`,
+            tradeId: t.id,
+            parentTradeId: t.id,
+            eventType: 'PARTIAL_CLOSE',
+            fractionClosed: 0.5,
+            coin: t.coin,
+            dir: t.dir,
+            leverage: t.leverage,
+            entry: t.entry,
+            exit: px,
+            initialMargin: (t.initialMargin || t.margin * 2) * 0.5,
+            realizedPnlGross: partGross,
+            realizedRoiPct: ((partGross / ((t.initialMargin || t.margin * 2) * 0.5)) * 100),
+            realizedR: riskSpan > 0 ? (partGross / ((riskSpan / t.entry) * ((t.initialMargin || t.margin * 2) * 0.5) * t.leverage)) : 0,
+            openedAt: t.openedAt,
+            closedAt: Date.now(),
+            holdingMs: Date.now() - t.openedAt,
+            reason: 'PARTIAL_TAKE_PROFIT_TP2'
+          };
+          this.history.unshift(partialRecord);
+          if (this.history.length > 100) this.history.pop();
+
           this.log(`💰 [${t.coin}] TP2 (${t.tp2.toFixed(2)}) erreicht → 50% Teilgewinn realisiert (+${partGross.toFixed(2)} USDT). Rest läuft mit Trailing-SL weiter.`);
           this.save();
         }
@@ -8319,19 +8533,24 @@ const Autobot = {
     
     this.equity += t.margin + netPnl;
     const totalPnl = (t.realizedPnlGross || 0) + grossPnl;
-    const roiPct = (totalPnl / t.initialMargin) * 100;
-    const riskAmount = Math.abs(t.entry - t.initialSl) / t.entry * t.initialMargin * t.leverage;
-    const rMultiple = riskAmount > 0 ? (totalPnl / riskAmount) : 0;
+    const fractionClosed = t.scaledOut ? 0.5 : 1.0;
+    const roiPct = (grossPnl / t.margin) * 100;
+    const riskAmount = Math.abs(t.entry - t.initialSl) / t.entry * t.margin * t.leverage;
+    const rMultiple = riskAmount > 0 ? (grossPnl / riskAmount) : 0;
 
     const record = {
       id: t.id,
+      tradeId: t.id,
+      parentTradeId: t.id,
+      eventType: 'FULL_CLOSE',
+      fractionClosed,
       coin: t.coin,
       dir: t.dir,
       leverage: t.leverage,
       entry: t.entry,
       exit: exitPrice,
-      initialMargin: t.initialMargin,
-      realizedPnlGross: totalPnl,
+      initialMargin: t.margin,
+      realizedPnlGross: grossPnl,
       realizedRoiPct: roiPct,
       realizedR: rMultiple,
       openedAt: t.openedAt,
@@ -8345,12 +8564,13 @@ const Autobot = {
     this.trades.splice(index, 1);
 
     const icon = totalPnl >= 0 ? '🎯' : '🛑';
-    this.log(`${icon} [${t.coin}] Position beendet (${reason}): ${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)} USDT (${(roiPct >= 0 ? '+' : '') + roiPct.toFixed(1)}% | ${rMultiple.toFixed(2)}R)`);
+    this.log(`${icon} [${t.coin}] Position beendet (${reason}): ${grossPnl >= 0 ? '+' : ''}${grossPnl.toFixed(2)} USDT (${(roiPct >= 0 ? '+' : '') + roiPct.toFixed(1)}% | ${rMultiple.toFixed(2)}R, Gesamt-Trade: ${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)} USDT)`);
     this.save();
     this.render();
   },
 
   async scanAndExecuteOpportunities() {
+    this.lastScanAt = Date.now();
     if (this.trades.length >= this.maxOpenTrades) return null;
 
     // The Paper Autobot consumes only fully ranked Action Radar rows. Without complete
@@ -8591,6 +8811,8 @@ const Autobot = {
 
     const funnelEl = $('ab-funnel-summary');
     if (funnelEl) {
+      const scanAgeSec = this.lastScanAt ? Math.max(0, Math.floor((Date.now() - this.lastScanAt) / 1000)) : null;
+      const scanAgeText = scanAgeSec !== null ? `Letzter Scan: vor ${scanAgeSec}s` : 'Letzter Scan: ausstehend';
       if (this.lastScanFunnel) {
         const f = this.lastScanFunnel;
         const tEff = 18 * f.wfEvaluated;
@@ -8598,7 +8820,7 @@ const Autobot = {
         const numMarkets = Math.round(f.scanned / 4) || f.scanned;
         const rejectSummary = autobotRejectSummary(f);
         const diagnostics = rejectSummary ? ` &middot; Abgelehnt: <b>${rejectSummary}</b>` : '';
-        funnelEl.innerHTML = `Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> Radar-Kandidaten &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}${diagnostics}`;
+        funnelEl.innerHTML = `<b>${scanAgeText}</b> &middot; Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> qualifiziert &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}${diagnostics}`;
         if (f.lastError) {
           funnelEl.append(' · Letzter Datenfehler: ');
           const errorEl = document.createElement('span');
@@ -8607,7 +8829,7 @@ const Autobot = {
           funnelEl.appendChild(errorEl);
         }
       } else {
-        funnelEl.textContent = `Bereit: Profil ${this.profile} · Score ≥ ${this.minScore} · MTF ≥ ${this.mtfNeed}/4 · OOS ≥ ${this.minOosSamples} · DSR ≥ ${this.minSetupDsr.toFixed(2)}.`;
+        funnelEl.textContent = `${scanAgeText} · Bereit: Profil ${this.profile} · Score ≥ ${this.minScore} · MTF ≥ ${this.mtfNeed}/4 · OOS ≥ ${this.minOosSamples} · DSR ≥ ${this.minSetupDsr.toFixed(2)}.`;
       }
     }
 
@@ -8621,15 +8843,12 @@ const Autobot = {
       investedMargin += t.margin;
     });
 
-    const realizedPnl = this.history.reduce((a, b) => a + (b.realizedPnlGross || 0), 0);
+    const histStats = calculateHistoryStats(this.history);
+    const realizedPnl = histStats.grossPnl;
     const totalEquity = this.equity + investedMargin + unrealizedPnl;
     const totalRoi = ((totalEquity - this.initialEquity) / this.initialEquity) * 100;
-    const wins = this.history.filter(h => h.realizedPnlGross > 0);
-    const losses = this.history.filter(h => h.realizedPnlGross <= 0);
-    const wr = this.history.length ? (wins.length / this.history.length * 100) : 0;
-    const grossGain = wins.reduce((a, b) => a + b.realizedPnlGross, 0);
-    const grossLoss = Math.abs(losses.reduce((a, b) => a + b.realizedPnlGross, 0));
-    const pf = grossLoss > 0 ? (grossGain / grossLoss).toFixed(2) : (grossGain > 0 ? '∞' : '—');
+    const wr = histStats.realizedWinRatePct;
+    const pf = histStats.profitFactor > 0 ? histStats.profitFactor.toFixed(2) : (histStats.grossWin > 0 ? '∞' : '—');
 
     const eqEl = $('ab-equity'), roiEl = $('ab-roi'), pnlEl = $('ab-pnl'), wrEl = $('ab-wr'), pfEl = $('ab-pf'), countEl = $('ab-open-count');
     if (eqEl) eqEl.textContent = `${totalEquity.toFixed(2)} USDT`;
@@ -8641,7 +8860,10 @@ const Autobot = {
       pnlEl.textContent = `${(realizedPnl + unrealizedPnl) >= 0 ? '+' : ''}${(realizedPnl + unrealizedPnl).toFixed(2)} USDT`;
       pnlEl.style.color = (realizedPnl + unrealizedPnl) >= 0 ? 'var(--grn2)' : 'var(--red2)';
     }
-    if (wrEl) wrEl.textContent = `${wr.toFixed(1)}% (${this.history.length})`;
+    if (wrEl) {
+      wrEl.textContent = `${wr.toFixed(1)}% (${this.history.length})`;
+      wrEl.title = `Realisierte Win-Rate: ${wr.toFixed(1)}% (tranche-gewichtet) · Events: ${histStats.winRatePct.toFixed(1)}% (${histStats.wins}W/${histStats.losses}L/${histStats.beCount}BE) · TP-Treffer: ${histStats.tpHits}`;
+    }
     if (pfEl) pfEl.textContent = pf;
     if (countEl) countEl.textContent = `${this.trades.length} / ${this.maxOpenTrades} Max`;
 
@@ -8792,7 +9014,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.2.5');
+  showReleaseNotesOnce('1.2.11');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
@@ -8907,6 +9129,8 @@ function init() {
   setInterval(loadBtcMarketContext, 25000);
   loadAll();
   connectWS();
+  bindResumeRefresh();
+  setInterval(() => renderFeedStatus(), 1000);
   setInterval(loadAll, 60000); // Auto-Refresh alle 60 s
 }
 document.addEventListener('DOMContentLoaded', init);
