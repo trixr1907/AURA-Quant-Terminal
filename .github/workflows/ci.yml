@@ -48,7 +48,7 @@ jobs:
       - name: Path 1 — Release Gate
         shell: bash
         run: |
-          python3 scripts/release_check.py --allow-current-version
+          python3 scripts/release_check.py
 
       - name: Path 2 — Complete JS Discovery & Pytest Suite
         shell: bash
