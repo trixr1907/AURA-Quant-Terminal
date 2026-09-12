@@ -246,7 +246,7 @@ Echte Werte am Dokumentationszeitpunkt:
   - `model_evidence_real.js`: Berichtsgenerator/Gate, von `release_check.py` und `test_model_evidence_real.js` aufgerufen.
   - `sensitivity_release_gates.js`: Berichtsgenerator, von `release_check.py` aufgerufen; dokumentiert selbst „not a gate“.
 - Baseline-Pytest laut `BASELINE_20260912.md`: **178 passed, 57 subtests passed**. Die Originalangabe „180 Pytest-Units“ war falsch.
-- Aktueller Rev2-Stand nach neuen Regressionstests: **189 passed, 57 subtests passed**.
+- Aktueller Rev2-Stand nach neuen Regressionstests: **191 passed, 57 subtests passed**.
 - Dashboard: **8.971 Zeilen, 471.140 Bytes**.
 
 ### Veralteter lokaler Tag-Stand
@@ -265,7 +265,7 @@ In CI bleibt `fetch-depth: 0` sinnvoll; der Remote-Abgleich schützt zusätzlich
 
 ## 8. N6 — Sichtbares Paritätsprofil und No-Regression-Trendgate
 
-**Codebeleg:** `tests/compare_pine_js_golden.js:205-260`, `tests/fixtures/golden/parity_reference.json:1-31`, `scripts/release_check.py:397-477` und `:588-589`, `tests/test_release_sync.py:510-598`.
+**Codebeleg:** `tests/compare_pine_js_golden.js:205-260`, `tests/fixtures/golden/parity_reference.json:1-31`, `scripts/release_check.py:397-483` und `:594-595`, `tests/test_release_sync.py:510-632`.
 
 Der Harness besitzt nun `--json`. `release_check.py` speichert im Check-Detail für jedes Fixture:
 

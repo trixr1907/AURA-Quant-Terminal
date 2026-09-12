@@ -444,7 +444,12 @@ def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, st
             ("soft_rate", actual.get("softRate"), expected.get("soft_rate")),
         )
         for name, actual_value, reference_value in numeric_pairs:
-            if not isinstance(actual_value, (int, float)) or not isinstance(reference_value, (int, float)):
+            if (
+                isinstance(actual_value, bool)
+                or isinstance(reference_value, bool)
+                or not isinstance(actual_value, (int, float))
+                or not isinstance(reference_value, (int, float))
+            ):
                 regressions.append({"fixture": fixture, "metric": name, "error": "non-numeric metric"})
             elif not math.isfinite(actual_value) or not math.isfinite(reference_value):
                 regressions.append({"fixture": fixture, "metric": name, "error": "non-finite numeric metric"})
