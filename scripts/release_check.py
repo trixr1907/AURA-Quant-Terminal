@@ -561,6 +561,9 @@ def main() -> int:
     rc, out, err = run([sys.executable, "scripts/verify_ledger.py"])
     add(check("trials ledger hash chain", "PASS" if rc == 0 else "FAIL", (out or err).strip()[:400]))
 
+    rc_cvd, out_cvd, err_cvd = run([sys.executable, "scripts/cvd_reference.py"])
+    add(check("cvd independent reference parity", "PASS" if rc_cvd == 0 else "FAIL", (out_cvd or err_cvd).strip()[:400]))
+
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
     rc2, out2, err2 = run(["node", "tests/test_lookahead_metamorphic.js"])
     ok = (rc1 == 0) and (rc2 == 0) and ("3 PASSED" in out2)
@@ -593,7 +596,8 @@ def main() -> int:
     rc, out, err = run([sys.executable, "-m", "py_compile",
                         "start.py", "bitget_relay.py", "tests/browser_research_harness.py",
                         "tests/reference_backtest.py", "scripts/release_check.py",
-                        "scripts/sync_market_data.py"])
+                        "scripts/sync_market_data.py", "scripts/verify_ledger.py",
+                        "scripts/append_ledger.py", "scripts/cvd_reference.py"])
     add(check("python compile", "PASS" if rc == 0 else "FAIL", (err or out).strip()[:300]))
     rc, out, err = run([sys.executable, "-m", "pytest", "-q"])
     detail = (err or out).strip()

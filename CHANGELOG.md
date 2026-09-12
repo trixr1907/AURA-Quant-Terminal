@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.10] - 2026-09-12
+
+### Added
+- Separater produktpflichtiger Checkpoint (`ledger_checkpoint.json`) gegen Tail-Truncation des Trials-Ledgers.
+- Skript `scripts/append_ledger.py` für validierte Appends und atomare Checkpoint-Updates.
+- Unabhängige Python-Referenz `scripts/cvd_reference.py` für die formelgetreue CVD-/EMA-CVD-Langzeitmessung gegen die Dashboard-Engine.
+- Vollständige Regressionstests für Checkpoint-Verifikation und CVD-Parität.
+
+### Changed
+- `scripts/verify_ledger.py` gleicht `last_entry_id`, `entry_count` und `chain_head` fail-closed mit dem Checkpoint ab.
+- `scripts/release_check.py` führt `scripts/cvd_reference.py` im automatisierten Release-Gate aus.
+- Version auf 1.2.10 synchronisiert.
+
+### Research status
+- F-06 ist durch den produktpflichtigen Checkpoint und die Tail-Truncation-Prüfung vollständig geschlossen.
+- F-16 ist durch die unabhängige Python-Referenz über 64.859 Bars mit 0 Vergleichskipps und einer maximalen relativen Drift von $2,54 \times 10^{-11} \le 10^{-10}$ als akzeptiertes numerisches Verhalten abgeschlossen.
+- Urteil bleibt ehrlich `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [1.2.9] - 2026-09-12
 
 ### Added

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify AURA's append-only trials ledger hash chain."""
+"""Verify AURA's append-only trials ledger and anchored checkpoint."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LEGACY_LEDGER = ROOT / "docs" / "research" / "TRIALS_LEDGER_LEGACY_v1.2.8.md"
 CHAIN_LEDGER = ROOT / "docs" / "research" / "trials_ledger_chain.jsonl"
+LEDGER_CHECKPOINT = ROOT / "ledger_checkpoint.json"
 LEGACY_SHA256 = "23f59ef8df9f348609280d8f57583e32c2d7afc1e9b428f9d50ae75051eeeb0c"
 FIRST_ENTRY_ID = 26
 BASELINE_TOTAL = 10
@@ -20,7 +21,10 @@ FIELD_ORDER = (
     "success_criterion", "result", "delta", "total_model_experiments",
     "status", "prereg_commit", "prev_hash",
 )
-ALL_FIELDS = set(FIELD_ORDER) | {"entry_hash"}
+RECORD_ORDER = (*FIELD_ORDER, "entry_hash")
+ALL_FIELDS = set(RECORD_ORDER)
+CHECKPOINT_ORDER = ("schema_version", "last_entry_id", "entry_count", "chain_head")
+CHECKPOINT_FIELDS = set(CHECKPOINT_ORDER)
 HASH_RE = re.compile(r"[0-9a-f]{64}")
 ID_RE = re.compile(r"EXP-(\d{3,})")
 
@@ -29,9 +33,20 @@ class LedgerVerificationError(ValueError):
     """Raised when ledger evidence is missing or invalid."""
 
 
+def _canonical_json(data: dict, fields: tuple[str, ...]) -> str:
+    return json.dumps({field: data[field] for field in fields}, ensure_ascii=False, separators=(",", ":"))
+
+
 def canonical_entry(entry: dict) -> bytes:
-    payload = {field: entry[field] for field in FIELD_ORDER}
-    return (json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    return (_canonical_json(entry, FIELD_ORDER) + "\n").encode("utf-8")
+
+
+def canonical_record(entry: dict) -> bytes:
+    return (_canonical_json(entry, RECORD_ORDER) + "\n").encode("utf-8")
+
+
+def canonical_checkpoint(checkpoint: dict) -> bytes:
+    return (_canonical_json(checkpoint, CHECKPOINT_ORDER) + "\n").encode("utf-8")
 
 
 def _read_legacy(path: Path, expected_sha256: str) -> str:
@@ -47,27 +62,49 @@ def _read_chain(path: Path) -> list[str]:
     if not path.is_file():
         raise LedgerVerificationError(f"chain ledger missing: {path}")
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeError) as exc:
+        raw = path.read_bytes()
+        if not raw:
+            raise LedgerVerificationError("chain ledger has no entries")
+        if not raw.endswith(b"\n"):
+            raise LedgerVerificationError("chain ledger missing final LF")
+        if b"\r" in raw:
+            raise LedgerVerificationError("chain ledger contains non-canonical CR")
+        text = raw.decode("utf-8")
+    except UnicodeError as exc:
         raise LedgerVerificationError(f"cannot read chain ledger: {exc}") from exc
-    if not lines:
-        raise LedgerVerificationError("chain ledger has no entries")
-    return lines
+    return text[:-1].split("\n")
+
+
+def _reject_duplicates(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise LedgerVerificationError(f"duplicate JSON field: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value: str) -> None:
+    raise LedgerVerificationError(f"invalid JSON constant: {value}")
+
+
+def _parse_json_object(raw: str, context: str) -> dict:
+    try:
+        value = json.loads(raw, object_pairs_hook=_reject_duplicates, parse_constant=_reject_constant)
+    except json.JSONDecodeError as exc:
+        raise LedgerVerificationError(f"invalid {context} JSON: {exc.msg}") from exc
+    if not isinstance(value, dict):
+        raise LedgerVerificationError(f"{context} is not an object")
+    return value
 
 
 def _parse_entry(raw_line: str, line_number: int) -> dict:
     if not raw_line:
         raise LedgerVerificationError(f"blank entry at line {line_number}")
-    try:
-        entry = json.loads(raw_line)
-    except json.JSONDecodeError as exc:
-        raise LedgerVerificationError(f"invalid JSON at line {line_number}: {exc.msg}") from exc
-    if not isinstance(entry, dict):
-        raise LedgerVerificationError(f"entry at line {line_number} is not an object")
+    entry = _parse_json_object(raw_line, "ledger")
     if set(entry) != ALL_FIELDS:
         raise LedgerVerificationError(f"invalid fields at line {line_number}")
-    canonical_line = json.dumps(entry, ensure_ascii=False, separators=(",", ":"))
-    if raw_line != canonical_line:
+    if raw_line != _canonical_json(entry, RECORD_ORDER):
         raise LedgerVerificationError(f"non-canonical JSON at line {line_number}")
     return entry
 
@@ -101,10 +138,41 @@ def _validate_link(entry: dict, expected_id: int, expected_prev: str, line_numbe
     return computed
 
 
+def _read_checkpoint(path: Path, first_entry_id: int) -> dict:
+    if not path.is_file():
+        raise LedgerVerificationError(f"checkpoint missing: {path}")
+    try:
+        raw = path.read_bytes()
+        if not raw.endswith(b"\n"):
+            raise LedgerVerificationError("checkpoint missing final LF")
+        if raw.count(b"\n") != 1 or b"\r" in raw:
+            raise LedgerVerificationError("checkpoint must be one canonical LF-terminated line")
+        text = raw[:-1].decode("utf-8")
+    except UnicodeError as exc:
+        raise LedgerVerificationError(f"cannot read checkpoint: {exc}") from exc
+    checkpoint = _parse_json_object(text, "checkpoint")
+    if set(checkpoint) != CHECKPOINT_FIELDS:
+        raise LedgerVerificationError("invalid checkpoint fields")
+    if text != _canonical_json(checkpoint, CHECKPOINT_ORDER):
+        raise LedgerVerificationError("non-canonical checkpoint JSON")
+    count = checkpoint["entry_count"]
+    if checkpoint["schema_version"] != 1:
+        raise LedgerVerificationError("invalid checkpoint schema_version")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        raise LedgerVerificationError("invalid checkpoint entry_count")
+    expected_last = f"EXP-{first_entry_id + count - 1:03d}"
+    if checkpoint["last_entry_id"] != expected_last:
+        raise LedgerVerificationError("checkpoint last_entry_id inconsistent with entry_count")
+    if not isinstance(checkpoint["chain_head"], str) or not HASH_RE.fullmatch(checkpoint["chain_head"]):
+        raise LedgerVerificationError("invalid checkpoint chain_head")
+    return checkpoint
+
+
 def verify_ledger(
     legacy_path: Path = LEGACY_LEDGER,
     chain_path: Path = CHAIN_LEDGER,
     *,
+    checkpoint_path: Path = LEDGER_CHECKPOINT,
     expected_legacy_sha256: str = LEGACY_SHA256,
     first_entry_id: int = FIRST_ENTRY_ID,
     baseline_total: int = BASELINE_TOTAL,
@@ -113,17 +181,31 @@ def verify_ledger(
     legacy_hash = _read_legacy(legacy_path, expected_legacy_sha256)
     raw_lines = _read_chain(chain_path)
     expected_prev, total = legacy_hash, baseline_total
+    last_entry_id = None
     for offset, raw_line in enumerate(raw_lines):
         line_number = offset + 1
         entry = _parse_entry(raw_line, line_number)
         total = _validate_numbers(entry, total, line_number)
         expected_prev = _validate_link(entry, first_entry_id + offset, expected_prev, line_number)
+        last_entry_id = entry["id"]
+
+    checkpoint = _read_checkpoint(checkpoint_path, first_entry_id)
+    actual = {
+        "last_entry_id": last_entry_id,
+        "entry_count": len(raw_lines),
+        "chain_head": expected_prev,
+    }
+    for field in ("entry_count", "last_entry_id", "chain_head"):
+        value = actual[field]
+        if checkpoint[field] != value:
+            raise LedgerVerificationError(
+                f"checkpoint {field} mismatch: expected {checkpoint[field]!r}, reconstructed {value!r}"
+            )
     return {
         "ok": True,
-        "entry_count": len(raw_lines),
+        **actual,
         "total_model_experiments": total,
         "legacy_sha256": legacy_hash,
-        "chain_head": expected_prev,
     }
 
 
@@ -131,7 +213,7 @@ def main() -> int:
     try:
         print(json.dumps(verify_ledger(), ensure_ascii=False, separators=(",", ":")))
         return 0
-    except LedgerVerificationError as exc:
+    except (LedgerVerificationError, OSError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 2
 
