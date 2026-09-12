@@ -106,6 +106,7 @@ const context = {
 };
 
 vm.createContext(context);
+// Source comes only from the repository-owned dashboard fixture; no external input is evaluated.
 vm.runInContext(fullJs + '; this.App = App; this.connectWS = connectWS; this.renderChart = renderChart; this.tradePrices = tradePrices; this.analyze = analyze; this.RenderCache = RenderCache;', context);
 
 // Test 1: Bitget WebSocket connection subscribes to both candle and ticker channels
