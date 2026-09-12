@@ -89,7 +89,10 @@ assert.strictEqual(bitget.url, 'wss://ws.bitget.com/v2/ws/public');
 bitget.onopen();
 assert.deepStrictEqual(bitget.sent[0], {
   op: 'subscribe',
-  args: [{ instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'BTCUSDT' }],
+  args: [
+    { instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'BTCUSDT' },
+    { instType: 'USDT-FUTURES', channel: 'ticker', instId: 'BTCUSDT' }
+  ],
 });
 
 // 2. Incoming Bitget message updates live candle and ticker
@@ -112,11 +115,17 @@ context.connectWS();
 assert.strictEqual(sockets.length, 1, 'sticky-socket must reuse existing Bitget connection without reconnect churn');
 assert.deepStrictEqual(bitget.sent[1], {
   op: 'unsubscribe',
-  args: [{ instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'BTCUSDT' }],
+  args: [
+    { instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'BTCUSDT' },
+    { instType: 'USDT-FUTURES', channel: 'ticker', instId: 'BTCUSDT' }
+  ],
 }, 'sticky-socket must unsubscribe previous symbol');
 assert.deepStrictEqual(bitget.sent[2], {
   op: 'subscribe',
-  args: [{ instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'ETHUSDT' }],
+  args: [
+    { instType: 'USDT-FUTURES', channel: 'candle1H', instId: 'ETHUSDT' },
+    { instType: 'USDT-FUTURES', channel: 'ticker', instId: 'ETHUSDT' }
+  ],
 }, 'sticky-socket must subscribe new symbol');
 
 // 4. Bitget drops; retry attempt to Bitget fails, advancing to Binance fallback
