@@ -3021,7 +3021,10 @@ function fmtDsr(v) {
 
 function fmtTrials(n) {
   if (n == null || !Number.isFinite(+n)) return '0';
-  return Math.round(+n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const digits = Math.round(+n).toString();
+  const groups = [];
+  for (let end = digits.length; end > 0; end -= 3) groups.unshift(digits.slice(Math.max(0, end - 3), end));
+  return groups.join('.');
 }
 
 function formatAutobotEntryLog(p) {
@@ -6056,7 +6059,7 @@ function connectWS() {
           if (!Number.isFinite(lastPr) || lastPr <= 0) return;
 
           if (App.status) App.status.wsLastMessageAt = Date.now();
-          App.data.ticker = { ...(App.data.ticker || {}), price: lastPr, src: feed.source };
+          App.data.ticker = { ...App.data.ticker, price: lastPr, src: feed.source };
           tradePrices[App.symbol] = lastPr;
 
           // Update running candle in App.data.candles with fresh live ticker close/high/low
