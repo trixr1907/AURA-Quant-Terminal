@@ -50,6 +50,7 @@ def canonical_checkpoint(checkpoint: dict) -> bytes:
 
 
 def _read_legacy(path: Path, expected_sha256: str) -> str:
+    path = path.resolve()
     if not path.is_file():
         raise LedgerVerificationError(f"legacy ledger missing: {path}")
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -59,6 +60,7 @@ def _read_legacy(path: Path, expected_sha256: str) -> str:
 
 
 def _read_chain(path: Path) -> list[str]:
+    path = path.resolve()
     if not path.is_file():
         raise LedgerVerificationError(f"chain ledger missing: {path}")
     try:
@@ -139,6 +141,7 @@ def _validate_link(entry: dict, expected_id: int, expected_prev: str, line_numbe
 
 
 def _read_checkpoint(path: Path, first_entry_id: int) -> dict:
+    path = path.resolve()
     if not path.is_file():
         raise LedgerVerificationError(f"checkpoint missing: {path}")
     try:
