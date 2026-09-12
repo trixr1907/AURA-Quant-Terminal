@@ -377,103 +377,17 @@ def main() -> int:
     def add(check_res):
         results.append(check_res)
 
-    # 1. Engine suite
-    rc, out, err = run(["node", "tests/test_engine_full.js"])
-    ok = rc == 0 and "0 FAILED" in out
-    summary_line = next((ln for ln in out.splitlines() if "PASSED" in ln and "FAILED" in ln), "")
-    add(check("engine suite", "PASS" if ok else "FAIL",
-              summary_line.strip() or (err or out).strip()[-200:]))
-    if not ok:
-        add(check("engine suite (detail)", "FAIL", (err or out)[-1500:]))
-
-    # 1b. Radar batching, zero-volume early exit, and user sort/filter behavior
-    rc, out, err = run(["node", "tests/test_radar_progressive.js"])
-    add(check("radar progressive rendering", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_snapshot.js"])
-    add(check("radar reload persistence", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_persistence.js"])
-    add(check("radar cached startup", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_sorting.js"])
-    add(check("radar smart sorting", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_top_candidates.js"])
-    add(check("radar top candidates tiering", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_link.js"])
-    add(check("tradingview link integration", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_basic_qol.js"])
-    add(check("tradingview basic qol", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_return_link.js"])
-    add(check("tradingview return link", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_focus_selection.js"])
-    add(check("radar focus selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_setup_validation_focus.js"])
-    add(check("setup validation focus", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_entry_gate.js"])
-    add(check("autobot entry gate", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_selection.js"])
-    add(check("autobot strongest selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_refresh_cycle.js"])
-    add(check("radar refresh lifecycle", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_timeframe_edge.js"])
-    add(check("autobot strongest timeframe", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_statistical_edge.js"])
-    add(check("autobot statistical edge", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_release_notes_overlay.js"])
-    add(check("release notes overlay", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_revalidation_object.js"])
-    add(check("autobot revalidation object", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_scan_diagnostics.js"])
-    add(check("autobot scan diagnostics", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_continuous_cycle.js"])
-    add(check("radar continuous cycle", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_timestop_timeframe_scaling.js"])
-    add(check("timestop timeframe scaling", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_trade_clickable_data.js"])
-    add(check("trade clickable data", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1c. Live trade tracker
-    rc, out, err = run(["node", "tests/test_live_trade_tracker.js"])
-    add(check("live trade tracker", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_websocket_generation.js"])
-    add(check("websocket generation guard", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_relay_origin.js"])
-    add(check("relay origin selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1d. SMC Sessions & Killzones (Single Source of Truth)
-    rc, out, err = run(["node", "tests/test_smc_sessions.js"])
-    add(check("smc sessions suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_cross_device_sync.js"])
-    add(check("cross device sync suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1e. Audit Integrity & E2E Trace
-    rc, out, err = run(["node", "tests/test_audit_integrity.js"])
-    add(check("audit integrity suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
+    # 1. Full JS test discovery and execution (fail-closed)
+    js_test_files = sorted([p for p in (ROOT / "tests").glob("test_*.js")])
+    for js_path in js_test_files:
+        rel = str(js_path.relative_to(ROOT))
+        name = js_path.stem.replace("test_", "").replace("_", " ")
+        rc, out, err = run(["node", rel])
+        ok = rc == 0
+        detail = (out or err).strip()
+        if "FAILED" in detail and "0 FAILED" not in detail:
+            ok = False
+        add(check(f"js: {name}", "PASS" if ok else "FAIL", detail[:300]))
 
     # 2. Statistical Oracle & Metamorphic tests
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
@@ -504,12 +418,16 @@ def main() -> int:
     summary_text = " | ".join(summary_lines) if summary_lines else detail[-100:]
     add(check("relay suite", "PASS" if ok else "FAIL", summary_text[:200]))
 
-    # 4. Python compile + launcher behavior + release sync suite
+    # 4. Python compile + launcher behavior + release sync suite + full pytest
     rc, out, err = run([sys.executable, "-m", "py_compile",
                         "start.py", "bitget_relay.py", "tests/browser_research_harness.py",
                         "tests/reference_backtest.py", "scripts/release_check.py",
                         "scripts/sync_market_data.py"])
     add(check("python compile", "PASS" if rc == 0 else "FAIL", (err or out).strip()[:300]))
+    rc, out, err = run([sys.executable, "-m", "pytest", "-q"])
+    detail = (err or out).strip()
+    summary_lines = [ln.strip() for ln in detail.splitlines() if "passed" in ln or "failed" in ln or "error" in ln]
+    add(check("pytest full suite", "PASS" if rc == 0 else "FAIL", " | ".join(summary_lines)[:200]))
     rc, out, err = run([sys.executable, "-m", "unittest", "tests/test_launcher.py"])
     detail = (err or out).strip()
     summary_lines = [ln.strip() for ln in detail.splitlines() if "Ran " in ln or "OK" in ln or "FAILED" in ln]
