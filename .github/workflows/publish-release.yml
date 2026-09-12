@@ -65,7 +65,7 @@ jobs:
       - name: Install release dependencies
         shell: bash
         run: |
-          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          python3 -m pip install --disable-pip-version-check -r requirements.txt pytest
           python3 -m playwright install --with-deps chromium
 
       - name: Build distributable archive
