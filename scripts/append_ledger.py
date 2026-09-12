@@ -34,6 +34,7 @@ INPUT_FIELDS = (
 
 
 def _load_entry_fields(path: Path) -> dict:
+    path = path.resolve()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -48,16 +49,17 @@ def _load_entry_fields(path: Path) -> dict:
 
 
 def _atomic_replace(path: Path, payload: bytes) -> None:
+    path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as stream:
-            temp_path = Path(stream.name)
+            temp_path = Path(stream.name).resolve()
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temp_path, path)
-        dir_fd = os.open(path.parent, os.O_RDONLY)
+        dir_fd = os.open(str(path.parent), os.O_RDONLY)
         try:
             os.fsync(dir_fd)
         finally:
@@ -78,6 +80,9 @@ def append_ledger(
     baseline_total: int = BASELINE_TOTAL,
 ) -> dict:
     """Append one entry under an advisory lock, then replace the checkpoint atomically."""
+    checkpoint_path = checkpoint_path.resolve()
+    chain_path = chain_path.resolve()
+    legacy_path = legacy_path.resolve()
     lock_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+b") as lock:
@@ -103,7 +108,7 @@ def append_ledger(
         entry = {**ordered, "entry_hash": hashlib.sha256(canonical_entry(ordered)).hexdigest()}
         record = canonical_record(entry)
 
-        fd = os.open(chain_path, os.O_WRONLY | os.O_APPEND)
+        fd = os.open(str(chain_path), os.O_WRONLY | os.O_APPEND)
         try:
             written = os.write(fd, record)
             if written != len(record):

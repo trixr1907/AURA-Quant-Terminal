@@ -93,7 +93,7 @@ function loadAnalyzeEngine() {
   const begin = html.indexOf('//  ==ENGINE_BEGIN==');
   const end = html.indexOf('// ==ENGINE_END==');
   if (begin < 0 || end <= begin) throw new Error('Engine markers missing in Symbiose_Dashboard.html');
-  const ctx = { console, Float64Array, Int8Array, Uint8Array, Math, Date, isFinite, isNaN, Infinity };
+  const ctx = { console, Float64Array, Int8Array, Uint8Array, Math, Date, isFinite: Number.isFinite, isNaN: Number.isNaN, Infinity, Number };
   vm.createContext(ctx);
   vm.runInContext(`${html.slice(begin, end)}\nthis.__analyze = analyze;`, ctx); // NOSONAR: safe isolated script slice
   return ctx.__analyze;
