@@ -242,7 +242,10 @@ def extract_versions(
     semver = r"(\d+\.\d+\.\d+)"
     relay_ver = re.search(r'"version"\s*:\s*"' + semver + r'"', relay_src)
     readme_ver = re.search(r"#\s*AURA\s+v" + semver, readme_text)
-    dash_ver = re.search(r"AURA\s+(?:Quant\s+Terminal\s+)?v" + semver, dashboard_html)
+    dash_ver_match = re.search(r"<footer>.*?<b>AURA\s+(?:Quant|Confluence)\s+Terminal\s+v" + semver, dashboard_html, re.DOTALL)
+    if not dash_ver_match:
+        dash_ver_match = re.search(r"AURA\s+(?:Quant\s+Terminal\s+|Confluence\s+Terminal\s+)?v" + semver, dashboard_html)
+    dash_ver = dash_ver_match.group(1) if dash_ver_match else None
     tutorial_html = tutorial_html or ""
     pine_src = pine_src or ""
     tutorial_nav = re.search(r'class="nav-logo">AURA\s+v' + semver, tutorial_html)
@@ -254,7 +257,7 @@ def extract_versions(
     return {
         "relay /serving": relay_ver.group(1) if relay_ver else None,
         "README header": readme_ver.group(1) if readme_ver else None,
-        "dashboard footer": dash_ver.group(1) if dash_ver else None,
+        "dashboard footer": dash_ver,
         "tutorial navigation": tutorial_nav.group(1) if tutorial_nav else None,
         "tutorial hero": tutorial_hero.group(1) if tutorial_hero else None,
         "tutorial footer": tutorial_footer.group(1) if tutorial_footer else None,
