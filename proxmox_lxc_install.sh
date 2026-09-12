@@ -125,6 +125,9 @@ pct exec "$CT_ID" -- mkdir -p /opt/aura/data
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 if [[ -f "$SCRIPT_DIR/bitget_relay.py" ]]; then
   pct push "$CT_ID" "$SCRIPT_DIR/bitget_relay.py" /opt/aura/bitget_relay.py
+  if [[ -f "$SCRIPT_DIR/VERSION" ]]; then
+    pct push "$CT_ID" "$SCRIPT_DIR/VERSION" /opt/aura/VERSION
+  fi
   pct push "$CT_ID" "$SCRIPT_DIR/Symbiose_Dashboard.html" /opt/aura/Symbiose_Dashboard.html
   pct push "$CT_ID" "$SCRIPT_DIR/SYMBIOSE_Tutorial.html" /opt/aura/SYMBIOSE_Tutorial.html
   if [[ -f "$SCRIPT_DIR/data/bitget_usdt_futures_universe.json" ]]; then
