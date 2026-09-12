@@ -10,6 +10,7 @@ edge is evidenced.
 """
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -394,20 +395,36 @@ def run_model_evidence_real_gate() -> tuple[str, str, str | None]:
 
 
 def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, str]:
-    """Fail if any per-fixture parity metric is worse than its checked-in baseline."""
+    """Fail if any per-fixture parity metric is invalid or worse than its baseline."""
     actual_fixtures = report.get("fixtures")
     expected_fixtures = reference.get("fixtures")
     if not isinstance(actual_fixtures, list) or not isinstance(expected_fixtures, dict):
         return "FAIL", json.dumps({"error": "invalid parity report/reference schema"})
 
-    actual_by_name = {item.get("fixture"): item for item in actual_fixtures if isinstance(item, dict)}
+    expected_names = set(GOLDEN_FILES)
+    actual_names = [item.get("fixture") if isinstance(item, dict) else None for item in actual_fixtures]
+    reference_names = set(expected_fixtures)
+    if (
+        len(actual_names) != len(expected_names)
+        or len(set(actual_names)) != len(actual_names)
+        or set(actual_names) != expected_names
+        or reference_names != expected_names
+    ):
+        return "FAIL", json.dumps({
+            "error": "fixture set mismatch",
+            "expected": sorted(expected_names),
+            "actual": actual_names,
+            "reference": sorted(reference_names),
+        }, separators=(",", ":"))
+
+    actual_by_name = {item["fixture"]: item for item in actual_fixtures}
     regressions = []
     metrics = []
     for fixture in GOLDEN_FILES:
-        actual = actual_by_name.get(fixture)
-        expected = expected_fixtures.get(fixture)
-        if not isinstance(actual, dict) or not isinstance(expected, dict):
-            regressions.append({"fixture": fixture, "error": "missing fixture metrics"})
+        actual = actual_by_name[fixture]
+        expected = expected_fixtures[fixture]
+        if not isinstance(expected, dict):
+            regressions.append({"fixture": fixture, "error": "invalid reference fixture metrics"})
             continue
         metric = {
             "fixture": fixture,
@@ -419,8 +436,8 @@ def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, st
             "reference_soft_rate": expected.get("soft_rate"),
         }
         metrics.append(metric)
-        if actual.get("ok") is False:
-            regressions.append({"fixture": fixture, "metric": "absolute_threshold", "error": "comparison failed"})
+        if actual.get("ok") is not True:
+            regressions.append({"fixture": fixture, "metric": "absolute_threshold", "error": "comparison did not explicitly pass"})
         numeric_pairs = (
             ("max_delta", actual.get("maxDelta"), expected.get("max_delta")),
             ("soft_mismatches", actual.get("softMismatches"), expected.get("soft_mismatches")),
@@ -429,6 +446,8 @@ def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, st
         for name, actual_value, reference_value in numeric_pairs:
             if not isinstance(actual_value, (int, float)) or not isinstance(reference_value, (int, float)):
                 regressions.append({"fixture": fixture, "metric": name, "error": "non-numeric metric"})
+            elif not math.isfinite(actual_value) or not math.isfinite(reference_value):
+                regressions.append({"fixture": fixture, "metric": name, "error": "non-finite numeric metric"})
             elif actual_value > reference_value + 1e-15:
                 regressions.append({
                     "fixture": fixture,

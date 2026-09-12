@@ -517,6 +517,64 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         self.assertTrue(all("soft_mismatches" in metric for metric in payload["metrics"]))
         self.assertTrue(all("soft_rate" in metric for metric in payload["metrics"]))
 
+    def test_golden_parity_trend_fails_when_ok_is_missing(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        report = {
+            "fixtures": [
+                {
+                    "fixture": fixture,
+                    "maxDelta": values["max_delta"],
+                    "softMismatches": values["soft_mismatches"],
+                    "softRate": values["soft_rate"],
+                }
+                for fixture, values in reference["fixtures"].items()
+            ]
+        }
+        status, detail = release_check.evaluate_golden_parity_trend(report, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("comparison did not explicitly pass", detail)
+
+    def test_golden_parity_trend_fails_on_duplicate_or_unexpected_fixture(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures.append(dict(fixtures[0]))
+        fixtures.append({
+            "fixture": "UNEXPECTED.csv",
+            "ok": True,
+            "maxDelta": 0,
+            "softMismatches": 0,
+            "softRate": 0,
+        })
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("fixture set mismatch", detail)
+
+    def test_golden_parity_trend_fails_on_non_finite_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures[0]["maxDelta"] = float("nan")
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-finite numeric metric", detail)
+
     def test_golden_parity_trend_fails_on_artificial_regression(self):
         reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
         report = {
@@ -590,6 +648,11 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
     """The release runner must prepare the browser gate before fail-closed checks."""
 
     WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
+
+    def test_ci_release_gate_does_not_allow_current_version(self):
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/release_check.py", workflow)
+        self.assertNotIn("release_check.py --allow-current-version", workflow)
 
     def test_pinned_playwright_and_chromium_system_dependencies_precede_release_gate(self):
         workflow = self.WORKFLOW.read_text(encoding="utf-8")
