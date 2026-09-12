@@ -151,6 +151,7 @@ function compareRows(pineRows, jsRows, tolerance = 0.1) {
   let maxDelta = 0;
   let softMismatches = 0;
   let firstSoftMismatch = null;
+  const allSoftMismatches = [];
   for (const pine of pineRows) {
     const js = jsByTs.get(pine.timestamp);
     if (!js) { skippedRows++; continue; }
@@ -168,7 +169,9 @@ function compareRows(pineRows, jsRows, tolerance = 0.1) {
       if (delta > tolerance) {
         // Within soft ceiling but above hard tolerance — count as soft mismatch
         softMismatches++;
-        if (!firstSoftMismatch) firstSoftMismatch = { timestamp: pine.timestamp, field, pine: pv, js: jv, delta };
+        const mismatchInfo = { timestamp: pine.timestamp, field, pine: pv, js: jv, delta };
+        allSoftMismatches.push(mismatchInfo);
+        if (!firstSoftMismatch) firstSoftMismatch = mismatchInfo;
       }
     }
     if (rowCompared) comparedRows++;
@@ -177,10 +180,10 @@ function compareRows(pineRows, jsRows, tolerance = 0.1) {
   // Check soft-mismatch rate after full scan
   const softRate = comparedRows > 0 ? softMismatches / comparedRows : 0;
   if (softRate > SOFT_MISMATCH_RATE) {
-    return { ok: false, comparedRows, skippedRows, maxDelta, softMismatches, softRate,
+    return { ok: false, comparedRows, skippedRows, maxDelta, softMismatches, softRate, allSoftMismatches,
       firstMismatch: { ...firstSoftMismatch, note: `soft-mismatch rate ${(softRate * 100).toFixed(3)}% exceeds limit ${(SOFT_MISMATCH_RATE * 100).toFixed(1)}%` } };
   }
-  return { ok: true, comparedRows, skippedRows, maxDelta, softMismatches, softRate, firstMismatch: null, firstSoftMismatch };
+  return { ok: true, comparedRows, skippedRows, maxDelta, softMismatches, softRate, firstMismatch: null, firstSoftMismatch, allSoftMismatches };
 }
 
 function compareFile(file, tolerance = 0.1) {
@@ -202,22 +205,29 @@ function compareFile(file, tolerance = 0.1) {
 function main(argv) {
   const args = argv.slice(2);
   if (!args.length) {
-    console.error('Usage: node tests/compare_pine_js_golden.js <TradingView.csv> [...] [--tolerance=0.1]');
+    console.error('Usage: node tests/compare_pine_js_golden.js <TradingView.csv> [...] [--tolerance=0.1] [--verbose]');
     process.exitCode = 2;
     return;
   }
   const tolArg = args.find(x => x.startsWith('--tolerance='));
   const tolerance = tolArg ? Number(tolArg.split('=')[1]) : 0.1;
-  const files = args.filter(x => !x.startsWith('--') && !x.includes('sample_valid.csv'));
+  const verbose = args.includes('--verbose') || args.includes('-v');
+  const files = args.filter(x => !x.startsWith('--') && !x.startsWith('-') && !x.includes('sample_valid.csv'));
   let failed = false;
   for (const file of files) {
     const report = compareFile(file, tolerance);
     if (report.ok) {
       const softRateStr = report.comparedRows > 0 ? ((report.softMismatches || 0) / report.comparedRows * 100).toFixed(4) : '0.0000';
       console.log(`PASS ${file}: ${report.comparedRows} rows compared (${report.skippedRows} warmup), max delta ${report.maxDelta}, soft-mismatches: ${report.softMismatches || 0} (${softRateStr}%)`);
-      if (report.softMismatches > 0 && report.firstSoftMismatch) {
-        const sm = report.firstSoftMismatch;
-        console.log(`     first soft-mismatch: ts=${sm.timestamp} field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+      if (report.softMismatches > 0 && report.allSoftMismatches && report.allSoftMismatches.length > 0) {
+        if (verbose) {
+          report.allSoftMismatches.forEach((sm, idx) => {
+            console.log(`     [${idx + 1}/${report.softMismatches}] ts=${sm.timestamp} (${new Date(sm.timestamp).toISOString()}) field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+          });
+        } else if (report.firstSoftMismatch) {
+          const sm = report.firstSoftMismatch;
+          console.log(`     first soft-mismatch: ts=${sm.timestamp} field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+        }
       }
     } else {
       failed = true;
