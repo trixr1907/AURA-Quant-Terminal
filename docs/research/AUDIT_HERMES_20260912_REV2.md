@@ -1,10 +1,10 @@
 # Gesamtaudit Revision 2: AURA Quant Terminal (v1.2.5)
 
-**Revisionsdatum:** 2026-09-12  
-**Auditor:** Senior Quant Systems Auditor (Hermes Agent)  
-**Baseline-Commit:** `0b7bc94b5dbb63b63cdbe9e0e81225b80cb839c8`  
-**Audit-Branch:** `audit/hermes-gesamtaudit-20260912`  
-**Vorgängerbericht:** `docs/research/AUDIT_HERMES_20260912.md`  
+**Revisionsdatum:** 2026-09-12
+**Auditor:** Senior Quant Systems Auditor (Hermes Agent)
+**Baseline-Commit:** `0b7bc94b5dbb63b63cdbe9e0e81225b80cb839c8`
+**Audit-Branch:** `audit/hermes-gesamtaudit-20260912`
+**Vorgängerbericht:** `docs/research/AUDIT_HERMES_20260912.md`
 **Scope:** ausschließlich die Nachprüfungspunkte N1–N6; keine neue Vollprüfung.
 
 ---
@@ -98,7 +98,7 @@ Die Liste enthält auch das jeweils abhängige `core`-Delta, weil das Harness pr
 | DOGEUSDT_4h | 2022-10-02 00:00 | 1644 | volumeScore | 5 | 25 | 20 | +5,0 | nein: 31,457 → 36,457 | nicht erklärbar |
 | DOGEUSDT_4h | 2022-10-02 00:00 | 1644 | core | 31,457 | 36,457 | 5,0 | bereits Core | nein | nicht erklärbar |
 
-**Konsistent mit EMA/RMA-Konvergenz:** keine.  
+**Konsistent mit EMA/RMA-Konvergenz:** keine.
 **Nicht durch die dokumentierte Konvergenzhypothese erklärbar:** alle 20 Feld-Mismatches auf 10 Kerzen.
 
 Wichtig zur Schwellenwirkung: Keiner der konkret beobachteten Core-Paare überquert 25, 50 oder 75. Ein `volumeScore`-Delta 20 verändert den Core aber um 5 Punkte, ein `trend`-Delta 8 um 2,4 Punkte. Deshalb **kann** dieselbe Komponentenabweichung bei einer Kerze nahe einer Gate-Grenze eine Schwelle überqueren; nur in diesen zehn beobachteten Kerzen geschieht es nicht.
@@ -345,13 +345,16 @@ Damit ist nachgewiesen, dass derselbe Gate-Pfad, den CI über `python3 scripts/r
 
 **Die Antwort hat sich gegenüber Runde 1 geändert.** Die behobene Origin-Schwachstelle gehört nicht mehr in die drei aktuellen Hinderungsgründe. Die Paritätsfrage gehört jetzt ausdrücklich hinein.
 
-1. **Ungeklärte Pine↔Dashboard-Parität.**  
+1. **Ungeklärte Pine↔Dashboard-Parität.**
+
    Vier von fünf Fixtures divergieren außerhalb der 1.200-Bar-Konvergenzzone; Core-Deltas erreichen 5 Punkte. Auf `XRPUSDT_4h` bei `ts=1661472000000` ist die Folge bereits konkret: Pine bleibt mit Core 52,437 neutral, JS wird mit 57,437 bullisch und überschreitet die operative Richtungsgrenze 55. Der Grund entfällt erst, wenn die zehn betroffenen Kerzen auf Pine-/JS-Zwischenwertniveau erklärt oder korrigiert sind und neue unabhängige Exporte übereinstimmen.
 
-2. **Fehlende Out-of-Sample-Alpha-Evidenz (`MODEL_NO_EVIDENCE`).**  
+2. **Fehlende Out-of-Sample-Alpha-Evidenz (`MODEL_NO_EVIDENCE`).**
+
    Das ist weiterhin kein Softwarefehler, aber ein legitimer Grund gegen täglichen Einsatz als Entscheidungssystem. Er entfällt erst mit prospektiver, unabhängiger OOS-Evidenz nach Kosten, Slippage und Multiple-Testing-Korrektur. Bis dahin ist das Produkt Research-/Paper-Werkzeug.
 
-3. **Monolith plus konkret nachgewiesene Testlücken im produktiven Exitpfad.**  
+3. **Monolith plus konkret nachgewiesene Testlücken im produktiven Exitpfad.**
+
    Der 8.971-Zeilen-Monolith bleibt schwer sicher zu ändern; zusätzlich überlebten drei Mutationen an Time-Stop-Skalierung, Verlustbedingung und Fallback. Der Grund entfällt durch direkte behavior-basierte `monitorTrades()`-Tests und anschließend inkrementelle Engine-Modularisierung ohne String-Slicing-Kopplung.
 
 Die Runde-1-Punkte „Monolith“ und „keine OOS-Evidenz“ bleiben. Der frühere dritte Punkt „Origin-Schnittstelle“ ist durch F-01/F-13 behoben und wird durch „ungeklärte Parität“ ersetzt; die Mutationsergebnisse verschärfen den Monolith-/Testpunkt.
