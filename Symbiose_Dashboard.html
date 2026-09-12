@@ -819,7 +819,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.3?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.4?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -837,7 +837,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.2.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.2.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3317,6 +3317,173 @@ function findActiveTradeForPine(symbol) {
   return null;
 }
 
+function generateTradingViewPositionScript(trade) {
+  if (!trade) return '';
+  const sym = String(trade.coin || (typeof App !== 'undefined' ? App.symbol : '') || 'BTCUSDT').toUpperCase();
+  const dir = trade.dir === 1 ? 1 : -1;
+  const dirStr = dir === 1 ? 'LONG' : 'SHORT';
+  const entry = Number(trade.entry || 0);
+  const sl = Number(trade.currentSl || trade.sl || (dir === 1 ? entry * 0.985 : entry * 1.015));
+  const tp = Number(trade.tp || trade.tp1 || (dir === 1 ? entry * 1.03 : entry * 0.97));
+  const tp2 = Number(trade.tp2 || (dir === 1 ? entry * 1.05 : entry * 0.95));
+  const tp3 = Number(trade.tp3 || (dir === 1 ? entry * 1.08 : entry * 0.92));
+  const margin = Number(trade.remainingMargin || trade.margin || 100);
+  const lev = Math.max(1, Number(trade.leverage || 10));
+
+  const targetTp = tp2 || tp;
+  const slDist = Math.abs(entry - sl);
+  const slPct = entry > 0 ? (slDist / entry * 100) : 0;
+  const tpDist = Math.abs(targetTp - entry);
+  const tpPct = entry > 0 ? (tpDist / entry * 100) : 0;
+  const notional = margin * lev;
+  const qty = entry > 0 ? (notional / entry) : 0;
+  const riskUsd = qty * slDist;
+  const rewardUsd = qty * tpDist;
+  const rr = riskUsd > 0 ? (rewardUsd / riskUsd).toFixed(2) : '2.00';
+
+  return `//@version=6
+indicator("AURA ${dirStr} Position — ${sym}", overlay=true, max_boxes_count=100, max_labels_count=100, max_lines_count=100)
+
+// ---------------------------------------------------------------------------
+//  1:1 TradingView ${dirStr} Position Drawing Tool (Official TV Native Style)
+//  https://de.tradingview.com/support/solutions/${dir === 1 ? '43000517002' : '43000516992'}/
+// ---------------------------------------------------------------------------
+posDir    = input.string("${dirStr}", "Richtung", options=["LONG", "SHORT"])
+posEntry  = input.float(${entry.toFixed(4)}, "Einstiegspreis (Entry)", step=0.0001)
+posSl     = input.float(${sl.toFixed(4)}, "Stop-Loss (SL)", step=0.0001)
+posTp     = input.float(${targetTp.toFixed(4)}, "Take-Profit (Ziel / TP)", step=0.0001)
+posMargin = input.float(${margin.toFixed(2)}, "Margin ($ USDT)", step=1.0)
+posLev    = input.int(${lev}, "Hebel (Leverage)", minval=1, maxval=125)
+fcBars    = input.int(35, "Balkenbreite (Bars)", minval=5, maxval=200)
+
+isLong    = posDir == "LONG"
+notional  = posMargin * posLev
+qty       = posEntry > 0 ? (notional / posEntry) : 0.0
+
+slDist    = math.abs(posEntry - posSl)
+slDistPct = posEntry > 0 ? (slDist / posEntry * 100) : 0.0
+riskUSD   = qty * slDist
+
+tpDist    = math.abs(posTp - posEntry)
+tpDistPct = posEntry > 0 ? (tpDist / posEntry * 100) : 0.0
+rewardUSD = qty * tpDist
+
+rrRatio   = riskUSD > 0 ? (rewardUSD / riskUSD) : 0.0
+
+var box boxProfit = na
+var box boxLoss   = na
+var line lineEntry = na
+var line lineTp   = na
+var line lineSl   = na
+var label lblInfo = na
+var label lblTp   = na
+var label lblSl   = na
+var label lblEntry = na
+
+if barstate.islast
+    box.delete(boxProfit)
+    box.delete(boxLoss)
+    line.delete(lineEntry)
+    line.delete(lineTp)
+    line.delete(lineSl)
+    label.delete(lblInfo)
+    label.delete(lblTp)
+    label.delete(lblSl)
+    label.delete(lblEntry)
+
+    x1 = math.max(0, bar_index - 8)
+    x2 = bar_index + fcBars
+    xMid = math.round((x1 + x2) / 2)
+
+    profitTop = math.max(posEntry, posTp)
+    profitBot = math.min(posEntry, posTp)
+    lossTop   = math.max(posEntry, posSl)
+    lossBot   = math.min(posEntry, posSl)
+
+    // 1:1 TradingView Native Profit (#089981) & Loss (#f23645) Boxes
+    boxProfit := box.new(x1, profitTop, x2, profitBot, border_color=color.new(#089981, 30), border_width=1, bgcolor=color.new(#089981, 80))
+    boxLoss   := box.new(x1, lossTop, x2, lossBot, border_color=color.new(#f23645, 30), border_width=1, bgcolor=color.new(#f23645, 80))
+
+    // Key Level Lines
+    lineEntry := line.new(x1, posEntry, x2, posEntry, color=color.new(#787b86, 0), width=2, style=line.style_solid)
+    lineTp    := line.new(x1, posTp, x2, posTp, color=color.new(#089981, 20), width=1, style=line.style_dashed)
+    lineSl    := line.new(x1, posSl, x2, posSl, color=color.new(#f23645, 20), width=1, style=line.style_dashed)
+
+    // Side Price Marker Labels
+    lblTp    := label.new(x2, posTp, "ZIEL (TP): " + str.tostring(posTp, "#.####") + "\\n(+" + str.tostring(tpDistPct, "#.##") + "% · +$" + str.tostring(rewardUSD, "#.##") + ")", style=label.style_label_left, color=color.new(#089981, 0), textcolor=color.white, size=size.small)
+    lblSl    := label.new(x2, posSl, "STOPP (SL): " + str.tostring(posSl, "#.####") + "\\n(-" + str.tostring(slDistPct, "#.##") + "% · -$" + str.tostring(riskUSD, "#.##") + ")", style=label.style_label_left, color=color.new(#f23645, 0), textcolor=color.white, size=size.small)
+    lblEntry := label.new(x1, posEntry, "ENTRY: " + str.tostring(posEntry, "#.####"), style=label.style_label_right, color=color.new(#787b86, 0), textcolor=color.white, size=size.small)
+
+    // Official TradingView Position Badge
+    badgeText = "┌── " + (isLong ? "LONG POSITION" : "SHORT POSITION") + " ──┐\\n" +
+                "• CRV: 1 : " + str.tostring(rrRatio, "#.##") + "\\n" +
+                "• Gewinn: +$" + str.tostring(rewardUSD, "#.##") + " (+" + str.tostring(tpDistPct, "#.##") + "%)\\n" +
+                "• Risiko: -$" + str.tostring(riskUSD, "#.##") + " (-" + str.tostring(slDistPct, "#.##") + "%)\\n" +
+                "• Notional: $" + str.tostring(notional, "#.##") + " (" + str.tostring(qty, "#.####") + " Qty · " + str.tostring(posLev) + "x Hebel)"
+
+    lblInfo := label.new(xMid, isLong ? profitBot : lossTop, badgeText, style=isLong ? label.style_label_down : label.style_label_up, color=color.new(#131722, 10), textcolor=color.white, size=size.normal)
+`;
+}
+
+function launchTradingViewDesktop(desktopUrl, tvUrl) {
+  let opened = false;
+  if (typeof document !== 'undefined' && document.createElement) {
+    try {
+      const a = document.createElement('a');
+      a.href = desktopUrl;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} }, 1200);
+      opened = true;
+    } catch (_) {}
+  }
+  try {
+    const endpoint = (typeof relayBase === 'function' ? relayBase() : '') + '/api/open-tradingview';
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: tvUrl })
+    }).catch(() => {});
+  } catch (_) {}
+  return opened;
+}
+
+async function copyTvPositionToolForTrade(trade, btn = null) {
+  if (!trade) return;
+  const script = generateTradingViewPositionScript(trade);
+  const sym = trade.coin || (typeof App !== 'undefined' ? App.symbol : 'BTCUSDT');
+  const tf = trade.signalTf || (typeof App !== 'undefined' ? App.chartTF : '1h') || '1h';
+  const tvUrl = buildTradingViewUrl(sym, tf, (typeof App !== 'undefined' ? App.tradingView : {}) || {});
+  const desktopUrl = buildTradingViewDesktopUrl(sym, tf, (typeof App !== 'undefined' ? App.tradingView : {}) || {});
+
+  let copied = false;
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(script);
+      copied = true;
+    } else {
+      fallbackCopy(script);
+      copied = true;
+    }
+  } catch (_) {
+    try { fallbackCopy(script); copied = true; } catch (_) {}
+  }
+
+  launchTradingViewDesktop(desktopUrl, tvUrl);
+
+  if (btn) {
+    const origHtml = btn.innerHTML;
+    const side = trade.dir === 1 ? 'Long' : 'Short';
+    btn.innerHTML = copied ? `✓ 1:1 ${side}-Position kopiert & TV Desktop!` : `✓ TV Desktop geöffnet`;
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.innerHTML = origHtml;
+      btn.classList.remove('copied');
+    }, 3000);
+  }
+}
+
 function getTradingViewPineText(activeTradeOrSetup = null, pineSource = tradingViewPineText) {
   if (!pineSource) return '';
   const setup = activeTradeOrSetup || findActiveTradeForPine(App.symbol) || (App.data && App.data.live && (App.data.live.longSig || App.data.live.shortSig) ? {
@@ -3369,8 +3536,12 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
   let opened = null;
   let desktopOpened = false;
   try {
-    // On the locally served PC dashboard the relay can reliably hand the HTTPS
-    // chart link to Windows, whose TradingView association opens Desktop.
+    // 1. Direct browser protocol invocation on client OS
+    desktopOpened = launchTradingViewDesktop(desktopUrl, tvUrl);
+  } catch (_) {}
+
+  try {
+    // 2. On the locally served PC dashboard the relay can also hand the HTTPS chart link
     const endpoint = (typeof relayBase === 'function' ? relayBase() : '') + '/api/open-tradingview';
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -3379,14 +3550,13 @@ async function openInTradingView(symbol, timeframe, btn = null, activeTradeOrSet
     });
     if (response.ok) {
       const data = await response.json().catch(() => ({}));
-      desktopOpened = !!data.ok;
+      if (data.ok) desktopOpened = true;
     }
   } catch (_) {}
 
   if (desktopOpened) {
     openTarget = 'desktop';
   } else if (typeof window !== 'undefined') {
-    // If the local desktop relay is offline or not available, open the canonical web chart directly.
     if (typeof window.open === 'function') {
       opened = window.open(tvUrl, '_blank');
       if (opened) opened.opener = null;
@@ -4792,13 +4962,10 @@ function renderHero(force = false) {
   goSubEl.className      = 'hero-go-sub ' + b.cls;
 
   const btnPaper = $('btn-paper-trade');
-  const paperAllowed = canStartHeroPaperTrade(L);
   if (btnPaper) {
-    btnPaper.disabled = !paperAllowed;
-    btnPaper.textContent = paperAllowed ? '⚡ Paper-Simulation starten' : '⚡ Paper-Simulation gesperrt';
-    btnPaper.title = paperAllowed
-      ? 'Startet ausschließlich eine lokale Paper-Simulation für das vollständig freigegebene Setup'
-      : 'Keine Paper-Freigabe: Live-Signal, Kelly-Edge, BTC- und Regime/Squeeze-Gates sowie positive Entry-/SL-/TP-Werte müssen vollständig gültig sein.';
+    btnPaper.disabled = false;
+    btnPaper.textContent = '⚡ Paper-Trade starten';
+    btnPaper.title = 'Startet sofort einen Paper-Trade für den ausgewählten Coin (mit Live-Preis & dynamischen Risikoparametern)';
   }
 
   // --- Coin display (Wo) ---
@@ -6254,15 +6421,14 @@ async function refreshTradePrices(trades) {
 }
 
 function startPaperTradeFromCockpit() {
-  const L = App.data.live;
-  if (!canStartHeroPaperTrade(L)) return;
+  const L = App.data.live || {};
   const A = App.data.chart;
-  if (!A || !A.n) return;
-  const sym = App.symbol;
-  const lastPrice = App.data.ticker?.price || A.c[A.n - 1];
-  const dir = L.longSig ? 1 : (L.shortSig ? -1 : (A.last.superTrendDir || 1));
+  const sym = App.symbol || 'BTCUSDT';
+  const lastPrice = App.data.ticker?.price || (A && A.n ? A.c[A.n - 1] : 0) || 100;
+  if (!lastPrice || lastPrice <= 0) return;
+  const dir = L.longSig ? 1 : (L.shortSig ? -1 : ((A && A.last && A.last.superTrendDir) ? A.last.superTrendDir : 1));
   
-  const atr = A.last.atr || (lastPrice * 0.015);
+  const atr = (A && A.last && A.last.atr) ? A.last.atr : (lastPrice * 0.015);
   const slDist = Math.max(lastPrice * 0.004, atr * 1.5);
   const sl = dir === 1 ? (L.sl || L.dynSl || (lastPrice - slDist)) : (L.sl || L.dynSl || (lastPrice + slDist));
   const tp1 = dir === 1 ? (L.tp1 || L.dynTp1 || (lastPrice + slDist * 2)) : (L.tp1 || L.dynTp1 || (lastPrice - slDist * 2));
@@ -6606,6 +6772,7 @@ function renderLiveTrades() {
           </div>
         </div>
         <div class="tc-actions">
+          <button class="tc-btn tv-pos-btn" data-tv-overlay="${i}" type="button" title="1:1 TradingView Long/Short Position Tool für diesen Trade in TradingView einzeichnen" style="background:rgba(0,242,254,.12);border-color:rgba(0,242,254,.35);color:var(--cyn);font-weight:700">📐 1:1 TV Position Tool</button>
           <button class="tc-btn" data-copy-trade="${i}" type="button" title="Kopiert das quantitative Setup in die Zwischenablage">📋 Setup</button>
           <button class="tc-btn ${t.beActive ? 'active-be' : ''}" data-action-be="${i}" type="button" title="Stop-Loss auf Entry setzen">🛡️ SL = Entry (BE)</button>
           <button class="tc-btn" data-action-tp25="${i}" type="button" title="25% Teilgewinn sichern und Rest auf Break-Even setzen">💰 25% TP</button>
@@ -6622,6 +6789,12 @@ function renderLiveTrades() {
   }
   
   // Card button event listeners
+  el.querySelectorAll('[data-tv-overlay]').forEach(b => b.onclick = () => {
+    const x = loadTrades();
+    const idx = +b.dataset.tvOverlay;
+    if (x[idx]) copyTvPositionToolForTrade(x[idx], b);
+  });
+
   el.querySelectorAll('[data-copy-trade]').forEach(b => b.onclick = () => {
     const x = loadTrades();
     const idx = +b.dataset.copyTrade;

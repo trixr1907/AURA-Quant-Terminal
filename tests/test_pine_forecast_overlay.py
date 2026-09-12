@@ -2,28 +2,26 @@ import unittest
 from pathlib import Path
 
 PINE_PATH = Path(__file__).resolve().parent.parent / "Symbiose_Signal_System_v1.pine"
+HTML_PATH = Path(__file__).resolve().parent.parent / "Symbiose_Dashboard.html"
 
 class TestPineForecastOverlay(unittest.TestCase):
-    def test_forecast_inputs_and_overlay_present(self):
-        text = PINE_PATH.read_text(encoding="utf-8")
-        self.assertIn('grpFC = "7) Trade Forecasting & Long/Short Position Tool"', text)
-        self.assertIn('fcShow     = input.bool(true, "Position Tool visualisieren"', text)
-        self.assertIn('fcMode     = input.string("Auto", "Modus"', text)
-        self.assertIn('fcEntry    = input.float(0.0, "Entry Preis (Custom)"', text)
-        self.assertIn('fcSl       = input.float(0.0, "Stop Loss (Custom)"', text)
-        self.assertIn('fcTp1      = input.float(0.0, "TP1 Preis (Custom)"', text)
-        self.assertIn('fcTp2      = input.float(0.0, "TP2 Preis (Custom)"', text)
-        self.assertIn('fcTp3      = input.float(0.0, "TP3 Preis (Custom)"', text)
-        self.assertIn('fcEquity   = input.float(1000.0, "Kontogröße (USDT)"', text)
-        self.assertIn('fcRiskPct  = input.float(5.0, "Risiko (%)"', text)
-        self.assertIn('fcLev      = input.int(10, "Hebel (Leverage)"', text)
-        self.assertIn('fcLineEntry := line.new', text)
-        self.assertIn('fcBoxProfit := box.new', text)
-        self.assertIn('fcBoxLoss   := box.new', text)
-        self.assertIn('max_boxes_count=500', text)
-        self.assertIn('max_labels_count=500', text)
-        self.assertIn('max_lines_count=500', text)
-        self.assertIn('fcLabelCard := label.new', text)
+    def test_pure_indicator_and_position_tool_separation(self):
+        pine_text = PINE_PATH.read_text(encoding="utf-8")
+        html_text = HTML_PATH.read_text(encoding="utf-8")
+
+        # 1. Main indicator has high visual limits and signals without intrusive forecast boxes
+        self.assertIn('indicator("AURA — Confluence Signal-System"', pine_text)
+        self.assertIn('max_boxes_count=500', pine_text)
+        self.assertIn('max_labels_count=500', pine_text)
+        self.assertIn('max_lines_count=500', pine_text)
+
+        # 2. Standalone 1:1 Position Tool Generator is present in Dashboard
+        self.assertIn('function generateTradingViewPositionScript', html_text)
+        self.assertIn('data-tv-overlay=', html_text)
+        self.assertIn('43000517002', html_text)
+        self.assertIn('43000516992', html_text)
+        self.assertIn('#089981', html_text) # TV Green profit zone
+        self.assertIn('#f23645', html_text) # TV Red loss zone
 
 if __name__ == "__main__":
     unittest.main()
