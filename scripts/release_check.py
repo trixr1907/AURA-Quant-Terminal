@@ -23,6 +23,9 @@ if str(ROOT) not in sys.path:
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 GOLDEN_PARITY_REFERENCE = GOLDEN_DIR / "parity_reference.json"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
+VERSION_BUMP_EXEMPT_PREFIXES = (".github/", "docs/")
+VERSION_BUMP_EXEMPT_FILES = {"LICENSE"}
+VERSION_BUMP_EXEMPT_SUFFIXES = {".md"}
 GOLDEN_FILES = [
     "BTCUSDT_1h.csv",
     "ETHUSDT_1h.csv",
@@ -88,8 +91,34 @@ def inspect_version_tag_state() -> tuple[str | None, str | None, str | None]:
     return local_tag, latest_semver_tag_from_refs(remote_output), None
 
 
+def requires_version_bump(path: str) -> bool:
+    """Return whether a committed path is part of the versioned product."""
+    normalized = path.strip().replace("\\", "/")
+    if not normalized:
+        return False
+    if normalized in VERSION_BUMP_EXEMPT_FILES:
+        return False
+    if Path(normalized).suffix in VERSION_BUMP_EXEMPT_SUFFIXES:
+        return False
+    return not normalized.startswith(VERSION_BUMP_EXEMPT_PREFIXES)
+
+
+def inspect_worktree_changes() -> tuple[bool | None, str | None]:
+    """Return whether staged, unstaged, or untracked product paths changed."""
+    rc, output, error = run(["git", "status", "--porcelain", "--untracked-files=all"])
+    if rc != 0:
+        return None, error[-1000:] or "cannot inspect worktree changes"
+    paths = []
+    for line in output.splitlines():
+        path = line[3:]
+        if " -> " in path:
+            path = path.rsplit(" -> ", 1)[-1]
+        paths.append(path)
+    return any(requires_version_bump(path) for path in paths), None
+
+
 def inspect_committed_changes_since_tag(tag: str, *, remote: bool = False) -> tuple[bool | None, str | None]:
-    """Return whether HEAD contains commits after a local or remote release tag."""
+    """Return whether product paths changed after a local or remote release tag."""
     tag_ref = tag
     if remote:
         rc, output, error = run(
@@ -109,13 +138,10 @@ def inspect_committed_changes_since_tag(tag: str, *, remote: bool = False) -> tu
         if not tag_ref:
             return None, f"cannot resolve origin tag {tag}"
 
-    rc, output, error = run(["git", "rev-list", "--count", f"{tag_ref}..HEAD"])
+    rc, output, error = run(["git", "diff", "--name-only", f"{tag_ref}..HEAD"])
     if rc != 0:
         return None, error[-1000:] or f"cannot compare HEAD with release tag {tag}"
-    try:
-        return int(output.strip()) > 0, None
-    except ValueError:
-        return None, "git rev-list returned a non-numeric commit count"
+    return any(requires_version_bump(path) for path in output.splitlines()), None
 
 
 def run(cmd, cwd=ROOT, env=None, timeout=900):
@@ -650,14 +676,15 @@ def main() -> int:
             ver_detail = json.dumps({"version": version, "versions": parsed_versions, "error": "VERSION mismatch"})
     add(check("version consistency", ver_status, ver_detail))
 
-    # 9b. Every update after the latest release tag must advance SemVer. Check
-    # origin without mutating local refs so a stale clone cannot silently pass.
+    # 9b. Product paths changed after the latest release tag must advance
+    # SemVer. Check origin without mutating local refs so a stale clone cannot
+    # silently pass. Documentation and infrastructure paths are exempt.
     local_tag, remote_tag, tag_error = inspect_version_tag_state()
     latest_tag = remote_tag or local_tag
-    changes_rc, changes, changes_err = run(["git", "status", "--porcelain", "--untracked-files=all"])
-    if changes_rc != 0:
+    worktree_changes, worktree_error = inspect_worktree_changes()
+    if worktree_error:
         progression_status = "FAIL"
-        progression_detail = json.dumps({"error": "cannot inspect tracked changes", "stderr": changes_err[-1000:]})
+        progression_detail = json.dumps({"error": "cannot inspect worktree changes", "stderr": worktree_error})
     elif tag_error:
         progression_status = "FAIL"
         progression_detail = json.dumps({
@@ -682,7 +709,7 @@ def main() -> int:
             progression_status, raw_progression_detail = check_version_progression(
                 version,
                 latest_tag,
-                bool(changes.strip()) or bool(committed_changes),
+                bool(worktree_changes) or bool(committed_changes),
                 allow_current_version=("--allow-current-version" in sys.argv),
             )
         parsed_progression = json.loads(raw_progression_detail)
