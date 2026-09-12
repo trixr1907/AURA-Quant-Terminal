@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.8] - 2026-09-12
+
+### Added
+- **Path-aware SemVer progression regression coverage:**
+  - Verifies that documentation and infrastructure-only commits remain release-neutral.
+  - Preserves fail-closed enforcement for product, test, dependency, and build changes.
+- **Release Documentation:**
+  - Added `docs/releases/RELEASE_v1.2.8.md`.
+
+### Changed
+- **Version Progression Gate:**
+  - Replaced commit-count detection with `git diff --name-only <tag>..HEAD` path classification.
+  - Exempted `.github/**`, `docs/**`, Markdown files, and `LICENSE` from forced version bumps.
+
+### Fixed
+- Corrected the v1.2.6 F-09 count from 49 to 51 audited `innerHTML` occurrences.
+- Completed the v1.2.7 CI history with the previously omitted workflow-fix commits.
+
+---
+
 ## [1.2.7] - 2026-09-12
 
 ### Added
@@ -16,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **CI / Release Workflow Hardening:**
+  - Pinned Python 3.12 in the release workflow (`e4db4ec`).
+  - Added pytest to release dependencies and repaired branch CI (`fc2f683`).
+  - Restored the branch `release_check` invocation without `--allow-current-version` (`69873e0`).
   - Removed ad-hoc unpinned `pip install ... pytest` from `.github/workflows/ci.yml` and `.github/workflows/publish-release.yml`.
   - Standardized `publish-release.yml` on Python 3.12 matching `ci.yml`.
 
@@ -36,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Epsilon-protected VWAP comparison in `Symbiose_Dashboard.html` (`(c - vwap) > 1e-9 * c`) preventing IEEE-754 underflow flips on float equality.
   - Documented ADX knife-edge discretization at thresholds 18 and 25 as accepted behavior.
 - **Security & Hygiene (F-09, F-10, F-14):**
-  - Audited all 49 `innerHTML` assignments in `Symbiose_Dashboard.html`; verified and hardened external data escaping via `esc()` and `textContent`.
+  - Audited all 51 `innerHTML` assignments in `Symbiose_Dashboard.html`; verified and hardened external data escaping via `esc()` and `textContent`.
   - Consolidated documentation in canonical `docs/` hierarchy (`docs/research/`, `docs/deployment/`, `docs/releases/`) and replaced redundant root copies with pointers.
   - Removed dead legacy klines parsing functions (`binanceKlines`, `bybitKlines`, `cgKlines`) from `Symbiose_Dashboard.html`.
 - **CI & Release Workflow:**
