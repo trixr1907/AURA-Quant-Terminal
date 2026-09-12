@@ -162,7 +162,11 @@ class TestDockerDeploymentContract(unittest.TestCase):
         self.assertIn("aura-state:/var/lib/aura", compose)
 
     def test_direct_docker_guide_declares_external_port_state_and_allowlist_contract(self):
-        guide = (Path(__file__).resolve().parent.parent / "DOCKER_GUIDE.md").read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parent.parent
+        guide_path = root / "docs" / "deployment" / "DOCKER_GUIDE.md"
+        if not guide_path.exists():
+            guide_path = root / "DOCKER_GUIDE.md"
+        guide = guide_path.read_text(encoding="utf-8")
         self.assertIn("-p 9090:8787", guide)
         self.assertIn("-e AURA_ALLOWED_HOSTS=<HOST-IP-ODER-DNS>", guide)
         self.assertIn("-e AURA_STATE_DIR=/var/lib/aura", guide)
