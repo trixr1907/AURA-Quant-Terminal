@@ -47,7 +47,7 @@ def test_release_package_keeps_runtime_and_current_docs():
         "Symbiose_Dashboard.html",
         "Symbiose_Signal_System_v1.pine",
         "README.md",
-        "RELEASE_v1.3.1.md",
+        "RELEASE_v1.3.2.md",
         "assets/aura_logo.svg",
         "assets/aura_logo_horizontal.svg",
     }
