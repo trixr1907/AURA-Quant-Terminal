@@ -22,6 +22,7 @@ const formatAutobotEntryLogSrc = extractFunction('formatAutobotEntryLog');
 
 const sandbox = { Number, Math, String, isFinite };
 vm.createContext(sandbox);
+// Source comes only from the repository-owned dashboard fixture; no external input is evaluated.
 vm.runInContext(`
   ${fmtPxSrc};
   ${fmtDsrSrc};

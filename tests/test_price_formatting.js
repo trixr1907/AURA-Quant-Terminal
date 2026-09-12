@@ -15,6 +15,7 @@ function extractFunction(name) {
 const fmtPxSrc = extractFunction('fmtPx');
 const sandbox = { Number, Math, isFinite };
 vm.createContext(sandbox);
+// Source comes only from the repository-owned dashboard fixture; no external input is evaluated.
 vm.runInContext(`${fmtPxSrc}; this.fmtPx = fmtPx;`, sandbox);
 const fmtPx = sandbox.fmtPx;
 
