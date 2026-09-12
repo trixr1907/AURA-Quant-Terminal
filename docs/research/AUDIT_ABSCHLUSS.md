@@ -10,7 +10,7 @@
 
 ## 1. Ergebnis in fünf Zeilen
 
-1. Der schwerste Befund war eine künstliche Trend-Gate-Regression im Testpfad (F-01, CRITICAL) sowie ungetestete produktive Exit-Pfade im Autobot (F-18 bis F-20, HIGH), die bei invertierter Logik grün blieben.
+1. Der schwerste Befund war F-01 (CRITICAL): ein Loopback-Origin-Präfix-Bypass auf `/api/open-tradingview`, über den beliebige bösartige Webseiten mit Hostnamen wie `127.0.0.1.evil.com` per CSRF Desktop-Befehle auslösen konnten. Daneben waren die produktiven Exit-Pfade des Autobots unbeobachtet testbar (F-18 bis F-20, HIGH): eine invertierte Verlustbedingung ließ die gesamte Suite grün.
 2. Alle Testlücken wurden durch echte behavior-basierte Laufzeittests (`test_autobot_timestop_behavior.js`, `test_kelly_oracle.js`) behoben; alle 15 absichtlichen Mutationen (M01–M15) werden zu 100% getötet.
 3. Die Pine↔JS-Signal-Divergenzen (F-16) wurden mathematisch und numerisch auf den Term `cvd > emaCvd` (Klasse 1) und die ADX-Stufendiskretisierung (Klasse 2) auf 10 von 58.859 Kerzen eingegrenzt; der VWAP-Vergleich wurde mit Epsilon-Gleichheitsschutz gehärtet.
 4. Repo-Hygiene, XSS-Schutz (`innerHTML`), Duplikatkonsolidierung in `docs/` und toter Code wurden vollständig bereinigt.
@@ -22,27 +22,27 @@
 
 | ID | Schwere | Layer | Status | Begründung |
 | --- | --- | --- | --- | --- |
-| **F-01** | **CRITICAL** | L3 | **BEHOBEN** | Künstliche Trend-Gate-Regression entfernt; Paritäts- und Scoring-Logik in JS und Pine stimmen exakt überein. |
-| **F-02** | **HIGH** | L2/L4 | **BEHOBEN** | Paritäts-Gate in `release_check.py` arbeitet strikt fail-closed gegen `parity_reference.json` ohne Bypass-Möglichkeit. |
-| **F-03** | **HIGH** | L4 | **BEHOBEN** | Golden-Master-Authentizitätsprüfung mit SHA-256 Provenance-Prüfung schützt vor manipulierten Fixtures. |
-| **F-04** | **HIGH** | L3 | **BEHOBEN** | Look-Ahead-Invarianz der Warmup-Berechnung (235 Bars) und Indikator-Zustände metamorph verifiziert. |
+| **F-01** | **CRITICAL** | **L4** | **BEHOBEN** | Loopback-Origin-Präfix-Bypass auf `/api/open-tradingview` (`bitget_relay.py:677-681`). `origin.startswith("http://127.0.0.1")` akzeptierte `http://127.0.0.1.evil.com`; bösartige Webseiten konnten per CSRF Desktop-Befehle auslösen. Behoben durch exakte Origin-Validierung mit URL-Parsing und Port-/Host-Normalisierung (Commit `e7477b1`); Regressionstest `test_open_tradingview_rejects_evil_loopback_prefix_origin` → HTTP 403. |
+| **F-02** | **HIGH** | **L2** | **BEHOBEN** | `release_check.py` rief JS-Tests über eine hartkodierte Einzelaufzählung auf; **11 von 44** Dateien in `tests/*.js` waren nicht referenziert, darunter der rot laufende `test_hero_paper_gate.js`. Das Gate meldete trotzdem `SOFTWARE_GO`. Behoben durch Auto-Discovery `glob("test_*.js")` plus vollständige `pytest`-Ausführung (Commit `8a6066b`). |
+| **F-03** | **HIGH** | **L2** | **BEHOBEN** | `tests/test_hero_paper_gate.js` schlug mit Exit 1 fehl, weil die Assertions die bis v1.2.4 entfernte Cockpit-Gate-Verdrahtung prüften. Absicht des Unlocks belegt über `docs/releases/RELEASE_v1.2.4.md:18-20`, `docs/CHANGELOG.md:17-18` und Commit `4e4a726`. Test auf die tatsächliche Architektur umgestellt, Pass-Meldung wahrheitsgemäß: *„cockpit paper trade is intentionally ungated; autobot gates remain fail-closed"* (Commit `a8ee49e`). |
+| **F-04** | **HIGH** | **L1/L6** | **BEHOBEN** | `README.md:13` und `:184` verlinkten eine `LICENSE`-Datei, die nicht existierte — HTTP 404 auf GitHub, Open-Source-Status rechtlich unklar. Kanonische MIT-Lizenzurkunde angelegt und in das Paket-Manifest aufgenommen (Commit `0914e02`); verifiziert über `zipfile`-Prüfung des Artefakts. |
 | **F-05** | **MEDIUM** | L3 | **OFFEN** | Deflated Sharpe Ratio reflektiert nur diskrete Radar-Scans, nicht den gesamten historischen Hyperparameter-Explorationsraum (Research-Grenze). |
 | **F-06** | **MEDIUM** | L3 | **OFFEN** | `TRIALS_LEDGER.md` wird in Git versioniert, verfügt jedoch über keine kryptografische Signaturkette gegen manuelle Bearbeitung. |
 | **F-07** | **MEDIUM** | L1 | **BEHOBEN** | `--no-gui`-Parameter in `start.py` und Startskripten wird zuverlässig ausgewertet und startet reinen CLI-Modus. |
 | **F-08** | **HIGH** | L2/L4 | **BEHOBEN** | GitHub Actions CI-Workflow mit SHA-256 gepinnten Actions und automatischer Gate-Prüfung für PRs eingerichtet. |
-| **F-09** | **MEDIUM** | L4 | **BEHOBEN** | Alle 49 `innerHTML`-Stellen auditiert; dynamische externe Datenströme über `esc()` und `textContent` gegen DOM-XSS abgesichert. |
+| **F-09** | **MEDIUM** | L4 | **BEHOBEN** | Alle 51 `innerHTML`-Stellen (`grep -c innerHTML Symbiose_Dashboard.html` → 51) auditiert; dynamische externe Datenströme über `esc()` und `textContent` gegen DOM-XSS abgesichert. |
 | **F-10** | **MEDIUM** | L1/L6 | **BEHOBEN** | Redundante Duplikate zwischen Root und `docs/` konsolidiert; `docs/` als kanonische Quelle für Dokumentation etabliert. |
 | **F-11** | **LOW** | L6 | **BEHOBEN** | Versionsdrift in `generate_claims.py` behoben und mit Release v1.2.6 synchronisiert. |
 | **F-12** | **LOW** | L6 | **BEHOBEN** | Startbanner im Relay dynamisch an `VERSION` gebunden. |
 | **F-13** | **MEDIUM** | L4 | **BEHOBEN** | Container-Härtung implementiert: Non-Root-User `aura`, `read_only: true`, `cap_drop: ALL`, `no-new-privileges: true`. |
 | **F-14** | **LOW** | L5 | **BEHOBEN** | Toter Multi-Exchange-Code (`binanceKlines`, `bybitKlines`, `cgKlines`) aus `Symbiose_Dashboard.html` entfernt. |
-| **F-15** | **LOW** | L6 | **BEHOBEN** | Trailing-Whitespace und Markdown-Linter-Defekte in Berichten vollständig bereinigt. |
+| **F-15** | **LOW** | **L1** | **BEHOBEN** | `start.sh` nutzte nur `set -e`; unbelegte Variablen und Fehler in Pipeline-Befehlen wurden nicht abgefangen. Umgestellt auf `set -euo pipefail` (Commit `ef18a18`). |
 | **F-16** | **HIGH** | L3 | **AKZEPTIERT** | Paritätsdivergenzen (20 Mismatches auf 10 Kerzen) vollständig eingegrenzt; Epsilon-Schutz für VWAP integriert; ADX-Messerschneide dokumentiert. |
 | **F-17** | **MEDIUM** | L3 | **BEHOBEN** | `calcKelly` wird durch analytischen Oracle-Test (`tests/test_kelly_oracle.js`) gegen exakte mathematische Wahrscheinlichkeitsformeln geprüft. |
 | **F-18** | **HIGH** | L2 | **BEHOBEN** | Time-Stop-Timeframe-Skalierung (`* 60000`) durch behavior-basierten Test (`tests/test_autobot_timestop_behavior.js`) verifiziert (M13 getötet). |
 | **F-19** | **HIGH** | L2 | **BEHOBEN** | Verlustbedingung `curRoi < -3.0` durch behavior-basierten Test verifiziert (M14 getötet). |
 | **F-20** | **MEDIUM** | L2 | **BEHOBEN** | 12-Bar-Fallback ohne explizite `timeStopBars` durch behavior-basierten Test verifiziert (M15 getötet). |
-| **F-21** | **LOW** | L4/L6 | **BEHOBEN** | Erkennung committeter Änderungen nach Remote-Release-Tags in `scripts/release_check.py` gehärtet. |
+| **F-21** | **MEDIUM** | **L4** | **BEHOBEN** | GitHub Actions waren in `publish-release.yml` und im neuen `ci.yml` nur auf bewegliche Major-Tags gepinnt (`checkout@v4`, `setup-python@v5`, `setup-node@v4`). Auf 40-stellige Commit-SHAs gepinnt; Workflow-Default auf `contents: read`, nur der Publish-Job erhält `contents: write` (Commit `83cf989`). |
 
 ---
 
