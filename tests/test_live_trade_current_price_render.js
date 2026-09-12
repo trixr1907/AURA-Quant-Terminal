@@ -91,6 +91,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext([
+  extractFunction('fmtPx'),
   extractFunction('renderLiveTrades'),
   'this.renderLiveTrades = renderLiveTrades;',
 ].join('\n'), context);
