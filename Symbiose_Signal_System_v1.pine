@@ -785,9 +785,9 @@ f_cell(18, "Leverage (Konto " + str.tostring(equity, "#,###") + ")", showLong ? 
 f_cell(19, "Risiko pro Trade", str.tostring(riskAmt, "#.##") + " USDT (" + str.tostring(riskPct, "#.##") + "%)", color.new(#f8fafc, 0), color.new(#1e293b, 0))
 f_cell(20, "Regime-Gate Status", regimeGate ? (showLong or showShort ? "FREIGEGEBEN" : regimeBlocked ? "GESPERRT (Regime/SQZ)" : "STANDBY") : "AUS", (showLong or showShort) ? color.new(#4ade80, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
 
-// v1.1.5 Trailing-State
+// Trailing-State
 trailStatusTxt = trDir != 0 ? (str.tostring(trBars) + " Bars · Runner: " + (trTrail ? "ST-TRAIL" : (trTP1Hit ? "BE-Stop" : "SL-Schutz")) + " · rNet: " + str.tostring(rNet, "+#.##;-#.##") + "R") : "—"
-f_cell(21, "Trade-State (v1.2.0)", trailStatusTxt, trDir == 1 ? color.new(#4ade80, 0) : trDir == -1 ? color.new(#f87171, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
+f_cell(21, "Trade-State", trailStatusTxt, trDir == 1 ? color.new(#4ade80, 0) : trDir == -1 ? color.new(#f87171, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
 f_cell(22, "Time-Stop", str.tostring(timeStopN) + " Bars · " + (timeStopActive ? "AUSLÖSUNG: rNet=" + str.tostring(rNet, "#.##") + "R" : "inaktiv"), timeStopActive ? color.new(#f59e0b, 0) : color.new(#94a3b8, 0), color.new(#1e293b, 0))
 
 f_cell(23, "RSI / StochRSI", str.tostring(rsiV, "#.#") + " / " + str.tostring(srsiK, "#.#"), color.new(#e2e8f0, 0), color.new(#1e293b, 0))
@@ -832,7 +832,7 @@ if showLong or showShort
     alert(jsn, alert.freq_once_per_bar_close)
 
 // ============================================================================
-//  ENDE — AURA v1.2.2 (Pine v6)
+//  ENDE — AURA v1.2.5 (Pine v6)
 //  Einstieg: nächster Kerzen-Open als Maker-Limit-Order.
 //  50% bei dyn. TP1 ([1R,2R] · opposing FVG/EQH/EQL), 50% SuperTrend-Runner.
 //  Time-Stop nach N Bars wenn rNet <= 0.

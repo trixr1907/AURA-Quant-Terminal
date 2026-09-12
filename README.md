@@ -181,7 +181,7 @@ Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bed
 - [Interaktives Tutorial](SYMBIOSE_Tutorial.html)
 - [Modellvalidierung](SYMBIOSE_Model_Validation.md)
 - [Brand Design](docs/brand_design.md)
-- [Release Notes v1.2.2](RELEASE_v1.2.2.md)
+- [Release Notes v1.2.5](RELEASE_v1.2.5.md)
 - [Release Checklist](RELEASE_CHECKLIST.md)
 - [Security Policy](SECURITY.md)
 
