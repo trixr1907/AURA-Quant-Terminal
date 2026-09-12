@@ -1,7 +1,7 @@
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm'); // NOSONAR -- executes a fixed repository function slice in an isolated test context.
 
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'tools', 'edge_diagnostic_phase_d.js'), 'utf8');
