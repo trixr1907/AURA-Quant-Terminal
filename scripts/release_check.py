@@ -64,6 +64,28 @@ def check_version_progression(current: str, latest_tag: str | None, tracked_chan
     return "PASS", json.dumps({"version": current, "tag": latest_tag})
 
 
+def latest_semver_tag_from_refs(ref_output: str) -> str | None:
+    """Return the highest strict SemVer tag from git tag or ls-remote output."""
+    candidates: list[tuple[tuple[int, int, int], str]] = []
+    for line in ref_output.splitlines():
+        token = line.rsplit("/", 1)[-1].removesuffix("^{}").strip()
+        match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", token)
+        if match:
+            version_parts = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            candidates.append((version_parts, token))
+    return max(candidates)[1] if candidates else None
+
+
+def inspect_version_tag_state() -> tuple[str | None, str | None, str | None]:
+    """Inspect reachable local tags and origin tags without mutating local refs."""
+    local_rc, local_output, _ = run(["git", "tag", "--list", "v*.*.*"])
+    local_tag = latest_semver_tag_from_refs(local_output) if local_rc == 0 else None
+    remote_rc, remote_output, remote_error = run(["git", "ls-remote", "--tags", "origin"], timeout=30)
+    if remote_rc != 0:
+        return local_tag, None, remote_error[-1000:] or "git ls-remote failed"
+    return local_tag, latest_semver_tag_from_refs(remote_output), None
+
+
 def run(cmd, cwd=ROOT, env=None, timeout=900):
     """Run a command; return (exit_code, stdout, stderr)."""
     child_env = dict(env) if env is not None else {**__import__("os").environ}
@@ -510,17 +532,33 @@ def main() -> int:
             ver_detail = json.dumps({"version": version, "versions": parsed_versions, "error": "VERSION mismatch"})
     add(check("version consistency", ver_status, ver_detail))
 
-    # 9b. Every update after a release tag must advance SemVer.
-    tag_rc, latest_tag, _ = run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*.[0-9]*.[0-9]*"])
-    latest_tag = latest_tag.strip() if tag_rc == 0 else None
+    # 9b. Every update after the latest release tag must advance SemVer. Check
+    # origin without mutating local refs so a stale clone cannot silently pass.
+    local_tag, remote_tag, tag_error = inspect_version_tag_state()
+    latest_tag = remote_tag or local_tag
     changes_rc, changes, changes_err = run(["git", "status", "--porcelain", "--untracked-files=all"])
     if changes_rc != 0:
         progression_status = "FAIL"
         progression_detail = json.dumps({"error": "cannot inspect tracked changes", "stderr": changes_err[-1000:]})
+    elif tag_error:
+        progression_status = "FAIL"
+        progression_detail = json.dumps({
+            "version": version,
+            "local_tag": local_tag,
+            "error": "cannot verify origin tag state",
+            "stderr": tag_error,
+        })
     else:
-        progression_status, progression_detail = check_version_progression(
+        progression_status, raw_progression_detail = check_version_progression(
             version, latest_tag, bool(changes.strip()), allow_current_version=("--allow-current-version" in sys.argv)
         )
+        parsed_progression = json.loads(raw_progression_detail)
+        parsed_progression.update({
+            "local_tag": local_tag,
+            "remote_tag": remote_tag,
+            "local_tags_stale": bool(local_tag and remote_tag and local_tag != remote_tag),
+        })
+        progression_detail = json.dumps(parsed_progression)
     add(check("version progression", progression_status, progression_detail))
 
     # 10. Secret-pattern and generated-file scan
