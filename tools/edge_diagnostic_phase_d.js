@@ -10,7 +10,7 @@
  * and Gated-Only (9-grid with forced regimeGate: true).
  */
 
-const { execFileSync } = require('child_process');
+const { execFileSync } = require('node:child_process');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
