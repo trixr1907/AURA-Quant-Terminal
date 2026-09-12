@@ -837,6 +837,85 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
+<div id="tv-drawing-tool-modal" hidden role="dialog" aria-modal="true" aria-labelledby="tv-draw-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.85);backdrop-filter:blur(10px);padding:18px;align-items:center;justify-content:center">
+  <section style="width:min(680px,100%);max-height:90vh;overflow:auto;background:#0d1527;border:1px solid rgba(0,242,254,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.7);padding:24px;color:var(--txt)">
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px">
+      <div>
+        <div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">TradingView Visual Precision</div>
+        <h2 id="tv-draw-title" style="margin:4px 0 0;font-size:18px">📐 TradingView Zeichentool (Long/Short Position)</h2>
+      </div>
+      <button id="tv-draw-close" type="button" aria-label="Schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);border-radius:9px;padding:6px 12px;font-size:16px;cursor:pointer">×</button>
+    </div>
+
+    <div style="background:rgba(0,242,254,.07);border:1px solid rgba(0,242,254,.2);border-radius:12px;padding:12px 16px;margin-bottom:18px;display:flex;gap:14px;align-items:center">
+      <div id="tv-draw-badge" style="font-size:22px;padding:8px 14px;background:rgba(8,153,129,.2);border:1px solid #089981;border-radius:10px;font-weight:800;color:#089981">LONG</div>
+      <div style="font-size:12.5px;line-height:1.5">
+        Wähle in TradingView auf der <b>linken Werkzeugleiste</b> unter <b>„Prognosen“</b> das native Zeichentool <b id="tv-draw-tool-name" style="color:var(--cyn)">„Long-Position“</b>.<br>
+        <span style="color:var(--dim)">Klicke auf den Chart und übernimm die exakten Level per 1-Klick (ohne Indikator-Platz zu verbrauchen):</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:18px">
+      <div class="tv-param-card" style="background:#131c31;border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;font-weight:700">Einstiegspreis (Entry)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span id="tv-param-entry" style="font-family:monospace;font-size:16px;font-weight:700;color:var(--txt)">—</span>
+          <button class="copy-pill-btn" data-copy-from="tv-param-entry" type="button" style="border:1px solid rgba(0,242,254,.3);background:rgba(0,242,254,.1);color:var(--cyn);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">📋 Kopieren</button>
+        </div>
+      </div>
+
+      <div class="tv-param-card" style="background:#131c31;border:1px solid rgba(8,153,129,.3);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:#089981;text-transform:uppercase;font-weight:700">Gewinnziel (Take Profit)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span id="tv-param-tp" style="font-family:monospace;font-size:16px;font-weight:700;color:#089981">—</span>
+          <button class="copy-pill-btn" data-copy-from="tv-param-tp" type="button" style="border:1px solid rgba(8,153,129,.4);background:rgba(8,153,129,.15);color:#089981;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">📋 Kopieren</button>
+        </div>
+      </div>
+
+      <div class="tv-param-card" style="background:#131c31;border:1px solid rgba(242,54,69,.3);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:#f23645;text-transform:uppercase;font-weight:700">Stopp-Loss (SL)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span id="tv-param-sl" style="font-family:monospace;font-size:16px;font-weight:700;color:#f23645">—</span>
+          <button class="copy-pill-btn" data-copy-from="tv-param-sl" type="button" style="border:1px solid rgba(242,54,69,.4);background:rgba(242,54,69,.15);color:#f23645;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">📋 Kopieren</button>
+        </div>
+      </div>
+
+      <div class="tv-param-card" style="background:#131c31;border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;font-weight:700">Positionsgröße & CRV</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span id="tv-param-size" style="font-family:monospace;font-size:13px;font-weight:700;color:var(--txt)">—</span>
+          <span id="tv-param-rr" style="font-size:12px;color:var(--cyn);font-weight:700">CRV —</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">💡 Schnelle Optionen (0 Indikator-Plätze verbraucht):</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;line-height:1.5;display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <b>1. TradingView Paper Trading Order (Automatische Chart-Linien):</b><br>
+            <span style="color:var(--dim)">Order im TV Paper Trading Panel eingeben — TradingView zeichnet Position, Entry und SL/TP-Brackets vollautomatisch nativ in den Chart.</span>
+          </div>
+          <button id="btn-copy-tv-order" type="button" style="border:1px solid rgba(0,242,254,.4);background:rgba(0,242,254,.15);color:var(--cyn);border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📋 Order kopieren</button>
+        </div>
+
+        <div style="background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;line-height:1.5;display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <b>2. Standalone Pine-Code (Optional):</b><br>
+            <span style="color:var(--dim)">Kopiert den 1:1 Pine Script Code, falls du die visuelle Box temporär im Pine Editor testen möchtest.</span>
+          </div>
+          <button id="btn-copy-tv-pine-standalone" type="button" style="border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);border-radius:8px;padding:7px 12px;font-size:11px;cursor:pointer;white-space:nowrap">📋 Pine kopieren</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:18px">
+      <button id="tv-draw-done" type="button" style="border:0;background:linear-gradient(135deg,var(--cyn),#2563eb);color:white;font-weight:800;border-radius:10px;padding:9px 20px;cursor:pointer">Fertig</button>
+    </div>
+  </section>
+</div>
+
 <footer><b>AURA Confluence Terminal v1.2.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
@@ -3449,38 +3528,129 @@ function launchTradingViewDesktop(desktopUrl, tvUrl) {
   return opened;
 }
 
+function showTradingViewDrawingModal(trade) {
+  if (!trade) return;
+  const modal = $('tv-drawing-tool-modal');
+  if (!modal) return;
+
+  const isLong = trade.dir === 1;
+  const dirStr = isLong ? 'LONG' : 'SHORT';
+  const sym = trade.coin || (typeof App !== 'undefined' ? App.symbol : 'BTCUSDT');
+  const entry = Number(trade.entry || 0);
+  const sl = Number(trade.currentSl || trade.sl || (isLong ? entry * 0.985 : entry * 1.015));
+  const tp = Number(trade.tp || trade.tp2 || trade.tp1 || (isLong ? entry * 1.05 : entry * 0.95));
+  const margin = Number(trade.remainingMargin || trade.margin || 100);
+  const lev = Math.max(1, Number(trade.leverage || 10));
+  const slDist = Math.abs(entry - sl);
+  const tpDist = Math.abs(tp - entry);
+  const slPct = entry > 0 ? ((slDist / entry) * 100).toFixed(2) : '0.00';
+  const tpPct = entry > 0 ? ((tpDist / entry) * 100).toFixed(2) : '0.00';
+  const notional = margin * lev;
+  const qty = entry > 0 ? (notional / entry).toFixed(4) : '0';
+  const riskUsd = (Number(qty) * slDist).toFixed(2);
+  const rewardUsd = (Number(qty) * tpDist).toFixed(2);
+  const rr = slDist > 0 ? (tpDist / slDist).toFixed(2) : '2.00';
+
+  const badge = $('tv-draw-badge');
+  if (badge) {
+    badge.textContent = dirStr;
+    badge.style.color = isLong ? '#089981' : '#f23645';
+    badge.style.borderColor = isLong ? '#089981' : '#f23645';
+    badge.style.background = isLong ? 'rgba(8,153,129,.2)' : 'rgba(242,54,69,.2)';
+  }
+
+  const toolName = $('tv-draw-tool-name');
+  if (toolName) {
+    toolName.textContent = isLong ? '„Long-Position“' : '„Short-Position“';
+    toolName.style.color = isLong ? '#089981' : '#f23645';
+  }
+
+  const elEntry = $('tv-param-entry');
+  if (elEntry) elEntry.textContent = entry.toFixed(4);
+
+  const elTp = $('tv-param-tp');
+  if (elTp) elTp.textContent = `${tp.toFixed(4)} (+${tpPct}%)`;
+
+  const elSl = $('tv-param-sl');
+  if (elSl) elSl.textContent = `${sl.toFixed(4)} (-${slPct}%)`;
+
+  const elSize = $('tv-param-size');
+  if (elSize) elSize.textContent = `${margin}$ (${lev}x)`;
+
+  const elRr = $('tv-param-rr');
+  if (elRr) elRr.textContent = `CRV 1 : ${rr}`;
+
+  const btnOrder = $('btn-copy-tv-order');
+  if (btnOrder) {
+    btnOrder.onclick = () => {
+      const orderText = `AURA ${dirStr} (${sym}): Entry=${entry.toFixed(4)} | TP=${tp.toFixed(4)} (+${tpPct}%) | SL=${sl.toFixed(4)} (-${slPct}%) | Size=${margin}$ (${lev}x) | CRV=1:${rr}`;
+      fallbackCopy(orderText);
+      btnOrder.textContent = '✓ Parameter kopiert!';
+      setTimeout(() => { btnOrder.textContent = '📋 Order kopieren'; }, 2500);
+    };
+  }
+
+  const btnPine = $('btn-copy-tv-pine-standalone');
+  if (btnPine) {
+    btnPine.onclick = () => {
+      const pineCode = generateTradingViewPositionScript(trade);
+      fallbackCopy(pineCode);
+      btnPine.textContent = '✓ Pine-Code kopiert!';
+      setTimeout(() => { btnPine.textContent = '📋 Pine kopieren'; }, 2500);
+    };
+  }
+
+  modal.querySelectorAll('.copy-pill-btn').forEach(btn => {
+    btn.onclick = () => {
+      const targetId = btn.dataset.copyFrom;
+      const targetEl = $(targetId);
+      if (targetEl) {
+        const val = targetEl.textContent.split(' ')[0].trim();
+        fallbackCopy(val);
+        const orig = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = orig; }, 1800);
+      }
+    };
+  });
+
+  modal.style.display = 'flex';
+  modal.removeAttribute('hidden');
+
+  const closeFn = () => {
+    modal.style.display = 'none';
+    modal.setAttribute('hidden', '');
+  };
+
+  const closeBtn = $('tv-draw-close');
+  if (closeBtn) closeBtn.onclick = closeFn;
+
+  const doneBtn = $('tv-draw-done');
+  if (doneBtn) doneBtn.onclick = closeFn;
+}
+
 async function copyTvPositionToolForTrade(trade, btn = null) {
   if (!trade) return;
-  const script = generateTradingViewPositionScript(trade);
   const sym = trade.coin || (typeof App !== 'undefined' ? App.symbol : 'BTCUSDT');
   const tf = trade.signalTf || (typeof App !== 'undefined' ? App.chartTF : '1h') || '1h';
   const tvUrl = buildTradingViewUrl(sym, tf, (typeof App !== 'undefined' ? App.tradingView : {}) || {});
   const desktopUrl = buildTradingViewDesktopUrl(sym, tf, (typeof App !== 'undefined' ? App.tradingView : {}) || {});
 
-  let copied = false;
-  try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      await navigator.clipboard.writeText(script);
-      copied = true;
-    } else {
-      fallbackCopy(script);
-      copied = true;
-    }
-  } catch (_) {
-    try { fallbackCopy(script); copied = true; } catch (_) {}
-  }
-
+  // 1. Launch TradingView Desktop (or Web fallback)
   launchTradingViewDesktop(desktopUrl, tvUrl);
+
+  // 2. Open the Native TradingView Drawing Tool HUD (0 Indicator Slots used)
+  showTradingViewDrawingModal(trade);
 
   if (btn) {
     const origHtml = btn.innerHTML;
     const side = trade.dir === 1 ? 'Long' : 'Short';
-    btn.innerHTML = copied ? `✓ 1:1 ${side}-Position kopiert & TV Desktop!` : `✓ TV Desktop geöffnet`;
+    btn.innerHTML = `✓ TV ${side}-Tool geöffnet!`;
     btn.classList.add('copied');
     setTimeout(() => {
       btn.innerHTML = origHtml;
       btn.classList.remove('copied');
-    }, 3000);
+    }, 2800);
   }
 }
 
