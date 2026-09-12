@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.9] - 2026-09-12
+
+### Added
+- SHA-256-verknüpfter, maschinenlesbarer Trials-Ledger und fail-closed Verifier im Release-Gate.
+- CVD-/EMA-CVD-/Vergleichs-/Delta-Felder im Pine Data Window als Voraussetzung für eine unabhängige Pine↔JS-Langzeitmessung.
+- Regressionstests für gültige, fehlende und manipulierte Ledger sowie DSR-Monotonie.
+
+### Changed
+- Phase-D-DSR bezieht die verifizierte historische Modellversuchszahl aus dem Ledger und verwendet konservativ `max(45, ledger N)`; fehlende oder ungültige Evidenz bricht ab.
+- Version auf 1.2.9 synchronisiert.
+
+### Research status
+- F-05 und F-06 sind technisch geschlossen.
+- F-16 bleibt bis zum erneuten TradingView-Export der neuen CVD-Felder `NICHT GEPRÜFT`; vorhandene Fixtures enthalten diese unabhängigen Pine-Zustände nicht. Das ist kein Edge-Nachweis.
+
+---
+
 ## [1.2.8] - 2026-09-12
 
 ### Added
