@@ -34,6 +34,7 @@ const context = {
   Array,
   Object,
   Promise,
+  document: { createElement: () => ({ style: {}, click: () => {} }), body: { appendChild: () => {}, removeChild: () => {} } },
   setTimeout: (fn) => fn(),
   navigator: { clipboard: { writeText: async (text) => calls.clipboard.push(text) } },
   window: { open: (url) => { calls.opened.push(url); return { opener: 'initial' }; } },
@@ -48,7 +49,7 @@ const context = {
   relayBase: () => 'http://127.0.0.1:8787',
   buildTradingViewUrl: (symbol, tf) => `https://www.tradingview.com/chart/?symbol=BITGET:${symbol}.P&interval=${tf}`,
   buildTradingViewDesktopUrl: (symbol, tf) => `tradingview://chart/?symbol=BITGET:${symbol}.P&interval=${tf}`,
-  fallbackCopy: () => { throw new Error('fallback copy should not be needed'); },
+  fallbackCopy: (text) => { calls.clipboard.push(text); },
   fetch: async (url) => {
     calls.fetch.push(url);
     return { ok: true, json: async () => ({ ok: true }) };
@@ -56,35 +57,57 @@ const context = {
 };
 
 vm.createContext(context);
-for (const name of ['buildCustomTradingViewPine', 'findActiveTradeForPine', 'getTradingViewPineText', 'openInTradingView']) {
+for (const name of [
+  'generateTradingViewPositionScript',
+  'launchTradingViewDesktop',
+  'copyTvPositionToolForTrade',
+  'findActiveTradeForPine',
+  'getTradingViewPineText',
+  'openInTradingView'
+]) {
   vm.runInContext(`${getFunction(name)}; this.${name} = ${name};`, context);
 }
 
-const candidate = {
-  coin: 'SOLUSDT', dir: -1, entry: 102.5, sl: 105.0,
-  tp1: 100.0, tp2: 97.5, tp3: 92.5, leverage: 8
+const longTrade = {
+  coin: 'ETHUSDT', dir: 1, entry: 3200.0, sl: 3120.0,
+  tp: 3360.0, tp2: 3440.0, tp3: 3600.0, leverage: 10, remainingMargin: 150
+};
+
+const shortTrade = {
+  coin: 'SOLUSDT', dir: -1, entry: 102.5, currentSl: 105.0,
+  tp: 97.5, tp2: 95.0, tp3: 90.0, leverage: 8, remainingMargin: 100
 };
 
 (async () => {
-  const result = await context.openInTradingView('SOLUSDT', '1h', null, candidate);
-  assert.equal(result.desktopOpened, true, 'relay must open TradingView Desktop');
-  assert.equal(result.pineCopied, true, 'custom Pine must reach the clipboard');
-  assert.equal(calls.clipboard.length, 1, 'exactly one Pine script must be copied');
-  const customized = calls.clipboard[0];
-  assert(customized.includes('fcMode     = input.string("Custom"'));
-  assert(customized.includes('fcDir      = input.string("Short"'));
-  assert(customized.includes('fcEntry    = input.float(102.5000'));
-  assert(customized.includes('fcSl       = input.float(105.0000'));
-  assert(customized.includes('fcTp2      = input.float(97.5000'));
-  assert(customized.includes('max_boxes_count=500'));
-  assert(customized.includes('fcBoxProfit := box.new'));
-  assert(customized.includes('fcBoxLoss   := box.new'));
+  // 1. Verify 1:1 Standalone Position Tool for Active Trades
+  const longScript = context.generateTradingViewPositionScript(longTrade);
+  assert(longScript.includes('//@version=6'));
+  assert(longScript.includes('AURA LONG Position — ETHUSDT'));
+  assert(longScript.includes('posDir    = input.string("LONG"'));
+  assert(longScript.includes('box.new(x1, profitTop, x2, profitBot'));
+  assert(longScript.includes('#089981')); // Green profit zone
+  assert(longScript.includes('#f23645')); // Red loss zone
+  assert(longScript.includes('43000517002')); // Long position reference
+
+  const shortScript = context.generateTradingViewPositionScript(shortTrade);
+  assert(shortScript.includes('//@version=6'));
+  assert(shortScript.includes('AURA SHORT Position — SOLUSDT'));
+  assert(shortScript.includes('posDir    = input.string("SHORT"'));
+  assert(shortScript.includes('43000516992')); // Short position reference
+
+  // 2. Verify click action on active trade card
+  await context.copyTvPositionToolForTrade(shortTrade, null);
+  assert.equal(calls.clipboard.length, 1);
+  assert(calls.clipboard[0].includes('AURA SHORT Position — SOLUSDT'));
   calls.clipboard.length = 0;
-  context.tradingViewPineText = '';
-  const preloadResult = await context.openInTradingView('SOLUSDT', '1h', null, candidate);
-  assert.equal(preloadResult.pineCopied, true, 'a click must still copy Pine when the preload cache is initially empty');
-  assert.equal(calls.clipboard.length, 1, 'the freshly preloaded Pine script must be copied');
-  console.log('PASS TradingView bridge copies a custom position overlay before desktop launch');
+
+  // 3. Verify top button copies pure indicator Pine script
+  const result = await context.openInTradingView('BTCUSDT', '1h', null, null);
+  assert.equal(result.desktopOpened, true);
+  assert.equal(result.pineCopied, true);
+  assert(calls.clipboard[0].includes('indicator("AURA — Confluence Signal-System"'));
+
+  console.log('PASS TradingView 1:1 Position Tool and Indicator bridge verified');
 })().catch((error) => {
   console.error(error.stack || error);
   process.exit(1);

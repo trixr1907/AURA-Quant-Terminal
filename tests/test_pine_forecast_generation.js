@@ -5,77 +5,82 @@ const fs = require('fs');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
-// Simple function extractor that extracts code between function start and next top-level function start
 function getFunctionBody(name) {
   const marker = `function ${name}(`;
   const start = html.indexOf(marker);
   if (start < 0) throw new Error(`${name} not found`);
-  const nextFn = html.indexOf('\nfunction ', start + marker.length);
-  const nextConst = html.indexOf('\nconst ', start + marker.length);
-  const end = Math.min(nextFn > 0 ? nextFn : html.length, nextConst > 0 ? nextConst : html.length);
-  return html.slice(start, end);
+  let depth = 0;
+  let bodyStarted = false;
+  for (let i = start; i < html.length; i += 1) {
+    if (html[i] === '{') { depth += 1; bodyStarted = true; }
+    if (html[i] === '}') {
+      depth -= 1;
+      if (bodyStarted && depth === 0) return html.slice(start, i + 1);
+    }
+  }
+  throw new Error(`${name} is incomplete`);
 }
 
-const pineMock = `
-grpFC = "7) Trade Forecasting & Execution"
-fcShow     = input.bool(true, "Trade Forecast visualisieren", group=grpFC)
-fcMode     = input.string("Auto", "Forecast-Modus", options=["Auto", "Custom", "Aus"], group=grpFC)
-fcDir      = input.string("Auto", "Richtung (Custom)", options=["Auto", "Long", "Short"], group=grpFC)
-fcEntry    = input.float(0.0, "Entry Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcSl       = input.float(0.0, "Stop Loss (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp1      = input.float(0.0, "TP1 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp2      = input.float(0.0, "TP2 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp3      = input.float(0.0, "TP3 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcLev      = input.int(10, "Hebel (Leverage)", minval=1, maxval=125, group=grpFC)
-fcNote     = input.string("AURA Active Trade", "Trade Notiz / ID", group=grpFC)
-`;
-
-// Extract and eval
 const fnCode = `
-${getFunctionBody('buildCustomTradingViewPine')}
-${getFunctionBody('findActiveTradeForPine')}
-${getFunctionBody('getTradingViewPineText')}
+${getFunctionBody('generateTradingViewPositionScript')}
 `;
 
 const context = {
   Number, Math, String, Array, Object,
-  App: { symbol: 'BTCUSDT', leverage: 10, data: null },
-  Autobot: { trades: [] },
-  tradingViewPineText: pineMock
+  App: { symbol: 'BTCUSDT', leverage: 10, data: null }
 };
 
 const fn = new Function('ctx', `
   with(ctx) {
     ${fnCode}
-    return { buildCustomTradingViewPine, findActiveTradeForPine, getTradingViewPineText };
+    return { generateTradingViewPositionScript };
   }
 `);
 
-const { buildCustomTradingViewPine, getTradingViewPineText } = fn(context);
+const { generateTradingViewPositionScript } = fn(context);
 
-const sampleTrade = {
-  coin: 'SOLUSDT',
+const sampleTradeLong = {
+  coin: 'BTCUSDT',
   dir: 1,
-  entry: 102.50,
-  currentSl: 98.20,
-  tp1: 106.80,
-  tp2: 111.10,
-  tp3: 119.70,
-  leverage: 10,
-  note: 'AURA SOLUSDT LONG 10x'
+  entry: 60000.0,
+  currentSl: 59000.0,
+  tp: 62000.0,
+  tp2: 63000.0,
+  tp3: 65000.0,
+  margin: 200,
+  leverage: 10
 };
 
-const customizedPine = getTradingViewPineText(sampleTrade);
-assert(customizedPine.includes('fcMode     = input.string("Custom"'), 'Pine should be set to Custom forecast mode');
-assert(customizedPine.includes('fcDir      = input.string("Long"'), 'Pine should have Long direction');
-assert(customizedPine.includes('fcEntry    = input.float(102.5000'), 'Pine should have Entry price');
-assert(customizedPine.includes('fcSl       = input.float(98.2000'), 'Pine should have SL price');
-assert(customizedPine.includes('fcTp1      = input.float(106.8000'), 'Pine should have TP1 price');
-assert(customizedPine.includes('fcTp2      = input.float(111.1000'), 'Pine should have TP2 price');
-assert(customizedPine.includes('fcTp3      = input.float(119.7000'), 'Pine should have TP3 price');
+const sampleTradeShort = {
+  coin: 'ETHUSDT',
+  dir: -1,
+  entry: 3000.0,
+  currentSl: 3060.0,
+  tp: 2880.0,
+  tp2: 2820.0,
+  tp3: 2700.0,
+  margin: 150,
+  leverage: 15
+};
 
-// Check active trade card button
-assert(html.includes('data-tv-ab-idx='), 'Trade card must include "In TV visualisieren" button');
-assert(html.includes('data-tv-ab-idx'), 'Event listener for active trade TV button must exist');
+const longScript = generateTradingViewPositionScript(sampleTradeLong);
+assert(longScript.includes('posDir    = input.string("LONG"'), 'Must have LONG direction');
+assert(longScript.includes('posEntry  = input.float(60000.0000'), 'Must have Entry price');
+assert(longScript.includes('posSl     = input.float(59000.0000'), 'Must have SL price');
+assert(longScript.includes('posTp     = input.float(63000.0000'), 'Must have TP2 price as primary target');
+assert(longScript.includes('boxProfit := box.new('), 'Must draw profit box');
+assert(longScript.includes('boxLoss   := box.new('), 'Must draw loss box');
+assert(longScript.includes('43000517002'), 'Must reference Long tool');
 
-console.log('PASS Pine trade forecasting overlay successfully generated and verified');
+const shortScript = generateTradingViewPositionScript(sampleTradeShort);
+assert(shortScript.includes('posDir    = input.string("SHORT"'), 'Must have SHORT direction');
+assert(shortScript.includes('posEntry  = input.float(3000.0000'), 'Must have Entry price');
+assert(shortScript.includes('posSl     = input.float(3060.0000'), 'Must have SL price');
+assert(shortScript.includes('posTp     = input.float(2820.0000'), 'Must have TP2 price as primary target');
+assert(shortScript.includes('43000516992'), 'Must reference Short tool');
+
+// Verify trade card action in HTML
+assert(html.includes('data-tv-overlay='), 'Trade card must include 1:1 TV Position Tool button');
+assert(html.includes('data-tv-overlay'), 'Event listener for trade TV position overlay must exist');
+
+console.log('PASS 1:1 Standalone TradingView Position Tool generation verified');

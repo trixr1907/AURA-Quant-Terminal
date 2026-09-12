@@ -5,7 +5,7 @@
 //  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
 //  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
 //  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
-//  AURA v1.2.3 — Confluence Trading Signal System (Pine Script v6)
+//  AURA v1.2.4 — Confluence Trading Signal System (Pine Script v6)
 // ============================================================================
 //  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
 //          2) SMC / Orderflow (FVG, Order Blocks, Liquidity Sweeps, Sessions)
@@ -13,9 +13,9 @@
 //          4) Multi-Timeframe Matrix (15m, 1h, 4h, 1d)
 //          5) Marktkontext (Regime-Filter, Liquiditätspools, Fear & Greed)
 //
-//  v1.2.3 CURRENT:
+//  v1.2.4 CURRENT:
 //   - Dynamic TP1, SuperTrend trailing, time-stop, macro veto/multiplier
-//   - JS/Pine mathematical parity and current symbiose.v1.2.3 alert contract
+//   - JS/Pine mathematical parity and current symbiose.v1.2.4 alert contract
 //
 //  HISTORICAL v1.0.3 NOTES:
 //   - These original feature notes remain historical context only.
@@ -91,21 +91,6 @@ inCalibP      = input.float(50.0, "Kalibrierte P(Long) % (aus Webhook)", minval=
 grpV = "6) Darstellung"
 structureLabelSize = input.string("Normal", "BOS/CHoCH Textgröße", options=["Klein", "Normal", "Groß"], group=grpV)
 structureLabelOffsetAtr = input.float(0.35, "BOS/CHoCH Abstand (ATR)", minval=0.1, maxval=2.0, step=0.05, tooltip="Vertikaler Abstand der Struktur-Labels zur Kerze. Höhere Werte verhindern Überlappungen.", group=grpV)
-
-grpFC = "7) Trade Forecasting & Long/Short Position Tool"
-fcShow     = input.bool(true, "Position Tool visualisieren", group=grpFC, tooltip="Zeigt das 1:1 TradingView Long/Short Position Tool mit Gewinn-/Verlust-Zonen, R:R-Verhältnis und konkreten SL/TP-Levels.")
-fcMode     = input.string("Auto", "Modus", options=["Auto", "Custom", "Aus"], group=grpFC, tooltip="Auto = Nutzt das letzte AURA-Signal; Custom = Nutzt die manuellen Entry/SL/TP-Parameter.")
-fcDir      = input.string("Auto", "Richtung (Custom)", options=["Auto", "Long", "Short"], group=grpFC)
-fcEntry    = input.float(0.0, "Entry Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcSl       = input.float(0.0, "Stop Loss (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp1      = input.float(0.0, "TP1 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp2      = input.float(0.0, "TP2 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcTp3      = input.float(0.0, "TP3 Preis (Custom)", minval=0.0, step=0.0001, group=grpFC)
-fcEquity   = input.float(1000.0, "Kontogröße (USDT)", minval=10.0, step=100.0, group=grpFC)
-fcRiskPct  = input.float(5.0, "Risiko (%)", minval=0.1, maxval=50.0, step=0.5, group=grpFC)
-fcLev      = input.int(10, "Hebel (Leverage)", minval=1, maxval=125, group=grpFC)
-fcNote     = input.string("AURA Position Tool", "Trade Notiz / ID", group=grpFC)
-fcBars     = input.int(20, "Projektions-Länge (Bars)", minval=5, maxval=100, group=grpFC)
 
 // ============================================================================
 //  HILFSFUNKTIONEN
@@ -754,153 +739,6 @@ if showStr and chBearAgo == 0
         label.delete(oldL)
 
 // ============================================================================
-//  TRADE FORECASTING & LONG/SHORT POSITION TOOL (v1.2.2)
-//  Implementiert das 1:1 TradingView Long/Short Position Drawing Tool
-// ============================================================================
-var float lastSigEntry = na
-var float lastSigSl    = na
-var float lastSigTp1   = na
-var float lastSigTp2   = na
-var float lastSigTp3   = na
-var int   lastSigDir   = 0
-var int   lastSigBar   = 0
-var float lastSigRisk  = na
-var float lastSigSize  = na
-
-if showLong
-    lastSigEntry := entryPx
-    lastSigSl    := lngSL
-    lastSigTp1   := lngTP1
-    lastSigTp2   := lngTP2
-    lastSigTp3   := lngTP3
-    lastSigDir   := 1
-    lastSigBar   := bar_index
-    lastSigRisk  := riskAmt
-    lastSigSize  := lngSize
-else if showShort
-    lastSigEntry := entryPx
-    lastSigSl    := shtSL
-    lastSigTp1   := shtTP1
-    lastSigTp2   := shtTP2
-    lastSigTp3   := shtTP3
-    lastSigDir   := -1
-    lastSigBar   := bar_index
-    lastSigRisk  := riskAmt
-    lastSigSize  := shtSize
-
-var line fcLineEntry = na
-var line fcLineSl    = na
-var line fcLineTp1   = na
-var line fcLineTp2   = na
-var line fcLineTp3   = na
-var box  fcBoxProfit = na
-var box  fcBoxLoss   = na
-var label fcLabelCard = na
-var label fcLblEntry  = na
-var label fcLblTp2    = na
-var label fcLblSl     = na
-
-isCustomFc = fcMode == "Custom" or (fcMode == "Auto" and fcEntry > 0.0 and fcSl > 0.0)
-
-posDir = 0
-posEntry = 0.0
-posSl = 0.0
-posTp1 = 0.0
-posTp2 = 0.0
-posTp3 = 0.0
-posStartBar = bar_index - 10
-posRiskAmt = (fcEquity * fcRiskPct) / 100.0
-
-if isCustomFc and fcEntry > 0.0 and fcSl > 0.0
-    posEntry := fcEntry
-    posSl := fcSl
-    posDir := fcDir == "Short" ? -1 : fcDir == "Long" ? 1 : (fcEntry >= fcSl ? 1 : -1)
-    diff = math.abs(posEntry - posSl)
-    posTp1 := fcTp1 > 0.0 ? fcTp1 : (posDir == 1 ? posEntry + diff * 1.5 : posEntry - diff * 1.5)
-    posTp2 := fcTp2 > 0.0 ? fcTp2 : (posDir == 1 ? posEntry + diff * 3.0 : posEntry - diff * 3.0)
-    posTp3 := fcTp3 > 0.0 ? fcTp3 : (posDir == 1 ? posEntry + diff * 5.0 : posEntry - diff * 5.0)
-    posStartBar := math.max(0, bar_index - 15)
-else if not na(lastSigEntry) and lastSigEntry > 0.0 and lastSigDir != 0
-    posEntry := lastSigEntry
-    posSl := lastSigSl
-    posDir := lastSigDir
-    posTp1 := lastSigTp1
-    posTp2 := lastSigTp2
-    posTp3 := lastSigTp3
-    posStartBar := math.max(0, lastSigBar)
-    if not na(lastSigRisk) and lastSigRisk > 0.0
-        posRiskAmt := lastSigRisk
-else
-    posEntry := close
-    posDir := totalScore >= 50.0 ? 1 : -1
-    atrDist = na(atrR) or atrR <= 0.0 ? close * 0.015 : atrR * 1.5
-    posSl := posDir == 1 ? close - atrDist : close + atrDist
-    diff = math.abs(posEntry - posSl)
-    posTp1 := posDir == 1 ? posEntry + diff * 1.5 : posEntry - diff * 1.5
-    posTp2 := posDir == 1 ? posEntry + diff * 3.0 : posEntry - diff * 3.0
-    posTp3 := posDir == 1 ? posEntry + diff * 5.0 : posEntry - diff * 5.0
-    posStartBar := math.max(0, bar_index - 10)
-
-if fcShow and fcMode != "Aus" and posEntry > 0.0 and posSl > 0.0 and posDir != 0
-    if barstate.islast
-        line.delete(fcLineEntry)
-        line.delete(fcLineSl)
-        line.delete(fcLineTp1)
-        line.delete(fcLineTp2)
-        line.delete(fcLineTp3)
-        box.delete(fcBoxProfit)
-        box.delete(fcBoxLoss)
-        label.delete(fcLabelCard)
-        label.delete(fcLblEntry)
-        label.delete(fcLblTp2)
-        label.delete(fcLblSl)
-
-        x1 = posStartBar
-        x2 = bar_index + fcBars
-
-        fcLineEntry := line.new(x1, posEntry, x2, posEntry, color=color.new(#787b86, 0), width=2, style=line.style_solid)
-        fcLineSl    := line.new(x1, posSl, x2, posSl, color=color.new(#f23645, 0), width=2, style=line.style_solid)
-        fcLineTp1   := line.new(x1, posTp1, x2, posTp1, color=color.new(#4ade80, 0), width=1, style=line.style_dashed)
-        fcLineTp2   := line.new(x1, posTp2, x2, posTp2, color=color.new(#089981, 0), width=2, style=line.style_solid)
-        fcLineTp3   := line.new(x1, posTp3, x2, posTp3, color=color.new(#10b981, 0), width=1, style=line.style_dotted)
-
-        // Long/Short Position Tool Boxes (TV native style)
-        profitTop = math.max(posEntry, posTp2)
-        profitBot = math.min(posEntry, posTp2)
-        lossTop   = math.max(posEntry, posSl)
-        lossBot   = math.min(posEntry, posSl)
-
-        fcBoxProfit := box.new(x1, profitTop, x2, profitBot, border_color=color.new(#089981, 30), bgcolor=color.new(#089981, 80))
-        fcBoxLoss   := box.new(x1, lossTop, x2, lossBot, border_color=color.new(#f23645, 30), bgcolor=color.new(#f23645, 80))
-
-        slDistAbs = math.abs(posEntry - posSl)
-        tpDistAbs = math.abs(posTp2 - posEntry)
-        slDistPct = posEntry > 0.0 ? (slDistAbs / posEntry) * 100.0 : 0.0
-        tpDistPct = posEntry > 0.0 ? (tpDistAbs / posEntry) * 100.0 : 0.0
-        rrRatio   = slDistAbs > 0.0 ? (tpDistAbs / slDistAbs) : 0.0
-
-        posNotional = slDistPct > 0.0 ? (posRiskAmt / (slDistPct / 100.0)) : 0.0
-        posQty = posEntry > 0.0 ? (posNotional / posEntry) : 0.0
-        posMargin = fcLev > 0 ? (posNotional / fcLev) : posNotional
-        rewardUSD = posRiskAmt * rrRatio
-
-        dirHeader = posDir == 1 ? "LONG POSITION" : "SHORT POSITION"
-        cardText = "┌─ " + dirHeader + " (" + str.tostring(fcLev) + "x) ─┐\n" +
-                   "• CRV (R:R): 1 : " + str.tostring(rrRatio, "#.##") + "\n" +
-                   "• Einstieg: " + str.tostring(posEntry, "#.####") + "\n" +
-                   "• Stop Loss: " + str.tostring(posSl, "#.####") + " (-" + str.tostring(slDistPct, "#.##") + "% · -$" + str.tostring(posRiskAmt, "#.##") + ")\n" +
-                   "• TP1 (+1.5R): " + str.tostring(posTp1, "#.####") + "\n" +
-                   "• Ziel (TP2): " + str.tostring(posTp2, "#.####") + " (+" + str.tostring(tpDistPct, "#.##") + "% · +$" + str.tostring(rewardUSD, "#.##") + ")\n" +
-                   "• TP3 (+5.0R): " + str.tostring(posTp3, "#.####") + "\n" +
-                   "• Positionsgröße: " + str.tostring(posQty, "#.####") + " ($" + str.tostring(posNotional, "#.##") + " · Margin: $" + str.tostring(posMargin, "#.##") + ")"
-
-        cardBg = posDir == 1 ? color.new(#064e3b, 10) : color.new(#7f1d1d, 10)
-        fcLabelCard := label.new(x2, posEntry, cardText, style=label.style_label_left, color=cardBg, textcolor=color.white, size=size.normal)
-        fcLblEntry  := label.new(x1, posEntry, "EINSTIEG: " + str.tostring(posEntry, "#.####"), style=label.style_label_right, color=color.new(#787b86, 0), textcolor=color.white, size=size.small)
-        fcLblTp2    := label.new(x1, posTp2, "ZIEL (TP2): " + str.tostring(posTp2, "#.####") + " (+" + str.tostring(tpDistPct, "#.##") + "%)", style=label.style_label_right, color=color.new(#089981, 0), textcolor=color.white, size=size.small)
-        fcLblSl     := label.new(x1, posSl, "STOPP: " + str.tostring(posSl, "#.####") + " (-" + str.tostring(slDistPct, "#.##") + "%)", style=label.style_label_right, color=color.new(#f23645, 0), textcolor=color.white, size=size.small)
-
-// ============================================================================
 //  DASHBOARD-TABLE (Score, Signal, SL/TP, MTF-Status, Position-Size, v1.0.7)
 // ============================================================================
 var table dash = table.new(position.top_right, 2, 28, border_width=1, border_color=color.new(#334155, 0), frame_width=1, frame_color=color.new(#334155, 0))
@@ -913,7 +751,7 @@ f_cell(ro, tx, vl, tc, bg) =>
     table.cell(dash, 0, ro, tx, text_color=color.new(#94a3b8, 0), text_size=size.tiny, bgcolor=color.new(#0f172a, 0))
     table.cell(dash, 1, ro, vl, text_color=tc, text_size=size.tiny, bgcolor=bg, text_halign=text.align_right)
 
-f_hdr(0, "AURA v1.2.3", syminfo.ticker + " · " + timeframe.period)
+f_hdr(0, "AURA v1.2.4", syminfo.ticker + " · " + timeframe.period)
 
 sClr = totalScore >= thLong ? color.new(#4ade80, 0) : totalScore <= thShort ? color.new(#f87171, 0) : color.new(#e2e8f0, 0)
 sigClr = showLong ? color.new(#4ade80, 0) : showShort ? color.new(#f87171, 0) : (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#64748b, 0)
@@ -989,8 +827,8 @@ if showLong or showShort
     sNot  = str.tostring(sSize * entryPx, "#.##")
     sMtf  = str.tostring(mtfS1, "#.#") + "," + str.tostring(mtfS2, "#.#") + "," + str.tostring(mtfS3, "#.#") + "," + str.tostring(mtfS4, "#.#")
     sRunnerMode = showLong ? (runnerUltraL ? "INSTANT_ST" : "POST_TP1") : (runnerUltraS ? "INSTANT_ST" : "POST_TP1")
-    // JSON-Payload includes v1.2.3 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
-    jsn = '{"type":"symbiose.v1.2.3","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeTxt + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopN) + ',"ts":' + str.tostring(time_close) + '}'
+    // JSON-Payload includes v1.2.4 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
+    jsn = '{"type":"symbiose.v1.2.4","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeTxt + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopN) + ',"ts":' + str.tostring(time_close) + '}'
     alert(jsn, alert.freq_once_per_bar_close)
 
 // ============================================================================

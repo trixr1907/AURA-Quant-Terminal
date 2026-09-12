@@ -38,13 +38,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Uebertrage alles in einem einzigen SCP-Aufruf
 scp deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html VERSION %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
 if errorlevel 1 (
     echo [FEHLER] Die AURA-Dateien konnten nicht vollstaendig uebertragen werden.
     echo Starte diese BAT direkt aus dem entpackten AURA-Projektordner.
     pause
     exit /b 1
+)
+
+if exist "data" (
+    scp -r data %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
+    if errorlevel 1 (
+        echo [WARNUNG] Datendateien konnten nicht uebertragen werden.
+    )
 )
 
 echo.
