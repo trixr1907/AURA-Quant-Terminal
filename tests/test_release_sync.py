@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import time
@@ -323,6 +324,37 @@ class TestVersionProgression(unittest.TestCase):
         status, _ = release_check.check_version_progression("1.0.1", "v1.0.0", True)
         self.assertEqual(status, "PASS")
 
+    def test_latest_semver_tag_uses_highest_version_not_input_order(self):
+        refs = "\n".join([
+            "deadbeef\trefs/tags/v1.2.5",
+            "deadbeef\trefs/tags/v1.2.3",
+            "deadbeef\trefs/tags/not-semver",
+            "deadbeef\trefs/tags/v1.2.4^{}",
+        ])
+        self.assertEqual(release_check.latest_semver_tag_from_refs(refs), "v1.2.5")
+
+    def test_remote_tag_state_is_used_to_detect_a_stale_local_clone(self):
+        responses = [
+            (0, "v1.2.2\n", ""),
+            (0, "abc\trefs/tags/v1.2.5\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            local_tag, remote_tag, error = release_check.inspect_version_tag_state()
+        self.assertEqual(local_tag, "v1.2.2")
+        self.assertEqual(remote_tag, "v1.2.5")
+        self.assertIsNone(error)
+
+    def test_remote_tag_lookup_failure_is_fail_closed_metadata(self):
+        responses = [
+            (0, "v1.2.2\n", ""),
+            (1, "", "network unavailable"),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            local_tag, remote_tag, error = release_check.inspect_version_tag_state()
+        self.assertEqual(local_tag, "v1.2.2")
+        self.assertIsNone(remote_tag)
+        self.assertIn("network unavailable", error)
+
 
 class TestGoldenMasterAuthenticity(unittest.TestCase):
     """Golden Master authenticity must fail-closed with machine-readable provenance."""
@@ -531,9 +563,11 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
         workflow = self.WORKFLOW.read_text(encoding="utf-8")
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-        self.assertRegex(requirements, r"(?m)^playwright==[^\\s]+$")
-        self.assertIn("actions/checkout@v4", workflow)
-        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertRegex(requirements, r"(?m)^playwright==[^\s]+$")
+        action_refs = re.findall(r"uses:\s+(actions/[^@\s]+)@([0-9a-f]{40})", workflow)
+        self.assertIn("actions/checkout", {name for name, _ in action_refs})
+        self.assertIn("actions/setup-python", {name for name, _ in action_refs})
+        self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", sha) for _, sha in action_refs))
         self.assertIn(
             "python3 -m pip install --disable-pip-version-check -r requirements.txt",
             workflow,
@@ -541,8 +575,8 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
         self.assertIn("python3 -m playwright install --with-deps chromium", workflow)
         self.assertIn("python3 scripts/release_check.py --allow-current-version", workflow)
 
-        checkout = workflow.index("actions/checkout@v4")
-        setup = workflow.index("actions/setup-python@v5")
+        checkout = workflow.index("actions/checkout@")
+        setup = workflow.index("actions/setup-python@")
         dependencies = workflow.index("python3 -m pip install")
         browser = workflow.index("python3 -m playwright install --with-deps chromium")
         release_check = workflow.index("python3 scripts/release_check.py")
