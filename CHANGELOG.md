@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2026-09-12
+
+### Added
+- **Deterministic Pytest Dependency Pinning (K7):**
+  - Added `pytest==9.1.1` to `requirements.txt` for guaranteed build reproducibility.
+  - Added `docs/releases/RELEASE_v1.2.7.md`.
+
+### Changed
+- **CI / Release Workflow Hardening:**
+  - Removed ad-hoc unpinned `pip install ... pytest` from `.github/workflows/ci.yml` and `.github/workflows/publish-release.yml`.
+  - Standardized `publish-release.yml` on Python 3.12 matching `ci.yml`.
+
+---
+
 ## [1.2.6] - 2026-09-12
 
 ### Added

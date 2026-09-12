@@ -712,6 +712,7 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
 
         self.assertRegex(requirements, r"(?m)^playwright==[^\s]+$")
+        self.assertRegex(requirements, r"(?m)^pytest==[^\s]+$")
         action_refs = re.findall(r"uses:\s+(actions/[^@\s]+)@([0-9a-f]{40})", workflow)
         self.assertIn("actions/checkout", {name for name, _ in action_refs})
         self.assertIn("actions/setup-python", {name for name, _ in action_refs})
