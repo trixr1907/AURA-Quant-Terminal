@@ -193,6 +193,10 @@ class LauncherDependencyTests(unittest.TestCase):
     def test_gui_mode_can_be_forced_off_for_reliable_cli_fallback(self):
         with mock.patch.dict(launcher.os.environ, {"SYM_NO_GUI": "1"}, clear=False):
             self.assertFalse(launcher.gui_available())
+        with mock.patch.dict(launcher.os.environ, {}, clear=True), mock.patch.object(sys, "argv", ["start.py", "--cli"]):
+            self.assertFalse(launcher.gui_available())
+        with mock.patch.dict(launcher.os.environ, {}, clear=True), mock.patch.object(sys, "argv", ["start.py", "--no-gui"]):
+            self.assertFalse(launcher.gui_available())
 
     def test_gui_mode_is_available_when_tkinter_imports(self):
         fake_tk = object()

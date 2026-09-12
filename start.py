@@ -53,7 +53,7 @@ def load_tkinter():
 
 
 def gui_available() -> bool:
-    if os.environ.get("SYM_NO_GUI") == "1" or "--cli" in sys.argv:
+    if os.environ.get("SYM_NO_GUI") == "1" or "--cli" in sys.argv or "--no-gui" in sys.argv:
         return False
     try:
         load_tkinter()
