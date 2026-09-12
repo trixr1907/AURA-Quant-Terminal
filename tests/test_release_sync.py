@@ -324,6 +324,22 @@ class TestVersionProgression(unittest.TestCase):
         status, _ = release_check.check_version_progression("1.0.1", "v1.0.0", True)
         self.assertEqual(status, "PASS")
 
+    def test_committed_changes_since_remote_release_tag_are_detected(self):
+        responses = [
+            (0, "abc123\trefs/tags/v1.2.5\n", ""),
+            (0, "9\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
+        self.assertTrue(changed)
+        self.assertIsNone(error)
+
+    def test_committed_change_check_fails_closed_when_remote_tag_is_unresolvable(self):
+        with mock.patch.object(release_check, "run", return_value=(0, "", "")):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
+        self.assertIsNone(changed)
+        self.assertIn("cannot resolve", error)
+
     def test_latest_semver_tag_uses_highest_version_not_input_order(self):
         refs = "\n".join([
             "deadbeef\trefs/tags/v1.2.5",

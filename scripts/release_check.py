@@ -88,6 +88,36 @@ def inspect_version_tag_state() -> tuple[str | None, str | None, str | None]:
     return local_tag, latest_semver_tag_from_refs(remote_output), None
 
 
+def inspect_committed_changes_since_tag(tag: str, *, remote: bool = False) -> tuple[bool | None, str | None]:
+    """Return whether HEAD contains commits after a local or remote release tag."""
+    tag_ref = tag
+    if remote:
+        rc, output, error = run(
+            ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"],
+            timeout=30,
+        )
+        if rc != 0:
+            return None, error[-1000:] or "cannot resolve remote release tag"
+        resolved = []
+        for line in output.splitlines():
+            fields = line.split()
+            if len(fields) == 2 and fields[1] in {f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"}:
+                resolved.append((fields[1], fields[0]))
+        tag_ref = next((sha for ref, sha in resolved if ref.endswith("^{}")), "")
+        if not tag_ref:
+            tag_ref = next((sha for _ref, sha in resolved), "")
+        if not tag_ref:
+            return None, f"cannot resolve origin tag {tag}"
+
+    rc, output, error = run(["git", "rev-list", "--count", f"{tag_ref}..HEAD"])
+    if rc != 0:
+        return None, error[-1000:] or f"cannot compare HEAD with release tag {tag}"
+    try:
+        return int(output.strip()) > 0, None
+    except ValueError:
+        return None, "git rev-list returned a non-numeric commit count"
+
+
 def run(cmd, cwd=ROOT, env=None, timeout=900):
     """Run a command; return (exit_code, stdout, stderr)."""
     child_env = dict(env) if env is not None else {**__import__("os").environ}
@@ -637,9 +667,24 @@ def main() -> int:
             "stderr": tag_error,
         })
     else:
-        progression_status, raw_progression_detail = check_version_progression(
-            version, latest_tag, bool(changes.strip()), allow_current_version=("--allow-current-version" in sys.argv)
-        )
+        committed_changes, committed_error = inspect_committed_changes_since_tag(
+            latest_tag, remote=bool(remote_tag)
+        ) if latest_tag else (False, None)
+        if committed_error:
+            progression_status = "FAIL"
+            raw_progression_detail = json.dumps({
+                "version": version,
+                "tag": latest_tag,
+                "error": "cannot verify committed changes since release tag",
+                "stderr": committed_error,
+            })
+        else:
+            progression_status, raw_progression_detail = check_version_progression(
+                version,
+                latest_tag,
+                bool(changes.strip()) or bool(committed_changes),
+                allow_current_version=("--allow-current-version" in sys.argv),
+            )
         parsed_progression = json.loads(raw_progression_detail)
         parsed_progression.update({
             "local_tag": local_tag,

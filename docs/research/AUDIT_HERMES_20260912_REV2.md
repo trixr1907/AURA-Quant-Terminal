@@ -246,18 +246,22 @@ Echte Werte am Dokumentationszeitpunkt:
   - `model_evidence_real.js`: Berichtsgenerator/Gate, von `release_check.py` und `test_model_evidence_real.js` aufgerufen.
   - `sensitivity_release_gates.js`: Berichtsgenerator, von `release_check.py` aufgerufen; dokumentiert selbst „not a gate“.
 - Baseline-Pytest laut `BASELINE_20260912.md`: **178 passed, 57 subtests passed**. Die Originalangabe „180 Pytest-Units“ war falsch.
-- Aktueller Rev2-Stand nach neuen Regressionstests: **191 passed, 57 subtests passed**.
+- Aktueller Rev2-Stand nach neuen Regressionstests: **193 passed, 57 subtests passed**.
 - Dashboard: **8.971 Zeilen, 471.140 Bytes**.
 
 ### Veralteter lokaler Tag-Stand
 
 **Repro:** `git tag --list 'v*' --sort=-v:refname` zeigte lokal als höchsten Tag `v1.2.2`; `git ls-remote --tags origin` zeigte zusätzlich `v1.2.3`, `v1.2.4`, `v1.2.5`.
 
-Bewertung: Härten war erforderlich. Ein Versionsgate darf lokal nicht still gegen veraltete Metadaten bestehen. Commit `795aa47` liest nun den höchsten strikten SemVer-Tag sowohl lokal als auch per `git ls-remote --tags origin`, verändert lokale Refs nicht und scheitert fail-closed, wenn der Origin-Stand nicht verifiziert werden kann. Der normale CI-Pfad ruft `python3 scripts/release_check.py` ohne `--allow-current-version` auf; dadurch fließen die im Checkout sichtbaren Änderungen gegen `v1.2.5` in den Versionsfortschritts-Check ein. Das Ausnahme-Flag bleibt ausschließlich für explizite Audit-/Reproduktionsläufe. Echte Ausgabe eines solchen Reproduktionslaufs:
+Bewertung: Härten war erforderlich. Ein Versionsgate darf lokal nicht still gegen veraltete Metadaten bestehen. Commit `795aa47` liest nun den höchsten strikten SemVer-Tag sowohl lokal als auch per `git ls-remote --tags origin`, verändert lokale Refs nicht und scheitert fail-closed, wenn der Origin-Stand nicht verifiziert werden kann. Der normale CI-Pfad ruft `python3 scripts/release_check.py` ohne `--allow-current-version` auf. Das Gate löst den Remote-Tag auf, zählt Commits in `<Tag>..HEAD` und kombiniert diese mit Worktree-Änderungen; dadurch blockiert es sowohl bereits committete als auch uncommittierte Änderungen ohne Versionsbump. Das Ausnahme-Flag bleibt ausschließlich für explizite Audit-/Reproduktionsläufe. Direkter CI-äquivalenter Repro ohne Flag:
 
 ```text
-[OK] version progression {"version":"1.2.5","tag":"v1.2.5","local_tag":"v1.2.2","remote_tag":"v1.2.5","local_tags_stale":true}
+[FAIL] version progression {"version":"1.2.5","tag":"v1.2.5","error":"version bump required for update",...}
+VERDICT: FAIL
+EXIT=2
 ```
+
+Mit `--allow-current-version` für den dokumentierten Audit-Repro lautet derselbe Check `[OK]` und nennt weiterhin `local_tag:"v1.2.2"`, `remote_tag:"v1.2.5"`, `local_tags_stale:true`.
 
 In CI bleibt `fetch-depth: 0` sinnvoll; der Remote-Abgleich schützt zusätzlich lokale Läufe und falsch konfigurierte Checkouts.
 
@@ -265,7 +269,7 @@ In CI bleibt `fetch-depth: 0` sinnvoll; der Remote-Abgleich schützt zusätzlich
 
 ## 8. N6 — Sichtbares Paritätsprofil und No-Regression-Trendgate
 
-**Codebeleg:** `tests/compare_pine_js_golden.js:205-260`, `tests/fixtures/golden/parity_reference.json:1-31`, `scripts/release_check.py:397-483` und `:594-595`, `tests/test_release_sync.py:510-632`.
+**Codebeleg:** `tests/compare_pine_js_golden.js:205-260`, `tests/fixtures/golden/parity_reference.json:1-31`, `scripts/release_check.py:427-512` und `:623-624`, `tests/test_release_sync.py:526-648`.
 
 Der Harness besitzt nun `--json`. `release_check.py` speichert im Check-Detail für jedes Fixture:
 
