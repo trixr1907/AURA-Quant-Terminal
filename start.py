@@ -281,7 +281,7 @@ def print_banner():
  ╔══════════════════════════════════════════════════════════════════════════╗
  ║    ___   __  ______  ___        AURA — CONFLUENCE TERMINAL               ║
  ║   /   | / / / / __ \/   |       Quantitative Edge · Visual Precision     ║
- ║  / /| |/ / / / /_/ / /| |       Pure Execution · v1.2.3                  ║
+ ║  / /| |/ / / / /_/ / /| |       Pure Execution · v1.2.5                  ║
  ║ / ___ / /_/ / _, _/ ___ |       Quant Research & Setup Discovery         ║
  ║/_/  |_\____/_/ |_/_/  |_|       Bitget Perpetuals · Confluence Engine    ║
  ╚══════════════════════════════════════════════════════════════════════════╝

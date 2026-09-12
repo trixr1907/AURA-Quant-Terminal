@@ -43,7 +43,7 @@ MANIFEST = [
     "Symbiose_Signal_System_v1.pine",
     # documentation and brand assets
     "README.md",
-    "RELEASE_v1.2.2.md",
+    "RELEASE_v1.2.5.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",

@@ -23,6 +23,9 @@ def test_release_package_excludes_historical_and_homelab_material():
         "RELEASE_v1.1.8.md",
         "RELEASE_v1.2.0.md",
         "RELEASE_v1.2.1.md",
+        "RELEASE_v1.2.2.md",
+        "RELEASE_v1.2.3.md",
+        "RELEASE_v1.2.4.md",
         "proxmox_lxc_install.sh",
         "smart_homelab_installer.sh",
         "PROXMOX_DEPLOY.bat",
@@ -41,7 +44,7 @@ def test_release_package_keeps_runtime_and_current_docs():
         "Symbiose_Dashboard.html",
         "Symbiose_Signal_System_v1.pine",
         "README.md",
-        "RELEASE_v1.2.2.md",
+        "RELEASE_v1.2.5.md",
         "assets/aura_logo.svg",
         "assets/aura_logo_horizontal.svg",
     }
