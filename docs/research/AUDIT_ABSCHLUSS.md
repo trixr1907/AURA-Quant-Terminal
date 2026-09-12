@@ -14,7 +14,7 @@
 2. Alle Testlücken wurden durch echte behavior-basierte Laufzeittests (`test_autobot_timestop_behavior.js`, `test_kelly_oracle.js`) behoben; alle 15 absichtlichen Mutationen (M01–M15) werden zu 100% getötet.
 3. Die Pine↔JS-Signal-Divergenzen (F-16) wurden mathematisch und numerisch auf den Term `cvd > emaCvd` (Klasse 1) und die ADX-Stufendiskretisierung (Klasse 2) auf 10 von 58.859 Kerzen eingegrenzt; der VWAP-Vergleich wurde mit Epsilon-Gleichheitsschutz gehärtet.
 4. Repo-Hygiene, XSS-Schutz (`innerHTML`), Duplikatkonsolidierung in `docs/` und toter Code wurden vollständig bereinigt.
-5. Offen bleiben die methodischen Research-Grenzen: F-05 (DSR-Suchraum), F-06 (Ledger-Unveränderlichkeit) und der unveränderte fachliche Status `MODEL_NO_EVIDENCE` (kein statistischer Edge auf historischen Realdaten).
+5. Die methodischen Integritätsgrenzen F-05 und F-06 sind mit v1.2.9 geschlossen. Der fachliche Status bleibt `MODEL_NO_EVIDENCE` (kein statistischer Edge auf historischen Realdaten); die direkte CVD-Langzeitmessung erfordert erneute TradingView-Exporte der neuen Data-Window-Felder.
 
 ---
 
@@ -26,8 +26,8 @@
 | **F-02** | **HIGH** | **L2** | **BEHOBEN** | `release_check.py` rief JS-Tests über eine hartkodierte Einzelaufzählung auf; **11 von 44** Dateien in `tests/*.js` waren nicht referenziert, darunter der rot laufende `test_hero_paper_gate.js`. Das Gate meldete trotzdem `SOFTWARE_GO`. Behoben durch Auto-Discovery `glob("test_*.js")` plus vollständige `pytest`-Ausführung (Commit `8a6066b`). |
 | **F-03** | **HIGH** | **L2** | **BEHOBEN** | `tests/test_hero_paper_gate.js` schlug mit Exit 1 fehl, weil die Assertions die bis v1.2.4 entfernte Cockpit-Gate-Verdrahtung prüften. Absicht des Unlocks belegt über `docs/releases/RELEASE_v1.2.4.md:18-20`, `docs/CHANGELOG.md:17-18` und Commit `4e4a726`. Test auf die tatsächliche Architektur umgestellt, Pass-Meldung wahrheitsgemäß: *„cockpit paper trade is intentionally ungated; autobot gates remain fail-closed"* (Commit `a8ee49e`). |
 | **F-04** | **HIGH** | **L1/L6** | **BEHOBEN** | `README.md:13` und `:184` verlinkten eine `LICENSE`-Datei, die nicht existierte — HTTP 404 auf GitHub, Open-Source-Status rechtlich unklar. Kanonische MIT-Lizenzurkunde angelegt und in das Paket-Manifest aufgenommen (Commit `0914e02`); verifiziert über `zipfile`-Prüfung des Artefakts. |
-| **F-05** | **MEDIUM** | L3 | **OFFEN** | Deflated Sharpe Ratio reflektiert nur diskrete Radar-Scans, nicht den gesamten historischen Hyperparameter-Explorationsraum (Research-Grenze). |
-| **F-06** | **MEDIUM** | L3 | **OFFEN** | `TRIALS_LEDGER.md` wird in Git versioniert, verfügt jedoch über keine kryptografische Signaturkette gegen manuelle Bearbeitung. |
+| **F-05** | **MEDIUM** | L3 | **BEHOBEN** | Phase-D-DSR konsumiert `total_model_experiments` ausschließlich nach erfolgreicher Ledger-Verifikation. `max(45, ledger N)` erhält die bisherige Deflation als Untergrenze; fehlende oder ungültige Ledger-Evidenz bricht fail-closed ab. |
+| **F-06** | **MEDIUM** | L3 | **BEHOBEN** | Historischer v1.2.8-Bestand ist per SHA-256-Seed gebunden; neue kanonische JSONL-Einträge bilden eine geprüfte `prev_hash`/`entry_hash`-Kette. Mutation, Löschen, Umsortieren und Formatfehler schlagen im Release-Gate fehl. |
 | **F-07** | **MEDIUM** | L1 | **BEHOBEN** | `--no-gui`-Parameter in `start.py` und Startskripten wird zuverlässig ausgewertet und startet reinen CLI-Modus. |
 | **F-08** | **HIGH** | L2/L4 | **BEHOBEN** | GitHub Actions CI-Workflow mit SHA-256 gepinnten Actions und automatischer Gate-Prüfung für PRs eingerichtet. |
 | **F-09** | **MEDIUM** | L4 | **BEHOBEN** | Alle 51 `innerHTML`-Stellen (`grep -c innerHTML Symbiose_Dashboard.html` → 51) auditiert; dynamische externe Datenströme über `esc()` und `textContent` gegen DOM-XSS abgesichert. |
@@ -37,7 +37,7 @@
 | **F-13** | **MEDIUM** | L4 | **BEHOBEN** | Container-Härtung implementiert: Non-Root-User `aura`, `read_only: true`, `cap_drop: ALL`, `no-new-privileges: true`. |
 | **F-14** | **LOW** | L5 | **BEHOBEN** | Toter Multi-Exchange-Code (`binanceKlines`, `bybitKlines`, `cgKlines`) aus `Symbiose_Dashboard.html` entfernt. |
 | **F-15** | **LOW** | **L1** | **BEHOBEN** | `start.sh` nutzte nur `set -e`; unbelegte Variablen und Fehler in Pipeline-Befehlen wurden nicht abgefangen. Umgestellt auf `set -euo pipefail` (Commit `ef18a18`). |
-| **F-16** | **HIGH** | L3 | **AKZEPTIERT** | Paritätsdivergenzen (20 Mismatches auf 10 Kerzen) vollständig eingegrenzt; Epsilon-Schutz für VWAP integriert; ADX-Messerschneide dokumentiert. |
+| **F-16** | **HIGH** | L3 | **TEILS AKZEPTIERT / MESSUNG BLOCKIERT** | Klasse 1 (VWAP-Epsilon) ist behoben; Klasse 2 (ADX 18/25) ist akzeptiert; Klasse 3 (RMA-Restauschen) ist dokumentiert. Alle fünf Fixtures überschreiten 5.000 Bars, exportieren aber keine Pine-Zustände `cvd`/`emaCvd`; absolute/relative Pine↔JS-Drift und Vergleichskipps sind deshalb mit dem vorhandenen Beweismaterial nicht berechenbar. v1.2.9 ergänzt die vier erforderlichen Pine-Exportfelder; ein neuer TradingView-Export ist für den Abschluss zwingend. |
 | **F-17** | **MEDIUM** | L3 | **BEHOBEN** | `calcKelly` wird durch analytischen Oracle-Test (`tests/test_kelly_oracle.js`) gegen exakte mathematische Wahrscheinlichkeitsformeln geprüft. |
 | **F-18** | **HIGH** | L2 | **BEHOBEN** | Time-Stop-Timeframe-Skalierung (`* 60000`) durch behavior-basierten Test (`tests/test_autobot_timestop_behavior.js`) verifiziert (M13 getötet). |
 | **F-19** | **HIGH** | L2 | **BEHOBEN** | Verlustbedingung `curRoi < -3.0` durch behavior-basierten Test verifiziert (M14 getötet). |
@@ -60,6 +60,11 @@
   - Die Hypothese H1 (Zeitzonendrift) ist widerlegt: Beide Systeme setzen den Tages-VWAP um 00:00:00 UTC zurück. Die Kanonizitäts-Vorlage aus Revision 3 ist damit gegenstandslos und zurückgezogen.
 - **Offene Hypothese (Gleitkomma-Auslöschung / Historienversatz):**
   Pines `var float cvd = 0.0` akkumuliert ab Listing-Datum (2017+), während JS am Anfang des 10.000–15.000 Bar-Fensters bei 0 startet. Da Pines interne Zwischenvariablen `cvd` und `emaCvd` im CSV-Export nicht vorliegen, ist dieser Wert ohne interaktive Desktop-TradingView-Sitzung **`NICHT GEPRÜFT`** und verbleibt als Hypothese.
+- **CVD-Langzeitmessung (v1.2.9):**
+  - Fixture-Tiefen: BTC/ETH/SOL jeweils 14.773 Bars; XRP/DOGE jeweils 10.270 Bars.
+  - Die vorhandenen Pine-CSV-Dateien enthalten 31 Spalten, aber keine CVD-/EMA-CVD-Spalte. Damit sind absolute Drift, relative Drift und `cvd > emaCvd`-Kippzahlen nicht aus unabhängigen Pine-Daten bestimmbar.
+  - Pine exportiert ab v1.2.9 `GM CVD`, `GM EMA CVD 20`, `GM CVD Above EMA` und `GM CVD Delta` im Data Window. Bis fünf neue TradingView-CSV-Exporte vorliegen, lautet der ehrliche Teilstatus **MESSUNG BLOCKIERT**, nicht „akzeptiert" und nicht „behoben".
+  - Entscheidungsschwelle für den Folgelauf: jeder echte Vergleichskipp oder relative Drift über `1e-10` erzwingt einen Fix; null Kipper und Drift ≤ `1e-10` erlauben „akzeptiert" mit symbolweisen Messwerten.
 - **Klasse 2 (ADX-Messerschneide 18/25):**
   Die 5 Fälle resultieren aus der diskreten Stufenfunktion des Trend-Scores an den Schwellen 18.0 und 25.0 bei unvermeidbaren kontinuierlichen RMA-Restdifferenzen über endliche Historienfenster. Dies ist als **akzeptiertes Verhalten** eingestuft.
 - **Gemessene Größenordnung:**

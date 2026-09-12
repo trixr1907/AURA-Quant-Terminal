@@ -819,7 +819,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.8?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.9?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -916,7 +916,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.2.8</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.2.9</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1054,17 +1054,19 @@ function vwapArr(ms, h, l, c, v) {
   }
   return out;
 }
-function cvdArr(v, tbv, h, l, c) {
-  const n = v.length, out = new Float64Array(n);
+function cvdSeries(v, tbv, h, l, c) {
+  const n = v.length, cvd = new Float64Array(n), delta = new Float64Array(n);
   let cum = 0;
   for (let i = 0; i < n; i++) {
-    let delta;
-    if (tbv && tbv[i] >= 0) delta = 2 * tbv[i] - v[i];
-    else { const rng = h[i] - l[i]; delta = rng > 0 ? v[i] * (2 * c[i] - h[i] - l[i]) / rng : 0; }
-    cum += delta; out[i] = cum;
+    let barDelta;
+    if (tbv && tbv[i] >= 0) barDelta = 2 * tbv[i] - v[i];
+    else { const rng = h[i] - l[i]; barDelta = rng > 0 ? v[i] * (2 * c[i] - h[i] - l[i]) / rng : 0; }
+    delta[i] = barDelta;
+    cum += barDelta; cvd[i] = cum;
   }
-  return out;
+  return { cvd, delta };
 }
+function cvdArr(v, tbv, h, l, c) { return cvdSeries(v, tbv, h, l, c).cvd; }
 function swingPivots(h, l, left, right) {
   const n = h.length, ph = [], pl = [];
   for (let i = left; i < n - right; i++) {
@@ -1103,7 +1105,8 @@ function analyze(candles) {
   const obv = obvArr(c, v), eobv = emaArr(obv, 20);
   const vwap = vwapArr(ms, h, l, c, v);
   const smav = smaArr(v, 20);
-  const cvd = cvdArr(v, tbv, h, l, c), ecvd = emaArr(cvd, 20);
+  const cvdState = cvdSeries(v, tbv, h, l, c);
+  const cvd = cvdState.cvd, cvdDelta = cvdState.delta, ecvd = emaArr(cvd, 20);
   const piv = swingPivots(h, l, 5, 5);
 
   const score = new Float64Array(n).fill(50), trendS = new Float64Array(n).fill(50),
@@ -1234,7 +1237,7 @@ function analyze(candles) {
 
   return {
     n, ms, o, h, l, c, v, tbv, atr, adx, rsi, srk,
-    e20, e50, e200, stLine: st.line, stDir: st.dir, vwap, obv, cvd,
+    e20, e50, e200, stLine: st.line, stDir: st.dir, vwap, obv, cvd, emaCvd: ecvd, cvdDelta,
     score, trendS, momS, volS, strS, dirS,
     lastPH: lastPHa, lastPL: lastPLa, structA,
     eqhLvlA, eqlLvlA, fvgTopA, fvgBotA, fvgDirA, fvgActA,
