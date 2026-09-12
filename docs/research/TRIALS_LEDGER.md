@@ -41,9 +41,10 @@ Zur Verhinderung von Kontamination und Lookahead-Optimierung gilt für alle Mode
 
 ## 4. Kryptografischer Bootstrap und Hash-Kette
 
-Der historische Bestand **vor** Einführung der Kette ist als UTF-8-Bytefolge der Datei
-`docs/research/TRIALS_LEDGER.md` auf Commit `4a61692a8e35cbe37ba01ce4701fbdfd41fb4c3e`
-definiert. Er endet mit genau einem LF (`0x0a`). Sein SHA-256-Seed lautet:
+Der historische Bestand **vor** Einführung der Kette ist als UTF-8-Bytefolge der unveränderlichen
+Snapshot-Datei `docs/research/TRIALS_LEDGER_LEGACY_v1.2.8.md` definiert. Sie entspricht
+`docs/research/TRIALS_LEDGER.md` auf Commit `4a61692a8e35cbe37ba01ce4701fbdfd41fb4c3e`.
+Sie endet mit genau einem LF (`0x0a`). Ihr SHA-256-Seed lautet:
 
 `23f59ef8df9f348609280d8f57583e32c2d7afc1e9b428f9d50ae75051eeeb0c`
 

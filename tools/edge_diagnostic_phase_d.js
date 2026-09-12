@@ -10,6 +10,7 @@
  * and Gated-Only (9-grid with forced regimeGate: true).
  */
 
+const { execFileSync } = require('node:child_process');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -27,6 +28,25 @@ const { parseCsv } = require('../tests/model_evidence_real.js');
 const { fairFoldBoundaries } = require('./fold_geometry.js');
 
 const GOLDEN_DIR = path.join(__dirname, '..', 'tests', 'fixtures', 'golden');
+
+function loadVerifiedLedgerTrials() {
+  try {
+    const output = execFileSync(process.env.PYTHON || 'python3', [path.join(__dirname, '..', 'scripts', 'verify_ledger.py')], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const evidence = JSON.parse(output);
+    const trials = evidence.total_model_experiments;
+    if (evidence.ok !== true || !Number.isInteger(trials) || trials < 1) throw new Error('invalid verified trial total');
+    return trials;
+  } catch (error) {
+    throw new Error(`TRIALS_LEDGER_INVALID: ${error.message}`);
+  }
+}
+
+const LEDGER_TRIALS = loadVerifiedLedgerTrials();
+const LEGACY_PHASE_D_TRIALS = 45;
+const DSR_TRIALS = Math.max(LEGACY_PHASE_D_TRIALS, LEDGER_TRIALS);
 const GOLDEN_FILES = [
   { file: 'BTCUSDT_1h.csv', symbol: 'BTCUSDT', label: 'BTC 1h', tf: '1h', tfMin: 60 },
   { file: 'ETHUSDT_1h.csv', symbol: 'ETHUSDT', label: 'ETH 1h', tf: '1h', tfMin: 60 },
@@ -152,7 +172,8 @@ function runFairWalkForward(candles, A, options = {}, forcedRegimeGate = null, K
 
   const aggStats = evaluateTrades(allOosTrades);
   const setupTrials = paramGrid.length;
-  const totalTrials = paramGrid.length * trialMultiplier;
+  const currentSearchTrials = paramGrid.length * trialMultiplier;
+  const totalTrials = Math.max(currentSearchTrials, DSR_TRIALS);
   const setupDsr = calcDSR(aggStats.returns, setupTrials);
   const universeDsr = calcDSR(aggStats.returns, totalTrials);
 
@@ -171,7 +192,8 @@ function runFairWalkForward(candles, A, options = {}, forcedRegimeGate = null, K
   };
 }
 
-console.log('=== RUNNING EXP-025 EVALUATION (FAIR FOLD-1 GEOMETRY) ===\n');
+console.log('=== RUNNING EXP-025 EVALUATION (FAIR FOLD-1 GEOMETRY) ===');
+console.log(`Verified trials ledger: N=${LEDGER_TRIALS}; conservative Phase-D DSR trials: N=${DSR_TRIALS}\n`);
 
 const results = [];
 
