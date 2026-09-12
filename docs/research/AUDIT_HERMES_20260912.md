@@ -6,6 +6,13 @@
 **Audit-Branch:** `audit/hermes-gesamtaudit-20260912`  
 **Head nach Audit-Fixes:** `ef18a18`  
 
+> **KORREKTUR (Revision 2, 2026-09-12):** Die Aussagen zur Pine↔JS-Parität
+> („Delta < 10⁻¹¹“) galten nur für `BTCUSDT_1h`. Vier von fünf Fixtures weichen mit
+> maximalen Deltas von 8–20 ab. Details: `AUDIT_HERMES_20260912_REV2.md`, Befund N1/F-16.
+> Das L3-Urteil wurde von **SAUBER** auf **MÄNGEL** korrigiert. Die Aussagen des
+> Originalberichts bleiben unten als historischer Auditstand sichtbar und dürfen nur
+> zusammen mit dieser Korrektur gelesen werden.
+
 ---
 
 ## 1. Management Summary
