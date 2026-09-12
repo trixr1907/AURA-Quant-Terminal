@@ -819,7 +819,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.5?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.6?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -916,7 +916,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.2.5</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.2.6</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1219,7 +1219,9 @@ function analyze(candles) {
       const ts_ = clamp(50 + (c[i] > e20[i] ? 8 : -8) + (e20[i] > e50[i] ? 8 : -8) + (e50[i] > e200[i] ? 7 : -7) + (st.dir[i] === 1 ? 12 : -12) + ai, 0, 100);
       const msz = clamp(50 + clamp((rsi[i] - 50) * 1.5, -30, 30) + (macd.macd[i] > macd.sig[i] ? 12 : -12) + (macd.hist[i] > 0 ? 8 : -8) + clamp((srk[i] - 50) * 0.8, -20, 20), 0, 100);
       const vref = smav[i] > 0 ? smav[i] : v[i];
-      const vsc = clamp(50 + (obv[i] > eobv[i] ? 15 : -15) + (c[i] > vwap[i] ? 10 : -10) + (clamp((v[i] / vref - 1) * 20, -10, 10) * (c[i] > o[i] ? 1 : -1)) + (cvd[i] > ecvd[i] ? 10 : -10), 0, 100);
+      // Epsilon-protected VWAP comparison (F-16): avoid strict inequality flip on float equality (e.g. close == hlc3)
+      const isAboveVwap = (c[i] - vwap[i]) > (1e-9 * Math.max(1, Math.abs(c[i])));
+      const vsc = clamp(50 + (obv[i] > eobv[i] ? 15 : -15) + (isAboveVwap ? 10 : -10) + (clamp((v[i] / vref - 1) * 20, -10, 10) * (c[i] > o[i] ? 1 : -1)) + (cvd[i] > ecvd[i] ? 10 : -10), 0, 100);
       const ssc = clamp(50 + (bosBull <= 6 ? 15 : bosBear <= 6 ? -15 : 0) + (chBull <= 6 ? 10 : chBear <= 6 ? -10 : 0) + (fvgAct && fvgDir === 1 && c[i] > fvgTop ? 10 : fvgAct && fvgDir === -1 && c[i] < fvgBot ? -10 : 0) + (!isNaN(eqhLvl) ? 7 : !isNaN(eqlLvl) ? -7 : 0) + (structTrend === 1 ? 8 : -8), 0, 100);
       trendS[i] = ts_; momS[i] = msz; volS[i] = vsc; strS[i] = ssc;
       score[i] = clamp(SYM.wTrend * ts_ + SYM.wMom * msz + SYM.wVol * vsc + SYM.wStr * ssc, 0, 100);
@@ -2198,67 +2200,6 @@ async function bitgetTicker(symbol) {
     chg: +t.change24h * 100, hi: +t.high24h, lo: +t.low24h,
     vol: +t.quoteVolume, funding: +t.fundingRate, src: 'Bitget 24h'
   };
-}
-
-function parseBinanceKlines(j) {
-  const now = Date.now();
-  const out = [];
-  for (const r of j) {
-    const cT = +r[6];
-    if (cT >= now) continue;               // nur geschlossene Kerzen
-    out.push({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5], tbv: r[9] != null ? +r[9] : null });
-  }
-  return out;
-}
-
-async function binanceKlines(symbol, tf, limit) {
-  let errs = [];
-  for (const base of ['https://api.binance.com', 'https://data-api.binance.vision']) {
-    try {
-      const j = await jfetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=${Math.min(limit, 1000)}`);
-      if (Array.isArray(j) && j.length) {
-        const candles = parseBinanceKlines(j);
-        if (candles.length) return { candles, source: base.indexOf('vision') >= 0 ? 'Binance Vision · Public Data' : 'Binance' };
-      }
-    } catch (e) { errs.push(e.message); }
-  }
-  throw new Error('Binance: ' + errs.join(' | '));
-}
-
-async function binanceKlinesPaged(symbol, tf, target) {
-  const first = await binanceKlines(symbol, tf, Math.min(target, 1000));
-  if (target <= 1000) return first;
-  // zweite, ältere Seite über endTime-Paginierung
-  const t0 = first.candles[0].t;
-  const errs = [];
-  for (const base of ['https://api.binance.com', 'https://data-api.binance.vision']) {
-    try {
-      const j = await jfetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=${Math.min(target - 1000, 1000)}&endTime=${t0 - 1}`);
-      const older = Array.isArray(j) ? parseBinanceKlines(j) : [];
-      if (older.length) return { candles: older.concat(first.candles), source: first.source };
-    } catch (e) { errs.push(e.message); }
-  }
-  return first; // degradiert: nur 1000 Kerzen, aber nutzbar
-}
-
-async function bybitKlines(symbol, tf, limit) {
-  const iv = { '15m': '15', '1h': '60', '4h': '240', '1d': 'D' }[tf];
-  if (!iv) throw new Error('Bybit: TF nicht verfügbar');
-  const j = await jfetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${iv}&limit=${Math.min(limit, 1000)}`);
-  if (!j || j.retCode !== 0 || !j.result || !j.result.list) throw new Error('Bybit Fehlercode ' + (j && j.retCode));
-  const now = Date.now();
-  const rows = j.result.list.slice().reverse();
-  const out = [];
-  for (const r of rows) { if (+r[0] + TFMS[tf] <= now) out.push({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5], tbv: null }); }
-  if (!out.length) throw new Error('Bybit: keine Kerzen');
-  return { candles: out, source: 'Bybit (Fallback)' };
-}
-
-async function cgKlines(coinId) {
-  const coin = coinId || 'bitcoin';
-  const j = await jfetch(`https://api.coingecko.com/api/v3/coins/${coin}/ohlc?vs_currency=usd&days=90`);
-  if (!Array.isArray(j) || j.length < 100) throw new Error('CoinGecko OHLC unzureichend');
-  return { candles: j.map(r => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: 0, tbv: null })), source: 'CoinGecko (reduziert, 4H)' };
 }
 
 async function fetchKlines(symbol, tf, target) {
