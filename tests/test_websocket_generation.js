@@ -31,9 +31,13 @@ const App = {
     chart: null,
     bt: [],
   },
+  status: { ws: '', wsSource: '' },
   ws: null,
   wsTimer: null,
   reanaTimer: null,
+  wsPingTimer: null,
+  wsSub: null,
+  wsFeedKind: null,
 };
 
 const context = {
@@ -46,6 +50,12 @@ const context = {
     return id;
   },
   clearTimeout(id) { timers.delete(id); },
+  setInterval(fn) {
+    const id = nextTimer++;
+    timers.set(id, fn);
+    return id;
+  },
+  clearInterval(id) { timers.delete(id); },
   setWs() {},
   renderFeedStatus() {},
   analyze() { return { ok: true }; },
@@ -62,6 +72,8 @@ context.connectWS();
 const oldSocket = sockets[0];
 assert(oldSocket, 'first socket missing');
 
+oldSocket.close();
+App.ws = null;
 App.gen += 1;
 App.symbol = 'ETHUSDT';
 App.chartTF = '4h';

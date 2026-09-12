@@ -23,7 +23,7 @@ html{background:var(--bg);scroll-behavior:smooth}
 body{min-height:100%;background:radial-gradient(circle at 18% -10%,rgba(0,242,254,.08),transparent 34%),var(--bg);color:var(--txt);font:13px/1.0.05 var(--sans);padding:0 18px 42px}
 button,input,select{font:inherit}button{color:inherit}.wrap{max-width:1680px;margin:auto}
 header{min-height:74px;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--line);position:relative}
-.feed-status-pill{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border:1px solid var(--line);border-radius:999px;font:800 9px var(--mono);letter-spacing:.04em;white-space:nowrap}.feed-status-pill.live{color:var(--grn2);border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.08)}.feed-status-pill.offline{color:var(--red2);border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.12)}
+.feed-status-pill{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border:1px solid var(--line);border-radius:999px;font:800 9px var(--mono);letter-spacing:.04em;white-space:nowrap}.feed-status-pill.live{color:var(--grn2);border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.08)}.feed-status-pill.fallback{color:var(--amb,#fbbf24);border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.1)}.feed-status-pill.offline{color:var(--red2);border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.12)}
 .logo{display:flex;align-items:center;gap:12px;min-width:max-content}
 .logo .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#0e1726,#06090f);border:1px solid rgba(0,242,254,.35);box-shadow:0 0 20px rgba(0,242,254,.15);transition:all .2s ease;padding:3px}
 .logo .mark:hover{border-color:rgba(0,245,160,.6);box-shadow:0 0 28px rgba(0,245,160,.25);transform:scale(1.04)}
@@ -830,7 +830,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.3.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.3.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -924,7 +924,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.3.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.3.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1063,14 +1063,23 @@ function vwapArr(ms, h, l, c, v) {
   return out;
 }
 function cvdSeries(v, tbv, h, l, c) {
+  let high = h, low = l, close = c;
+  if (c === undefined && l === undefined) {
+    // 3 or fewer args
+  } else if (c === undefined) {
+    // 4 args: (v, h, l, c)
+    close = l;
+    low = h;
+    high = tbv;
+  }
   const n = v.length, cvd = new Float64Array(n), delta = new Float64Array(n);
   let cum = 0;
   for (let i = 0; i < n; i++) {
-    let barDelta;
-    if (tbv && tbv[i] >= 0) barDelta = 2 * tbv[i] - v[i];
-    else { const rng = h[i] - l[i]; barDelta = rng > 0 ? v[i] * (2 * c[i] - h[i] - l[i]) / rng : 0; }
+    const rng = high[i] - low[i];
+    const barDelta = rng > 0 ? v[i] * (2 * close[i] - high[i] - low[i]) / rng : 0;
     delta[i] = barDelta;
-    cum += barDelta; cvd[i] = cum;
+    cum += barDelta;
+    cvd[i] = cum;
   }
   return { cvd, delta };
 }
@@ -2357,7 +2366,7 @@ const App = {
     wsLastMessageAt: 0, wsOfflineSince: Date.now(), radarRefreshAt: 0, tradePricesRefreshAt: 0
   },
   lastRefreshAt: 0,
-  ws: null, wsTimer: null, reanaTimer: null
+  ws: null, wsTimer: null, reanaTimer: null, wsPingTimer: null, wsSub: null, wsFeedKind: null
 };
 const $ = id => document.getElementById(id);
 
@@ -2493,12 +2502,20 @@ function buildFeedStatus(status, now = Date.now()) {
   const offline = s.ws !== 'live';
   const offlineSince = s.wsOfflineSince || now;
   const wsAge = formatAgeSeconds(s.wsLastMessageAt, now);
+  const fallback = !offline && s.wsSource !== 'bitget-ws';
+  let text = '';
+  if (offline) {
+    text = `WS offline seit ${formatAgeSeconds(offlineSince, now)}`;
+  } else if (fallback) {
+    text = `FALLBACK · ${s.wsSource || 'unbekannt'} · vor ${wsAge}`;
+  } else {
+    text = `LIVE · ${s.wsSource || 'unbekannt'} · vor ${wsAge}`;
+  }
   return {
     offline,
-    text: offline
-      ? `WS offline seit ${formatAgeSeconds(offlineSince, now)}`
-      : `LIVE · ${s.wsSource || 'unbekannt'} · vor ${wsAge}`,
-    title: `Kerzen ${offline ? 'offline' : `vor ${wsAge}`} · Radar vor ${formatAgeSeconds(s.radarRefreshAt, now)} · Trade-Preise vor ${formatAgeSeconds(s.tradePricesRefreshAt, now)}`
+    fallback,
+    text,
+    title: `Kerzen ${offline ? 'offline' : (fallback ? `FALLBACK (${s.wsSource || 'unbekannt'}) vor ${wsAge}` : `vor ${wsAge}`)} · Radar vor ${formatAgeSeconds(s.radarRefreshAt, now)} · Trade-Preise vor ${formatAgeSeconds(s.tradePricesRefreshAt, now)}`
   };
 }
 
@@ -2507,7 +2524,10 @@ function renderFeedStatus(now = Date.now()) {
   if (!pill) return;
   const view = buildFeedStatus(App.status, now);
   pill.textContent = view.text;
-  pill.className = `feed-status-pill ${view.offline ? 'offline' : 'live'}`;
+  let statusClass = 'live';
+  if (view.offline) statusClass = 'offline';
+  else if (view.fallback) statusClass = 'fallback';
+  pill.className = `feed-status-pill ${statusClass}`;
   pill.title = view.title;
 }
 
@@ -5824,6 +5844,7 @@ function drawSpark(cv, vals, color, opts) {
 //  WEBSOCKET (Live-Kerzen-Update) + INIT
 // ============================================================================
 function setWs(st) {
+  if (!App.status) App.status = {};
   App.status.ws = st;
   if (st === 'live') App.status.wsOfflineSince = null;
   else if (!App.status.wsOfflineSince) App.status.wsOfflineSince = Date.now();
@@ -5839,60 +5860,130 @@ const WS_FEEDS = [
 ];
 let wsTry = 0;
 function connectWS() {
-  if (App.ws) { try { App.ws.onclose = null; App.ws.close(); } catch (e) { } App.ws = null; }
+  const currentSym = App.symbol;
+  const currentTf = App.chartTF;
+  const targetSub = {
+    instType: 'USDT-FUTURES',
+    channel: BITGET_CANDLE_CHANNELS[currentTf] || 'candle1H',
+    instId: currentSym
+  };
+
+  // PF-20: Sticky-Socket for Bitget. If an open, living Bitget WebSocket connection exists,
+  // unsubscribe from previous channel/symbol and subscribe to the new one without reconnect churn.
+  const isBitgetOpen = App.ws &&
+    App.wsFeedKind === 'bitget' &&
+    (App.ws.readyState === undefined || App.ws.readyState === 1 /* WebSocket.OPEN */);
+
+  if (isBitgetOpen) {
+    if (App.wsSub && (App.wsSub.instId !== targetSub.instId || App.wsSub.channel !== targetSub.channel)) {
+      try {
+        App.ws.send(JSON.stringify({ op: 'unsubscribe', args: [App.wsSub] }));
+      } catch (e) {}
+      try {
+        App.ws.send(JSON.stringify({ op: 'subscribe', args: [targetSub] }));
+        App.wsSub = targetSub;
+      } catch (e) {}
+    } else if (!App.wsSub) {
+      try {
+        App.ws.send(JSON.stringify({ op: 'subscribe', args: [targetSub] }));
+        App.wsSub = targetSub;
+      } catch (e) {}
+    }
+    setWs('live');
+    if (App.status) App.status.wsSource = 'bitget-ws';
+    renderFeedStatus();
+    return;
+  }
+
+  // Not an open Bitget connection: clean up existing socket and timers before connecting.
+  if (App.ws) {
+    try {
+      App.ws.onclose = null;
+      App.ws.onerror = null;
+      App.ws.close();
+    } catch (e) {}
+    App.ws = null;
+  }
   clearTimeout(App.wsTimer);
   clearTimeout(App.reanaTimer);
+  clearInterval(App.wsPingTimer);
+  App.wsPingTimer = null;
+  App.wsSub = null;
+  App.wsFeedKind = null;
+
   try {
     if (wsTry >= WS_FEEDS.length) wsTry = 0;
-    const gen = App.gen;
-    const sym = App.symbol;
-    const tf = App.chartTF;
     const feedIndex = wsTry++;
     const feed = WS_FEEDS[feedIndex];
-    const url = feed.kind === 'bitget' ? feed.url : feed.url + sym.toLowerCase() + '@kline_' + tf;
+    App.wsFeedKind = feed.kind;
+    const url = feed.kind === 'bitget' ? feed.url : feed.url + currentSym.toLowerCase() + '@kline_' + currentTf;
     const ws = new WebSocket(url);
-    const isCurrent = () => App.ws === ws && App.gen === gen && App.symbol === sym && App.chartTF === tf;
+
     ws.onopen = () => {
-      if (!isCurrent()) return;
+      if (App.ws !== ws) return;
+      // PF-18: Reset feed index on every successful open so Bitget remains 1st choice.
+      wsTry = 0;
       setWs('live');
-      App.status.wsSource = feed.source;
-      App.status.wsLastMessageAt = Date.now();
+      if (App.status) {
+        App.status.wsSource = feed.source;
+        App.status.wsLastMessageAt = Date.now();
+      }
       renderFeedStatus();
+
       if (feed.kind === 'bitget') {
-        ws.send(JSON.stringify({
-          op: 'subscribe',
-          args: [{ instType: 'USDT-FUTURES', channel: BITGET_CANDLE_CHANNELS[tf], instId: sym }]
-        }));
+        const sub = {
+          instType: 'USDT-FUTURES',
+          channel: BITGET_CANDLE_CHANNELS[App.chartTF] || 'candle1H',
+          instId: App.symbol
+        };
+        App.wsSub = sub;
+        ws.send(JSON.stringify({ op: 'subscribe', args: [sub] }));
+
+        // PF-19: Bitget v2 WS Keepalive.
+        // Bitget v2 WS Documentation: Server drops connections without application-level client ping (every 25-30s).
+        // Send raw string 'ping' at 25s intervals while connected; clean up on close/error.
+        clearInterval(App.wsPingTimer);
+        App.wsPingTimer = setInterval(() => {
+          if (App.ws === ws && (ws.readyState === undefined || ws.readyState === 1 /* WebSocket.OPEN */)) {
+            try { ws.send('ping'); } catch (e) {}
+          }
+        }, 25000);
       }
     };
+
     ws.onmessage = ev => {
       try {
-        if (!isCurrent()) return;
+        if (App.ws !== ws) return;
+        // Bitget sends raw string 'pong' in response to application ping.
+        if (ev.data === 'pong' || ev.data === '{"data":"pong"}') return;
         const m = JSON.parse(ev.data);
         let rec = null;
         if (feed.kind === 'bitget') {
-          if (!m || !m.arg || m.arg.instId !== sym || !Array.isArray(m.data) || !m.data.length) return;
+          const expectedChannel = BITGET_CANDLE_CHANNELS[App.chartTF] || 'candle1H';
+          if (!m || !m.arg || m.arg.instId !== App.symbol || m.arg.channel !== expectedChannel || !Array.isArray(m.data) || !m.data.length) return;
           const k = m.data[m.data.length - 1];
           // Bitget candles expose no taker-buy volume. Keep tbv empty so CVD
-          // deliberately uses the Pine-parity-verified range approximation:
+          // uses the Pine-parity-verified range approximation:
           // v * (2c - h - l) / (h - l), verified over 64,859 bars in round 10.
           rec = { t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], tbv: null };
         } else {
           if (!m || !m.k) return;
           const k = m.k;
+          if (k.s && k.s.toUpperCase() !== App.symbol) return;
+          if (k.i && k.i !== App.chartTF) return;
           rec = { t: +k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, tbv: +k.V };
         }
         const cd = App.data.candles;
         if (!cd || !rec || !Number.isFinite(rec.t) || !Number.isFinite(rec.c)) return;
         const last = cd[cd.length - 1];
-        App.status.wsLastMessageAt = Date.now();
+        if (App.status) App.status.wsLastMessageAt = Date.now();
         App.data.ticker = { ...(App.data.ticker || {}), price: rec.c, src: feed.source };
         tradePrices[App.symbol] = rec.c;
         if (last && last.t === rec.t) cd[cd.length - 1] = rec;
         else if (last && rec.t > last.t) { cd.push(rec); if (cd.length > 1600) cd.shift(); }
         clearTimeout(App.reanaTimer);
         App.reanaTimer = setTimeout(() => {
-          if (!isCurrent()) return;
+          if (App.ws !== ws || cd !== App.data.candles) return;
           App.data.chart = analyze(cd);
           App.data.bt = backtest(cd, App.data.chart);
           renderAll();
@@ -5901,15 +5992,33 @@ function connectWS() {
         renderPrice(); renderChart(); scheduleLiveTradesRender();
       } catch (e) { /* ignore malformed public-feed messages */ }
     };
-    ws.onerror = () => { if (isCurrent()) setWs('off'); };
+
+    ws.onerror = () => {
+      if (App.ws !== ws) return;
+      clearInterval(App.wsPingTimer);
+      App.wsPingTimer = null;
+      setWs('off');
+    };
+
     ws.onclose = () => {
-      if (!isCurrent()) return;
+      if (App.ws !== ws) return;
+      clearInterval(App.wsPingTimer);
+      App.wsPingTimer = null;
+      App.ws = null;
+      App.wsSub = null;
+      App.wsFeedKind = null;
       setWs('off');
       // Advance through the explicit fallback chain; retry a new cycle after 15s.
       App.wsTimer = setTimeout(connectWS, wsTry < WS_FEEDS.length ? 2500 : 15000);
     };
+
     App.ws = ws;
   } catch (e) {
+    clearInterval(App.wsPingTimer);
+    App.wsPingTimer = null;
+    App.ws = null;
+    App.wsSub = null;
+    App.wsFeedKind = null;
     setWs('off');
     App.wsTimer = setTimeout(connectWS, wsTry < WS_FEEDS.length ? 2500 : 15000);
   }
@@ -9002,6 +9111,17 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.3.1": {
+    title: "Feed-Rotation-Fix, Bitget-Keepalive & Sticky-Socket",
+    summary: "Behebt das unerwünschte Zurückfallen auf den Binance-Fallback-Feed bei Coin-Wechseln und sorgt für eine kontinuierliche, verbindungsstabile Bitget WebSocket-Anbindung.",
+    highlights: [
+      "Feed-Index Reset: Nach erfolgreichem Verbindungsaufbau wird der Feed-Index zurückgesetzt — Bitget bleibt bei jedem Reconnect erste Wahl.",
+      "Bitget Keepalive-Ping: Alle 25s wird ein App-Level-Ping an Bitget gesendet, um serverseitige Timeouts nach 30s Inaktivität zu verhindern.",
+      "Sticky-Socket: Symbol- und Timeframe-Wechsel erfolgen ohne Neuverbindung direkt über WebSocket subscribe/unsubscribe.",
+      "Ehrliche Feed-Status-Pill: Transparente gelbe FALLBACK-Anzeige, falls ein Fallback-Feed (Binance) aktiv ist.",
+      "Feed-unabhängiges CVD: Einheitliche, Pine-verifizierte Range-Approximation für identische Werte unabhängig von Datenfeldern."
+    ]
+  },
   "1.3.0": {
     title: "Versions-Transparenz & Datengetriebene Release-Notes",
     summary: "Dieses Release etabliert eine verbindliche SemVer-Policy (MINOR für Feature-Runden, PATCH für reine Bugfixes), behebt Footer-Inkonsistenzen und führt echte datengetriebene Versionshinweise ein.",
@@ -9168,7 +9288,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.3.0');
+  showReleaseNotesOnce('1.3.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
