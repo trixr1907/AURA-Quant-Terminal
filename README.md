@@ -70,28 +70,21 @@ Das Terminal läuft anschließend lokal unter `http://127.0.0.1:8787`.
 
 </details>
 
-## TradingView-Positionen
+## TradingView Native Position Tool Assist
 
-TradingView erlaubt externen Programmen nicht, native Maus-Zeichenobjekte direkt in ein Cloud-Layout zu injizieren. AURA bildet das **Long-/Short-Position-Werkzeug deshalb als Pine-Script-Overlay** nach: grüne Gewinnzone, rote Verlustzone, Entry, SL, TP1–TP3, CRV, Risiko und Positionsgröße.
+TradingView erlaubt externen Programmen nicht, native Maus-Zeichenobjekte aus der linken Werkzeugleiste direkt in ein Cloud-Chart zu zeichnen. AURA v1.2.5 löst dies über einen **Zero-Slot Zeichentool-Assistenten**:
 
-### Einen AURA-Trade im Chart anzeigen
+### Einen AURA-Trade in TradingView einzeichnen
 
-1. Im Dashboard einen aktiven Paper-Trade öffnen.
-2. **„In TV visualisieren“** anklicken.
-3. AURA öffnet TradingView Desktop auf dem passenden `BITGET:<SYMBOL>.P`-Chart und kopiert das angepasste Pine Script.
-4. In TradingView unten **Pine Editor** öffnen.
-5. Editor-Inhalt vollständig ersetzen (`Strg+A`, `Strg+V`).
-6. **Speichern** und **Zum Chart hinzufügen** auswählen.
-
-> [!NOTE]
-> Der Button allein kann das native Werkzeug aus TradingViews Seitenleiste nicht fernsteuern. Das ist eine Plattformgrenze. Nach dem einmaligen Einfügen zeichnet der AURA-Indikator die Trade-Levels selbst; für einen neuen Dashboard-Trade muss der neu kopierte Script-Stand im Pine Editor übernommen werden.
-
-### Wenn nichts eingezeichnet wird
-
-- In den Indikator-Einstellungen muss **„7) Trade Forecasting & Long/Short Position Tool“ → „Position Tool visualisieren“** aktiviert sein.
-- Der kopierte Stand muss `Modus = Custom` sowie gültige Werte für Entry und Stop enthalten.
-- Alte AURA-Indikatorinstanzen entfernen, das neue Script speichern und erneut zum Chart hinzufügen.
-- Der TradingView-Chart muss zum im Dashboard gewählten Bitget-Perpetual passen.
+1. Im Dashboard unter **„Aktive Trades“** auf **`📐 TV Zeichentool`** klicken.
+2. AURA öffnet direkt die TradingView Desktop App auf dem exakten Bitget-Perpetual-Chart (`BITGET:<SYMBOL>.P`) und im passenden Timeframe.
+3. Gleichzeitig öffnet AURA das **Zeichentool Quick-Copy HUD** mit den exakten Parametern des Trades:
+   * **Entry-Kurs:** 1-Klick-Kopieren `[📋]`
+   * **Take Profit (TP1 / TP2 / TP3):** 1-Klick-Kopieren `[📋]`
+   * **Stop-Loss (SL):** 1-Klick-Kopieren `[📋]`
+   * **CRV, Hebel, Risiko & Notional-Positionsgröße**
+4. In TradingView links in der Toolbar das **Long-Position**- bzw. **Short-Position**-Werkzeug auswählen und auf den Chart setzen.
+5. Keine Verschwendung wertvoller Indikator-Plätze und sauberes Chartbild.
 
 ## Workflow
 
@@ -176,14 +169,15 @@ python3 scripts/build_package.py
 
 Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bedeutet: Die Software funktioniert als Research-Werkzeug, aber die geprüfte Stichprobe liefert keinen belastbaren Profitabilitätsnachweis.
 
-## Dokumentation
+## Dokumentation & SOTA Index
 
-- [Interaktives Tutorial](SYMBIOSE_Tutorial.html)
-- [Modellvalidierung](SYMBIOSE_Model_Validation.md)
-- [Brand Design](docs/brand_design.md)
-- [Release Notes v1.2.5](RELEASE_v1.2.5.md)
-- [Release Checklist](RELEASE_CHECKLIST.md)
-- [Security Policy](SECURITY.md)
+- [**📚 Dokumentations-Hub (docs/README.md)**](docs/README.md) — Vollständiger SOTA-Index aller Leitfäden und Reports.
+- [**📜 Changelog**](CHANGELOG.md) — Lückenlose Release-Historie nach Keep a Changelog.
+- [**🎨 Brand Design**](docs/brand_design.md) — Design Tokens, Typography und SVG-Assets.
+- [**🏗️ Architektur & Pipeline**](docs/architecture.md) — Datenpfade, State-Management und Relay-Routing.
+- [**🚀 Proxmox & Docker Deployment**](docs/deployment/PROXMOX_GUIDE.md) — Multi-Node-, LXC- und Container-Betrieb.
+- [**🔬 Quant-Modellvalidierung**](docs/research/SYMBIOSE_Model_Validation.md) — Walk-Forward Validierung & Deflated Sharpe Ratio.
+- [**🎓 Interaktives Tutorial**](SYMBIOSE_Tutorial.html) — Schritt-für-Schritt Dashboard- & Signal-Guide.
 
 ## Lizenz
 
