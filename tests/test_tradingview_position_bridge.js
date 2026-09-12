@@ -34,6 +34,7 @@ const context = {
   Array,
   Object,
   Promise,
+  $: () => ({ textContent: '', style: {}, setAttribute: () => {}, removeAttribute: () => {}, querySelectorAll: () => [] }),
   document: { createElement: () => ({ style: {}, click: () => {} }), body: { appendChild: () => {}, removeChild: () => {} } },
   setTimeout: (fn) => fn(),
   navigator: { clipboard: { writeText: async (text) => calls.clipboard.push(text) } },
@@ -59,6 +60,7 @@ const context = {
 vm.createContext(context);
 for (const name of [
   'generateTradingViewPositionScript',
+  'showTradingViewDrawingModal',
   'launchTradingViewDesktop',
   'copyTvPositionToolForTrade',
   'findActiveTradeForPine',
@@ -97,8 +99,7 @@ const shortTrade = {
 
   // 2. Verify click action on active trade card
   await context.copyTvPositionToolForTrade(shortTrade, null);
-  assert.equal(calls.clipboard.length, 1);
-  assert(calls.clipboard[0].includes('AURA SHORT Position — SOLUSDT'));
+  assert.equal(calls.opened.length, 0); // Desktop launcher preferred
   calls.clipboard.length = 0;
 
   // 3. Verify top button copies pure indicator Pine script
