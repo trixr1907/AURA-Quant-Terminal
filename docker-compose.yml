@@ -10,8 +10,15 @@ services:
     image: aura-quant-terminal:latest
     container_name: aura-terminal
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
-      - "${AURA_PORT:-8787}:8787"
+      - "${AURA_HOST:-127.0.0.1}:${AURA_PORT:-8787}:8787"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     environment:
       - SYM_PORT=8787
       - SYM_HOST=0.0.0.0   # bind all interfaces inside the container; Docker controls external access
