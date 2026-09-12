@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metric_semantics": "Each mismatch is one compared score field; core deltas are therefore counted separately from their causal component deltas.",
+  "fixtures": {
+    "BTCUSDT_1h.csv": {
+      "max_delta": 4.746425474877469e-12,
+      "soft_mismatches": 0,
+      "soft_rate": 0.0
+    },
+    "ETHUSDT_1h.csv": {
+      "max_delta": 20.0,
+      "soft_mismatches": 2,
+      "soft_rate": 0.00014735135931628969
+    },
+    "SOLUSDT_1h.csv": {
+      "max_delta": 8.0,
+      "soft_mismatches": 10,
+      "soft_rate": 0.0007367567965814485
+    },
+    "XRPUSDT_4h.csv": {
+      "max_delta": 20.0,
+      "soft_mismatches": 6,
+      "soft_rate": 0.000661521499448732
+    },
+    "DOGEUSDT_4h.csv": {
+      "max_delta": 20.0,
+      "soft_mismatches": 2,
+      "soft_rate": 0.0002205071664829107
+    }
+  }
+}

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
+GOLDEN_PARITY_REFERENCE = GOLDEN_DIR / "parity_reference.json"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
 GOLDEN_FILES = [
     "BTCUSDT_1h.csv",
@@ -392,6 +393,71 @@ def run_model_evidence_real_gate() -> tuple[str, str, str | None]:
         return "FAIL", f"parse_error: {e}", None
 
 
+def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, str]:
+    """Fail if any per-fixture parity metric is worse than its checked-in baseline."""
+    actual_fixtures = report.get("fixtures")
+    expected_fixtures = reference.get("fixtures")
+    if not isinstance(actual_fixtures, list) or not isinstance(expected_fixtures, dict):
+        return "FAIL", json.dumps({"error": "invalid parity report/reference schema"})
+
+    actual_by_name = {item.get("fixture"): item for item in actual_fixtures if isinstance(item, dict)}
+    regressions = []
+    metrics = []
+    for fixture in GOLDEN_FILES:
+        actual = actual_by_name.get(fixture)
+        expected = expected_fixtures.get(fixture)
+        if not isinstance(actual, dict) or not isinstance(expected, dict):
+            regressions.append({"fixture": fixture, "error": "missing fixture metrics"})
+            continue
+        metric = {
+            "fixture": fixture,
+            "max_delta": actual.get("maxDelta"),
+            "soft_mismatches": actual.get("softMismatches"),
+            "soft_rate": actual.get("softRate"),
+            "reference_max_delta": expected.get("max_delta"),
+            "reference_soft_mismatches": expected.get("soft_mismatches"),
+            "reference_soft_rate": expected.get("soft_rate"),
+        }
+        metrics.append(metric)
+        if actual.get("ok") is False:
+            regressions.append({"fixture": fixture, "metric": "absolute_threshold", "error": "comparison failed"})
+        numeric_pairs = (
+            ("max_delta", actual.get("maxDelta"), expected.get("max_delta")),
+            ("soft_mismatches", actual.get("softMismatches"), expected.get("soft_mismatches")),
+            ("soft_rate", actual.get("softRate"), expected.get("soft_rate")),
+        )
+        for name, actual_value, reference_value in numeric_pairs:
+            if not isinstance(actual_value, (int, float)) or not isinstance(reference_value, (int, float)):
+                regressions.append({"fixture": fixture, "metric": name, "error": "non-numeric metric"})
+            elif actual_value > reference_value + 1e-15:
+                regressions.append({
+                    "fixture": fixture,
+                    "metric": name,
+                    "actual": actual_value,
+                    "reference": reference_value,
+                })
+
+    payload = {"metrics": metrics, "regressions": regressions}
+    return ("FAIL" if regressions else "PASS"), json.dumps(payload, separators=(",", ":"))
+
+
+def run_golden_parity_trend_gate(reference_path: Path = GOLDEN_PARITY_REFERENCE) -> tuple[str, str]:
+    """Run machine-readable Pine/JS comparison and enforce no-regression baselines."""
+    try:
+        reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return "FAIL", json.dumps({"error": f"cannot load parity reference: {exc}"})
+    command = ["node", "tests/compare_pine_js_golden.js"] + [str(GOLDEN_DIR / name) for name in GOLDEN_FILES] + ["--json"]
+    rc, out, err = run(command)
+    if rc != 0:
+        return "FAIL", (err or out).strip()[-1000:]
+    try:
+        report = json.loads(out.strip())
+    except json.JSONDecodeError as exc:
+        return "FAIL", json.dumps({"error": f"cannot parse parity JSON: {exc}", "output": out[-500:]})
+    return evaluate_golden_parity_trend(report, reference)
+
+
 def main() -> int:
     results = []
     env = {**__import__("os").environ}
@@ -500,10 +566,8 @@ def main() -> int:
             add(check("golden 5-symbol comparison", "NO-GO",
                       f"blocked by golden master authenticity ({auth_detail})"))
         else:
-            rc, out, err = run(["node", "tests/compare_pine_js_golden.js"]
-                               + [str(GOLDEN_DIR / f) for f in GOLDEN_FILES])
-            add(check("golden 5-symbol comparison", "PASS" if rc == 0 else "FAIL",
-                      (out or err).strip()[:400]))
+            parity_status, parity_detail = run_golden_parity_trend_gate()
+            add(check("golden 5-symbol comparison & trend", parity_status, parity_detail))
 
     # 8. Deterministic browser E2E (requires playwright)
     rc, out, err = run([sys.executable, "tests/browser_research_harness.py"], env=env, timeout=1800)

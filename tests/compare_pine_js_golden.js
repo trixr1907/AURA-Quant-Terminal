@@ -205,35 +205,56 @@ function compareFile(file, tolerance = 0.1) {
 function main(argv) {
   const args = argv.slice(2);
   if (!args.length) {
-    console.error('Usage: node tests/compare_pine_js_golden.js <TradingView.csv> [...] [--tolerance=0.1] [--verbose]');
+    console.error('Usage: node tests/compare_pine_js_golden.js <TradingView.csv> [...] [--tolerance=0.1] [--verbose] [--json]');
     process.exitCode = 2;
     return;
   }
   const tolArg = args.find(x => x.startsWith('--tolerance='));
   const tolerance = tolArg ? Number(tolArg.split('=')[1]) : 0.1;
   const verbose = args.includes('--verbose') || args.includes('-v');
+  const jsonOutput = args.includes('--json');
   const files = args.filter(x => !x.startsWith('--') && !x.startsWith('-') && !x.includes('sample_valid.csv'));
+  const reports = [];
   let failed = false;
   for (const file of files) {
     const report = compareFile(file, tolerance);
+    const softMismatches = report.softMismatches || 0;
+    const softRate = report.comparedRows > 0 ? softMismatches / report.comparedRows : 0;
+    reports.push({
+      fixture: path.basename(file),
+      ok: report.ok,
+      comparedRows: report.comparedRows,
+      skippedRows: report.skippedRows,
+      maxDelta: report.maxDelta,
+      softMismatches,
+      softRate,
+      reason: report.reason || null,
+      firstMismatch: report.firstMismatch || null,
+      softMismatchDetails: report.allSoftMismatches || [],
+    });
     if (report.ok) {
-      const softRateStr = report.comparedRows > 0 ? ((report.softMismatches || 0) / report.comparedRows * 100).toFixed(4) : '0.0000';
-      console.log(`PASS ${file}: ${report.comparedRows} rows compared (${report.skippedRows} warmup), max delta ${report.maxDelta}, soft-mismatches: ${report.softMismatches || 0} (${softRateStr}%)`);
-      if (report.softMismatches > 0 && report.allSoftMismatches && report.allSoftMismatches.length > 0) {
-        if (verbose) {
-          report.allSoftMismatches.forEach((sm, idx) => {
-            console.log(`     [${idx + 1}/${report.softMismatches}] ts=${sm.timestamp} (${new Date(sm.timestamp).toISOString()}) field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
-          });
-        } else if (report.firstSoftMismatch) {
-          const sm = report.firstSoftMismatch;
-          console.log(`     first soft-mismatch: ts=${sm.timestamp} field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+      if (!jsonOutput) {
+        const softRateStr = (softRate * 100).toFixed(4);
+        console.log(`PASS ${file}: ${report.comparedRows} rows compared (${report.skippedRows} warmup), max delta ${report.maxDelta}, soft-mismatches: ${softMismatches} (${softRateStr}%)`);
+        if (softMismatches > 0 && report.allSoftMismatches && report.allSoftMismatches.length > 0) {
+          if (verbose) {
+            report.allSoftMismatches.forEach((sm, idx) => {
+              console.log(`     [${idx + 1}/${softMismatches}] ts=${sm.timestamp} (${new Date(sm.timestamp).toISOString()}) field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+            });
+          } else if (report.firstSoftMismatch) {
+            const sm = report.firstSoftMismatch;
+            console.log(`     first soft-mismatch: ts=${sm.timestamp} field=${sm.field} Pine=${sm.pine} JS=${sm.js} (delta ${sm.delta})`);
+          }
         }
       }
     } else {
       failed = true;
-      console.error(`FAIL ${file}: ${report.reason || JSON.stringify(report.firstMismatch)} (${report.comparedRows} rows compared)`);
+      if (!jsonOutput) {
+        console.error(`FAIL ${file}: ${report.reason || JSON.stringify(report.firstMismatch)} (${report.comparedRows} rows compared)`);
+      }
     }
   }
+  if (jsonOutput) console.log(JSON.stringify({ tolerance, softTolerance: SOFT_TOLERANCE, softMismatchRate: SOFT_MISMATCH_RATE, fixtures: reports }));
   if (failed) process.exitCode = 1;
 }
 
