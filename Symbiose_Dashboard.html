@@ -463,8 +463,8 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <div class="autobot-kpis">
           <div class="ab-kpi"><span>Paper-Kapital (Simulation)</span><b id="ab-equity">10,000.00 USDT</b></div>
           <div class="ab-kpi"><span>Gesamt-ROI %</span><b id="ab-roi">+0.00%</b></div>
-          <div class="ab-kpi"><span>Realisierter PnL</span><b id="ab-pnl">0.00 USDT</b></div>
-          <div class="ab-kpi"><span>Win-Rate / Trades</span><b id="ab-wr">0.0% (0)</b></div>
+          <div class="ab-kpi"><span>PnL gesamt (offen + realisiert)</span><b id="ab-pnl">0.00 USDT</b></div>
+          <div class="ab-kpi"><span>Win-Rate (realisiert) / Trades</span><b id="ab-wr">0.0% (0)</b></div>
           <div class="ab-kpi"><span>Profit-Faktor</span><b id="ab-pf">—</b></div>
           <div class="ab-kpi"><span>Aktive Positionen</span><b id="ab-open-count">0 / 3 Max</b></div>
         </div>
@@ -830,7 +830,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.11?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.2.12?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <p style="color:var(--dim);line-height:1.55;margin:0 0 16px">Dieses Update bringt <b>Pine Script Trade-Forecasting</b>, verbesserte <b>Standardparameter (1.000 USDT Startkapital, 5% Risiko, 10x Hebel, 500k $ Mindestvolumen)</b>, maximale Transparenz mit <b>Einsteiger-Schnellguide</b> und direkte TradingView-Desktop-Umschaltung ohne Web-Tab-Doppelung.</p>
@@ -8185,6 +8185,7 @@ const Autobot = {
   logs: [],
   lastScanAt: 0,
   scanIntervalMs: 15000,
+  _scanInProgress: false,
 
   init() {
     try {
@@ -8294,7 +8295,10 @@ const Autobot = {
         this.log(this.enabled ? `🟢 Paper Autobot gestartet: lokale Paper-Simulation scannt ${universeSymbols().length} Assets mit Top-Edge Parametern (Score ≥ ${this.minScore}, MTF ≥ ${this.mtfNeed}/4).` : '⏸ Paper Autobot pausiert.');
         this.save();
         this.render();
-        if (this.enabled) this.scanAndExecuteOpportunities();
+        if (this.enabled) {
+          this.lastScanAt = Date.now();
+          this.scanAndExecuteOpportunities();
+        }
       };
     }
 
@@ -8394,7 +8398,7 @@ const Autobot = {
     await this.updateActiveTrades();
 
     // 2. Scan market for high-edge opportunities if active & slots open
-    if (this.enabled && this.trades.length < this.maxOpenTrades) {
+    if (this.enabled && !this._scanInProgress && this.trades.length < this.maxOpenTrades) {
       const now = Date.now();
       if (now - this.lastScanAt > this.scanIntervalMs) {
         this.lastScanAt = now;
@@ -8570,222 +8574,235 @@ const Autobot = {
   },
 
   async scanAndExecuteOpportunities() {
-    this.lastScanAt = Date.now();
+    if (this._scanInProgress) return null;
     if (this.trades.length >= this.maxOpenTrades) return null;
 
-    // The Paper Autobot consumes only fully ranked Action Radar rows. Without complete
-    // MTF/regime evidence it must wait instead of manufacturing a candidate.
-    // Evaluate every currently valid row in deterministic overall-strength order.
-    const candidates = sortAutobotCandidates(collectAutobotCandidates(App.data.radar));
-    const eligibleCandidates = candidates.filter(c => evaluateAutobotCandidate(c, this.minScore, this.mtfNeed).accepted);
-    const universeCount = (Array.isArray(App.universe) && App.universe.length)
-      ? App.universe.length
-      : (Array.isArray(App.data.radar) && App.data.radar.length
-        ? App.data.radar.length
-        : (typeof universeSymbols === 'function' && Array.isArray(universeSymbols()) && universeSymbols().length
-          ? universeSymbols().length
-          : (candidates.length || 1)));
-    const radarSymbolsCount = Math.max(
-      universeCount,
-      Array.isArray(App.data.radar) ? App.data.radar.length : 0,
-      candidates.length,
-      1
-    );
-    const tfCount = Array.isArray(RADAR_TFS) && RADAR_TFS.length ? RADAR_TFS.length : 4;
-    const scannedHypotheses = radarSymbolsCount * tfCount;
-    const radarFilteredCount = eligibleCandidates.length;
-    const wfEvaluated = Math.max(scannedHypotheses, candidates.length, 1);
+    this._scanInProgress = true;
+    this.lastScanAt = Date.now();
 
-    const funnel = {
-      scanned: scannedHypotheses,
-      radarFiltered: radarFilteredCount,
-      wfEvaluated: wfEvaluated,
-      selected: 0,
-      rejects: {},
-      lastError: null
-    };
-    this.lastScanFunnel = funnel;
+    try {
+      // The Paper Autobot consumes only fully ranked Action Radar rows. Without complete
+      // MTF/regime evidence it must wait instead of manufacturing a candidate.
+      // Evaluate every currently valid row in deterministic overall-strength order.
+      const candidates = sortAutobotCandidates(collectAutobotCandidates(App.data.radar));
+      const eligibleCandidates = candidates.filter(c => evaluateAutobotCandidate(c, this.minScore, this.mtfNeed).accepted);
+      const universeCount = (Array.isArray(App.universe) && App.universe.length)
+        ? App.universe.length
+        : (Array.isArray(App.data.radar) && App.data.radar.length
+          ? App.data.radar.length
+          : (typeof universeSymbols === 'function' && Array.isArray(universeSymbols()) && universeSymbols().length
+            ? universeSymbols().length
+            : (candidates.length || 1)));
+      const radarSymbolsCount = Math.max(
+        universeCount,
+        Array.isArray(App.data.radar) ? App.data.radar.length : 0,
+        candidates.length,
+        1
+      );
+      const tfCount = Array.isArray(RADAR_TFS) && RADAR_TFS.length ? RADAR_TFS.length : 4;
+      const scannedHypotheses = radarSymbolsCount * tfCount;
+      const radarFilteredCount = eligibleCandidates.length;
+      const wfEvaluated = Math.max(scannedHypotheses, candidates.length, 1);
 
-    if (!candidates.length) return funnel;
+      const funnel = {
+        scanned: scannedHypotheses,
+        radarFiltered: radarFilteredCount,
+        wfEvaluated: wfEvaluated,
+        selected: 0,
+        rejects: {},
+        lastError: null
+      };
+      this.lastScanFunnel = funnel;
 
-    const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
+      if (!candidates.length) return funnel;
 
-    for (const c of candidates) {
-      if (this.trades.length >= this.maxOpenTrades) break;
-      if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) {
-        addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
-        continue;
-      }
+      const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
 
-      const universeRow = (App.universe || []).find(row => row && row.symbol === c.symbol);
-      if (!universeRow || universeRow.liquidityVerified !== true ||
-          !Number.isFinite(+universeRow.vol) || +universeRow.vol < this.min24hVol) {
-        addAutobotReject(funnel, 'LIQUIDITY');
-        continue;
-      }
-
-      const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
-      if (!candidateGate.accepted) {
-        addAutobotReject(funnel, 'NO_RADAR_READY');
-        continue;
-      }
-
-      // Macro Confluence Gate
-      if (this.btcFilter && btcBias.available) {
-        if ((candidateGate.dir === 1 && btcBias.regime === -1) ||
-            (candidateGate.dir === -1 && btcBias.regime === 1)) {
-          addAutobotReject(funnel, 'BTC_CONFLICT');
+      for (const c of candidates) {
+        if (this.trades.length >= this.maxOpenTrades) break;
+        if (!c || !c.symbol || this.trades.some(x => x.coin === c.symbol)) {
+          addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
           continue;
+        }
+
+        const universeRow = (App.universe || []).find(row => row && row.symbol === c.symbol);
+        if (!universeRow || universeRow.liquidityVerified !== true ||
+            !Number.isFinite(+universeRow.vol) || +universeRow.vol < this.min24hVol) {
+          addAutobotReject(funnel, 'LIQUIDITY');
+          continue;
+        }
+
+        const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
+        if (!candidateGate.accepted) {
+          addAutobotReject(funnel, 'NO_RADAR_READY');
+          continue;
+        }
+
+        // Macro Confluence Gate
+        if (this.btcFilter && btcBias.available) {
+          if ((candidateGate.dir === 1 && btcBias.regime === -1) ||
+              (candidateGate.dir === -1 && btcBias.regime === 1)) {
+            addAutobotReject(funnel, 'BTC_CONFLICT');
+            continue;
+          }
+        }
+
+        // Re-fetch the radar-selected timeframe immediately before entry and apply
+        // the same score, squeeze, regime and ADX gates to prevent stale entries.
+        try {
+          const kdata = await fetchKlines(c.symbol, candidateGate.tf, 1000);
+          if (!kdata || !kdata.candles || kdata.candles.length < 40) {
+            addAutobotReject(funnel, 'FRESH_DATA');
+            continue;
+          }
+          const A = analyze(kdata.candles);
+          if (!A || !A.n || !A.last) {
+            addAutobotReject(funnel, 'FRESH_ANALYSIS');
+            continue;
+          }
+          const freshRegime = regimeOf(A);
+          const lastPrice = kdata.candles[kdata.candles.length - 1].c;
+          const freshGate = classifyRadarTf({
+            score: A.last.score,
+            dir: A.last.dir,
+            regime: freshRegime.reg,
+            isSqz: freshRegime.isSqz,
+            adx: A.last.adx,
+            atrPct: lastPrice > 0 ? (A.last.atr / lastPrice * 100) : 0
+          });
+          const freshCandidate = evaluateAutobotCandidate({
+            executable: freshGate.tradeable,
+            bestInfo: { ...freshGate, score: A.last.score, dir: A.last.dir },
+            aligned: c.aligned,
+            bestTF: candidateGate.tf
+          }, this.minScore, this.mtfNeed);
+          if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) {
+            addAutobotReject(funnel, 'FRESH_GATE');
+            continue;
+          }
+
+          // A technical READY setup is not enough: validate positive out-of-sample
+          // expectancy on the exact freshly selected timeframe before sizing.
+          const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {
+            makerFee: App.fees.maker,
+            takerFee: App.fees.taker,
+            slippage: App.slippage, timeStopBars: App.timeStopBars,
+            trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
+          });
+          const edgeGate = evaluateAutobotEdge(freshWalkForward, this.minOosSamples, {
+            strictUniverseGate: this.strictUniverseGate,
+            minDsr: this.minSetupDsr
+          });
+          if (!edgeGate.accepted) {
+            addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
+            continue;
+          }
+
+          // Position sizing: risk capital harmonized with calcKelly() and OOS sample penalty
+          const wfStats = freshWalkForward ? freshWalkForward.stats : null;
+          const probWin = wfStats ? wfStats.wr : 0.5;
+          const avgWinR = wfStats ? wfStats.avgWinR : 1.8;
+          const avgLossR = wfStats ? wfStats.avgLossR : 1.05;
+          const totalTrades = wfStats ? wfStats.total : 0;
+          const kelly = calcKelly(probWin, avgWinR, avgLossR, this.riskPerTradePct, this.equity, totalTrades);
+
+          if (!kelly.hasEdge || kelly.riskAmt <= 0) {
+            addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
+            continue;
+          }
+
+          const dir = freshCandidate.dir;
+          const atr = A.last.atr || (lastPrice * 0.015);
+          const slDist = Math.max(lastPrice * 0.005, atr * 1.5);
+          const sl = dir === 1 ? (lastPrice - slDist) : (lastPrice + slDist);
+          const tp1 = dir === 1 ? (lastPrice + slDist * 1.5) : (lastPrice - slDist * 1.5);
+          const tp2 = dir === 1 ? (lastPrice + slDist * 3.0) : (lastPrice - slDist * 3.0);
+          const tp3 = dir === 1 ? (lastPrice + slDist * 5.0) : (lastPrice - slDist * 5.0);
+
+          const riskCapital = kelly.riskAmt;
+          const priceRiskPct = slDist / lastPrice;
+          const targetNotional = Math.min(this.equity * 2.5, riskCapital / priceRiskPct);
+          const leverage = Math.min(this.maxLeverage, Math.max(2, Math.ceil(targetNotional / (this.equity * 0.25))));
+          const margin = Math.round(targetNotional / leverage);
+
+          if (margin > this.equity * 0.35 || margin < 10) {
+            addAutobotReject(funnel, 'MARGIN');
+            continue;
+          }
+
+          // Belt-and-suspenders duplicate check after all awaits immediately before trade creation:
+          if (this.trades.some(x => x.coin === c.symbol)) {
+            addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
+            continue;
+          }
+
+          funnel.selected = 1;
+
+          // Deduct margin from available equity
+          this.equity -= margin;
+
+          // Dynamic Time-Stop Optimization per Asset with Timeframe Scaling
+          const tfHours = typeof tfToHours === 'function' ? tfToHours(freshCandidate.tf) : 1;
+          const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {
+            timeframe: freshCandidate.tf,
+            timeframeHours: tfHours,
+            fallbackBars: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).bars,
+            fallbackHours: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).hours,
+            maxCapHours: Math.max(36 * tfHours, 24),
+            minFloorHours: 2 * tfHours
+          });
+
+          const newTrade = {
+            id: generateDeterministicOid('ab'),
+            coin: c.symbol,
+            dir,
+            entry: lastPrice,
+            markPrice: lastPrice,
+            initialSl: sl,
+            currentSl: sl,
+            tp: tp1,
+            tp1,
+            tp2,
+            tp3,
+            margin,
+            initialMargin: margin,
+            leverage,
+            notional: margin * leverage,
+            openedAt: Date.now(),
+            beActive: false,
+            scaledOut: false,
+            score: Math.round(freshCandidate.score),
+            signalTf: freshCandidate.tf,
+            edge: edgeGate.edge,
+            edgeSamples: edgeGate.sampleSize,
+            dsr: edgeGate.setupDsr,
+            setupDsr: edgeGate.setupDsr,
+            universeDsr: edgeGate.universeDsr,
+            effectiveTrials: edgeGate.effectiveTrials,
+            setupTrials: edgeGate.setupTrials || 18,
+            timeStopBars: optTimeStop.bars,
+            maxHoldHours: optTimeStop.hours,
+            timeStopReason: optTimeStop.reason
+          };
+
+          this.trades.push(newTrade);
+          tradePrices[c.symbol] = lastPrice;
+
+          const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
+          this.log(`🚀 [${c.symbol}] Paper Autobot simuliert ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Setup-DSR: ${edgeGate.setupDsr.toFixed(2)} · Uni-DSR: ${edgeGate.universeDsr.toFixed(2)} (${edgeGate.effectiveTrials} Trials) | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+          this.save();
+          this.render();
+          break; // 1 trade per scan tick
+        } catch (error) {
+          addAutobotReject(funnel, 'REFETCH_ERROR');
+          funnel.lastError = sanitizeAutobotError(error);
         }
       }
-
-      // Re-fetch the radar-selected timeframe immediately before entry and apply
-      // the same score, squeeze, regime and ADX gates to prevent stale entries.
-      try {
-        const kdata = await fetchKlines(c.symbol, candidateGate.tf, 1000);
-        if (!kdata || !kdata.candles || kdata.candles.length < 40) {
-          addAutobotReject(funnel, 'FRESH_DATA');
-          continue;
-        }
-        const A = analyze(kdata.candles);
-        if (!A || !A.n || !A.last) {
-          addAutobotReject(funnel, 'FRESH_ANALYSIS');
-          continue;
-        }
-        const freshRegime = regimeOf(A);
-        const lastPrice = kdata.candles[kdata.candles.length - 1].c;
-        const freshGate = classifyRadarTf({
-          score: A.last.score,
-          dir: A.last.dir,
-          regime: freshRegime.reg,
-          isSqz: freshRegime.isSqz,
-          adx: A.last.adx,
-          atrPct: lastPrice > 0 ? (A.last.atr / lastPrice * 100) : 0
-        });
-        const freshCandidate = evaluateAutobotCandidate({
-          executable: freshGate.tradeable,
-          bestInfo: { ...freshGate, score: A.last.score, dir: A.last.dir },
-          aligned: c.aligned,
-          bestTF: candidateGate.tf
-        }, this.minScore, this.mtfNeed);
-        if (!freshGate.tradeable || !freshCandidate.accepted || freshCandidate.dir !== candidateGate.dir) {
-          addAutobotReject(funnel, 'FRESH_GATE');
-          continue;
-        }
-
-        // A technical READY setup is not enough: validate positive out-of-sample
-        // expectancy on the exact freshly selected timeframe before sizing.
-        const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {
-          makerFee: App.fees.maker,
-          takerFee: App.fees.taker,
-          slippage: App.slippage, timeStopBars: App.timeStopBars,
-          trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
-        });
-        const edgeGate = evaluateAutobotEdge(freshWalkForward, this.minOosSamples, {
-          strictUniverseGate: this.strictUniverseGate,
-          minDsr: this.minSetupDsr
-        });
-        if (!edgeGate.accepted) {
-          addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
-          continue;
-        }
-
-        funnel.selected = 1;
-
-        const dir = freshCandidate.dir;
-        const atr = A.last.atr || (lastPrice * 0.015);
-        const slDist = Math.max(lastPrice * 0.005, atr * 1.5);
-        const sl = dir === 1 ? (lastPrice - slDist) : (lastPrice + slDist);
-        const tp1 = dir === 1 ? (lastPrice + slDist * 1.5) : (lastPrice - slDist * 1.5);
-        const tp2 = dir === 1 ? (lastPrice + slDist * 3.0) : (lastPrice - slDist * 3.0);
-        const tp3 = dir === 1 ? (lastPrice + slDist * 5.0) : (lastPrice - slDist * 5.0);
-
-        // Position sizing: risk capital harmonized with calcKelly() and OOS sample penalty
-        const wfStats = freshWalkForward ? freshWalkForward.stats : null;
-        const probWin = wfStats ? wfStats.wr : 0.5;
-        const avgWinR = wfStats ? wfStats.avgWinR : 1.8;
-        const avgLossR = wfStats ? wfStats.avgLossR : 1.05;
-        const totalTrades = wfStats ? wfStats.total : 0;
-        const kelly = calcKelly(probWin, avgWinR, avgLossR, this.riskPerTradePct, this.equity, totalTrades);
-
-        if (!kelly.hasEdge || kelly.riskAmt <= 0) {
-          addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
-          continue;
-        }
-
-        const riskCapital = kelly.riskAmt;
-        const priceRiskPct = slDist / lastPrice;
-        const targetNotional = Math.min(this.equity * 2.5, riskCapital / priceRiskPct);
-        const leverage = Math.min(this.maxLeverage, Math.max(2, Math.ceil(targetNotional / (this.equity * 0.25))));
-        const margin = Math.round(targetNotional / leverage);
-
-        if (margin > this.equity * 0.35 || margin < 10) {
-          addAutobotReject(funnel, 'MARGIN');
-          continue;
-        }
-
-        // Deduct margin from available equity
-        this.equity -= margin;
-
-        // Dynamic Time-Stop Optimization per Asset with Timeframe Scaling
-        const tfHours = typeof tfToHours === 'function' ? tfToHours(freshCandidate.tf) : 1;
-        const optTimeStop = optimizeTimeStopForAsset(kdata.candles, A, {
-          timeframe: freshCandidate.tf,
-          timeframeHours: tfHours,
-          fallbackBars: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).bars,
-          fallbackHours: stagnationFallbackForTimeframe(this.stagnationHours, freshCandidate.tf).hours,
-          maxCapHours: Math.max(36 * tfHours, 24),
-          minFloorHours: 2 * tfHours
-        });
-
-        const newTrade = {
-          id: generateDeterministicOid('ab'),
-          coin: c.symbol,
-          dir,
-          entry: lastPrice,
-          markPrice: lastPrice,
-          initialSl: sl,
-          currentSl: sl,
-          tp: tp1,
-          tp1,
-          tp2,
-          tp3,
-          margin,
-          initialMargin: margin,
-          leverage,
-          notional: margin * leverage,
-          openedAt: Date.now(),
-          beActive: false,
-          scaledOut: false,
-          score: Math.round(freshCandidate.score),
-          signalTf: freshCandidate.tf,
-          edge: edgeGate.edge,
-          edgeSamples: edgeGate.sampleSize,
-          dsr: edgeGate.setupDsr,
-          setupDsr: edgeGate.setupDsr,
-          universeDsr: edgeGate.universeDsr,
-          effectiveTrials: edgeGate.effectiveTrials,
-          setupTrials: edgeGate.setupTrials || 18,
-          timeStopBars: optTimeStop.bars,
-          maxHoldHours: optTimeStop.hours,
-          timeStopReason: optTimeStop.reason
-        };
-
-        this.trades.push(newTrade);
-        tradePrices[c.symbol] = lastPrice;
-
-        const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
-        this.log(`🚀 [${c.symbol}] Paper Autobot simuliert ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Setup-DSR: ${edgeGate.setupDsr.toFixed(2)} · Uni-DSR: ${edgeGate.universeDsr.toFixed(2)} (${edgeGate.effectiveTrials} Trials) | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
-        this.save();
-        this.render();
-        break; // 1 trade per scan tick
-      } catch (error) {
-        addAutobotReject(funnel, 'REFETCH_ERROR');
-        funnel.lastError = sanitizeAutobotError(error);
-      }
+      this.save();
+      return funnel;
+    } finally {
+      this._scanInProgress = false;
     }
-    this.save();
-    return funnel;
   },
 
   render() {
@@ -9014,7 +9031,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.2.11');
+  showReleaseNotesOnce('1.2.12');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
