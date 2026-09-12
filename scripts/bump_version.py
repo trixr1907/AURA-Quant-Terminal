@@ -129,7 +129,7 @@ def bump_version(new_ver: str) -> None:
 
     pkg_test = ROOT / "tests" / "test_package_hygiene.py"
     pkg_test_text = pkg_test.read_text(encoding="utf-8")
-    pkg_test_text = re.sub(r'RELEASE_v\d+\.\d+\.\d+\.md', f'RELEASE_v{new_ver}.md', pkg_test_text)
+    pkg_test_text = re.sub(r'"RELEASE_v\d+\.\d+\.\d+\.md",\s*"assets/aura_logo\.svg"', f'"RELEASE_v{new_ver}.md",\n        "assets/aura_logo.svg"', pkg_test_text)
     pkg_test.write_text(pkg_test_text, encoding="utf-8")
 
     print("All component version markers updated.")
