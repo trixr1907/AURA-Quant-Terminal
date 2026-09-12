@@ -210,12 +210,12 @@ CLAIMS = [
     {
         "ID": "CLM-19",
         "Quelle": "VERSION:1, README.md:1, Symbiose_Dashboard.html:719, SYMBIOSE_Tutorial.html:6, bitget_relay.py:38",
-        "Wortlaut": "Version 1.2.2 einheitlich in allen Systemkomponenten",
+        "Wortlaut": "Version 1.2.6 einheitlich in allen Systemkomponenten",
         "Typ": "Zahl",
         "Ebene_Querschnitt": "Ebene 3",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle 9 Vorkommen matchen exakt '1.2.2'.",
+        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle Vorkommen matchen exakt '1.2.6'.",
         "Empfehlung_Fix": "Keine Änderung nötig. Versionierung ist strikt konsistent."
     },
     {
@@ -340,14 +340,15 @@ CLAIMS = [
     }
 ]
 
-output_csv = ROOT / "claims.csv"
-with open(output_csv, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=[
-        "ID", "Quelle", "Wortlaut", "Typ", "Ebene_Querschnitt", "Status", "Schweregrad", "Beleg_Repro", "Empfehlung_Fix"
-    ], lineterminator="\n")
-    writer.writeheader()
-    for row in CLAIMS:
-        cleaned_row = {k: v.strip() if isinstance(v, str) else v for k, v in row.items()}
-        writer.writerow(cleaned_row)
+for out_path in [ROOT / "claims.csv", ROOT / "docs" / "research" / "claims.csv"]:
+    if out_path.parent.exists():
+        with open(out_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                "ID", "Quelle", "Wortlaut", "Typ", "Ebene_Querschnitt", "Status", "Schweregrad", "Beleg_Repro", "Empfehlung_Fix"
+            ], lineterminator="\n")
+            writer.writeheader()
+            for row in CLAIMS:
+                cleaned_row = {k: v.strip() if isinstance(v, str) else v for k, v in row.items()}
+                writer.writerow(cleaned_row)
 
-print(f"Generated claims.csv with {len(CLAIMS)} entries.")
+print(f"Generated claims.csv and docs/research/claims.csv with {len(CLAIMS)} entries.")

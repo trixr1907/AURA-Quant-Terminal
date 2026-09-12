@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import time
@@ -323,6 +324,53 @@ class TestVersionProgression(unittest.TestCase):
         status, _ = release_check.check_version_progression("1.0.1", "v1.0.0", True)
         self.assertEqual(status, "PASS")
 
+    def test_committed_changes_since_remote_release_tag_are_detected(self):
+        responses = [
+            (0, "abc123\trefs/tags/v1.2.5\n", ""),
+            (0, "9\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
+        self.assertTrue(changed)
+        self.assertIsNone(error)
+
+    def test_committed_change_check_fails_closed_when_remote_tag_is_unresolvable(self):
+        with mock.patch.object(release_check, "run", return_value=(0, "", "")):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
+        self.assertIsNone(changed)
+        self.assertIn("cannot resolve", error)
+
+    def test_latest_semver_tag_uses_highest_version_not_input_order(self):
+        refs = "\n".join([
+            "deadbeef\trefs/tags/v1.2.5",
+            "deadbeef\trefs/tags/v1.2.3",
+            "deadbeef\trefs/tags/not-semver",
+            "deadbeef\trefs/tags/v1.2.4^{}",
+        ])
+        self.assertEqual(release_check.latest_semver_tag_from_refs(refs), "v1.2.5")
+
+    def test_remote_tag_state_is_used_to_detect_a_stale_local_clone(self):
+        responses = [
+            (0, "v1.2.2\n", ""),
+            (0, "abc\trefs/tags/v1.2.5\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            local_tag, remote_tag, error = release_check.inspect_version_tag_state()
+        self.assertEqual(local_tag, "v1.2.2")
+        self.assertEqual(remote_tag, "v1.2.5")
+        self.assertIsNone(error)
+
+    def test_remote_tag_lookup_failure_is_fail_closed_metadata(self):
+        responses = [
+            (0, "v1.2.2\n", ""),
+            (1, "", "network unavailable"),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            local_tag, remote_tag, error = release_check.inspect_version_tag_state()
+        self.assertEqual(local_tag, "v1.2.2")
+        self.assertIsNone(remote_tag)
+        self.assertIn("network unavailable", error)
+
 
 class TestGoldenMasterAuthenticity(unittest.TestCase):
     """Golden Master authenticity must fail-closed with machine-readable provenance."""
@@ -475,6 +523,130 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         )
         self.assertEqual(status, "PASS", f"Golden master gate unexpectedly failed: {detail}")
 
+    def test_golden_parity_trend_passes_at_checked_in_reference(self):
+        status, detail = release_check.run_golden_parity_trend_gate()
+        self.assertEqual(status, "PASS", detail)
+        payload = json.loads(detail)
+        self.assertEqual(len(payload["metrics"]), 5)
+        self.assertEqual(payload["regressions"], [])
+        self.assertTrue(all("max_delta" in metric for metric in payload["metrics"]))
+        self.assertTrue(all("soft_mismatches" in metric for metric in payload["metrics"]))
+        self.assertTrue(all("soft_rate" in metric for metric in payload["metrics"]))
+
+    def test_golden_parity_trend_fails_when_ok_is_missing(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        report = {
+            "fixtures": [
+                {
+                    "fixture": fixture,
+                    "maxDelta": values["max_delta"],
+                    "softMismatches": values["soft_mismatches"],
+                    "softRate": values["soft_rate"],
+                }
+                for fixture, values in reference["fixtures"].items()
+            ]
+        }
+        status, detail = release_check.evaluate_golden_parity_trend(report, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("comparison did not explicitly pass", detail)
+
+    def test_golden_parity_trend_fails_on_duplicate_or_unexpected_fixture(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures.append(dict(fixtures[0]))
+        fixtures.append({
+            "fixture": "UNEXPECTED.csv",
+            "ok": True,
+            "maxDelta": 0,
+            "softMismatches": 0,
+            "softRate": 0,
+        })
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("fixture set mismatch", detail)
+
+    def test_golden_parity_trend_fails_on_non_finite_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures[0]["maxDelta"] = float("nan")
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-finite numeric metric", detail)
+
+    def test_golden_parity_trend_fails_on_boolean_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        fixtures[0]["maxDelta"] = False
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-numeric metric", detail)
+
+    def test_golden_parity_trend_fails_on_missing_required_metric(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        fixtures = [
+            {
+                "fixture": fixture,
+                "ok": True,
+                "maxDelta": values["max_delta"],
+                "softMismatches": values["soft_mismatches"],
+                "softRate": values["soft_rate"],
+            }
+            for fixture, values in reference["fixtures"].items()
+        ]
+        del fixtures[0]["softRate"]
+        status, detail = release_check.evaluate_golden_parity_trend({"fixtures": fixtures}, reference)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("non-numeric metric", detail)
+
+    def test_golden_parity_trend_fails_on_artificial_regression(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        report = {
+            "fixtures": [
+                {
+                    "fixture": fixture,
+                    "maxDelta": values["max_delta"],
+                    "softMismatches": values["soft_mismatches"],
+                    "softRate": values["soft_rate"],
+                }
+                for fixture, values in reference["fixtures"].items()
+            ]
+        }
+        report["fixtures"][2]["softMismatches"] += 1
+        status, detail = release_check.evaluate_golden_parity_trend(report, reference)
+        self.assertEqual(status, "FAIL")
+        payload = json.loads(detail)
+        self.assertIn(
+            {"fixture": "SOLUSDT_1h.csv", "metric": "soft_mismatches", "actual": 11, "reference": 10},
+            payload["regressions"],
+        )
+
     def test_invalid_lockbox_metadata_returns_nogo(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             td = Path(tmpdir)
@@ -527,13 +699,23 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
 
     WORKFLOW = ROOT / ".github" / "workflows" / "publish-release.yml"
 
+    def test_ci_release_gate_does_not_allow_current_version(self):
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/release_check.py", workflow)
+        self.assertIsNone(
+            re.search(r"release_check\.py\s+--allow-current-version\b", workflow),
+            "normal CI must not bypass version progression",
+        )
+
     def test_pinned_playwright_and_chromium_system_dependencies_precede_release_gate(self):
         workflow = self.WORKFLOW.read_text(encoding="utf-8")
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-        self.assertRegex(requirements, r"(?m)^playwright==[^\\s]+$")
-        self.assertIn("actions/checkout@v4", workflow)
-        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertRegex(requirements, r"(?m)^playwright==[^\s]+$")
+        action_refs = re.findall(r"uses:\s+(actions/[^@\s]+)@([0-9a-f]{40})", workflow)
+        self.assertIn("actions/checkout", {name for name, _ in action_refs})
+        self.assertIn("actions/setup-python", {name for name, _ in action_refs})
+        self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", sha) for _, sha in action_refs))
         self.assertIn(
             "python3 -m pip install --disable-pip-version-check -r requirements.txt",
             workflow,
@@ -541,8 +723,8 @@ class TestReleaseWorkflowDependencies(unittest.TestCase):
         self.assertIn("python3 -m playwright install --with-deps chromium", workflow)
         self.assertIn("python3 scripts/release_check.py --allow-current-version", workflow)
 
-        checkout = workflow.index("actions/checkout@v4")
-        setup = workflow.index("actions/setup-python@v5")
+        checkout = workflow.index("actions/checkout@")
+        setup = workflow.index("actions/setup-python@")
         dependencies = workflow.index("python3 -m pip install")
         browser = workflow.index("python3 -m playwright install --with-deps chromium")
         release_check = workflow.index("python3 scripts/release_check.py")

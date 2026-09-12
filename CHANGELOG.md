@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.6] - 2026-09-12
+
+### Added
+- **Behavior-based Exit-Path & Kelly Test Harness (F-17..F-20):**
+  - Analytical Kelly oracle tests (`tests/test_kelly_oracle.js`) verifying $f^*=p-q/b$, half-Kelly, hard-cap, and sample ramp.
+  - Runtime behavioral test suite (`tests/test_autobot_timestop_behavior.js`) exercising `Autobot.updateActiveTrades()` across timeframes (15m, 1h, 4h, 1d), holding deadlines, PnL states, and 12-bar fallbacks.
+  - 100% mutation test coverage (15/15 mutants killed via `scripts/audit_rev2_mutations.py`).
+- **Release Documentation:**
+  - Added `docs/releases/RELEASE_v1.2.6.md` and updated canonical documentation index.
+
+### Changed
+- **Pine v6 ↔ JS Signal Parity (F-16):**
+  - Epsilon-protected VWAP comparison in `Symbiose_Dashboard.html` (`(c - vwap) > 1e-9 * c`) preventing IEEE-754 underflow flips on float equality.
+  - Documented ADX knife-edge discretization at thresholds 18 and 25 as accepted behavior.
+- **Security & Hygiene (F-09, F-10, F-14):**
+  - Audited all 49 `innerHTML` assignments in `Symbiose_Dashboard.html`; verified and hardened external data escaping via `esc()` and `textContent`.
+  - Consolidated documentation in canonical `docs/` hierarchy (`docs/research/`, `docs/deployment/`, `docs/releases/`) and replaced redundant root copies with pointers.
+  - Removed dead legacy klines parsing functions (`binanceKlines`, `bybitKlines`, `cgKlines`) from `Symbiose_Dashboard.html`.
+- **CI & Release Workflow:**
+  - Automated version progression checks in `scripts/release_check.py` and GitHub Actions workflow with SHA-256 pinned actions.
+
+### Fixed
+- Fixed critical trend gate mutation regression and test gaps in Autobot monitoring.
+- Fixed version inconsistencies across relay, dashboard, tutorial, scripts, and Dockerfile.
+
+---
+
 ## [1.2.5] - 2026-09-12
 
 ### Added

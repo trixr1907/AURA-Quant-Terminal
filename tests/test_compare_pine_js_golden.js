@@ -34,6 +34,18 @@ const good = compareRows(
 );
 assert.strictEqual(good.ok, true);
 assert.strictEqual(good.comparedRows, 1);
+assert.deepStrictEqual(good.allSoftMismatches, []);
+
+const visibleSoft = compareRows(
+  [{ timestamp: 2, trend: 50, momentum: 60, volumeScore: 70, structure: 80, core: 64.5 }],
+  [{ timestamp: 2, trend: 51, momentum: 60, volumeScore: 70, structure: 80, core: 64.5 }],
+  0.1,
+);
+assert.strictEqual(visibleSoft.ok, false, 'one mismatch in one compared row must exceed the rate gate');
+assert.strictEqual(visibleSoft.softMismatches, 1);
+assert.deepStrictEqual(visibleSoft.allSoftMismatches, [
+  { timestamp: 2, field: 'trend', pine: 50, js: 51, delta: 1 },
+]);
 
 const bad = compareRows(
   [{ timestamp: 1, trend: 50, momentum: 60, volume: 70, structure: 80, core: 64.5 }],

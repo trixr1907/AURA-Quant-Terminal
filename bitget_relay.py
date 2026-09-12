@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.2.5 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.2.6 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.2.5", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.2.6", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -39,7 +39,8 @@ from typing import Any
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-VERSION = "1.2.5"
+_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip() if _VERSION_FILE.exists() else "1.2.6"
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -674,24 +675,28 @@ class RelayHandler(BaseHTTPRequestHandler):
         origin_value = self.headers.get("Origin")
         if origin_value is None:
             return True
-        if path == "/api/open-tradingview" and (
-            origin_value == "null"
-            or origin_value.startswith(("http://127.0.0.1", "http://localhost", "https://127.0.0.1", "https://localhost"))
-        ):
+        if path == "/api/open-tradingview" and origin_value == "null":
             return True
         try:
             origin = urllib.parse.urlsplit(origin_value)
             host_port = host.port
             origin_port = origin.port
-            # Host and Origin must describe exactly the same authority.  The
-            # listener port is deliberately not consulted: Docker/NAT may
+            loopback_hosts = {"127.0.0.1", "localhost", "::1"}
+            is_loopback_dispatch = (
+                path == "/api/open-tradingview"
+                and host.hostname in loopback_hosts
+                and origin.hostname in loopback_hosts
+            )
+            # Host and Origin must describe exactly the same authority (or both be loopback for desktop dispatch).
+            # The listener port is deliberately not consulted: Docker/NAT may
             # expose the internal listener on a different external port.
             same_authority = (
-                origin.hostname == host.hostname
+                (origin.hostname == host.hostname or is_loopback_dispatch)
                 and origin.username is None
                 and origin.password is None
                 and (
-                    (host_port is not None and origin_port == host_port)
+                    is_loopback_dispatch
+                    or (host_port is not None and origin_port == host_port)
                     or (host_port is None and origin_port is None)
                 )
             )
@@ -943,7 +948,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     server = RelayServer((HOST, PORT), RelayHandler)
-    log.info("AURA Relay v1.2.1 listening on http://%s:%d", HOST, PORT)
+    log.info("AURA Relay v%s listening on http://%s:%d", VERSION, HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
     try:
         server.serve_forever()
