@@ -507,6 +507,38 @@ class TestGoldenMasterAuthenticity(unittest.TestCase):
         )
         self.assertEqual(status, "PASS", f"Golden master gate unexpectedly failed: {detail}")
 
+    def test_golden_parity_trend_passes_at_checked_in_reference(self):
+        status, detail = release_check.run_golden_parity_trend_gate()
+        self.assertEqual(status, "PASS", detail)
+        payload = json.loads(detail)
+        self.assertEqual(len(payload["metrics"]), 5)
+        self.assertEqual(payload["regressions"], [])
+        self.assertTrue(all("max_delta" in metric for metric in payload["metrics"]))
+        self.assertTrue(all("soft_mismatches" in metric for metric in payload["metrics"]))
+        self.assertTrue(all("soft_rate" in metric for metric in payload["metrics"]))
+
+    def test_golden_parity_trend_fails_on_artificial_regression(self):
+        reference = json.loads(release_check.GOLDEN_PARITY_REFERENCE.read_text(encoding="utf-8"))
+        report = {
+            "fixtures": [
+                {
+                    "fixture": fixture,
+                    "maxDelta": values["max_delta"],
+                    "softMismatches": values["soft_mismatches"],
+                    "softRate": values["soft_rate"],
+                }
+                for fixture, values in reference["fixtures"].items()
+            ]
+        }
+        report["fixtures"][2]["softMismatches"] += 1
+        status, detail = release_check.evaluate_golden_parity_trend(report, reference)
+        self.assertEqual(status, "FAIL")
+        payload = json.loads(detail)
+        self.assertIn(
+            {"fixture": "SOLUSDT_1h.csv", "metric": "soft_mismatches", "actual": 11, "reference": 10},
+            payload["regressions"],
+        )
+
     def test_invalid_lockbox_metadata_returns_nogo(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             td = Path(tmpdir)
