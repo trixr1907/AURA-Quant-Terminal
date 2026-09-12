@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.2.9 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.2.10 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.2.9", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.2.10", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -40,7 +40,7 @@ from typing import Any
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
 _VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
-VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip() if _VERSION_FILE.exists() else "1.2.9"
+VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip() if _VERSION_FILE.exists() else "1.2.10"
 BITGET_BASE = "https://api.bitget.com"
 
 
