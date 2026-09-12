@@ -830,7 +830,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.3.1?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.3.2?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -924,7 +924,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.3.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.3.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3001,6 +3001,47 @@ function fmtP(p) {
   if (a >= 100) return p.toFixed(2);
   if (a >= 1) return p.toFixed(4);
   return p.toFixed(6);
+}
+
+function fmtPx(p) {
+  if (p == null || !Number.isFinite(+p)) return '—';
+  const a = Math.abs(+p);
+  if (a >= 1) return (+p).toFixed(2);
+  if (a >= 0.01) return (+p).toFixed(6);
+  if (a >= 0.0001) return (+p).toFixed(6);
+  return (+p).toFixed(8);
+}
+
+function fmtDsr(v) {
+  if (v == null || !Number.isFinite(+v)) return '–';
+  const num = +v;
+  if (num.toFixed(2) === '0.00') return '<0.01';
+  return num.toFixed(2);
+}
+
+function fmtTrials(n) {
+  if (n == null || !Number.isFinite(+n)) return '0';
+  return Math.round(+n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function formatAutobotEntryLog(p) {
+  const symbol = p.symbol || '–';
+  const dir = (p.dir === 1 || p.dir === 'LONG') ? 'LONG' : 'SHORT';
+  const leverage = p.leverage || 5;
+  const tf = p.tf || '1h';
+  const score = Math.round(p.score || 0);
+  const setupDsr = fmtDsr(p.setupDsr);
+  const universeDsr = fmtDsr(p.universeDsr);
+  const trials = fmtTrials(p.effectiveTrials);
+  const edge = Number.isFinite(+p.edge) ? (+p.edge).toFixed(3) : '0.000';
+  const samples = p.sampleSize || 0;
+  const margin = p.margin != null ? p.margin : 50;
+  const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(p.timeStopBars, tf) : `${p.timeStopBars || 12} Bars`;
+  const entry = fmtPx(p.entry != null ? p.entry : p.lastPrice);
+  const sl = fmtPx(p.sl);
+  const tp2 = fmtPx(p.tp2);
+
+  return `🚀 [${symbol}] Paper Autobot simuliert ${dir} ${leverage}x (Hot Setup ${tf} | Score: ${score} | Setup-DSR: ${setupDsr} · Uni-DSR: ${universeDsr} (${trials} Trials) | OOS-Edge: ${edge}R aus ${samples} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} | Entry: ${entry} | SL: ${sl} | TP2: ${tp2})`;
 }
 function fmtBig(v) {
   if (!isFinite(v)) return '—';
@@ -5452,11 +5493,37 @@ if (typeof globalThis !== 'undefined') globalThis.renderAll = renderAll;
 //  LIVE-CHART (eigener Canvas-Renderer) — Kerzen, EMAs, SuperTrend, VWAP,
 //  Volumen, Signal-Marker, Crosshair, Preis-Tag
 // ============================================================================
+let chartRenderRaf = null;
+let lastChartRenderTime = 0;
+const CHART_RENDER_THROTTLE_MS = 250; // Throttled to ~4 fps to prevent excessive redraw overhead on rapid ticks
+
+function scheduleChartRender() {
+  if (chartRenderRaf) return;
+  const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  const elapsed = now - lastChartRenderTime;
+  const cb = () => {
+    chartRenderRaf = null;
+    lastChartRenderTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    renderChart();
+  };
+  if (elapsed >= CHART_RENDER_THROTTLE_MS) {
+    chartRenderRaf = (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(cb, 0);
+  } else {
+    chartRenderRaf = (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(cb, CHART_RENDER_THROTTLE_MS - elapsed);
+  }
+}
+
 function renderChart(mx, my, force = false) {
   const cv = $('chart');
   const A = App.data.chart;
   if (!cv) return;
   const isInteractive = (mx != null || my != null);
+  const cd = App.data.candles;
+  const liveCandle = cd && cd.length ? cd[cd.length - 1] : null;
+  const liveClose = liveCandle ? liveCandle.c : (A?.last?.c ?? null);
+  const liveHigh = liveCandle ? liveCandle.h : (A?.last?.h ?? null);
+  const liveLow = liveCandle ? liveCandle.l : (A?.last?.l ?? null);
+  const liveTime = liveCandle ? liveCandle.t : (A?.last?.t ?? null);
   if (!isInteractive && !force) {
     const chartStateKey = [
       App.symbol,
@@ -5464,8 +5531,10 @@ function renderChart(mx, my, force = false) {
       App.visible,
       App.chartPanBars,
       A?.n,
-      A?.last?.t,
-      A?.last?.c,
+      liveTime,
+      liveClose,
+      liveHigh,
+      liveLow,
       App.chartOverlays,
       cv.clientWidth,
       cv.clientHeight
@@ -5862,31 +5931,43 @@ let wsTry = 0;
 function connectWS() {
   const currentSym = App.symbol;
   const currentTf = App.chartTF;
-  const targetSub = {
+  const targetCandleSub = {
     instType: 'USDT-FUTURES',
     channel: BITGET_CANDLE_CHANNELS[currentTf] || 'candle1H',
     instId: currentSym
   };
+  const targetTickerSub = {
+    instType: 'USDT-FUTURES',
+    channel: 'ticker',
+    instId: currentSym
+  };
 
-  // PF-20: Sticky-Socket for Bitget. If an open, living Bitget WebSocket connection exists,
-  // unsubscribe from previous channel/symbol and subscribe to the new one without reconnect churn.
+  // PF-20 & PF-24: Sticky-Socket for Bitget.
+  // When an open Bitget connection exists, subscribe to both candle and ticker channels,
+  // or unsubscribe previous and subscribe new on symbol/timeframe switch without reconnect churn.
   const isBitgetOpen = App.ws &&
     App.wsFeedKind === 'bitget' &&
     (App.ws.readyState === undefined || App.ws.readyState === 1 /* WebSocket.OPEN */);
 
   if (isBitgetOpen) {
-    if (App.wsSub && (App.wsSub.instId !== targetSub.instId || App.wsSub.channel !== targetSub.channel)) {
+    const prevSubs = App.wsSub;
+    const needsUpdate = !prevSubs ||
+      prevSubs.candle?.instId !== targetCandleSub.instId ||
+      prevSubs.candle?.channel !== targetCandleSub.channel ||
+      prevSubs.ticker?.instId !== targetTickerSub.instId;
+
+    if (needsUpdate) {
+      if (prevSubs) {
+        try {
+          const unsubs = [];
+          if (prevSubs.candle) unsubs.push(prevSubs.candle);
+          if (prevSubs.ticker) unsubs.push(prevSubs.ticker);
+          if (unsubs.length) App.ws.send(JSON.stringify({ op: 'unsubscribe', args: unsubs }));
+        } catch (e) {}
+      }
       try {
-        App.ws.send(JSON.stringify({ op: 'unsubscribe', args: [App.wsSub] }));
-      } catch (e) {}
-      try {
-        App.ws.send(JSON.stringify({ op: 'subscribe', args: [targetSub] }));
-        App.wsSub = targetSub;
-      } catch (e) {}
-    } else if (!App.wsSub) {
-      try {
-        App.ws.send(JSON.stringify({ op: 'subscribe', args: [targetSub] }));
-        App.wsSub = targetSub;
+        App.ws.send(JSON.stringify({ op: 'subscribe', args: [targetCandleSub, targetTickerSub] }));
+        App.wsSub = { candle: targetCandleSub, ticker: targetTickerSub };
       } catch (e) {}
     }
     setWs('live');
@@ -5931,13 +6012,21 @@ function connectWS() {
       renderFeedStatus();
 
       if (feed.kind === 'bitget') {
-        const sub = {
+        const candleSub = {
           instType: 'USDT-FUTURES',
           channel: BITGET_CANDLE_CHANNELS[App.chartTF] || 'candle1H',
           instId: App.symbol
         };
-        App.wsSub = sub;
-        ws.send(JSON.stringify({ op: 'subscribe', args: [sub] }));
+        const tickerSub = {
+          instType: 'USDT-FUTURES',
+          channel: 'ticker',
+          instId: App.symbol
+        };
+        App.wsSub = { candle: candleSub, ticker: tickerSub };
+
+        // Bitget push rule: Candle channel pushes max 1/s on transactions, otherwise only at bar close.
+        // Ticker channel pushes ~200ms with lastPr for ultra-fresh live price & candle close.
+        ws.send(JSON.stringify({ op: 'subscribe', args: [candleSub, tickerSub] }));
 
         // PF-19: Bitget v2 WS Keepalive.
         // Bitget v2 WS Documentation: Server drops connections without application-level client ping (every 25-30s).
@@ -5957,17 +6046,58 @@ function connectWS() {
         // Bitget sends raw string 'pong' in response to application ping.
         if (ev.data === 'pong' || ev.data === '{"data":"pong"}') return;
         const m = JSON.parse(ev.data);
+        if (!m) return;
+
+        // Bitget Ticker Stream Handling (~200ms push with lastPr)
+        if (feed.kind === 'bitget' && m.arg && m.arg.channel === 'ticker') {
+          if (m.arg.instId !== App.symbol || !Array.isArray(m.data) || !m.data.length) return;
+          const tick = m.data[0];
+          const lastPr = tick && tick.lastPr != null ? +tick.lastPr : null;
+          if (!Number.isFinite(lastPr) || lastPr <= 0) return;
+
+          if (App.status) App.status.wsLastMessageAt = Date.now();
+          App.data.ticker = { ...(App.data.ticker || {}), price: lastPr, src: feed.source };
+          tradePrices[App.symbol] = lastPr;
+
+          // Update running candle in App.data.candles with fresh live ticker close/high/low
+          const cd = App.data.candles;
+          if (cd && cd.length) {
+            const lastCandle = cd[cd.length - 1];
+            if (lastCandle) {
+              lastCandle.c = lastPr;
+              if (lastPr > lastCandle.h) lastCandle.h = lastPr;
+              if (lastPr < lastCandle.l) lastCandle.l = lastPr;
+              if (App.data.chart && App.data.chart.n === cd.length) {
+                const lastIdx = App.data.chart.n - 1;
+                App.data.chart.c[lastIdx] = lastPr;
+                if (lastPr > App.data.chart.h[lastIdx]) App.data.chart.h[lastIdx] = lastPr;
+                if (lastPr < App.data.chart.l[lastIdx]) App.data.chart.l[lastIdx] = lastPr;
+                if (App.data.chart.last) {
+                  App.data.chart.last.c = lastPr;
+                  App.data.chart.last.h = App.data.chart.h[lastIdx];
+                  App.data.chart.last.l = App.data.chart.l[lastIdx];
+                }
+              }
+            }
+          }
+          renderPrice();
+          scheduleChartRender();
+          scheduleLiveTradesRender();
+          return;
+        }
+
+        // Candle stream handling
         let rec = null;
         if (feed.kind === 'bitget') {
           const expectedChannel = BITGET_CANDLE_CHANNELS[App.chartTF] || 'candle1H';
-          if (!m || !m.arg || m.arg.instId !== App.symbol || m.arg.channel !== expectedChannel || !Array.isArray(m.data) || !m.data.length) return;
+          if (!m.arg || m.arg.instId !== App.symbol || m.arg.channel !== expectedChannel || !Array.isArray(m.data) || !m.data.length) return;
           const k = m.data[m.data.length - 1];
           // Bitget candles expose no taker-buy volume. Keep tbv empty so CVD
           // uses the Pine-parity-verified range approximation:
           // v * (2c - h - l) / (h - l), verified over 64,859 bars in round 10.
           rec = { t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], tbv: null };
         } else {
-          if (!m || !m.k) return;
+          if (!m.k) return;
           const k = m.k;
           if (k.s && k.s.toUpperCase() !== App.symbol) return;
           if (k.i && k.i !== App.chartTF) return;
@@ -5979,8 +6109,23 @@ function connectWS() {
         if (App.status) App.status.wsLastMessageAt = Date.now();
         App.data.ticker = { ...(App.data.ticker || {}), price: rec.c, src: feed.source };
         tradePrices[App.symbol] = rec.c;
-        if (last && last.t === rec.t) cd[cd.length - 1] = rec;
-        else if (last && rec.t > last.t) { cd.push(rec); if (cd.length > 1600) cd.shift(); }
+        if (last && last.t === rec.t) {
+          cd[cd.length - 1] = rec;
+          if (App.data.chart && App.data.chart.n === cd.length) {
+            const lastIdx = App.data.chart.n - 1;
+            App.data.chart.c[lastIdx] = rec.c;
+            App.data.chart.h[lastIdx] = Math.max(App.data.chart.h[lastIdx], rec.h);
+            App.data.chart.l[lastIdx] = Math.min(App.data.chart.l[lastIdx], rec.l);
+            if (App.data.chart.last) {
+              App.data.chart.last.c = rec.c;
+              App.data.chart.last.h = App.data.chart.h[lastIdx];
+              App.data.chart.last.l = App.data.chart.l[lastIdx];
+            }
+          }
+        } else if (last && rec.t > last.t) {
+          cd.push(rec);
+          if (cd.length > 1600) cd.shift();
+        }
         clearTimeout(App.reanaTimer);
         App.reanaTimer = setTimeout(() => {
           if (App.ws !== ws || cd !== App.data.candles) return;
@@ -5988,8 +6133,10 @@ function connectWS() {
           App.data.bt = backtest(cd, App.data.chart);
           renderAll();
         }, 4000);
-        // Price and chart update immediately; analysis remains debounced by 4s.
-        renderPrice(); renderChart(); scheduleLiveTradesRender();
+        // Price and chart update immediately (throttled); analysis remains debounced by 4s.
+        renderPrice();
+        scheduleChartRender();
+        scheduleLiveTradesRender();
       } catch (e) { /* ignore malformed public-feed messages */ }
     };
 
@@ -6995,10 +7142,10 @@ function renderTradeHistory() {
         </div>
       </div>
       <div class="hc-grid">
-        <div class="hc-item"><span>Einstieg → Exit</span><b>${(+h.entry).toFixed(2)} → ${(+h.exit).toFixed(2)}</b></div>
+        <div class="hc-item"><span>Einstieg → Exit</span><b>${fmtPx(+h.entry)} → ${fmtPx(+h.exit)}</b></div>
         <div class="hc-item"><span>Margin / Notional</span><b>${(+h.marginClosed).toFixed(2)} $ / ${(+h.notionalClosed).toFixed(2)} $</b></div>
         <div class="hc-item"><span>Positionsmenge</span><b>${(+h.quantityClosed).toFixed(4)}</b></div>
-        <div class="hc-item"><span>Initial SL / TP</span><b>${(+h.initialSl).toFixed(2)} / ${(+h.tp).toFixed(2)}</b></div>
+        <div class="hc-item"><span>Initial SL / TP</span><b>${fmtPx(+h.initialSl)} / ${fmtPx(+h.tp)}</b></div>
         <div class="hc-item"><span>Initial-Risiko</span><b>${(+h.initialRiskAmountClosed).toFixed(2)} USDT</b></div>
         <div class="hc-item"><span>Haltedauer</span><b>${fmtDuration(h.holdingMs)}</b></div>
       </div>
@@ -7116,9 +7263,9 @@ function renderLiveTrades() {
       let intelClass = 'tc-intel';
       const holdingMinutes = Math.round((Date.now() - t.openedAt) / 60000);
       const targetsList = [];
-      if (t.tp1 || t.tp) targetsList.push(`TP1: ${(+ (t.tp1 || t.tp)).toFixed(2)}`);
-      if (t.tp2) targetsList.push(`TP2: ${(+t.tp2).toFixed(2)}`);
-      if (t.tp3) targetsList.push(`TP3: ${(+t.tp3).toFixed(2)}`);
+      if (t.tp1 || t.tp) targetsList.push(`TP1: ${fmtPx(+(t.tp1 || t.tp))}`);
+      if (t.tp2) targetsList.push(`TP2: ${fmtPx(+t.tp2)}`);
+      if (t.tp3) targetsList.push(`TP3: ${fmtPx(+t.tp3)}`);
       const targetsStr = targetsList.length > 1 ? ` · Ziele: [${targetsList.join(' | ')}]` : '';
       
       if (t.beActive) {
@@ -7172,7 +7319,7 @@ function renderLiveTrades() {
         </div>
         <div class="tc-track-wrap">
           <div class="tc-track"><div class="tc-track-fill" style="width:${progPct}%;background:${pnlClass === 'grn' ? 'linear-gradient(90deg,#38bdf8,#22c55e)' : '#ef4444'}"></div></div>
-          <div class="tc-track-labels"><span>SL: ${(+t.currentSl).toFixed(2)}</span><span>Fortschritt zu TP: ${progPct}% (Haltedauer: ${holdingDuration})</span><span>TP: ${(+t.tp).toFixed(2)}</span></div>
+          <div class="tc-track-labels"><span>SL: ${fmtPx(+t.currentSl)}</span><span>Fortschritt zu TP: ${progPct}% (Haltedauer: ${holdingDuration})</span><span>TP: ${fmtPx(+t.tp)}</span></div>
         </div>
         <div class="${intelClass}">
           <div>${intelText}</div>
@@ -8894,8 +9041,23 @@ const Autobot = {
           this.trades.push(newTrade);
           tradePrices[c.symbol] = lastPrice;
 
-          const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(optTimeStop.bars, freshCandidate.tf) : `${optTimeStop.bars} Bars`;
-          this.log(`🚀 [${c.symbol}] Paper Autobot simuliert ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x (Hot Setup ${freshCandidate.tf} | Score: ${Math.round(freshCandidate.score)} | Setup-DSR: ${edgeGate.setupDsr.toFixed(2)} · Uni-DSR: ${edgeGate.universeDsr.toFixed(2)} (${edgeGate.effectiveTrials} Trials) | OOS-Edge: ${edgeGate.edge.toFixed(3)}R aus ${edgeGate.sampleSize} Trades | Margin: ${margin} USDT | Time-Stop: ${timeStopFormatted} (${optTimeStop.hours}h) | Entry: ${lastPrice.toFixed(2)} | SL: ${sl.toFixed(2)} | TP2: ${tp2.toFixed(2)})`);
+          this.log(formatAutobotEntryLog({
+            symbol: c.symbol,
+            dir,
+            leverage,
+            tf: freshCandidate.tf,
+            score: freshCandidate.score,
+            setupDsr: edgeGate.setupDsr,
+            universeDsr: edgeGate.universeDsr,
+            effectiveTrials: edgeGate.effectiveTrials,
+            edge: edgeGate.edge,
+            sampleSize: edgeGate.sampleSize,
+            margin,
+            timeStopBars: optTimeStop.bars,
+            entry: lastPrice,
+            sl,
+            tp2
+          }));
           this.save();
           this.render();
           break; // 1 trade per scan tick
@@ -9111,6 +9273,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.3.2": {
+    title: "Chart-Liveness über Ticker-Kanal & Log-Hygiene",
+    summary: "Aktiviert den Bitget-Ticker-Kanal für flüssige Chart-Aktualisierungen bei ruhigen Märkten und führt adaptive Preisformatierung in Logs ein.",
+    highlights: [
+      "Chart-Liveness: Subskription des ~200ms Bitget-Ticker-Streams aktualisiert den laufenden Kerzen-Schlusskurs auch bei geringer Handelsaktivität.",
+      "Redraw-Throttling: Throttled Canvas-Redraw auf ~4 fps verhindert unnötige Render-Zyklen bei schnellen Ticks.",
+      "Adaptive Preisformate (fmtPx): Sub-Cent-Coins (z.B. ALCH) werden mit bis zu 8 Nachkommastellen sauber in Logs und Trade-Karten dargestellt.",
+      "Log-Hygiene: Beseitigt redundante Stundenanzeige im Time-Stop und formatiert DSR-Werte unter 0.01 transparent als <0.01 mit Tausendertrennung."
+    ]
+  },
   "1.3.1": {
     title: "Feed-Rotation-Fix, Bitget-Keepalive & Sticky-Socket",
     summary: "Behebt das unerwünschte Zurückfallen auf den Binance-Fallback-Feed bei Coin-Wechseln und sorgt für eine kontinuierliche, verbindungsstabile Bitget WebSocket-Anbindung.",
@@ -9288,7 +9460,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.3.1');
+  showReleaseNotesOnce('1.3.2');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
