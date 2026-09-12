@@ -6,10 +6,10 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v1.2.13 — Confluence Terminal
+# AURA v1.3.0 — Confluence Terminal
 
 <p align="center">
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.13-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.2.13"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.3.0-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.3.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
   <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
   <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">
@@ -157,6 +157,14 @@ Release-Prüfung und reproduzierbares Paket:
 python3 scripts/release_check.py
 python3 scripts/build_package.py
 ```
+
+## Versionierungs-Policy
+
+AURA folgt strikt Semantic Versioning (`MAJOR.MINOR.PATCH`):
+
+- **MAJOR (x.0.0):** Breaking Changes, fundamentale Architekturwechsel oder inkompatible Signal-/Contract-Änderungen.
+- **MINOR (1.x.0):** Feature- und Produkt-Runden (z. B. neue Indikatoren, WebSocket v2, Radar-Filter, UI-Features). *Beispiel:* v1.2.11 war eine Feature-Runde und wird rückblickend als MINOR klassifiziert; ab v1.3.0 gilt diese Policy verbindlich.
+- **PATCH (1.3.x):** Reine Bugfix-, Hygiene- und Stabilitäts-Releases ohne neue Feature-Funktionalität.
 
 ## Qualitaet und Grenzen
 
