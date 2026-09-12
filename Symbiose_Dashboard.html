@@ -1054,17 +1054,19 @@ function vwapArr(ms, h, l, c, v) {
   }
   return out;
 }
-function cvdArr(v, tbv, h, l, c) {
-  const n = v.length, out = new Float64Array(n);
+function cvdSeries(v, tbv, h, l, c) {
+  const n = v.length, cvd = new Float64Array(n), delta = new Float64Array(n);
   let cum = 0;
   for (let i = 0; i < n; i++) {
-    let delta;
-    if (tbv && tbv[i] >= 0) delta = 2 * tbv[i] - v[i];
-    else { const rng = h[i] - l[i]; delta = rng > 0 ? v[i] * (2 * c[i] - h[i] - l[i]) / rng : 0; }
-    cum += delta; out[i] = cum;
+    let barDelta;
+    if (tbv && tbv[i] >= 0) barDelta = 2 * tbv[i] - v[i];
+    else { const rng = h[i] - l[i]; barDelta = rng > 0 ? v[i] * (2 * c[i] - h[i] - l[i]) / rng : 0; }
+    delta[i] = barDelta;
+    cum += barDelta; cvd[i] = cum;
   }
-  return out;
+  return { cvd, delta };
 }
+function cvdArr(v, tbv, h, l, c) { return cvdSeries(v, tbv, h, l, c).cvd; }
 function swingPivots(h, l, left, right) {
   const n = h.length, ph = [], pl = [];
   for (let i = left; i < n - right; i++) {
@@ -1103,7 +1105,8 @@ function analyze(candles) {
   const obv = obvArr(c, v), eobv = emaArr(obv, 20);
   const vwap = vwapArr(ms, h, l, c, v);
   const smav = smaArr(v, 20);
-  const cvd = cvdArr(v, tbv, h, l, c), ecvd = emaArr(cvd, 20);
+  const cvdState = cvdSeries(v, tbv, h, l, c);
+  const cvd = cvdState.cvd, cvdDelta = cvdState.delta, ecvd = emaArr(cvd, 20);
   const piv = swingPivots(h, l, 5, 5);
 
   const score = new Float64Array(n).fill(50), trendS = new Float64Array(n).fill(50),
@@ -1234,7 +1237,7 @@ function analyze(candles) {
 
   return {
     n, ms, o, h, l, c, v, tbv, atr, adx, rsi, srk,
-    e20, e50, e200, stLine: st.line, stDir: st.dir, vwap, obv, cvd, emaCvd: ecvd,
+    e20, e50, e200, stLine: st.line, stDir: st.dir, vwap, obv, cvd, emaCvd: ecvd, cvdDelta,
     score, trendS, momS, volS, strS, dirS,
     lastPH: lastPHa, lastPL: lastPLa, structA,
     eqhLvlA, eqlLvlA, fvgTopA, fvgBotA, fvgDirA, fvgActA,
