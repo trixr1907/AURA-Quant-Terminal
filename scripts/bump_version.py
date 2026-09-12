@@ -110,8 +110,10 @@ def bump_version(new_ver: str) -> None:
     dash = ROOT / "Symbiose_Dashboard.html"
     dash_text = dash.read_text(encoding="utf-8")
     dash_text = re.sub(r'Was ist neu in AURA v\d+\.\d+\.\d+\?', f'Was ist neu in AURA v{new_ver}?', dash_text)
-    dash_text = re.sub(r'<b>AURA Quant Terminal v\d+\.\d+\.\d+</b>', f'<b>AURA Quant Terminal v{new_ver}</b>', dash_text)
+    dash_text = re.sub(r'<b>AURA (?:Quant|Confluence) Terminal v\d+\.\d+\.\d+</b>', f'<b>AURA Confluence Terminal v{new_ver}</b>', dash_text)
     dash_text = re.sub(r"showReleaseNotesOnce\('\d+\.\d+\.\d+'\);", f"showReleaseNotesOnce('{new_ver}');", dash_text)
+    if f'"{new_ver}":' not in dash_text and f"'{new_ver}':" not in dash_text:
+        print(f"WARNING: AURA_RELEASE_NOTES in Symbiose_Dashboard.html does not yet contain an entry for '{new_ver}'! Please add release highlights.")
     dash.write_text(dash_text, encoding="utf-8")
 
     # 12. scripts/generate_claims.py
