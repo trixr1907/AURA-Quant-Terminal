@@ -70,6 +70,7 @@ const paperStart = html.indexOf('function startPaperTradeFromCockpit()');
 const paperEnd = html.indexOf('\nfunction renderTradeProjection()', paperStart);
 const paperSource = html.slice(paperStart, paperEnd);
 assert(paperStart >= 0 && paperEnd > paperStart, 'Paper start handler source must be present');
+assert(!paperSource.includes('canStartHeroPaperTrade('), 'cockpit paper handler must remain intentionally independent from the setup gate documented for v1.2.4');
 assert(paperSource.includes('normalizeTrade('), 'Paper start handler must normalize trades defensively');
 assert(paperSource.includes('generateDeterministicOid('), 'Paper start handler must use deterministic order IDs');
 assert(html.includes('Paper Autobot'), 'visible UI must name the paper-only Autobot');
@@ -78,4 +79,4 @@ assert(html.includes('TECHNISCH BEREIT'), 'radar badge must distinguish technica
 assert(/Vorqualifikation[^<]*keine Order-?\/?Paper-Freigabe/i.test(html), 'radar legend must explain that technical readiness is not Paper approval');
 assert(html.includes('MODEL_NO_EVIDENCE'), 'UI must prominently retain the global model verdict');
 
-console.log('PASS Hero Paper gate is fail-closed and UI semantics remain honest');
+console.log('PASS cockpit paper trade is intentionally ungated; autobot gates remain fail-closed');
