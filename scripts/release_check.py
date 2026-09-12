@@ -558,6 +558,9 @@ def main() -> int:
         add(check(f"js: {name}", "PASS" if ok else "FAIL", detail[:300]))
 
     # 2. Statistical Oracle & Metamorphic tests
+    rc, out, err = run([sys.executable, "scripts/verify_ledger.py"])
+    add(check("trials ledger hash chain", "PASS" if rc == 0 else "FAIL", (out or err).strip()[:400]))
+
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
     rc2, out2, err2 = run(["node", "tests/test_lookahead_metamorphic.js"])
     ok = (rc1 == 0) and (rc2 == 0) and ("3 PASSED" in out2)
