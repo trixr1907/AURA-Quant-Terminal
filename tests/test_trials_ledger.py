@@ -76,11 +76,20 @@ def test_missing_ledger_fails_closed(tmp_path):
         verify_ledger.verify_ledger(tmp_path / "missing.md", tmp_path / "missing.jsonl")
 
 
-def test_deleted_or_reordered_entry_fails(tmp_path):
+def test_deleted_entry_fails(tmp_path):
     seed = hashlib.sha256(b"legacy\n").hexdigest()
     first = make_entry(seed)
     second = make_entry(first["entry_hash"], entry_id="EXP-027")
     legacy, chain = write_fixture(tmp_path, [second])
+    with pytest.raises(verify_ledger.LedgerVerificationError):
+        verify_ledger.verify_ledger(legacy, chain, expected_legacy_sha256=seed, first_entry_id=26, baseline_total=10)
+
+
+def test_reordered_entries_fail(tmp_path):
+    seed = hashlib.sha256(b"legacy\n").hexdigest()
+    first = make_entry(seed)
+    second = make_entry(first["entry_hash"], entry_id="EXP-027")
+    legacy, chain = write_fixture(tmp_path, [second, first])
     with pytest.raises(verify_ledger.LedgerVerificationError):
         verify_ledger.verify_ledger(legacy, chain, expected_legacy_sha256=seed, first_entry_id=26, baseline_total=10)
 
