@@ -62,8 +62,8 @@ aufsteigend und lückenlos sein; `total_model_experiments` muss dem vorherigen T
 plus `delta` entsprechen. Der Verifier behandelt fehlende, gelöschte, umsortierte,
 manipulierte oder formal ungültige Einträge fail-closed.
 
-Aktueller Kettenkopf nach den Präregistrierungen EXP-026 bis EXP-028:
-`da5723592ca1cd6c0467e9964ac407af884e622480812fedf7d0491cb74ae1dc`
+Aktueller Kettenkopf nach den Präregistrierungen EXP-026 bis EXP-030:
+`7a00e09a535da4327ab92ab1f69bb13814910d8128601812ab7f39d265f6a209`
 
 ---
 
@@ -101,13 +101,15 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 | **EXP-026** | 2026-09-12 | v1.2.9 | Prozess-Fix | SHA-256-Kette macht Ledger-Manipulation, Löschung und Umsortierung fail-closed sichtbar. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND9_M1_M3.md`; Präreg-Commit: `11d46cd`. | `docs/research/TRIALS_LEDGER.md`; geplant: `scripts/verify_ledger.py` | Gültige Kette PASS; manipulierte, gelöschte, umsortierte oder ungültige Kette FAIL | Präregistriert; Bootstrap-Seed bindet Bestand von v1.2.8 | 0 | 10 | PREREGISTERED |
 | **EXP-027** | 2026-09-12 | v1.2.9 | Prozess-Fix | DSR nutzt den kryptografisch verifizierten kumulativen Ledger-Zähler statt des aktuellen Radar-Universums. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND9_M1_M3.md`; Präreg-Commit: `11d46cd`. | geplant: `tools/edge_diagnostic_phase_d.js` und Ledger-Loader | Ledger-N autoritativ; fehlendes/unparsbares/ungültiges Ledger fail-closed; DSR-Monotonie | Präregistriert vor Implementierung und Messlauf | 0 | 10 | PREREGISTERED |
 | **EXP-028** | 2026-09-12 | v1.2.9 | Diagnose | CVD-Akkumulationsdrift wird auf allen fünf Golden-Master-Fixtures über mindestens 5.000 Bars gemessen. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND9_M1_M3.md`; Präreg-Commit: `11d46cd`. | geplant: reproduzierbarer CVD-Paritätsmesser | Absolute/relative Drift und Vergleichskipps je Fixture; bei Kipp oder unbeschränktem Wachstum keine Akzeptanz | Präregistriert vor Messlauf | 0 | 10 | PREREGISTERED |
+| **EXP-029** | 2026-09-12 | v1.2.10 | Prozess-Fix | Ein separat produktpflichtig verankerter Checkpoint bindet letzte ID, Eintragszahl und Kettenkopf. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND10_M1_M2.md`; Präreg-Commit: `f56a2e94`. | geplant: `ledger_checkpoint.json`; `scripts/verify_ledger.py`; `scripts/append_ledger.py` | Gültiger Zustand PASS; Tail-Löschung, direkter Append und Checkpoint-Manipulation FAIL; atomarer Skript-Append PASS | Präregistriert vor Implementierung; Tamper-Evidenz, nicht Prävention | 0 | 10 | PREREGISTERED |
+| **EXP-030** | 2026-09-12 | v1.2.10 | Diagnose | Eine unabhängige Python-Referenz misst die Pine-CVD-/EMA-CVD-Spezifikation gegen den Dashboard-Analyzer auf fünf Golden-Master-Fixtures. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND10_M1_M2.md`; Präreg-Commit: `f56a2e94`. | geplant: `scripts/cvd_reference.py`; Node-Harness; Vergleich | Fix bei einem Kipp oder relativer Drift > 1e-10; sonst AKZEPTIERT mit symbolweisen Zahlen | Präregistriert vor Messlauf; Diagnose ohne Modelländerung | 0 | 10 | PREREGISTERED |
 
 ---
 
 ## 6. Bilanzierte Kennzahlen
 
 - **Kumulative Modell-Experimente (`total_model_experiments`):** **`10`** (EXP-001 bis EXP-006, EXP-008, EXP-009, EXP-022, EXP-024)
-- **Prozess- / Infrastruktur- / Mess- & Diagnose-Einträge:** **`18`** (EXP-007, EXP-010 bis EXP-021, EXP-023, EXP-025 bis EXP-028)
+- **Prozess- / Infrastruktur- / Mess- & Diagnose-Einträge:** **`20`** (EXP-007, EXP-010 bis EXP-021, EXP-023, EXP-025 bis EXP-030)
 - **Modell-Trials im Autobot-Scan (Default Universe: 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
   - Internes Parameter-Grid: `18` (bzw. `9` bei rein gated)
@@ -119,7 +121,7 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 
 ## 7. Protokoll-Regeln für künftige Modellexperimente
 
-1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-026`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen und als eigener Präregistrierungs-Commit gespeichert.
+1. Vor jeder Anpassung an Indikatoren, Schwellenwerten oder Optimierungs-Grids wird eine neue Zeile (`EXP-031`, etc.) mit `Typ = Modellexperiment`, prä-registrierter Hypothese und messbarem Zielkriterium eingetragen und als eigener Präregistrierungs-Commit gespeichert.
 2. Der Präregistrierungs-Commit-Hash wird vor dem Messlauf im Experiment-Eintrag festgehalten. Fehlt dieser vorausgehende Commit, lautet der Status zwingend `prä-registriert (Session-Protokoll, nicht git-belegt)`.
 3. Nach Abschluss der Untersuchung wird das reale Messergebnis eingetragen und der Status auf `ACCEPTED` (Kriterium erreicht) oder `REJECTED` (Kriterium verfehlt) gesetzt.
 4. Der Zähler `total_model_experiments` wird bei jedem Modellexperiment inkrementiert und fließt transparent in die statistische Bewertung ein.
