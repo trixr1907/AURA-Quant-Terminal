@@ -5,7 +5,7 @@
 //  ╚════██║  ╚██╔╝  ██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██╔══╝
 //  ███████║   ██║   ██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║███████╗
 //  ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝
-//  AURA v1.2.10 — Confluence Trading Signal System (Pine Script v6)
+//  AURA v1.2.11 — Confluence Trading Signal System (Pine Script v6)
 // ============================================================================
 //  Ebenen: 1) Technische Analyse (Trend/Momentum/Volatilität/Volumen/Struktur)
 //          2) Kalibrierte Win-Probability (PAVA Isotonic Regression)
@@ -13,9 +13,9 @@
 //          4) Dynamisches Exit Management (TP1-3, Trailing Stop, Time-Stop)
 //          5) Marktkontext (Regime-Filter, Liquiditätspools, Fear & Greed)
 //
-//  v1.2.10 CURRENT:
+//  v1.2.11 CURRENT:
 //   - Dynamic TP1, SuperTrend trailing, time-stop, macro veto/multiplier
-//   - JS/Pine mathematical parity and current symbiose.v1.2.10 alert contract
+//   - JS/Pine mathematical parity and current symbiose.v1.2.11 alert contract
 //
 //  HISTORICAL v1.0.3 NOTES:
 //   - These original feature notes remain historical context only.
@@ -755,7 +755,7 @@ f_cell(ro, tx, vl, tc, bg) =>
     table.cell(dash, 0, ro, tx, text_color=color.new(#94a3b8, 0), text_size=size.tiny, bgcolor=color.new(#0f172a, 0))
     table.cell(dash, 1, ro, vl, text_color=tc, text_size=size.tiny, bgcolor=bg, text_halign=text.align_right)
 
-f_hdr(0, "AURA v1.2.10", syminfo.ticker + " · " + timeframe.period)
+f_hdr(0, "AURA v1.2.11", syminfo.ticker + " · " + timeframe.period)
 
 sClr = totalScore >= thLong ? color.new(#4ade80, 0) : totalScore <= thShort ? color.new(#f87171, 0) : color.new(#e2e8f0, 0)
 sigClr = showLong ? color.new(#4ade80, 0) : showShort ? color.new(#f87171, 0) : (macroVetoL or macroVetoS) ? color.new(#a855f7, 0) : regimeBlocked ? color.new(#f59e0b, 0) : color.new(#64748b, 0)
@@ -831,12 +831,12 @@ if showLong or showShort
     sNot  = str.tostring(sSize * entryPx, "#.##")
     sMtf  = str.tostring(mtfS1, "#.#") + "," + str.tostring(mtfS2, "#.#") + "," + str.tostring(mtfS3, "#.#") + "," + str.tostring(mtfS4, "#.#")
     sRunnerMode = showLong ? (runnerUltraL ? "INSTANT_ST" : "POST_TP1") : (runnerUltraS ? "INSTANT_ST" : "POST_TP1")
-    // JSON-Payload includes v1.2.10 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
-    jsn = '{"type":"symbiose.v1.2.10","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeTxt + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopN) + ',"ts":' + str.tostring(time_close) + '}'
+    // JSON-Payload includes v1.2.11 fields: dynTP1, runner_mode, time_stop_bars, macro_veto, macro_adj
+    jsn = '{"type":"symbiose.v1.2.11","symbol":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","dir":"' + sDir + '","strength":"' + strengthLbl + '","score":' + str.tostring(totalScore, "#.##") + ',"core_score":' + str.tostring(coreScore, "#.##") + ',"p_long":' + str.tostring(inCalibP, "#.#") + ',"funding_bias":' + str.tostring(inFundingBias, "#") + ',"funding_z":' + str.tostring(inFundingZ, "#.##") + ',"oi_bias":' + str.tostring(inOIBias, "#") + ',"basis_bias":' + str.tostring(inBasisBias, "#") + ',"regime":"' + regimeTxt + '","regime_blocked":' + (regimeBlocked ? "true" : "false") + ',"macro_veto":' + ((macroVetoL or macroVetoS) ? "true" : "false") + ',"macro_adj":' + str.tostring(macroAdj, "#.#") + ',"mtf_bonus":' + str.tostring(mtfBonus, "#") + ',"mtf":"' + sMtf + '","runner_mode":"' + sRunnerMode + '","entry":' + str.tostring(entryPx, "#.####") + ',"sl":' + str.tostring(trStop, "#.####") + ',"dyn_tp1":' + str.tostring(trTP1, "#.####") + ',"tp2":' + str.tostring(sDir == "LONG" ? lngTP2 : shtTP2, "#.####") + ',"tp3":' + str.tostring(sDir == "LONG" ? lngTP3 : shtTP3, "#.####") + ',"time_stop_bars":' + str.tostring(timeStopN) + ',"ts":' + str.tostring(time_close) + '}'
     alert(jsn, alert.freq_once_per_bar_close)
 
 // ============================================================================
-//  ENDE — AURA v1.2.10 (Pine v6)
+//  ENDE — AURA v1.2.11 (Pine v6)
 //  Einstieg: nächster Kerzen-Open als Maker-Limit-Order.
 //  50% bei dyn. TP1 ([1R,2R] · opposing FVG/EQH/EQL), 50% SuperTrend-Runner.
 //  Time-Stop nach N Bars wenn rNet <= 0.

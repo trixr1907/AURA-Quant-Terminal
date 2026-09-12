@@ -19,6 +19,14 @@ def bump_version(new_ver: str) -> None:
     # 1. VERSION
     (ROOT / "VERSION").write_text(f"{new_ver}\n", encoding="utf-8")
 
+    # 1b. README.md
+    readme = ROOT / "README.md"
+    readme_text = readme.read_text(encoding="utf-8")
+    readme_text = re.sub(r'#\s*AURA\s+v\d+\.\d+\.\d+', f'# AURA v{new_ver}', readme_text)
+    readme_text = re.sub(r'badge/version-\d+\.\d+\.\d+', f'badge/version-{new_ver}', readme_text)
+    readme_text = re.sub(r'alt="Version\s+\d+\.\d+\.\d+"', f'alt="Version {new_ver}"', readme_text)
+    readme.write_text(readme_text, encoding="utf-8")
+
     # 2. Dockerfile
     dockerfile = ROOT / "Dockerfile"
     dockerfile_text = re.sub(
@@ -112,6 +120,17 @@ def bump_version(new_ver: str) -> None:
     claims_text = re.sub(r'Version \d+\.\d+\.\d+ einheitlich', f'Version {new_ver} einheitlich', claims_text)
     claims_text = re.sub(r"matchen exakt '\d+\.\d+\.\d+'", f"matchen exakt '{new_ver}'", claims_text)
     claims_gen.write_text(claims_text, encoding="utf-8")
+
+    # 13. build_package.py and test_package_hygiene.py
+    pkg = ROOT / "scripts" / "build_package.py"
+    pkg_text = pkg.read_text(encoding="utf-8")
+    pkg_text = re.sub(r'RELEASE_v\d+\.\d+\.\d+\.md', f'RELEASE_v{new_ver}.md', pkg_text)
+    pkg.write_text(pkg_text, encoding="utf-8")
+
+    pkg_test = ROOT / "tests" / "test_package_hygiene.py"
+    pkg_test_text = pkg_test.read_text(encoding="utf-8")
+    pkg_test_text = re.sub(r'RELEASE_v\d+\.\d+\.\d+\.md', f'RELEASE_v{new_ver}.md', pkg_test_text)
+    pkg_test.write_text(pkg_test_text, encoding="utf-8")
 
     print("All component version markers updated.")
 
