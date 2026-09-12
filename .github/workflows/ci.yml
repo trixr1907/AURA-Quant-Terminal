@@ -1,0 +1,75 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+      - "audit/**"
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test Suite & Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt pytest
+          python3 -m playwright install --with-deps chromium
+
+      - name: Path 1 — Release Gate
+        shell: bash
+        run: |
+          python3 scripts/release_check.py --allow-current-version
+
+      - name: Path 2 — Complete JS Discovery & Pytest Suite
+        shell: bash
+        run: |
+          echo "=== Executing Pytest Suite ==="
+          python3 -m pytest -q
+
+          echo "=== Executing Discovered JS Tests ==="
+          failed=0
+          for f in tests/test_*.js; do
+            printf '%-55s' "$f"
+            if node "$f" >/tmp/test_out.log 2>&1; then
+              echo "PASS"
+            else
+              echo "FAIL"
+              cat /tmp/test_out.log
+              failed=$((failed + 1))
+            fi
+          done
+
+          if [ $failed -ne 0 ]; then
+            echo "ERROR: $failed JS test suite(s) failed." >&2
+            exit 1
+          fi
