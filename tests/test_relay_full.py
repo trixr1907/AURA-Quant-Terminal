@@ -162,7 +162,11 @@ class TestDockerDeploymentContract(unittest.TestCase):
         self.assertIn("aura-state:/var/lib/aura", compose)
 
     def test_direct_docker_guide_declares_external_port_state_and_allowlist_contract(self):
-        guide = (Path(__file__).resolve().parent.parent / "DOCKER_GUIDE.md").read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parent.parent
+        guide_path = root / "docs" / "deployment" / "DOCKER_GUIDE.md"
+        if not guide_path.exists():
+            guide_path = root / "DOCKER_GUIDE.md"
+        guide = guide_path.read_text(encoding="utf-8")
         self.assertIn("-p 9090:8787", guide)
         self.assertIn("-e AURA_ALLOWED_HOSTS=<HOST-IP-ODER-DNS>", guide)
         self.assertIn("-e AURA_STATE_DIR=/var/lib/aura", guide)
@@ -648,6 +652,41 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self._post_raw("/api/public", b"not-valid-json")
         self.assertEqual(status, 400)
         self.assertEqual(body["code"], "ERR_BAD_JSON")
+
+    def test_open_tradingview_rejects_evil_loopback_prefix_origin(self):
+        status, body = self._post(
+            "/api/open-tradingview",
+            {"url": "https://www.tradingview.com/chart/test/"},
+            headers={"Origin": "http://127.0.0.1.evil.com"},
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+        status, body = self._post(
+            "/api/open-tradingview",
+            {"url": "https://www.tradingview.com/chart/test/"},
+            headers={"Origin": "http://localhost.evil"},
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+    def test_open_tradingview_allows_exact_loopback_and_null_origin(self):
+        with patch("bitget_relay.open_tradingview_desktop", return_value=True):
+            status, body = self._post(
+                "/api/open-tradingview",
+                {"url": "https://www.tradingview.com/chart/test/"},
+                headers={"Origin": "http://localhost:8787"},
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
+
+            status, body = self._post(
+                "/api/open-tradingview",
+                {"url": "https://www.tradingview.com/chart/test/"},
+                headers={"Origin": "null"},
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
 
     def test_post_requires_json_content_type(self):
         status, body = self._post_raw("/api/public", b'{"path":"/api/v2/test"}', content_type="text/plain")
