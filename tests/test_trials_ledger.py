@@ -99,5 +99,6 @@ def test_invalid_format_fails_closed(tmp_path):
     chain = tmp_path / "chain.jsonl"
     legacy.write_bytes(b"legacy\n")
     chain.write_text("not json\n", encoding="utf-8")
+    malformed = chain.read_text(encoding="utf-8").strip()
     with pytest.raises(verify_ledger.LedgerVerificationError, match="JSON"):
-        verify_ledger._parse_entry(chain.read_text(encoding="utf-8").strip(), 1)
+        verify_ledger._parse_entry(malformed, 1)
