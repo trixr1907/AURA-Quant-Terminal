@@ -324,13 +324,51 @@ class TestVersionProgression(unittest.TestCase):
         status, _ = release_check.check_version_progression("1.0.1", "v1.0.0", True)
         self.assertEqual(status, "PASS")
 
-    def test_committed_changes_since_remote_release_tag_are_detected(self):
+    def test_docs_only_worktree_changes_do_not_require_bump(self):
+        with mock.patch.object(
+            release_check,
+            "run",
+            return_value=(0, " M CHANGELOG.md\n?? docs/new-release.md\n", ""),
+        ):
+            changed, error = release_check.inspect_worktree_changes()
+        self.assertFalse(changed)
+        self.assertIsNone(error)
+
+    def test_product_worktree_change_requires_bump(self):
+        with mock.patch.object(
+            release_check,
+            "run",
+            return_value=(0, " M scripts/release_check.py\n", ""),
+        ):
+            changed, error = release_check.inspect_worktree_changes()
+        self.assertTrue(changed)
+        self.assertIsNone(error)
+
+    def test_committed_product_changes_since_remote_release_tag_are_detected(self):
         responses = [
             (0, "abc123\trefs/tags/v1.2.5\n", ""),
-            (0, "9\n", ""),
+            (0, "scripts/release_check.py\n", ""),
         ]
         with mock.patch.object(release_check, "run", side_effect=responses):
             changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
+        self.assertTrue(changed)
+        self.assertIsNone(error)
+
+    def test_committed_docs_and_infrastructure_changes_do_not_require_bump(self):
+        responses = [
+            (0, "docs/guide.md\n.github/workflows/ci.yml\nCHANGELOG.md\nLICENSE\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5")
+        self.assertFalse(changed)
+        self.assertIsNone(error)
+
+    def test_root_markdown_is_ignored_but_product_files_require_bump(self):
+        responses = [
+            (0, "README.md\nrequirements.txt\n", ""),
+        ]
+        with mock.patch.object(release_check, "run", side_effect=responses):
+            changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5")
         self.assertTrue(changed)
         self.assertIsNone(error)
 
