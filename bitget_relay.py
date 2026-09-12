@@ -674,24 +674,28 @@ class RelayHandler(BaseHTTPRequestHandler):
         origin_value = self.headers.get("Origin")
         if origin_value is None:
             return True
-        if path == "/api/open-tradingview" and (
-            origin_value == "null"
-            or origin_value.startswith(("http://127.0.0.1", "http://localhost", "https://127.0.0.1", "https://localhost"))
-        ):
+        if path == "/api/open-tradingview" and origin_value == "null":
             return True
         try:
             origin = urllib.parse.urlsplit(origin_value)
             host_port = host.port
             origin_port = origin.port
-            # Host and Origin must describe exactly the same authority.  The
-            # listener port is deliberately not consulted: Docker/NAT may
+            loopback_hosts = {"127.0.0.1", "localhost", "::1"}
+            is_loopback_dispatch = (
+                path == "/api/open-tradingview"
+                and host.hostname in loopback_hosts
+                and origin.hostname in loopback_hosts
+            )
+            # Host and Origin must describe exactly the same authority (or both be loopback for desktop dispatch).
+            # The listener port is deliberately not consulted: Docker/NAT may
             # expose the internal listener on a different external port.
             same_authority = (
-                origin.hostname == host.hostname
+                (origin.hostname == host.hostname or is_loopback_dispatch)
                 and origin.username is None
                 and origin.password is None
                 and (
-                    (host_port is not None and origin_port == host_port)
+                    is_loopback_dispatch
+                    or (host_port is not None and origin_port == host_port)
                     or (host_port is None and origin_port is None)
                 )
             )

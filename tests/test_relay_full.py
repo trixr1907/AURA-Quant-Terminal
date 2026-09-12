@@ -649,6 +649,41 @@ class TestHTTPServer(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body["code"], "ERR_BAD_JSON")
 
+    def test_open_tradingview_rejects_evil_loopback_prefix_origin(self):
+        status, body = self._post(
+            "/api/open-tradingview",
+            {"url": "https://www.tradingview.com/chart/test/"},
+            headers={"Origin": "http://127.0.0.1.evil.com"},
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+        status, body = self._post(
+            "/api/open-tradingview",
+            {"url": "https://www.tradingview.com/chart/test/"},
+            headers={"Origin": "http://localhost.evil"},
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+    def test_open_tradingview_allows_exact_loopback_and_null_origin(self):
+        with patch("bitget_relay.open_tradingview_desktop", return_value=True):
+            status, body = self._post(
+                "/api/open-tradingview",
+                {"url": "https://www.tradingview.com/chart/test/"},
+                headers={"Origin": "http://localhost:8787"},
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
+
+            status, body = self._post(
+                "/api/open-tradingview",
+                {"url": "https://www.tradingview.com/chart/test/"},
+                headers={"Origin": "null"},
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
+
     def test_post_requires_json_content_type(self):
         status, body = self._post_raw("/api/public", b'{"path":"/api/v2/test"}', content_type="text/plain")
         self.assertEqual(status, 415)
