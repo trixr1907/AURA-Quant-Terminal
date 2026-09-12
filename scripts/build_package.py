@@ -42,8 +42,9 @@ MANIFEST = [
     "Symbiose_Dashboard.html",
     "Symbiose_Signal_System_v1.pine",
     # documentation and brand assets
+    "LICENSE",
     "README.md",
-    "RELEASE_v1.2.5.md",
+    "RELEASE_v1.2.6.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",

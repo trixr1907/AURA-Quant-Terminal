@@ -10,6 +10,7 @@ edge is evidenced.
 """
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
+GOLDEN_PARITY_REFERENCE = GOLDEN_DIR / "parity_reference.json"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
 GOLDEN_FILES = [
     "BTCUSDT_1h.csv",
@@ -62,6 +64,58 @@ def check_version_progression(current: str, latest_tag: str | None, tracked_chan
     if tracked_changes and current_parts == tag_parts and not allow_current_version:
         return "FAIL", json.dumps({"version": current, "tag": latest_tag, "error": "version bump required for update"})
     return "PASS", json.dumps({"version": current, "tag": latest_tag})
+
+
+def latest_semver_tag_from_refs(ref_output: str) -> str | None:
+    """Return the highest strict SemVer tag from git tag or ls-remote output."""
+    candidates: list[tuple[tuple[int, int, int], str]] = []
+    for line in ref_output.splitlines():
+        token = line.rsplit("/", 1)[-1].removesuffix("^{}").strip()
+        match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", token)
+        if match:
+            version_parts = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            candidates.append((version_parts, token))
+    return max(candidates)[1] if candidates else None
+
+
+def inspect_version_tag_state() -> tuple[str | None, str | None, str | None]:
+    """Inspect reachable local tags and origin tags without mutating local refs."""
+    local_rc, local_output, _ = run(["git", "tag", "--list", "v*.*.*"])
+    local_tag = latest_semver_tag_from_refs(local_output) if local_rc == 0 else None
+    remote_rc, remote_output, remote_error = run(["git", "ls-remote", "--tags", "origin"], timeout=30)
+    if remote_rc != 0:
+        return local_tag, None, remote_error[-1000:] or "git ls-remote failed"
+    return local_tag, latest_semver_tag_from_refs(remote_output), None
+
+
+def inspect_committed_changes_since_tag(tag: str, *, remote: bool = False) -> tuple[bool | None, str | None]:
+    """Return whether HEAD contains commits after a local or remote release tag."""
+    tag_ref = tag
+    if remote:
+        rc, output, error = run(
+            ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"],
+            timeout=30,
+        )
+        if rc != 0:
+            return None, error[-1000:] or "cannot resolve remote release tag"
+        resolved = []
+        for line in output.splitlines():
+            fields = line.split()
+            if len(fields) == 2 and fields[1] in {f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"}:
+                resolved.append((fields[1], fields[0]))
+        tag_ref = next((sha for ref, sha in resolved if ref.endswith("^{}")), "")
+        if not tag_ref:
+            tag_ref = next((sha for _ref, sha in resolved), "")
+        if not tag_ref:
+            return None, f"cannot resolve origin tag {tag}"
+
+    rc, output, error = run(["git", "rev-list", "--count", f"{tag_ref}..HEAD"])
+    if rc != 0:
+        return None, error[-1000:] or f"cannot compare HEAD with release tag {tag}"
+    try:
+        return int(output.strip()) > 0, None
+    except ValueError:
+        return None, "git rev-list returned a non-numeric commit count"
 
 
 def run(cmd, cwd=ROOT, env=None, timeout=900):
@@ -370,6 +424,94 @@ def run_model_evidence_real_gate() -> tuple[str, str, str | None]:
         return "FAIL", f"parse_error: {e}", None
 
 
+def evaluate_golden_parity_trend(report: dict, reference: dict) -> tuple[str, str]:
+    """Fail if any per-fixture parity metric is invalid or worse than its baseline."""
+    actual_fixtures = report.get("fixtures")
+    expected_fixtures = reference.get("fixtures")
+    if not isinstance(actual_fixtures, list) or not isinstance(expected_fixtures, dict):
+        return "FAIL", json.dumps({"error": "invalid parity report/reference schema"})
+
+    expected_names = set(GOLDEN_FILES)
+    actual_names = [item.get("fixture") if isinstance(item, dict) else None for item in actual_fixtures]
+    reference_names = set(expected_fixtures)
+    if (
+        len(actual_names) != len(expected_names)
+        or len(set(actual_names)) != len(actual_names)
+        or set(actual_names) != expected_names
+        or reference_names != expected_names
+    ):
+        return "FAIL", json.dumps({
+            "error": "fixture set mismatch",
+            "expected": sorted(expected_names),
+            "actual": actual_names,
+            "reference": sorted(reference_names),
+        }, separators=(",", ":"))
+
+    actual_by_name = {item["fixture"]: item for item in actual_fixtures}
+    regressions = []
+    metrics = []
+    for fixture in GOLDEN_FILES:
+        actual = actual_by_name[fixture]
+        expected = expected_fixtures[fixture]
+        if not isinstance(expected, dict):
+            regressions.append({"fixture": fixture, "error": "invalid reference fixture metrics"})
+            continue
+        metric = {
+            "fixture": fixture,
+            "max_delta": actual.get("maxDelta"),
+            "soft_mismatches": actual.get("softMismatches"),
+            "soft_rate": actual.get("softRate"),
+            "reference_max_delta": expected.get("max_delta"),
+            "reference_soft_mismatches": expected.get("soft_mismatches"),
+            "reference_soft_rate": expected.get("soft_rate"),
+        }
+        metrics.append(metric)
+        if actual.get("ok") is not True:
+            regressions.append({"fixture": fixture, "metric": "absolute_threshold", "error": "comparison did not explicitly pass"})
+        numeric_pairs = (
+            ("max_delta", actual.get("maxDelta"), expected.get("max_delta")),
+            ("soft_mismatches", actual.get("softMismatches"), expected.get("soft_mismatches")),
+            ("soft_rate", actual.get("softRate"), expected.get("soft_rate")),
+        )
+        for name, actual_value, reference_value in numeric_pairs:
+            if (
+                isinstance(actual_value, bool)
+                or isinstance(reference_value, bool)
+                or not isinstance(actual_value, (int, float))
+                or not isinstance(reference_value, (int, float))
+            ):
+                regressions.append({"fixture": fixture, "metric": name, "error": "non-numeric metric"})
+            elif not math.isfinite(actual_value) or not math.isfinite(reference_value):
+                regressions.append({"fixture": fixture, "metric": name, "error": "non-finite numeric metric"})
+            elif actual_value > reference_value + 1e-15:
+                regressions.append({
+                    "fixture": fixture,
+                    "metric": name,
+                    "actual": actual_value,
+                    "reference": reference_value,
+                })
+
+    payload = {"metrics": metrics, "regressions": regressions}
+    return ("FAIL" if regressions else "PASS"), json.dumps(payload, separators=(",", ":"))
+
+
+def run_golden_parity_trend_gate(reference_path: Path = GOLDEN_PARITY_REFERENCE) -> tuple[str, str]:
+    """Run machine-readable Pine/JS comparison and enforce no-regression baselines."""
+    try:
+        reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return "FAIL", json.dumps({"error": f"cannot load parity reference: {exc}"})
+    command = ["node", "tests/compare_pine_js_golden.js"] + [str(GOLDEN_DIR / name) for name in GOLDEN_FILES] + ["--json"]
+    rc, out, err = run(command)
+    if rc != 0:
+        return "FAIL", (err or out).strip()[-1000:]
+    try:
+        report = json.loads(out.strip())
+    except json.JSONDecodeError as exc:
+        return "FAIL", json.dumps({"error": f"cannot parse parity JSON: {exc}", "output": out[-500:]})
+    return evaluate_golden_parity_trend(report, reference)
+
+
 def main() -> int:
     results = []
     env = {**__import__("os").environ}
@@ -377,103 +519,17 @@ def main() -> int:
     def add(check_res):
         results.append(check_res)
 
-    # 1. Engine suite
-    rc, out, err = run(["node", "tests/test_engine_full.js"])
-    ok = rc == 0 and "0 FAILED" in out
-    summary_line = next((ln for ln in out.splitlines() if "PASSED" in ln and "FAILED" in ln), "")
-    add(check("engine suite", "PASS" if ok else "FAIL",
-              summary_line.strip() or (err or out).strip()[-200:]))
-    if not ok:
-        add(check("engine suite (detail)", "FAIL", (err or out)[-1500:]))
-
-    # 1b. Radar batching, zero-volume early exit, and user sort/filter behavior
-    rc, out, err = run(["node", "tests/test_radar_progressive.js"])
-    add(check("radar progressive rendering", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_snapshot.js"])
-    add(check("radar reload persistence", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_persistence.js"])
-    add(check("radar cached startup", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_sorting.js"])
-    add(check("radar smart sorting", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_top_candidates.js"])
-    add(check("radar top candidates tiering", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_link.js"])
-    add(check("tradingview link integration", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_basic_qol.js"])
-    add(check("tradingview basic qol", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_tradingview_return_link.js"])
-    add(check("tradingview return link", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_focus_selection.js"])
-    add(check("radar focus selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_setup_validation_focus.js"])
-    add(check("setup validation focus", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_entry_gate.js"])
-    add(check("autobot entry gate", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_selection.js"])
-    add(check("autobot strongest selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_refresh_cycle.js"])
-    add(check("radar refresh lifecycle", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_timeframe_edge.js"])
-    add(check("autobot strongest timeframe", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_statistical_edge.js"])
-    add(check("autobot statistical edge", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_release_notes_overlay.js"])
-    add(check("release notes overlay", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_revalidation_object.js"])
-    add(check("autobot revalidation object", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_autobot_scan_diagnostics.js"])
-    add(check("autobot scan diagnostics", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_radar_continuous_cycle.js"])
-    add(check("radar continuous cycle", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_timestop_timeframe_scaling.js"])
-    add(check("timestop timeframe scaling", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_trade_clickable_data.js"])
-    add(check("trade clickable data", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1c. Live trade tracker
-    rc, out, err = run(["node", "tests/test_live_trade_tracker.js"])
-    add(check("live trade tracker", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_websocket_generation.js"])
-    add(check("websocket generation guard", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_relay_origin.js"])
-    add(check("relay origin selection", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1d. SMC Sessions & Killzones (Single Source of Truth)
-    rc, out, err = run(["node", "tests/test_smc_sessions.js"])
-    add(check("smc sessions suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-    rc, out, err = run(["node", "tests/test_cross_device_sync.js"])
-    add(check("cross device sync suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
-
-    # 1e. Audit Integrity & E2E Trace
-    rc, out, err = run(["node", "tests/test_audit_integrity.js"])
-    add(check("audit integrity suite", "PASS" if rc == 0 else "FAIL",
-              (out or err).strip()[:300]))
+    # 1. Full JS test discovery and execution (fail-closed)
+    js_test_files = sorted([p for p in (ROOT / "tests").glob("test_*.js")])
+    for js_path in js_test_files:
+        rel = str(js_path.relative_to(ROOT))
+        name = js_path.stem.replace("test_", "").replace("_", " ")
+        rc, out, err = run(["node", rel])
+        ok = rc == 0
+        detail = (out or err).strip()
+        if "FAILED" in detail and "0 FAILED" not in detail:
+            ok = False
+        add(check(f"js: {name}", "PASS" if ok else "FAIL", detail[:300]))
 
     # 2. Statistical Oracle & Metamorphic tests
     rc1, out1, err1 = run([sys.executable, "tests/reference_backtest.py"])
@@ -504,12 +560,16 @@ def main() -> int:
     summary_text = " | ".join(summary_lines) if summary_lines else detail[-100:]
     add(check("relay suite", "PASS" if ok else "FAIL", summary_text[:200]))
 
-    # 4. Python compile + launcher behavior + release sync suite
+    # 4. Python compile + launcher behavior + release sync suite + full pytest
     rc, out, err = run([sys.executable, "-m", "py_compile",
                         "start.py", "bitget_relay.py", "tests/browser_research_harness.py",
                         "tests/reference_backtest.py", "scripts/release_check.py",
                         "scripts/sync_market_data.py"])
     add(check("python compile", "PASS" if rc == 0 else "FAIL", (err or out).strip()[:300]))
+    rc, out, err = run([sys.executable, "-m", "pytest", "-q"])
+    detail = (err or out).strip()
+    summary_lines = [ln.strip() for ln in detail.splitlines() if "passed" in ln or "failed" in ln or "error" in ln]
+    add(check("pytest full suite", "PASS" if rc == 0 else "FAIL", " | ".join(summary_lines)[:200]))
     rc, out, err = run([sys.executable, "-m", "unittest", "tests/test_launcher.py"])
     detail = (err or out).strip()
     summary_lines = [ln.strip() for ln in detail.splitlines() if "Ran " in ln or "OK" in ln or "FAILED" in ln]
@@ -560,10 +620,8 @@ def main() -> int:
             add(check("golden 5-symbol comparison", "NO-GO",
                       f"blocked by golden master authenticity ({auth_detail})"))
         else:
-            rc, out, err = run(["node", "tests/compare_pine_js_golden.js"]
-                               + [str(GOLDEN_DIR / f) for f in GOLDEN_FILES])
-            add(check("golden 5-symbol comparison", "PASS" if rc == 0 else "FAIL",
-                      (out or err).strip()[:400]))
+            parity_status, parity_detail = run_golden_parity_trend_gate()
+            add(check("golden 5-symbol comparison & trend", parity_status, parity_detail))
 
     # 8. Deterministic browser E2E (requires playwright)
     rc, out, err = run([sys.executable, "tests/browser_research_harness.py"], env=env, timeout=1800)
@@ -592,17 +650,48 @@ def main() -> int:
             ver_detail = json.dumps({"version": version, "versions": parsed_versions, "error": "VERSION mismatch"})
     add(check("version consistency", ver_status, ver_detail))
 
-    # 9b. Every update after a release tag must advance SemVer.
-    tag_rc, latest_tag, _ = run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*.[0-9]*.[0-9]*"])
-    latest_tag = latest_tag.strip() if tag_rc == 0 else None
+    # 9b. Every update after the latest release tag must advance SemVer. Check
+    # origin without mutating local refs so a stale clone cannot silently pass.
+    local_tag, remote_tag, tag_error = inspect_version_tag_state()
+    latest_tag = remote_tag or local_tag
     changes_rc, changes, changes_err = run(["git", "status", "--porcelain", "--untracked-files=all"])
     if changes_rc != 0:
         progression_status = "FAIL"
         progression_detail = json.dumps({"error": "cannot inspect tracked changes", "stderr": changes_err[-1000:]})
+    elif tag_error:
+        progression_status = "FAIL"
+        progression_detail = json.dumps({
+            "version": version,
+            "local_tag": local_tag,
+            "error": "cannot verify origin tag state",
+            "stderr": tag_error,
+        })
     else:
-        progression_status, progression_detail = check_version_progression(
-            version, latest_tag, bool(changes.strip()), allow_current_version=("--allow-current-version" in sys.argv)
-        )
+        committed_changes, committed_error = inspect_committed_changes_since_tag(
+            latest_tag, remote=bool(remote_tag)
+        ) if latest_tag else (False, None)
+        if committed_error:
+            progression_status = "FAIL"
+            raw_progression_detail = json.dumps({
+                "version": version,
+                "tag": latest_tag,
+                "error": "cannot verify committed changes since release tag",
+                "stderr": committed_error,
+            })
+        else:
+            progression_status, raw_progression_detail = check_version_progression(
+                version,
+                latest_tag,
+                bool(changes.strip()) or bool(committed_changes),
+                allow_current_version=("--allow-current-version" in sys.argv),
+            )
+        parsed_progression = json.loads(raw_progression_detail)
+        parsed_progression.update({
+            "local_tag": local_tag,
+            "remote_tag": remote_tag,
+            "local_tags_stale": bool(local_tag and remote_tag and local_tag != remote_tag),
+        })
+        progression_detail = json.dumps(parsed_progression)
     add(check("version progression", progression_status, progression_detail))
 
     # 10. Secret-pattern and generated-file scan

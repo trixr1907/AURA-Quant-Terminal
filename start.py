@@ -53,7 +53,7 @@ def load_tkinter():
 
 
 def gui_available() -> bool:
-    if os.environ.get("SYM_NO_GUI") == "1" or "--cli" in sys.argv:
+    if os.environ.get("SYM_NO_GUI") == "1" or "--cli" in sys.argv or "--no-gui" in sys.argv:
         return False
     try:
         load_tkinter()
@@ -78,7 +78,7 @@ def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 
 
 def check_relay_health() -> dict | None:
     try:
-        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.5"})
+        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.2.6"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
@@ -281,7 +281,7 @@ def print_banner():
  ╔══════════════════════════════════════════════════════════════════════════╗
  ║    ___   __  ______  ___        AURA — CONFLUENCE TERMINAL               ║
  ║   /   | / / / / __ \/   |       Quantitative Edge · Visual Precision     ║
- ║  / /| |/ / / / /_/ / /| |       Pure Execution · v1.2.5                  ║
+ ║  / /| |/ / / / /_/ / /| |       Pure Execution · v1.2.6                  ║
  ║ / ___ / /_/ / _, _/ ___ |       Quant Research & Setup Discovery         ║
  ║/_/  |_\____/_/ |_/_/  |_|       Bitget Perpetuals · Confluence Engine    ║
  ╚══════════════════════════════════════════════════════════════════════════╝

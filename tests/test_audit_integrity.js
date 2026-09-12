@@ -227,7 +227,9 @@ console.log('  PASS  Timeframe units & scaling invariants confirmed');
 // 4. CLAIMS INTEGRITY VERIFICATION
 // ============================================================================
 console.log('[4. Claims Integrity Verification]');
-const claimsFile = path.join(root, 'claims.csv');
+const claimsFile = fs.existsSync(path.join(root, 'docs/research/claims.csv'))
+  ? path.join(root, 'docs/research/claims.csv')
+  : path.join(root, 'claims.csv');
 assert.ok(fs.existsSync(claimsFile), 'claims.csv must exist');
 const claimsContent = fs.readFileSync(claimsFile, 'utf8');
 const lines = claimsContent.trim().split('\n');
