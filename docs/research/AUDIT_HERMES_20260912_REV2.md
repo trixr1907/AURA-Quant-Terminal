@@ -5,6 +5,7 @@
 **Baseline-Commit:** `0b7bc94b5dbb63b63cdbe9e0e81225b80cb839c8`
 **Audit-Branch:** `audit/hermes-gesamtaudit-20260912`
 **Vorgängerbericht:** `docs/research/AUDIT_HERMES_20260912.md`
+**Nachfolgebericht (Revision 3):** `docs/research/AUDIT_HERMES_20260912_REV3.md` (Ursachenaufklärung F-16 in 3 Klassen, Beseitigung der Exit-Testlücken F-17 bis F-20)
 **Scope:** ausschließlich die Nachprüfungspunkte N1–N6; keine neue Vollprüfung.
 
 ---
@@ -100,6 +101,12 @@ Die Liste enthält auch das jeweils abhängige `core`-Delta, weil das Harness pr
 
 **Konsistent mit EMA/RMA-Konvergenz:** keine.
 **Nicht durch die dokumentierte Konvergenzhypothese erklärbar:** alle 20 Feld-Mismatches auf 10 Kerzen.
+
+> **KORREKTUR & URSACHENAUFKLÄRUNG (Revision 3, 2026-09-12):**
+> Die pauschale Bewertung *„alle 20 Mismatches nicht erklärbar / exakter Ursprung NICHT GEPRÜFT"* wurde in **Revision 3 (`docs/research/AUDIT_HERMES_20260912_REV3.md`)** vollständig auf Ursachenebene aufgeklärt und in drei Klassen zerlegt:
+> 1. **Klasse 1 (4 Fälle volumeScore +20):** Floating-Point-Gleichheitsunterlauf am 00:00 UTC Reset (`close == hlc3 == vwapD`). Pine wertet `close > vwapD` als `false` (-10), JS leidet unter 64-Bit-Float-Unterlauf bei `(h+l+c)/3` und wertet als `true` (+10).
+> 2. **Klasse 2 (5 Fälle trend ±3 / +8):** Inhärente Messerschneiden-Diskretisierung an den harten ADX-Schwellen 18.0 und 25.0 durch unvermeidbare kontinuierliche RMA-Restdifferenzen (0.01 bis 0.8) über endliche Historie.
+> 3. **Klasse 3 (1 Fall momentum 0.4487):** Kontinuierliches RMA-Restkonvergenzrauschen in RSI/Stoch-RSI.
 
 Wichtig zur Schwellenwirkung: Keiner der konkret beobachteten Core-Paare überquert 25, 50 oder 75. Ein `volumeScore`-Delta 20 verändert den Core aber um 5 Punkte, ein `trend`-Delta 8 um 2,4 Punkte. Deshalb **kann** dieselbe Komponentenabweichung bei einer Kerze nahe einer Gate-Grenze eine Schwelle überqueren; nur in diesen zehn beobachteten Kerzen geschieht es nicht.
 
