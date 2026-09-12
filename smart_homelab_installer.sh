@@ -159,6 +159,7 @@ deploy_proxmox_docker_lxc() {
   echo -e "${BL}[5/6] Kopiere AURA Projektdateien in den Container...${CL}"
   pct exec "$CT_ID" -- mkdir -p /opt/aura/data
   pct push "$CT_ID" "$SCRIPT_DIR/Dockerfile" /opt/aura/Dockerfile
+  pct push "$CT_ID" "$SCRIPT_DIR/VERSION" /opt/aura/VERSION
   pct push "$CT_ID" "$SCRIPT_DIR/bitget_relay.py" /opt/aura/bitget_relay.py
   pct push "$CT_ID" "$SCRIPT_DIR/Symbiose_Dashboard.html" /opt/aura/Symbiose_Dashboard.html
   pct push "$CT_ID" "$SCRIPT_DIR/SYMBIOSE_Tutorial.html" /opt/aura/SYMBIOSE_Tutorial.html
