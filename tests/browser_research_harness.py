@@ -24,6 +24,7 @@ ALLOWED_EXTERNAL_HOSTS = {
     "api.coinlore.net", "fapi.binance.com", "fapi.binance.vision",
 }
 ALLOWED_WS_HOSTS = {
+    "ws.bitget.com",
     "stream.binance.com",
     "data-stream.binance.vision",
 }
