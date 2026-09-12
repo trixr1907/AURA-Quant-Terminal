@@ -5,7 +5,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
-const start = html.indexOf('const WS_URLS = [');
+const start = html.indexOf('const BITGET_CANDLE_CHANNELS = {');
 const end = html.indexOf('\nfunction buildSymbols()', start);
 assert(start >= 0 && end > start, 'WebSocket source block missing');
 const source = html.slice(start, end);
@@ -47,11 +47,12 @@ const context = {
   },
   clearTimeout(id) { timers.delete(id); },
   setWs() {},
+  renderFeedStatus() {},
   analyze() { return { ok: true }; },
   backtest() { return []; },
   renderPrice() { renderCalls.price++; },
   renderChart() { renderCalls.chart++; },
-  renderLiveTrades() { renderCalls.trades++; },
+  scheduleLiveTradesRender() { renderCalls.trades++; },
   renderAll() { renderCalls.all++; },
 };
 vm.createContext(context);
