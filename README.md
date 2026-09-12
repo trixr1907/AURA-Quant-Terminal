@@ -6,10 +6,10 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v1.2.12 — Confluence Terminal
+# AURA v1.2.13 — Confluence Terminal
 
 <p align="center">
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.12-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.2.12"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.13-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.2.13"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
   <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
   <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">

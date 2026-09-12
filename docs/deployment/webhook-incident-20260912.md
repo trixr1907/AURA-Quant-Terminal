@@ -175,15 +175,30 @@ Die ursprüngliche v1.2.12-Zustellung und ein Ping-Test wurden via GitHub API ne
 +-----------------------+
 ```
 
+### Receiver-Pflicht: Post-Start-Verifikation `/serving` gegen Ziel-Version
+Nach jedem Container-Start **muss** der Receiver-Prozess den Endpunkt `GET /serving` abfragen und prüfen, ob die gemeldete Version exakt dem `tag_name` entspricht. Scheitert diese Prüfung oder weicht die Version ab, **muss** der Prozess den Fehler laut und unübersehbar im Service-Log protokollieren (`ERROR [AURA-Updater] Healthcheck FAILED: Expected v{tag}, got v{running_ver}`):
+
+```bash
+# Verifikations-Schritt im Receiver / Deploy-Skript:
+TARGET_TAG="1.2.13"
+RUNNING_VER=$(curl -s -m 5 http://127.0.0.1:8787/serving | grep -oP '(?<="version": ")[^"]+')
+
+if [ "$RUNNING_VER" != "$TARGET_TAG" ]; then
+    echo "[CRITICAL DEPLOY ERROR] Version mismatch after restart! Expected: $TARGET_TAG, Live: $RUNNING_VER" >&2
+    exit 1
+fi
+echo "[DEPLOY SUCCESS] Container verified serving version $RUNNING_VER"
+```
+
 ### Manuelles Notfall-Deployment (Fallout-Prozedur):
 ```bash
 # 1. Neuestes Release-Asset laden
-gh release download v1.2.12 -p symbiose.zip -D /tmp/deploy
+gh release download v1.2.13 -p symbiose.zip -D /tmp/deploy
 
 # 2. Entpacken
 unzip /tmp/deploy/symbiose.zip -d /tmp/deploy/extracted
 
-# 3. Docker Image bauen und starten
+# 3. Docker Image bauen und starten (COPY VERSION ist ab v1.2.13 nativ im Dockerfile enthalten)
 docker build -t aura-quant-terminal:latest /tmp/deploy/extracted
 docker rm -f aura-terminal
 docker run -d \
