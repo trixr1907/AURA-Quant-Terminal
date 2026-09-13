@@ -13,9 +13,9 @@ Jede künftige Session und jeder Release-Vorgang muss die folgenden 9 Regeln aus
   - **Exit-Semantik:** Exit `0` = Software-GO (auch bei `MODEL_NO_EVIDENCE` zulässig für Software-Ships); Exit `2` = Software-FAIL (blockiert alles). Läuft ein Gate rot, wird der Release-Versuch sofort abgebrochen und der Befund behoben — NIEMALS umgangen.
   - **Historische Begründung:** In Commit `513fe68` wurde `|| true` in die CI-Pipeline eingefügt, wodurch fehlerhafte Suites unbemerkt durchgelaufen wären. In Commit `baa23c1` (v1.1.1) wurde das strikte Fail-Closed-Verhalten wiederhergestellt.
 
-- [ ] **2. Berichts-Hashes exakt & maschinell belegt:**
-  - **Regel:** Jede Commit-SHA, Git-Tag-, Dateipfad- oder Hash-Angabe in Release-Notes, Berichten und Dokumenten MUSS direkt via `git rev-parse HEAD`, `git tag -v` oder `sha256sum <datei>` verifiziert werden — niemals aus dem Gedächtnis oder Vorab-Schätzungen.
-  - **Historische Begründung:** Diskrepanzen in frühen Berichten (z. B. referenzierter Commit `a71ea5f` vs. tatsächlicher HEAD `60bb193` oder Hash-Drift `8a05272a` vs. `0dea7c77`) zerstören die Nachvollziehbarkeit.
+- [ ] **2. Berichts-Hashes exakt & maschinell zitiert (Befehl + Ausgabe):**
+  - **Regel:** Jede Commit-SHA, Git-Tag-, Dateipfad- oder Hash-Angabe in Release-Notes, Berichten und Dokumenten MUSS als ausgeführter Terminalbefehl mit zugehöriger Ausgabe zitiert werden (z. B. `git rev-parse origin/main` → Ausgabe, `sha256sum <datei>` → Ausgabe) — niemals als bloße unbewiesene Angabe oder aus dem Gedächtnis.
+  - **Historische Begründung:** Diskrepanzen in Berichten (z. B. referenzierter Commit `a71ea5f` vs. tatsächlicher HEAD `60bb193` oder Hash-Drift `8a05272a` vs. `0dea7c77`) zerstören die Nachvollziehbarkeit.
 
 - [ ] **3. Keine Behauptung ohne Repo-Deckung:**
   - **Regel:** Der Status „verifiziert: JA" oder „abgeschlossen" darf NUR vergeben werden, wenn der entsprechende Code committet UND im Remote gepusht ist. Andernfalls gilt zwingend die Kennzeichnung „lokal implementiert, nicht committet / nicht gepusht".
