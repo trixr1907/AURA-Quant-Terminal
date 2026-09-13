@@ -1,7 +1,7 @@
 'use strict';
-const assert=require('assert');
-const fs=require('fs');
-const vm=require('vm');
+const assert=require('node:assert');
+const fs=require('node:fs');
+const vm=require('node:vm');
 const html=fs.readFileSync('Symbiose_Dashboard.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const ctx={console,JSON,Math,Date,Promise,Set,Map,Number,String,Array,Object,localStorage:{getItem:()=>null,setItem(){},removeItem(){}},document:{getElementById:()=>null,querySelectorAll:()=>({forEach(){}}),addEventListener(){},createElement:()=>({}),body:{}},window:{addEventListener(){},requestAnimationFrame:cb=>cb()},setTimeout:()=>1,setInterval:()=>1,clearTimeout(){},requestAnimationFrame:cb=>cb(),fetch:async()=>({ok:true,json:async()=>({})}),location:{search:''}};
