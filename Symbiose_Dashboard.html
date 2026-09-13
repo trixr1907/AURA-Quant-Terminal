@@ -537,7 +537,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
               <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">📈 Min. Setup-Score (0–100)</label>
               <input id="ab-cfg-min-score" type="number" step="1" min="50" max="95" value="65" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
-              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Mindest-Signalstärke (Trend, Momentum, Struktur). 65 = solide Basis.</div>
+              <div id="ab-hint-min-score" style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">MinScore wirkt nur auf Zeilen, die die festen Radar-Kriterien bereits erfüllen. Der Radar selbst ist bewusst nicht konfigurierbar: Score &ge; 75 / &le; 25, passendes Trend-Regime, ADX &ge; 20 und kein Squeeze.</div>
             </div>
 
             <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
@@ -554,7 +554,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
                 <option value="2" selected>2 / 4 Timeframes (Ausgewogen · Standard)</option>
                 <option value="1">1 / 4 Timeframes (Aktiv · Frühe Einstiege)</option>
               </select>
-              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Wie viele Zeiteinheiten (15m, 1h, 4h, 1d) in die gleiche Richtung zeigen müssen.</div>
+              <div id="ab-hint-mtf" style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Legt fest, wie viele Zeiteinheiten (15m, 1h, 4h, 1d) im Autobot-Pfad übereinstimmen müssen. Es lockert nicht die festen Radar-Kriterien.</div>
             </div>
 
             <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
@@ -578,7 +578,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
               <label style="display:block;font-size:9.5px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:4px">⌛ Stagnations Time-Stop (Std.)</label>
               <input id="ab-cfg-stagnation-hours" type="number" step="1" min="2" max="72" value="12" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
-              <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Schließt unbewegliche Trades nach X Std. automatisch (Standard: 12h).</div>
+              <div id="ab-hint-timestop" style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">TimeStop wirkt erst auf offene Positionen, nicht auf die Signalfindung; er schließt stagnierende Trades nach der konfigurierten Dauer.</div>
             </div>
           </div>
 
@@ -846,7 +846,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -940,7 +940,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.5.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.5.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -8498,25 +8498,51 @@ function sanitizeAutobotError(_error) {
   return 'Datenabruf/Revalidierung fehlgeschlagen';
 }
 
-function autobotRejectSummary(funnel) {
-  if (!funnel || !funnel.rejects || typeof funnel.rejects !== 'object') return '';
-  const labels = {
-    DUPLICATE_OR_INVALID: 'ungültig/bereits offen',
-    LIQUIDITY: 'Liquidität',
-    NO_RADAR_READY: 'Radar-Gate',
-    BTC_CONFLICT: 'BTC-Konflikt',
-    FRESH_DATA: 'Fresh-Daten',
-    FRESH_ANALYSIS: 'Fresh-Analyse',
-    FRESH_GATE: 'Fresh-Gate',
-    MODEL_NO_EVIDENCE: 'keine OOS-Evidenz',
-    MARGIN: 'Margin',
-    REFETCH_ERROR: 'Datenfehler'
+function autobotRejectDetails(funnel) {
+  if (!funnel || !funnel.rejects || typeof funnel.rejects !== 'object') return [];
+  const details = {
+    DUPLICATE_OR_INVALID: { label: 'ungültig/bereits offen', title: 'Kandidat ist unvollständig, ungültig oder für dieses Symbol bereits als Position offen.' },
+    LIQUIDITY: { label: 'Liquidität', title: 'Das verifizierte 24h-USDT-Volumen liegt unter dem eingestellten Minimum oder fehlt.' },
+    NO_RADAR_READY: { label: 'Radar-Gate', title: 'Die festen Radar-Kriterien für Score, Trend-Regime, ADX oder Squeeze-Schutz sind nicht vollständig erfüllt.' },
+    RADAR_INCOMPLETE: { label: 'Radar-Daten', title: 'Die Radar-Zeile ist unvollständig oder enthält noch keine vollständig ausgewerteten Marktdaten.' },
+    AUTOBOT_CONFIG: { label: 'Autobot-Konfiguration', title: 'Die technisch qualifizierte Radar-Zeile unterschreitet die konfigurierte MinScore- oder MTF-Mindestbedingung.' },
+    BTC_CONFLICT: { label: 'BTC-Konflikt', title: 'Die Setup-Richtung widerspricht dem aktivierten Bitcoin-Makrofilter.' },
+    FRESH_DATA: { label: 'Fresh-Daten', title: 'Für die unmittelbare Revalidierung vor dem Einstieg liegen zu wenige frische Kerzen vor.' },
+    FRESH_ANALYSIS: { label: 'Fresh-Analyse', title: 'Die frischen Marktdaten konnten nicht vollständig analysiert werden.' },
+    FRESH_GATE: { label: 'Fresh-Gate', title: 'Die unmittelbare Revalidierung erfüllt Score, Regime, ADX oder Squeeze-Schutz nicht mehr.' },
+    MODEL_NO_EVIDENCE: { label: 'keine OOS-Evidenz', title: 'Die frische Walk-Forward-Prüfung zeigt keine positive OOS-Erwartung oder unterschreitet die DSR-Grenze.' },
+    MARGIN: { label: 'Margin', title: 'Die risikobasierte Positionsgröße liegt außerhalb der zulässigen Margin-Grenzen.' },
+    REFETCH_ERROR: { label: 'Datenfehler', title: 'Der Abruf oder die Revalidierung frischer Marktdaten ist fehlgeschlagen.' }
   };
   return Object.entries(funnel.rejects)
-    .filter(([code, count]) => Object.prototype.hasOwnProperty.call(labels, code) && Number(count) > 0)
+    .filter(([code, count]) => Object.prototype.hasOwnProperty.call(details, code) && Number(count) > 0)
     .sort((a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0]))
-    .map(([code, count]) => `${Number(count)}× ${labels[code]}`)
+    .map(([code, count]) => ({ code, count: Number(count), ...details[code] }));
+}
+
+function autobotRejectSummary(funnel) {
+  return autobotRejectDetails(funnel)
+    .map(detail => `${detail.count}× ${detail.label}`)
     .join(', ');
+}
+
+function autobotFunnelExplanation(funnel) {
+  if (!funnel || Number(funnel.selected) > 0) return '';
+  const dominant = autobotRejectDetails(funnel)[0];
+  if (!dominant) return '';
+  if (dominant.code === 'MODEL_NO_EVIDENCE') {
+    return `Alle ${dominant.count} heute qualifizierten Setups hatten keine positive Out-of-Sample-Erwartung — der Bot bleibt korrekt ohne Position (Zufallsschutz). Keine Einstellung umgeht diese Prüfung.`;
+  }
+  if (dominant.code === 'NO_RADAR_READY') {
+    return 'Der Markt erfüllt aktuell die festen Radar-Kriterien (Score ≥ 75/≤ 25, Trend-Regime, ADX ≥ 20, kein Squeeze) kaum.';
+  }
+  if (dominant.code === 'RADAR_INCOMPLETE') {
+    return 'Die Radar-Daten sind aktuell noch unvollständig; der Bot wartet fail-closed auf vollständig ausgewertete Marktzeilen.';
+  }
+  if (dominant.code === 'AUTOBOT_CONFIG') {
+    return 'Technisch qualifizierte Radar-Zeilen scheitern aktuell an der gewählten MinScore- oder MTF-Einstellung des Autobots.';
+  }
+  return `Kein Signal: Der häufigste Ablehnungsgrund ist ${dominant.label} (${dominant.count}×). Details stehen im Tooltip des Labels.`;
 }
 
 function autobotSignalStrength(candidate) {
@@ -8565,7 +8591,7 @@ function selectAutobotTimeframe(candidate, minScore) {
 
 function evaluateAutobotCandidate(candidate, minScore, mtfNeed) {
   const rejected = { accepted: false, dir: 0, tf: null, score: null };
-  if (!candidate || candidate.executable !== true) return rejected;
+  if (!candidate || candidate.btcBlock === true || candidate.incomplete === true) return rejected;
   if (!Number.isFinite(candidate.aligned) || candidate.aligned < mtfNeed) return rejected;
 
   // 1. Radar row with multi-timeframe matrix
@@ -9110,7 +9136,15 @@ const Autobot = {
 
         const candidateGate = evaluateAutobotCandidate(c, this.minScore, this.mtfNeed);
         if (!candidateGate.accepted) {
-          addAutobotReject(funnel, 'NO_RADAR_READY');
+          const bestInfoTradeable = c.bestInfo?.tradeable === true || Object.values(c.tfScores || {}).some(info => info?.tradeable === true);
+          const rejectCode = c.btcBlock === true
+            ? 'BTC_CONFLICT'
+            : c.incomplete === true
+              ? 'RADAR_INCOMPLETE'
+              : bestInfoTradeable
+                ? 'AUTOBOT_CONFIG'
+                : 'NO_RADAR_READY';
+          addAutobotReject(funnel, rejectCode);
           continue;
         }
 
@@ -9326,9 +9360,28 @@ const Autobot = {
         const tEff = 18 * f.wfEvaluated;
         const mode = this.strictUniverseGate ? `<span style="color:var(--amb)">[Strikt: Uni-DSR &ge; ${this.minSetupDsr.toFixed(2)}]</span>` : `<span style="color:#c084fc">[Setup-DSR &ge; ${this.minSetupDsr.toFixed(2)} · OOS &ge; ${this.minOosSamples}]</span>`;
         const numMarkets = Math.round(f.scanned / 4) || f.scanned;
-        const rejectSummary = autobotRejectSummary(f);
-        const diagnostics = rejectSummary ? ` &middot; Abgelehnt: <b>${rejectSummary}</b>` : '';
-        funnelEl.innerHTML = `<b>${scanAgeText}</b> &middot; Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> qualifiziert &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}${diagnostics}`;
+        const rejectDetails = autobotRejectDetails(f);
+        funnelEl.innerHTML = `<b>${scanAgeText}</b> &middot; Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> qualifiziert &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}`;
+        if (rejectDetails.length) {
+          funnelEl.append(' · Abgelehnt: ');
+          rejectDetails.forEach((detail, index) => {
+            if (index) funnelEl.append(', ');
+            const rejectEl = document.createElement('b');
+            rejectEl.textContent = `${detail.count}× ${detail.label}`;
+            rejectEl.title = detail.title;
+            rejectEl.setAttribute('aria-label', `${rejectEl.textContent}: ${detail.title}`);
+            funnelEl.appendChild(rejectEl);
+          });
+        }
+        const explanation = autobotFunnelExplanation(f);
+        if (explanation) {
+          const explanationEl = document.createElement('span');
+          explanationEl.style.display = 'block';
+          explanationEl.style.marginTop = '4px';
+          explanationEl.style.color = 'var(--txt)';
+          explanationEl.textContent = explanation;
+          funnelEl.appendChild(explanationEl);
+        }
         if (f.lastError) {
           funnelEl.append(' · Letzter Datenfehler: ');
           const errorEl = document.createElement('span');
@@ -9503,13 +9556,13 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
-  "1.5.0": {
-    title: "Regressions-Fix & Klarheit",
-    summary: "Runde 18 (PATCH): Behebt Autobot-Karten-Live-Tracking-Regression, ergänzt Endverbraucher-Tooltips für BTC-Regime & Hero-Levels, und implementiert Chart-Frische-Badge.",
+  "1.5.1": {
+    title: "MTF-Konfiguration & ehrliche Funnel-Diagnose",
+    summary: "Runde 20 (PATCH): Der Paper-Autobot ehrt die konfigurierte MTF-Mindestanzahl unabhängig vom festen Radar-Ranking und erklärt verständlich, warum ein Scan ohne Signal endet.",
     highlights: [
-      "PF-37 Autobot-Live-Tracking: renderTradeCard() erhält wieder echte calculateTradeMetrics-Werte; Autobot-Karten aktualisieren synchron mit Ticker-Ticks ohne Flackern.",
-      "PF-38 Klartext-Tooltips: Verständliche deutsche Erklärungen für BTC-Regime (BULL/BEAR/SIDEWAYS, EMA200, ADX, Squeeze) und alle Hero-Level-Kacheln (Entry, SL, TP1, TP2) mit a11y-Attributen.",
-      "PF-39 Chart-Frische & Lade-Zustand: Neues Frische-Badge am Chartkopf ('Kerzen: vor Xs · Quelle') im Sekundentakt; Lade-Band zeigt Zustand 'Lade…' ehrlich an und verschwindet nach Erfolg."
+      "PF-47 MTF-Knopf: Der Autobot prüft aligned gegen die konfigurierte Schwelle 1/4 bis 4/4; Radar-Klassifikation und Fresh-Gate bleiben unverändert streng.",
+      "PF-48 Kein-Signal-Klartext: Bei null ausgewählten Setups erklärt der Funnel den dominanten Ablehnungsgrund, insbesondere fehlende positive OOS-Erwartung und den unveränderlichen Zufallsschutz.",
+      "PF-48 Bedienhilfe: Ablehnungslabels besitzen Erklär-Tooltips; Hinweise trennen MinScore, MTF und TimeStop ehrlich von den festen Radar- und Evidenz-Gates."
     ]
   },
   "1.4.0": {
@@ -9785,7 +9838,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.5.0');
+  showReleaseNotesOnce('1.5.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
