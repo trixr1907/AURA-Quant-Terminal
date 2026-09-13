@@ -90,8 +90,13 @@ const context = {
   $: id => elementMap[id] || null,
 };
 vm.createContext(context);
+const cardStart = html.indexOf('function renderTradeCard(');
+const cardEnd = html.indexOf('\nfunction renderLiveTrades(', cardStart);
+assert(cardStart >= 0 && cardEnd > cardStart, 'renderTradeCard source missing');
+
 vm.runInContext([
   extractFunction('fmtPx'),
+  html.slice(cardStart, cardEnd),
   extractFunction('renderLiveTrades'),
   'this.renderLiveTrades = renderLiveTrades;',
 ].join('\n'), context);

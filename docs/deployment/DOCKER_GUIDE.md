@@ -112,3 +112,58 @@ Falls Port 8787 auf deinem Host bereits belegt ist:
 - **Persistenz:** Autobot-, Trade- und History-State liegt im Docker-Volume `aura-state` und überlebt Container-Neuerstellungen.
 - **Host-Allowlist (`AURA_ALLOWED_HOSTS`):** `/api/state` akzeptiert nur Loopback (`127.0.0.1`, `localhost`) und explizit in `AURA_ALLOWED_HOSTS` konfigurierte LAN-IP-/DNS-Hostnamen.
 - **Read-only Marktdaten:** Öffentliche Bitget Marktdaten benötigen **keinen API-Key**. Es werden keine sensiblen Zugangsdaten im Container gespeichert oder übertragen.
+
+---
+
+## 🔔 Push-Benachrichtigungen via ntfy (opt-in, v1.4.0+)
+
+AURA kann dich per [ntfy](https://ntfy.sh) benachrichtigen, wenn ein Trade geschlossen wird.
+Die Funktion ist **standardmäßig deaktiviert** — kein Traffic ohne Konfiguration.
+
+### Schnellstart
+
+1. Erstelle einen kostenlosen ntfy-Topic (z.B. auf `ntfy.sh` oder selfhosted):
+   ```
+   https://ntfy.sh/mein-aura-alerts-xyz
+   ```
+2. Setze die Umgebungsvariable `AURA_NTFY_URL` auf diese URL.
+
+### Docker CLI
+```bash
+docker run -d --name aura-terminal \
+  -p 8787:8787 \
+  -e AURA_ALLOWED_HOSTS=<HOST-IP> \
+  -e AURA_STATE_DIR=/var/lib/aura \
+  -e AURA_NTFY_URL=http://ntfy.sh/mein-aura-alerts-xyz \
+  -v aura-state:/var/lib/aura \
+  aura-quant-terminal:latest
+```
+
+### Docker Compose `.env`
+```env
+AURA_PORT=8787
+AURA_ALLOWED_HOSTS=192.168.8.115
+AURA_NTFY_URL=http://ntfy.sh/mein-aura-alerts-xyz
+```
+
+Und in `docker-compose.yml` unter `environment` ergänzen:
+```yaml
+- AURA_NTFY_URL=${AURA_NTFY_URL:-}
+```
+
+### Selfhosted ntfy
+
+```bash
+docker run -d --name ntfy -p 8080:80 \
+  -v ntfy-data:/var/cache/ntfy \
+  binwiederhier/ntfy serve
+```
+
+Dann `AURA_NTFY_URL=http://<SERVER-IP>:8080/mein-topic`.
+
+### Sicherheitshinweise
+
+- `AURA_NTFY_URL` wird **nur ausgewertet**, wenn sie auf `http://` oder `https://` beginnt. `file://` und andere Schemas werden stillschweigend ignoriert.
+- Die Benachrichtigung läuft auf einem Daemon-Thread (fire-and-forget). HTTP-Fehler oder Verbindungsprobleme blockieren **nie** den Relay-Betrieb.
+- Benachrichtigungen enthalten keine API-Keys, keine Passwörter und keine sensitiven Kontodetails — nur Symbol, Trade-ID, Seite (Long/Short) und PnL.
+- Nutze einen **zufälligen, unguessable Topic-Namen**, um unbefugten Zugriff auf deine Benachrichtigungen zu vermeiden.

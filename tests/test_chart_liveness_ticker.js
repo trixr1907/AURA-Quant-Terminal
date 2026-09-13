@@ -177,6 +177,7 @@ assert.strictEqual(RenderCache.isDirty('chart', [
   60650,
   59700,
   context.App.chartOverlays,
+  ';0',
   800,
   500
 ]), false, 'Unchanged state key must return clean (false)');
@@ -193,6 +194,7 @@ assert.strictEqual(RenderCache.isDirty('chart', [
   60650,
   59700,
   context.App.chartOverlays,
+  ';0',
   800,
   500
 ]), true, 'Updated live close must trigger dirty cache (true)');

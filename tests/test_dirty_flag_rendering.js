@@ -55,7 +55,12 @@ function createMockElement(id) {
       moveTo: () => {},
       lineTo: () => {},
       stroke: () => {},
-      fill: () => {}
+      fill: () => {},
+      save: () => {},
+      restore: () => {},
+      arc: () => {},
+      closePath: () => {},
+      createLinearGradient: () => ({ addColorStop: () => {} }),
     }),
     clientWidth: 800,
     clientHeight: 600,
