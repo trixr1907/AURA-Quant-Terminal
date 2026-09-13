@@ -35,6 +35,21 @@ class TestSyncMarketDataSafety(unittest.TestCase):
             rc = sync_market_data.main()
             self.assertNotEqual(rc, 0)
 
+    def test_sync_universe_respects_custom_universe_path_env(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = Path(tmpdir) / "custom_dir" / "custom_universe.json"
+            fake_tickers = {"code": "00000", "data": [{"symbol": "BTCUSDT", "lastPr": "50000", "usdtVolume": "1000000"}]}
+            fake_contracts = {"code": "00000", "data": [{
+                "symbol": "BTCUSDT", "baseCoin": "BTC", "quoteCoin": "USDT",
+                "symbolStatus": "normal", "symbolType": "perpetual", "deliveryTime": "0"
+            }]}
+            with mock.patch.dict(sync_market_data.os.environ, {"AURA_UNIVERSE_PATH": str(custom_path)}), \
+                 mock.patch.object(sync_market_data, "UNIVERSE_FILE", custom_path), \
+                 mock.patch.object(sync_market_data, "fetch_json", side_effect=[fake_tickers, fake_contracts]):
+                res = sync_market_data.sync_universe()
+                self.assertTrue(custom_path.exists())
+                self.assertEqual(len(res), 1)
+
 
 class TestPackageRuntimeStateExclusion(unittest.TestCase):
     """Release archives must never contain generated user runtime state."""

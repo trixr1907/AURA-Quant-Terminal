@@ -20,7 +20,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
+DATA_DIR = Path(os.environ.get("AURA_DATA_DIR") or (ROOT / "data"))
+UNIVERSE_FILE = Path(os.environ.get("AURA_UNIVERSE_PATH") or (DATA_DIR / "bitget_usdt_futures_universe.json"))
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 
 
@@ -85,7 +86,7 @@ def normalize_usdt_futures_contracts(contracts: list[dict], tickers: dict[str, d
 
 def sync_universe() -> list[dict]:
     print("[1/3] Synchronisiere Bitget USDT-M Futures Universum …")
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    UNIVERSE_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     # 1. Tickers (Preise, Volumen, Funding, OI)
     t_url = "https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES"
@@ -102,7 +103,7 @@ def sync_universe() -> list[dict]:
     contracts = c_resp.get("data", [])
 
     universe = normalize_usdt_futures_contracts(contracts, tickers)
-    out_path = DATA_DIR / "bitget_usdt_futures_universe.json"
+    out_path = UNIVERSE_FILE
     out_path.write_text(json.dumps({
         "synced_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "total_contracts": len(universe),
@@ -110,7 +111,11 @@ def sync_universe() -> list[dict]:
     }, indent=2), encoding="utf-8")
 
     print(f"  -> {len(universe)} aktive Bitget USDT-M Futures Kontrakte synchronisiert.")
-    print(f"  -> Gespeichert in: {out_path.relative_to(ROOT)}")
+    try:
+        rel_path = str(out_path.relative_to(ROOT))
+    except ValueError:
+        rel_path = str(out_path)
+    print(f"  -> Gespeichert in: {rel_path}")
     return universe
 
 

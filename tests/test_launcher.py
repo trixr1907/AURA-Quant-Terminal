@@ -222,6 +222,7 @@ class LauncherDependencyTests(unittest.TestCase):
         with mock.patch.object(launcher, "start_relay", return_value=True), \
              mock.patch.object(launcher, "gui_available", return_value=True), \
              mock.patch.object(launcher, "run_gui", side_effect=failing_gui), \
+             mock.patch.object(launcher, "run_command", return_value=0), \
              mock.patch.object(launcher.webbrowser, "open", return_value=True) as browser_open, \
              mock.patch("builtins.input", return_value="q"):
             self.assertEqual(0, launcher.main())
@@ -237,6 +238,20 @@ class LauncherDependencyTests(unittest.TestCase):
     def test_universe_snapshot_is_stale_when_missing(self):
         with tempfile.TemporaryDirectory() as td:
             self.assertTrue(launcher.universe_snapshot_is_stale(Path(td) / "missing.json"))
+
+    def test_universe_auto_sync_can_be_disabled_via_environment_variable(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "universe.json"
+            path.write_text(json.dumps({"synced_at": "2020-01-01T00:00:00Z"}), encoding="utf-8")
+            with mock.patch.dict(launcher.os.environ, {"AURA_UNIVERSE_PATH": str(path), "AURA_DISABLE_AUTO_SYNC": "1"}):
+                self.assertFalse(launcher.universe_snapshot_is_stale())
+
+    def test_universe_file_path_can_be_configured_via_environment_variable(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "custom_universe.json"
+            path.write_text(json.dumps({"synced_at": "2099-01-01T00:00:00Z"}), encoding="utf-8")
+            with mock.patch.dict(launcher.os.environ, {"AURA_UNIVERSE_PATH": str(path)}):
+                self.assertFalse(launcher.universe_snapshot_is_stale())
 
     def test_docker_start_sh_contract_readiness_probing_and_error_handling(self):
         script = (ROOT / "docker_start.sh").read_text(encoding="utf-8")
