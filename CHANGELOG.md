@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.3] – 2026-09-13 – Runde 22: Flackerfreie Trade-Karten + ntfy Trade-Pushes (v1.5.3, PATCH)
+
+### Fixed
+- **PF-50 DOM-stabile Trade-Karten:** Zerstörende DOM-Rebuilds bei Ticks im Live-Tracker (`#trade-list`) und Autobot (`#ab-trades-container`) vollständig eliminiert. Karten-Knoten werden pro `data-trade-id` einmalig erzeugt; Preis-, PnL- und Metrik-Updates erfolgen in-place ohne Flackern. Interaktive Selektionen, Tooltips und Klicks (`data-copy-val`, Break-Even, Teil-TP, Schließen) bleiben dauerhaft stabil.
+
+### Added
+- `tests/test_pf50_trade_card_dom_stability.js`: Verifiziert Node-Identität (`isSameNode`), In-Place-Textupdates, dynamische Add/Remove-Zyklen und Klick-Reaktivität nach mehreren Zyklen in beiden Containern.
+- `docs/releases/RELEASE_v1.5.3.md` & `RELEASE_v1.5.3.md`: Releasenotes für v1.5.3.
+
+### Documentation
+- **PF-51 ntfy Trade-Pushes:** `docs/deployment/NTFY_GUIDE.md` um Anleitung zur Aktivierung von Trade-Abschluss-Benachrichtigungen via `AURA_NTFY_URL` erweitert.
+
+### Scope
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
+
 ## [1.5.2] – 2026-09-13 – Runde 21: Infra-PATCH — Receiver Health-Fix & Deploy-Zuverlässigkeit
 
 ### Fixed

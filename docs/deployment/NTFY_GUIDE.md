@@ -67,7 +67,25 @@ Beide Quellen schicken Nachrichten in denselben Topic — eine App, alles im Bli
 | Deploy-Receiver (beide VMs) | Deploy fehlgeschlagen ❌ | high (lauter Ton) |
 | `bitget_relay.py` (PF-33, via `AURA_NTFY_URL`) | Trade geschlossen | default |
 
-**Konfiguration Relay:** Setze `AURA_NTFY_URL=https://ntfy.sh/<TOPIC-NAME>` in der Relay-Umgebung (systemd-Unit oder `.env`). Wenn die Variable fehlt, sind alle Notifies ein stilles No-op — kein Fehler.
+---
+
+## Trade-Pushes aktivieren
+
+Neben Deploy-Benachrichtigungen kann AURA bei jedem Trade-Abschluss (manueller Paper-Trade oder Autobot-Position) eine sofortige Trade-Zusammenfassung via ntfy auf Handy und PC senden.
+
+### 1. Umgebungsvariable setzen
+Dem Container `aura-terminal` auf der VM (z. B. VM 201) die Umgebungsvariable mitgeben:
+
+```bash
+AURA_NTFY_URL=https://ntfy.sh/<TOPIC-NAME>
+```
+
+*(Hierbei denselben `<TOPIC-NAME>` wie für Deploy-Alerts verwenden — niemals den echten Namen in Git committen).*
+
+### 2. Verhalten & Payload
+- **Trigger:** Sobald ein Paper-Trade geschlossen wird (Take-Profit, Stop-Loss, Break-Even oder manuelle Intervention).
+- **Inhalt:** Symbol (z. B. `BTCUSDT`), Richtung (`LONG`/`SHORT`), realisierte PnL in USDT, Netto-ROI %, R-Multiple und Schließungsgrund.
+- **Fail-Safe:** Ist `AURA_NTFY_URL` nicht gesetzt oder leer, verhält sich der Push als lautloser No-Op — keine Fehlermeldungen, kein Blockieren des Relays.
 
 ---
 
