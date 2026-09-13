@@ -24,6 +24,12 @@ services:
       - SYM_HOST=0.0.0.0   # bind all interfaces inside the container; Docker controls external access
       - AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}
       - AURA_STATE_DIR=/var/lib/aura
+      - AURA_NTFY_URL
+      - AURA_NTFY_BTC=${AURA_NTFY_BTC:-1}
+      - AURA_NTFY_BTC_COOLDOWN_MIN=${AURA_NTFY_BTC_COOLDOWN_MIN:-30}
+      - AURA_NTFY_DIGEST=${AURA_NTFY_DIGEST:-1}
+      - AURA_NTFY_DIGEST_UTC=${AURA_NTFY_DIGEST_UTC:-7}
+      - AURA_NTFY_ERRORS=${AURA_NTFY_ERRORS:-1}
     volumes:
       - aura-state:/var/lib/aura
     healthcheck:
