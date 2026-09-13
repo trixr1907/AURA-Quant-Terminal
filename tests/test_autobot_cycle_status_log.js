@@ -40,7 +40,11 @@ const elementMap = {
   'cfg-disp-risk': { textContent: '' },
   'cfg-disp-lev': { textContent: '' },
   'cfg-disp-max': { textContent: '' },
-  'ab-funnel-summary': { innerHTML: '', textContent: '', append() {}, appendChild() {} },
+  'ab-funnel-summary': {
+    innerHTML: '', textContent: '',
+    append(value) { this.innerHTML += String(value); },
+    appendChild(child) { this.innerHTML += child.textContent || ''; },
+  },
   'ab-equity': { textContent: '' },
   'ab-roi': { textContent: '', style: {} },
   'ab-pnl': { textContent: '', style: {} },
@@ -62,7 +66,7 @@ const context = {
   calculateHistoryStats: () => ({ grossPnl: 0, realizedWinRatePct: 0 }),
   esc: s => String(s),
   fmtP: p => Number(p).toFixed(2),
-  autobotRejectSummary: f => (f && f.rejected ? Object.entries(f.rejected).map(([k, v]) => `${k}:${v}`).join(', ') : ''),
+  document: { createElement: () => ({ style: {}, setAttribute() {}, textContent: '', title: '' }) },
   $: id => elementMap[id] || null,
 };
 
@@ -70,6 +74,8 @@ vm.createContext(context);
 vm.runInContext([
   extractFunction('calculateHistoryStats'),
   extractFunction('addAutobotReject'),
+  extractFunction('autobotRejectDetails'),
+  extractFunction('autobotFunnelExplanation'),
   extractObject('Autobot'),
   'this.Autobot = Autobot;',
 ].join('\n'), context);
@@ -80,7 +86,7 @@ context.Autobot.lastScanFunnel = {
   radarFiltered: 3,
   wfEvaluated: 1,
   selected: 0,
-  rejected: { MODEL_NO_EVIDENCE: 3 },
+  rejects: { MODEL_NO_EVIDENCE: 3 },
 };
 context.Autobot.logs = [
   { time: '12:00:00', msg: 'Init Autobot' },
@@ -94,7 +100,7 @@ const logHtml = elementMap['ab-live-log'].innerHTML || elementMap['ab-live-log']
 
 assert(funnelHtml.includes('Letzter Scan: vor') || funnelHtml.includes('vor 5s'), 'funnel summary must display scan age');
 assert(funnelHtml.includes('12') && funnelHtml.includes('3'), 'funnel summary must show checked and qualified candidate counts');
-assert(funnelHtml.includes('MODEL_NO_EVIDENCE'), 'rejection reasons must be visible in funnel summary');
+assert(funnelHtml.includes('keine OOS-Evidenz'), 'rejection reasons must be visible in funnel summary');
 assert(logHtml.includes('MODEL_NO_EVIDENCE'), 'recent log entries must be rendered in ab-live-log');
 
 console.log('PASS Autobot cycle status, funnel diagnostics, and event log render');

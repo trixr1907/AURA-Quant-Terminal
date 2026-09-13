@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] – 2026-09-13 – Runde 20: MTF-Konfigurationsfix & Kein-Signal-Klartext
+
+### Fixed
+- Der Paper-Autobot prüft die MTF-Mindestanzahl jetzt gegen seine konfigurierte Schwelle `1/4` bis `4/4`, statt die fest auf `SYM.mtfNeed` basierende Radar-Executability zu übernehmen.
+- `radarFiltered` verwendet denselben korrigierten Konfigurationspfad; die unmittelbare Fresh-Revalidierung vor dem Einstieg bleibt unverändert stärker.
+
+### Changed
+- Bei null ausgewählten Setups erklärt der Funnel den dominanten Ablehnungsgrund in Klartext; fehlende positive OOS-Erwartung wird ausdrücklich als korrektes Fail-closed-Verhalten und nicht als Defekt benannt.
+- Reject-Labels besitzen Tooltips, und die Einstellungen erklären die Grenzen von MinScore, MTF und TimeStop gegenüber festen Radar- und Evidenz-Gates.
+
+### Scope
+- PATCH als Prozess-/UI-Fix und Konfigurations-Plumbing eines bestehenden Vertrags; keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.5.0] – 2026-09-13 – Runde 19: Chart-Bedienung & Zeichentools-MVP
 
 ### Added
