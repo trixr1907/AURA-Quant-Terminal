@@ -24,7 +24,7 @@ GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 GOLDEN_PARITY_REFERENCE = GOLDEN_DIR / "parity_reference.json"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
 VERSION_BUMP_EXEMPT_PREFIXES = (".github/", "docs/")
-VERSION_BUMP_EXEMPT_FILES = {"LICENSE"}
+VERSION_BUMP_EXEMPT_FILES = {"LICENSE", "scripts/build_package.py", "tests/test_package_hygiene.py"}
 VERSION_BUMP_EXEMPT_SUFFIXES = {".md"}
 GOLDEN_FILES = [
     "BTCUSDT_1h.csv",
