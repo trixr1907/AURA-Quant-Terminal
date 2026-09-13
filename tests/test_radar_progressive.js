@@ -24,7 +24,8 @@ function makeContext({ coins, fetchKlines, now = () => Date.now() }) {
   const list = { innerHTML: '' };
   const renderCalls = [];
   const context = {
-    App: { symbol: 'BTCUSDT', chartTF: '1h', data: { radar: null, btcRegime: null } },
+    App: { symbol: 'BTCUSDT', chartTF: '1h', radarPaused: false, radarPauseWaiters: [],
+      focusRequestEpoch: 0, focusSettledEpoch: 0, focusWaiters: [], data: { radar: null, btcRegime: null } },
     Map, Date: { now }, RADAR_TFS: ['15m', '1h', '4h', '1d'],
     fetchKlines,
     analyze(candles) {
@@ -37,6 +38,10 @@ function makeContext({ coins, fetchKlines, now = () => Date.now() }) {
     rankRadarCandidates: rows => rows.slice().sort((a, b) => b.avgScore - a.avgScore),
     restoreRadarSnapshot: () => null, persistRadarSnapshot() {}, universeSymbols: () => coins,
     isFinite, setTimeout, $: id => id === 'radarlist' ? list : null,
+    waitForFocusedLoad(epoch) {
+      if (context.App.focusSettledEpoch >= epoch) return Promise.resolve();
+      return new Promise(resolve => context.App.focusWaiters.push({ epoch, resolve }));
+    },
     renderCalls, renderRadar() { renderCalls.push({ rows: context.App.data.radar.length, progress: { ...context.App.radarProgress } }); },
     renderHero() {}, console,
   };
@@ -127,6 +132,34 @@ async function testConcurrencyLimitsCoinAnalyses() {
   assert(peak <= 1, `RADAR_CONCURRENCY=1 must serialize coin analyses, got ${peak}`);
 }
 
+async function testFocusPreemptsNextBatch() {
+  const coins = ['COIN0USDT', 'COIN1USDT', 'COIN2USDT'];
+  const events = [];
+  let context;
+  ({ context } = makeContext({
+    coins,
+    fetchKlines: async symbol => {
+      if (!events.includes(`radar:${symbol}`)) events.push(`radar:${symbol}`);
+      return { candles: candleSeries(), source: 'network' };
+    },
+  }));
+  const originalRenderRadar = context.renderRadar;
+  context.renderRadar = () => {
+    originalRenderRadar();
+    if (context.App.radarProgress.updatedInCycle === 2 && context.App.focusRequestEpoch === 0) {
+      context.App.focusRequestEpoch = 1;
+      events.push('focus:requested');
+      setTimeout(() => {
+        events.push('focus:response');
+        context.App.focusSettledEpoch = 1;
+        context.App.focusWaiters.splice(0).forEach(waiter => waiter.resolve());
+      }, 10);
+    }
+  };
+  await context.loadRadar();
+  assert(events.indexOf('focus:response') < events.indexOf('radar:COIN2USDT'), `focus must settle before next radar batch: ${events}`);
+}
+
 function testIncompleteCannotRankExecutable() {
   const context = { SYM: { mtfNeed: 3 }, isFinite };
   vm.createContext(context);
@@ -147,6 +180,8 @@ function testIncompleteCannotRankExecutable() {
   console.log('PASS measured zero liquidity remains no_volume and skips lower TFs');
   await testConcurrencyLimitsCoinAnalyses();
   console.log('PASS RADAR_CONCURRENCY limits concurrent coin analyses');
+  await testFocusPreemptsNextBatch();
+  console.log('PASS focused candle request settles before the next radar batch');
   testIncompleteCannotRankExecutable();
   console.log('PASS incomplete rows never rank as executable');
 })().catch(error => {
