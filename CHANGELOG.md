@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.4] – 2026-09-13 – Runde 23: Karten-Parität, Setup-Fallbacks & Timeframe-Links (v1.5.4, PATCH)
+
+### Added
+- **PF-53 Multi-TP & Parität:** Manuelle Trade-Karten unterstützen nun Multi-TP-Levels (TP1/TP2/TP3) und adaptive Preisformatierung (`fmtP`/`fmtPx`) analog zum Autobot. REST-Refresh-Intervall für offene Positionen auf 5 s verkürzt.
+- **PF-54 Setup-Validation ohne stille Fallbacks:** Entry/SL/TPs/Hebel/Time-Stop werden exakt aus validierten Setups übernommen. Greift ein ATR-Fallback, wird dies transparent als Fallback deklariert.
+- **PF-55 TradingView-Links MIT Timeframe:** Sämtliche Einstiegspunkte nutzen den interval-aware Builder (`15m`, `1h`, `4h`, `1d`).
+- **PF-56 Autobot Layout-Stabilität:** `font-variant-numeric: tabular-nums` und feste/reservierte Breiten verhindern Layout-Springen bei Ticks; `prefers-reduced-motion` respektiert.
+- **PF-57 Autobot Intel-Block:** Autobot-Karten zeigen dieselbe taktische Intel-Zeile (Phase, SMC-Session, BTC-Trend-Confluence, Ziel-TPs).
+- `tests/test_pf53_pf57_card_and_link_improvements.js`: Umfassende Testsuite für PF-53 bis PF-57.
+- `docs/releases/RELEASE_v1.5.4.md` & `RELEASE_v1.5.4.md`: Releasenotes für v1.5.4.
+
+### Scope
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
+
 ## [1.5.3] – 2026-09-13 – Runde 22: Flackerfreie Trade-Karten + ntfy Trade-Pushes (v1.5.3, PATCH)
 
 ### Fixed
