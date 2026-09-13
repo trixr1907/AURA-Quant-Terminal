@@ -645,6 +645,35 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         </details>
       </div>
     </section>
+
+    <section class="panel" id="ntfy-settings-panel" aria-labelledby="ntfy-settings-title">
+      <div class="panel-head">
+        <h2 id="ntfy-settings-title">🔔 Benachrichtigungen</h2>
+        <span class="tag">Signal-Disziplin · leer = aus</span>
+      </div>
+      <div class="panel-body" style="padding:12px 14px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+          <div style="flex:1;min-width:160px">
+            <label for="ntfy-topic-url" class="lbl">Persönliche ntfy Topic-URL</label>
+            <input id="ntfy-topic-url" type="url" inputmode="url" autocomplete="url" placeholder="https://ntfy.sh/…" style="width:100%;box-sizing:border-box" aria-describedby="ntfy-topic-help">
+          </div>
+          <button class="act" id="ntfy-test-button" type="button" style="flex:0 0 auto">Test-Push senden</button>
+        </div>
+        <p id="ntfy-topic-help" style="font-size:10px;color:var(--dim);margin-top:6px;line-height:1.4">Bleibt das Feld leer, sendet das Dashboard nichts. Die URL wird lokal gespeichert und über deinen AURA-State synchronisiert.</p>
+        <fieldset style="border:0;margin-top:10px;display:flex;gap:12px;flex-wrap:wrap">
+          <legend class="lbl" style="margin-bottom:6px">Trade-Signale</legend>
+          <label><input id="ntfy-toggle-open" type="checkbox"> Eröffnung</label>
+          <label><input id="ntfy-toggle-tp1" type="checkbox"> TP1</label>
+          <label><input id="ntfy-toggle-tp2" type="checkbox"> TP2</label>
+          <label><input id="ntfy-toggle-tp3" type="checkbox"> TP3</label>
+          <label><input id="ntfy-toggle-sl_close" type="checkbox"> Stop-Loss</label>
+          <label><input id="ntfy-toggle-other_close" type="checkbox"> Sonstiger Schluss</label>
+        </fieldset>
+        <p style="font-size:10px;color:var(--mut);margin-top:10px;line-height:1.45">BTC-Regime, Daily-Digest und Deploy laufen 24/7 relay-seitig über ENV. In der ntfy-App steuerst du die Lautstärke je Gerät über die Mindestpriorität.</p>
+        <span id="ntfy-test-status" role="status" aria-live="polite" style="display:block;min-height:14px;margin-top:6px;font-size:10px;color:var(--dim)"></span>
+      </div>
+    </section>
+
 <section class="panel" id="live-tracker-panel">
       <div class="panel-head">
         <h2>Aktive Trades (Live Paper Tracker &amp; Position Manager)</h2>
@@ -857,7 +886,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.4?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.6.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -951,7 +980,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.5.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.6.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -6423,6 +6452,126 @@ function bindSound() {
 }
 
 // --- Live trade tracker (read-only paper simulation, local persistence) ---
+// ==NTFY_SIGNALS_START==
+const NTFY_SETTINGS_KEY = 'aura-ntfy-signals-settings-v1';
+const NTFY_DEFAULT_SETTINGS = Object.freeze({
+  topicUrl: '', open: true, tp1: true, tp2: true, tp3: true, sl_close: true, other_close: true,
+});
+
+const NtfySignals = {
+  settings: { ...NTFY_DEFAULT_SETTINGS },
+  queue: Promise.resolve(),
+
+  load() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(NTFY_SETTINGS_KEY) || '{}');
+      this.settings = { ...NTFY_DEFAULT_SETTINGS, ...(stored && typeof stored === 'object' ? stored : {}) };
+    } catch (_) {
+      this.settings = { ...NTFY_DEFAULT_SETTINGS };
+    }
+    return { ...this.settings };
+  },
+
+  save(next) {
+    this.settings = { ...NTFY_DEFAULT_SETTINGS, ...(next && typeof next === 'object' ? next : {}) };
+    try { localStorage.setItem(NTFY_SETTINGS_KEY, JSON.stringify(this.settings)); } catch (_) { return false; }
+    if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.push === 'function') SyncEngine.push(NTFY_SETTINGS_KEY, this.settings);
+    return true;
+  },
+
+  priorityFor(event) {
+    return event === 'sl_close' ? '4' : '3';
+  },
+
+  bodyFor(trade, event, detail = {}) {
+    const coin = String(trade?.coin || trade?.symbol || '?').toUpperCase();
+    const side = Number(trade?.dir) === -1 || String(trade?.side || '').toLowerCase() === 'short' ? 'SHORT' : 'LONG';
+    const leverage = Number.isFinite(+trade?.leverage) ? `${+trade.leverage}x` : '';
+    const labels = {
+      open: 'Trade eröffnet', tp1: 'TP1 getroffen', tp2: 'TP2 getroffen', tp3: 'TP3 getroffen',
+      sl_close: 'Stop-Loss getroffen', other_close: detail.reason === 'Time-Stop' ? 'Time-Stop' : 'Trade geschlossen',
+    };
+    const initialRisk = Math.abs((+trade?.entry || 0) - (+trade?.initialSl || +trade?.currentSl || 0));
+    const price = Number.isFinite(+detail.price) ? +detail.price : (+trade?.markPrice || +trade?.entry || 0);
+    const direction = Number(trade?.dir) === -1 ? -1 : 1;
+    const r = initialRisk > 0 ? ((price - (+trade?.entry || 0)) * direction) / initialRisk : null;
+    const pct = +trade?.entry > 0 ? ((price - +trade.entry) / +trade.entry) * direction * 100 : null;
+    const parts = [`${coin} ${side}${leverage ? ` ${leverage}` : ''} — ${labels[event] || event}`];
+    if (r !== null) parts[0] += ` (${r >= 0 ? '+' : ''}${r.toFixed(1)}R)`;
+    if (price > 0) parts.push(`Preis ${typeof fmtP === 'function' ? fmtP(price) : String(price)}${pct !== null ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''}`);
+    if (detail.managed) parts.push(String(detail.managed));
+    if (detail.reason && event === 'other_close') parts.push(`Grund: ${detail.reason}`);
+    return parts.join(' · ');
+  },
+
+  async claim(key) {
+    const response = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signal_claim: { key } }),
+    });
+    if (!response.ok) return false;
+    const payload = await response.json();
+    return payload?.claimed === true;
+  },
+
+  async publish(title, body, priority) {
+    const options = {
+      method: 'POST',
+      headers: { Title: title, Priority: String(priority), 'Content-Type': 'text/plain; charset=utf-8' },
+      body,
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(this.settings.topicUrl, options);
+        if (response.ok) return true;
+      } catch (_) {}
+    }
+    return false;
+  },
+
+  testPush() {
+    if (!this.settings.topicUrl) return Promise.resolve(false);
+    return this.publish('AURA · Test', 'AURA Signal-Center ist verbunden.', 3);
+  },
+
+  bindUI() {
+    const topic = document.getElementById('ntfy-topic-url');
+    if (!topic) return;
+    const settings = this.load();
+    topic.value = settings.topicUrl;
+    const events = ['open', 'tp1', 'tp2', 'tp3', 'sl_close', 'other_close'];
+    events.forEach(event => {
+      const control = document.getElementById(`ntfy-toggle-${event}`);
+      if (control) control.checked = settings[event] === true;
+    });
+    const persist = () => this.save({
+      topicUrl: topic.value.trim(),
+      ...Object.fromEntries(events.map(event => [event, document.getElementById(`ntfy-toggle-${event}`)?.checked === true])),
+    });
+    topic.addEventListener('change', persist);
+    events.forEach(event => document.getElementById(`ntfy-toggle-${event}`)?.addEventListener('change', persist));
+    document.getElementById('ntfy-test-button')?.addEventListener('click', async () => {
+      persist();
+      const status = document.getElementById('ntfy-test-status');
+      const sent = await NtfySignals.testPush();
+      if (status) status.textContent = sent ? 'Test-Push gesendet.' : 'Nicht gesendet — bitte Topic-URL prüfen.';
+    });
+  },
+
+  emitTradeEvent(trade, event, detail = {}) {
+    if (!this.settings.topicUrl || this.settings[event] !== true || !trade?.id) return Promise.resolve(false);
+    const work = async () => {
+      const claimed = await this.claim(`${trade.id}:${event}`);
+      if (!claimed) return false;
+      return this.publish(`AURA · ${event === 'sl_close' ? 'Risiko-Alarm' : 'Trade-Signal'}`, this.bodyFor(trade, event, detail), this.priorityFor(event));
+    };
+    this.queue = this.queue.then(work, work);
+    return this.queue;
+  },
+};
+// ==NTFY_SIGNALS_END==
+
 const TRADE_KEY = 'aura-quant-terminal-active-trades-v1';
 const TRADE_HIST_KEY = 'aura-quant-terminal-history-trades-v1';
 var tradePrices = (typeof globalThis !== 'undefined' && globalThis.tradePrices) ? globalThis.tradePrices : {};
@@ -6560,6 +6709,11 @@ function normalizeTrade(raw) {
     autoBe: Boolean(raw.autoBe),
     beActive: Boolean(raw.beActive),
     trailSl: Boolean(raw.trailSl),
+    openNotified: raw.openNotified === true,
+    tp1Hit: raw.tp1Hit === true,
+    tp2Hit: raw.tp2Hit === true,
+    tp3Hit: raw.tp3Hit === true,
+    closeNotified: raw.closeNotified === true,
     openedAt: Number.isFinite(+raw.openedAt) ? +raw.openedAt : Date.now(),
     status: String(raw.status || 'OPEN'),
     note: String(raw.note || '')
@@ -6895,6 +7049,45 @@ function saveTradeHistory(x) {
   apply();
 }
 
+function detectTradeEvents(trade, price) {
+  if (!trade || !Number.isFinite(+price) || +price <= 0 || trade.closeNotified) return [];
+  const hit = target => Number.isFinite(+target) && (trade.dir === -1 ? +price <= +target : +price >= +target);
+  const events = [];
+  if (!trade.tp1Hit && hit(trade.tp1 || trade.tp)) events.push('tp1');
+  if (!trade.tp2Hit && hit(trade.tp2)) events.push('tp2');
+  if (!trade.tp3Hit && hit(trade.tp3)) events.push('tp3');
+  const slHit = Number.isFinite(+trade.currentSl) && (trade.dir === -1 ? +price >= +trade.currentSl : +price <= +trade.currentSl);
+  if (slHit) return ['sl_close'];
+  return events;
+}
+
+async function emitTradeEvents(trade, price) {
+  const events = detectTradeEvents(trade, price);
+  for (const event of events) {
+    if (event === 'tp1') trade.tp1Hit = true;
+    if (event === 'tp2') trade.tp2Hit = true;
+    if (event === 'tp3') trade.tp3Hit = true;
+    if (event === 'sl_close') trade.closeNotified = true;
+  }
+  for (const event of events) {
+    await NtfySignals.emitTradeEvent(trade, event, {
+      price,
+      managed: event === 'tp1' ? 'Bot verwaltet weiter (BE aktiv)' : (event === 'tp2' ? 'Teilgewinn gesichert; Rest läuft weiter' : undefined),
+    });
+  }
+  return events;
+}
+
+function notifyTradeCloseOnce(trade, exitPrice, reason) {
+  if (!trade || trade.closeNotified) return false;
+  const text = String(reason || 'MANUAL');
+  const readableReason = text.includes('TIME_STOP') ? 'Time-Stop' : text;
+  const event = text === 'SL_HIT' ? 'sl_close' : 'other_close';
+  trade.closeNotified = true;
+  NtfySignals.emitTradeEvent(trade, event, { price: exitPrice, reason: readableReason }).catch(() => {});
+  return true;
+}
+
 function closeTrade(tradeIndex, exitPrice, reason = 'MANUAL') {
   const trades = loadTrades();
   if (tradeIndex < 0 || tradeIndex >= trades.length) return false;
@@ -6909,6 +7102,7 @@ function closeTrade(tradeIndex, exitPrice, reason = 'MANUAL') {
   }
   
   const m = calculateTradeMetrics(t, px);
+  notifyTradeCloseOnce(t, px, reason);
   const marginClosed = t.remainingMargin || t.margin;
   const notionalClosed = marginClosed * t.leverage;
   const quantityClosed = t.quantity;
@@ -7132,7 +7326,10 @@ async function refreshTradePrices(trades) {
         }
       }
     } catch (_) {}
+    const mark = tradePrices[t.coin];
+    if (Number.isFinite(+mark) && +mark > 0) await emitTradeEvents(t, +mark);
   }
+  saveTrades(ts);
   checkTradeAutomations(ts);
   renderLiveTrades();
 }
@@ -7207,6 +7404,7 @@ function startPaperTradeFromCockpit() {
   const trades = loadTrades();
   trades.push(trade);
   saveTrades(trades);
+  NtfySignals.emitTradeEvent(trade, 'open', { price: lastPrice }).then(sent => { if (sent) trade.openNotified = true; }).catch(() => {});
   
   tradePrices[sym] = lastPrice;
   renderLiveTrades();
@@ -8468,6 +8666,7 @@ function bindTradeTracker() {
       const x = loadTrades();
       x.push(newTrade);
       saveTrades(x);
+      NtfySignals.emitTradeEvent(newTrade, 'open', { price: entry }).then(sent => { if (sent) newTrade.openNotified = true; }).catch(() => {});
       
       f.reset();
       if ($('trade-leverage')) $('trade-leverage').value = 10;
@@ -8827,7 +9026,7 @@ const SyncEngine = {
   },
 
   async bootstrapIfNeeded(remote) {
-    const keysToBootstrap = [TRADE_KEY, TRADE_HIST_KEY, AUTOBOT_KEY];
+    const keysToBootstrap = [TRADE_KEY, TRADE_HIST_KEY, AUTOBOT_KEY, NTFY_SETTINGS_KEY];
     for (const key of keysToBootstrap) {
       if (remote[key] === undefined) {
         const localRaw = localStorage.getItem(key);
@@ -8999,6 +9198,13 @@ const SyncEngine = {
     updateShadow(AUTOBOT_KEY, remote[AUTOBOT_KEY]);
     updateShadow(TRADE_KEY, remote[TRADE_KEY]);
     updateShadow(TRADE_HIST_KEY, remote[TRADE_HIST_KEY]);
+    if (remote[NTFY_SETTINGS_KEY] !== undefined && !skip(NTFY_SETTINGS_KEY)) {
+      localStorage.setItem(NTFY_SETTINGS_KEY, JSON.stringify(remote[NTFY_SETTINGS_KEY]));
+      if (typeof NtfySignals !== 'undefined') {
+        NtfySignals.load();
+        if (typeof document !== 'undefined' && document.getElementById('ntfy-topic-url')) NtfySignals.bindUI();
+      }
+    }
     if (remote[AUTOBOT_KEY] !== undefined && !skip(AUTOBOT_KEY)) {
       const localAutobot = typeof Autobot !== 'undefined' ? Autobot : null;
       const localState = localAutobot && Array.isArray(localAutobot.trades)
@@ -9531,6 +9737,7 @@ const Autobot = {
 
       t.markPrice = px;
       t.markUpdatedAt = Date.now();
+      emitTradeEvents(t, px).catch(() => {});
 
       // MFE / MAE Tracking
       const curRoi = t.dir === 1 ? ((px - t.entry) / t.entry * t.leverage * 100) : ((t.entry - px) / t.entry * t.leverage * 100);
@@ -9639,6 +9846,7 @@ const Autobot = {
   closeTrade(index, exitPrice, reason) {
     const t = this.trades[index];
     if (!t) return;
+    notifyTradeCloseOnce(t, exitPrice, reason);
     const grossPnl = ((exitPrice - t.entry) / t.entry * t.dir) * t.notional;
     const fee = t.notional * 0.0006 * 2;
     const netPnl = grossPnl - fee;
@@ -9903,6 +10111,7 @@ const Autobot = {
 
           this.trades.push(newTrade);
           tradePrices[c.symbol] = lastPrice;
+          NtfySignals.emitTradeEvent(newTrade, 'open', { price: lastPrice }).then(sent => { if (sent) newTrade.openNotified = true; }).catch(() => {});
 
           this.log(formatAutobotEntryLog({
             symbol: c.symbol,
@@ -10201,6 +10410,18 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.6.0": {
+    title: "Signal-Center: Trade-Events, BTC-Regime & Digest",
+    summary: "Runde 24 (MINOR): Disziplinierte ntfy-Signale für Trade-Eröffnung, TP1–TP3, SL und Schluss sowie ein persistenter 24/7-BTC-Regime-Wächter, Daily-Digest und Feed-Fehler-Alarm im Relay.",
+    highlights: [
+      "PF-59 Signal-Hub: Ein Emissionspfad mit Queue, persistentem First-Writer-Wins-Claim, genau einem Retry und fester Prioritätsmatrix.",
+      "PF-60 Benachrichtigungszentrum: Persönliche Topic-URL, einzelne Trade-Toggles und Test-Push; leer bedeutet aus.",
+      "PF-61 Trade-Events: Eröffnung, TP1/TP2/TP3, SL und sonstiger Schluss mit persistenten Once-Flags ohne PF-33-Doppelpush.",
+      "PF-62 BTC-Regime 24/7: Baseregime-Wechsel BULL/BEAR/SIDEWAYS mit Prio 4, 30-Minuten-Cooldown; Squeeze-Eintritt bleibt still.",
+      "PF-63 Daily-Digest & Datenfehler: Leiser Tagesstatus mit Prio 1 und Feed-Ausfall nach >5 Minuten mit Prio 4.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.5.4": {
     title: "Karten-Parität, Setup-Fallbacks & Timeframe-Links",
     summary: "Runde 23 (PATCH): Manuelle Trade-Karten auf Autobot-Niveau (fmtP, Multi-TP, 5s REST-Intervall), Setup-Validation ohne stille Fallbacks, TradingView-Links mit Timeframe, Autobot-Layout-Stabilität und Autobot-Intel-Block.",
@@ -10504,7 +10725,7 @@ function showReleaseNotesOnce(version) {
 
 function init() {
   applyTradingViewContextFromUrl();
-  buildSymbols(); bindTF(); bindRadarTabs(); bindSound(); bindTradeTracker(); bindRadarDrawer(); Autobot.init(); SyncEngine.init();
+  buildSymbols(); bindTF(); bindRadarTabs(); bindSound(); bindTradeTracker(); bindRadarDrawer(); NtfySignals.bindUI(); Autobot.init(); SyncEngine.init();
   initChartResize(); initChartDrawingTools();
   const releaseModal = $('release-notes-modal');
   const closeReleaseNotes = () => {
@@ -10516,7 +10737,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.5.4');
+  showReleaseNotesOnce('1.6.0');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

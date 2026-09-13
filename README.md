@@ -6,10 +6,10 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v1.5.4 — Confluence Terminal
+# AURA v1.6.0 — Confluence Terminal
 
 <div align="center">
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.5.4-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.5.4"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.6.0-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.6.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
   <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
   <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">
@@ -37,6 +37,7 @@ AURA ist ein lokales, read-only Research-Terminal für Bitget USDT-M Perpetual F
 | **Confluence Engine** | Verbindet Trend, Momentum, Volumen, Marktstruktur und vier Zeitfenster. |
 | **Risk Gates** | Prüft Regime, Liquidität, Funding/OI, BTC-Kontext und OOS-Evidenz fail-closed. |
 | **Paper Autobot** | Simuliert qualifizierte Trades lokal inklusive SL, TP1–TP3 und Time-Stop. |
+| **Signal-Center** | Sendet disziplinierte ntfy-Trade-Ereignisse im offenen Dashboard; BTC-Regime, Daily-Digest und Feed-Fehler überwacht der Relay 24/7. |
 | **TradingView Bridge** | Öffnet den passenden Bitget-Chart und kopiert ein Pine-v6-Overlay mit konkreten Trade-Levels. |
 
 ## Schnellstart

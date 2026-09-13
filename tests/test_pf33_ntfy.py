@@ -1,17 +1,8 @@
 """
-test_pf33_ntfy.py — PF-33 opt-in ntfy notification contract
+test_pf33_ntfy.py — Legacy ntfy compatibility contract
 
-Tests verify:
-1. _ntfy_notify() is a no-op when AURA_NTFY_URL is unset.
-2. _ntfy_notify() sends a POST to the configured URL with correct headers.
-3. _ntfy_notify() is fire-and-forget: does NOT raise on HTTP error.
-4. _ntfy_notify() is fire-and-forget: does NOT raise on connection error.
-5. _ntfy_notify() does NOT block the calling thread (dispatches to daemon thread).
-6. notify_trade_closed() calls _ntfy_notify() with a human-readable summary.
-7. _save_mutation_batch triggers notify_trade_closed() for 'delete' ops.
-8. _ntfy_notify() URL is validated: only http/https scheme accepted.
-9. _ntfy_notify() topic and title are sent as X-Topic / X-Title headers.
-10. Notifications are disabled when AURA_NTFY_URL is empty string.
+The public helper remains backward-compatible. Active-trade delete mutations no
+longer emit independently because PF-59 owns semantic close-event deduplication.
 """
 
 from __future__ import annotations
@@ -177,8 +168,8 @@ class TestNotifyTradeClosed(unittest.TestCase):
             mock_open.assert_not_called()
 
 
-class TestMutationBatchTriggersNotify(unittest.TestCase):
-    """_save_mutation_batch with op='delete' must trigger notify_trade_closed."""
+class TestMutationBatchAbsorbsLegacyNotify(unittest.TestCase):
+    """PF-59 owns close pushes, so PF-33's delete hook must stay silent."""
 
     def setUp(self):
         os.environ["AURA_NTFY_URL"] = "http://ntfy.example.com/aura"
@@ -204,7 +195,7 @@ class TestMutationBatchTriggersNotify(unittest.TestCase):
         )
         bitget_relay.STATE_FILE = bitget_relay.STATE_DIR / "aura_shared_state.json"
 
-    def test_delete_mutation_triggers_notify(self):
+    def test_delete_mutation_does_not_trigger_legacy_notify(self):
         notified: list[dict] = []
 
         def capture(trade):
@@ -216,8 +207,7 @@ class TestMutationBatchTriggersNotify(unittest.TestCase):
             ]
             saved, rev, err = bitget_relay._save_mutation_batch(mutations)
         self.assertIsNotNone(saved)
-        self.assertTrue(notified, "notify_trade_closed must be called on delete")
-        self.assertEqual(notified[0].get("id"), "t-del-1")
+        self.assertFalse(notified, "PF-33 delete hook must be absorbed to avoid a second close push")
 
     def test_upsert_mutation_does_not_trigger_notify(self):
         notified: list[dict] = []
