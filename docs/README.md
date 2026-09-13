@@ -15,12 +15,14 @@ docs/
 ├── CHANGELOG.md              # Vollständige Versionshistorie (Keep a Changelog)
 ├── deployment/               # Deployment & Infrastruktur
 │   ├── DOCKER_GUIDE.md       # Docker Compose & Standalone Container
-│   └── PROXMOX_GUIDE.md      # Proxmox VE, LXC & Tailscale Funnel Webhooks
-├── releases/                 # Release-Notes der Versionen
-│   ├── RELEASE_v1.2.5.md     # Aktuelles Release (v1.2.5)
-│   ├── RELEASE_v1.2.4.md     # v1.2.4 Release Notes
-│   ├── RELEASE_v1.2.3.md     # v1.2.3 Release Notes
-│   └── ...                   # Historische Release Notes (v1.1.0 – v1.2.2)
+│   ├── PROXMOX_GUIDE.md      # Proxmox VE, LXC & Tailscale Funnel Webhooks
+│   ├── NTFY_GUIDE.md         # Push-Benachrichtigungen (Deploy-Alerts, Handy & PC)
+│   ├── webhook-incident-20260912.md  # Incidentbericht 2026-09-12
+│   └── webhook-incident-20260913.md  # Incidentbericht 2026-09-13 (v1.5.1 Health-Race)
+├── releases/                 # Release-Notes aller Versionen (v1.1.0 – v1.5.1, 27 Dateien)
+│   ├── RELEASE_v1.5.1.md     # Aktuelles Release (v1.5.1)
+│   ├── RELEASE_v1.5.0.md     # v1.5.0 Release Notes
+│   └── ...                   # Historische Release Notes (v1.1.0 – v1.4.1)
 └── research/                 # Quantitative Forschung, Validierung & Audits
     ├── SYMBIOSE_Model_Validation.md  # Walk-Forward Backtesting & DSR
     ├── RESEARCH_INTEGRITY_GLOSSAR.md # Statistische Integritätsbegriffe
@@ -45,7 +47,10 @@ docs/
 
 * [**Docker Deployment Guide (`docs/deployment/DOCKER_GUIDE.md`)**](deployment/DOCKER_GUIDE.md): Betrieb im isolierten Docker-Container mit Healthcheck-Probes und persistentem State.
 * [**Proxmox VE & LXC Guide (`docs/deployment/PROXMOX_GUIDE.md`)**](deployment/PROXMOX_GUIDE.md): Unprivileged LXC-Container, Alpine/Debian-Setup und Tailscale Funnel Webhook-Integration.
-* [**1-Klick Starter & Scanner**](../PROXMOX_DEPLOY.bat): Windows Batch-Dateien für Proxmox-Deployment (`PROXMOX_DEPLOY.bat`) und Container-Start (`DOCKER_START.bat`, `START.bat`).
+* [**ntfy Deploy-Benachrichtigungen (`docs/deployment/NTFY_GUIDE.md`)**](deployment/NTFY_GUIDE.md): Push-Alerts bei Deploy-Erfolg/-Fehlschlag — Einrichtung auf Handy (Android/iOS) und PC.
+* [**Webhook → Receiver → ntfy Kette:**](deployment/NTFY_GUIDE.md) GitHub Release → Tailscale Funnel → Deploy-Receiver (beide VMs) → ntfy Push. Deploy-Relay (`bitget_relay.py`) sendet zusätzlich ntfy-Alerts bei Trade-Schluss (PF-33, via `AURA_NTFY_URL`).
+* [**Incidentbericht 2026-09-12**](deployment/webhook-incident-20260912.md): Exited-137-Incident, VERSION-Fehler, Reparatur v1.2.12.
+* [**Incidentbericht 2026-09-13**](deployment/webhook-incident-20260913.md): Health-Race-Condition v1.5.1, Reparatur & ntfy-Integration.
 
 ---
 
@@ -60,8 +65,9 @@ docs/
 
 ## 📦 4. Changelogs & Versionierung
 
-* [**Changelog (`docs/CHANGELOG.md`)**](CHANGELOG.md): Komplette Historie nach dem [Keep a Changelog](https://keepachangelog.com/) Standard.
-* [**Release Notes v1.2.5 (`docs/releases/RELEASE_v1.2.5.md`)**](releases/RELEASE_v1.2.5.md): Aktuelles Release mit nativem TradingView Zeichentool Assist, Paper-Trade-Freigabe und Protocol Dispatch.
+* [**Changelog (`CHANGELOG.md`)**](../CHANGELOG.md): Komplette Historie nach dem [Keep a Changelog](https://keepachangelog.com/) Standard.
+* [**Release Notes v1.5.1 (`docs/releases/RELEASE_v1.5.1.md`)**](releases/RELEASE_v1.5.1.md): Aktuelles Release — MTF-Konfigurationsfix & Kein-Signal-Klartext (Runde 20).
+* [**Alle Release Notes**](releases/): v1.1.0 – v1.5.1 (27 Dateien), kanonisch in `docs/releases/`. Root-Level-Stubs wurden in Runde 18 in `docs/releases/` konsolidiert.
 * [**Release Checklist (`RELEASE_CHECKLIST.md`)**](../RELEASE_CHECKLIST.md): Schritt-für-Schritt Prüfkatalog vor jedem produktiven Tagging.
 
 ---
@@ -69,15 +75,8 @@ docs/
 ## 🧪 Test- & Verifikations-Kommandos
 
 ```bash
-# Gesamte Test-Suite ausführen (178 Tests)
+# Gesamte Test-Suite ausführen
 pytest
-
-# Pine Script v6 Syntax- & Paritätsprüfung
-python3 tests/pine_static_check.py
-
-# TradingView Desktop Bridge & Tool Tests
-node tests/test_tradingview_position_bridge.js
-node tests/test_tradingview_basic_qol.js
 
 # Vollständiger Release-Check & Smoke Test
 python3 scripts/release_check.py

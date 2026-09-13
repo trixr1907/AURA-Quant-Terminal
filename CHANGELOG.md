@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bei null ausgewählten Setups erklärt der Funnel den dominanten Ablehnungsgrund in Klartext; fehlende positive OOS-Erwartung wird ausdrücklich als korrektes Fail-closed-Verhalten und nicht als Defekt benannt.
 - Reject-Labels besitzen Tooltips, und die Einstellungen erklären die Grenzen von MinScore, MTF und TimeStop gegenüber festen Radar- und Evidenz-Gates.
+- `bitget_relay.py` Z.391: Beispiel-URL im Kommentar von `http://ntfy.sh/` zu `https://ntfy.sh/<TOPIC-NAME>` korrigiert (Kommentar-only, kein Verhaltenscode, kein Release nötig).
+
+### Infrastructure (docs-only, kein Versionsbump)
+- Deploy-Receiver auf beiden VMs (aura-quant-1, proxmox-aura) um `_ntfy_notify()`-Funktion erweitert: Push-Alert bei Deploy-Erfolg (Priority: default) und Fehlschlag (Priority: high) via `AURA_NTFY_URL` — identisches Muster wie PF-33 in `bitget_relay.py`.
+- `docs/deployment/NTFY_GUIDE.md` hinzugefügt: Endverbraucher-Leitfaden für ntfy auf Handy (Android/iOS) und PC, inkl. Topic-Sicherheit und Relay-Zusammenspiel.
+- `docs/deployment/webhook-incident-20260913.md` hinzugefügt: Incidentbericht für v1.5.1 Health-Race-Condition (Root Cause: `wait_for_health()` 90s vs. Docker StartPeriod 90s).
+- Root-Level RELEASE_v*.md Stubs (15 Dateien) entfernt — kanonische Quelle ist `docs/releases/` (Konvention seit Runde 18). Docs-Einheit bleibt bei 27 Release-Dateien in `docs/releases/`.
+- `docs/README.md` und `README.md` um ntfy-Guide, Deploy-Kette und aktuelle Incident-Links aktualisiert.
 
 ### Scope
 - PATCH als Prozess-/UI-Fix und Konfigurations-Plumbing eines bestehenden Vertrags; keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
