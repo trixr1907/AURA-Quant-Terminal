@@ -346,14 +346,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 
 <div class="macrobar" aria-label="Makro-Wetter">
   <div class="macro-title"><span>Makro-Wetter</span><b>Market Context</b></div>
-  <div class="macro-cell" id="macro-btc-cell">
-    <span>Globaler Markt-Trend (BTC)</span>
+  <div class="macro-cell" id="macro-btc-cell" tabindex="0" role="region" aria-labelledby="macro-btc-cell-title" aria-describedby="macro-btc-tooltip">
+    <span id="macro-btc-cell-title">Globaler Markt-Trend (BTC) <span class="info-tip" tabindex="0" role="img" aria-label="Erklärung BTC-Regime" title="BTC-Regime erklärt: BULL = Kurs über EMA200 UND EMA50 über EMA200 — beide Linien zeigen aufwärts. BEAR = Kurs unter EMA200 UND EMA50 unter EMA200. SIDEWAYS = alles dazwischen oder Bollinger-Squeeze aktiv (Kurs komprimiert, Ausbruch meist danach). ADX ≥ 20 = Trend vorhanden; ADX &lt; 20 = Konsolidierung. E50-vs-E200 zeigt den prozentualen Abstand der schnellen Linie zur langsamen." style="cursor:help;font-size:11px;opacity:0.75;margin-left:3px">ℹ️</span></span>
     <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">
       <b id="macro-btc">—</b>
       <span class="macro-btc-sub" id="macro-btc-sub">Trend-Bias · —</span>
     </div>
-    <span class="macro-btc-sub" id="macro-btc-regime-detail">E50-vs-E200: — · ADX: — · Squeeze: —</span>
+    <span class="macro-btc-sub" id="macro-btc-regime-detail" aria-live="polite">E50-vs-E200: — · ADX: — · Squeeze: —</span>
     <span class="macro-btc-sub" id="macro-btc-regime-since" title="grün=BULL, rot=BEAR, orange=SIDEWAYS; BULL = Kurs &gt; EMA200 und E50 &gt; E200; BEAR analog; SIDEWAYS = sonst/Squeeze.">Regime seit —</span>
+    <span id="macro-btc-tooltip" style="display:none" aria-hidden="true">BTC-Regime: BULL wenn Kurs und EMA50 über EMA200; BEAR umgekehrt; SIDEWAYS sonst oder Squeeze aktiv.</span>
     <div class="btc-bias-wrap">
       <div class="btc-bias-bar" id="macro-btc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="Lade…">
         <i id="macro-btc-fill" style="width:0%"></i>
@@ -387,10 +388,10 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <span class="hero-when-chip none" id="hero-when-chip">—</span>
           </div>
           <div class="hero-levels" id="hero-levels">
-            <div class="hero-lvl entry"><b id="hero-entry">—</b><span>Entry</span></div>
-            <div class="hero-lvl sl"><b id="hero-sl">—</b><span>Stop-Loss</span></div>
-            <div class="hero-lvl tp"><b id="hero-tp1">—</b><span>TP1</span></div>
-            <div class="hero-lvl tp"><b id="hero-tp2">—</b><span>TP2</span></div>
+            <div class="hero-lvl entry" title="Einstiegskurs: Der Preis, zu dem du in den Trade einsteigst. Das System berechnet Entry aus Signal-Pivot, ATR und Marktstruktur."><b id="hero-entry">—</b><span>Entry <span class="info-tip" role="img" aria-label="Einstiegskurs" title="Einstiegskurs: Der geplante Kaufpreis (Long) bzw. Verkaufspreis (Short). Erst wenn der Markt diesen Preis erreicht, ist der Trade aktiv." style="cursor:help;font-size:9px;opacity:0.6">ℹ️</span></span></div>
+            <div class="hero-lvl sl" title="Stop-Loss (Notbremse): Automatischer Ausstieg, falls der Markt gegen dich läuft. Begrenzt den maximalen Verlust pro Trade."><b id="hero-sl">—</b><span>SL – Notbremse <span class="info-tip" role="img" aria-label="Stop-Loss" title="Stop-Loss: Maximaler Verlust-Kurs. Wird der Preis hier erreicht, schließt sich die Position automatisch. Nie weiter nach unten verschieben!" style="cursor:help;font-size:9px;opacity:0.6">ℹ️</span></span></div>
+            <div class="hero-lvl tp" title="Teilgewinn-Ziel 1: Erster Kursbereich, wo du Gewinne sicherst. Bei +1R (Risk:Reward 1:1) empfiehlt sich ein Teil-Ausstieg und SL auf Entry ziehen."><b id="hero-tp1">—</b><span>TP1 – Teilgewinn <span class="info-tip" role="img" aria-label="Take-Profit 1" title="Take-Profit 1: Erstes Gewinnziel. Bei Erreichen: 25–50% der Position schließen und Stop-Loss auf Einstieg anheben (Break-Even = risikofrei)." style="cursor:help;font-size:9px;opacity:0.6">ℹ️</span></span></div>
+            <div class="hero-lvl tp" title="Teilgewinn-Ziel 2: Zweites, höheres Gewinnziel für den verbleibenden Rest der Position (Moonbag). Höheres R:R-Verhältnis."><b id="hero-tp2">—</b><span>TP2 – Hauptziel <span class="info-tip" role="img" aria-label="Take-Profit 2" title="Take-Profit 2: Zweites Gewinnziel für den Restanteil. Wird oft mit Trailing-Stop gesichert. Kein TP2 gesetzt = kompletter Exit bei TP1." style="cursor:help;font-size:9px;opacity:0.6">ℹ️</span></span></div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="hero-paper-btn" id="btn-paper-trade" type="button" disabled title="Paper-Simulation erst nach vollständiger Live-Freigabe möglich">⚡ Paper-Simulation gesperrt</button>
@@ -437,7 +438,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
     </section>
 
     <section class="validation-grid" aria-label="Chart und Setup-Validierung">
-      <article class="panel chartcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Chart &amp; Price Action</h2><div id="chart-asset-badge" class="chart-asset-pill"><span class="cap-sym" id="cap-sym">BTCUSDT</span><span class="cap-tf" id="cap-tf">1H</span><span class="cap-px" id="cap-px">—</span><span class="cap-chg" id="cap-chg">—</span><span class="cap-reg" id="cap-reg">—</span></div><button class="copy-intel-btn" id="btn-chart-tv" type="button" style="margin-left:auto;background:rgba(37,99,235,.15);border-color:rgba(59,130,246,.4);color:#60a5fa" title="Öffnet den aktuellen Coin direkt im TradingView-Webchart">📊 TradingView</button><span class="tag" id="chart-src">—</span></div><div class="chart-body"><div class="chart-load-state" id="chart-load-state" role="alert" hidden><span id="chart-load-message"></span><button class="cbtn" id="chart-load-retry" type="button">Erneut laden</button></div><canvas id="chart"></canvas><div class="chartleg" id="chartleg"><span data-ov="e20"><i style="background:#22d3ee"></i>EMA 20</span><span data-ov="e50"><i style="background:#f59e0b"></i>EMA 50</span><span data-ov="e200"><i style="background:#a855f7"></i>EMA 200</span><span data-ov="st"><i style="background:#22c55e"></i>SuperTrend</span><span data-ov="vwap"><i style="background:#e2e8f0"></i>VWAP</span><span data-ov="vol"><i style="background:#3b82f6"></i>Volumen</span><span data-ov="fvg"><i style="background:rgba(34,197,94,.8)"></i>FVG Zonen</span><span data-ov="liq"><i style="background:#f59e0b"></i>EQH/EQL Pools</span><span data-ov="kz"><i style="background:rgba(56,189,248,.6)"></i>Killzones</span></div><div class="chartfoot"><span>Bars</span><button class="cbtn" id="btn-zoom-in">+</button><button class="cbtn" id="btn-zoom-out">−</button><button class="cbtn" id="btn-zoom-100">100</button><button class="cbtn" id="btn-zoom-260">260</button><button class="cbtn" id="btn-zoom-500">500</button><input type="range" id="barslider" min="60" max="600" value="260" step="10"><span id="barsval">260</span><span>Scroll = Zoom · Hover = Detail</span></div></div></article>
+      <article class="panel chartcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Chart &amp; Price Action</h2><div id="chart-asset-badge" class="chart-asset-pill"><span class="cap-sym" id="cap-sym">BTCUSDT</span><span class="cap-tf" id="cap-tf">1H</span><span class="cap-px" id="cap-px">—</span><span class="cap-chg" id="cap-chg">—</span><span class="cap-reg" id="cap-reg">—</span></div><button class="copy-intel-btn" id="btn-chart-tv" type="button" style="margin-left:auto;background:rgba(37,99,235,.15);border-color:rgba(59,130,246,.4);color:#60a5fa" title="Öffnet den aktuellen Coin direkt im TradingView-Webchart">📊 TradingView</button><span class="tag" id="chart-src">—</span><span id="chart-freshness-badge" style="font-size:9.5px;padding:2px 7px;border-radius:5px;background:rgba(148,163,184,.07);color:var(--dim);font-weight:700;display:none" title="Alter der zuletzt geladenen Kerzen">Kerzen: —</span></div><div class="chart-body"><div class="chart-load-state" id="chart-load-state" role="alert" hidden><span id="chart-load-message"></span><button class="cbtn" id="chart-load-retry" type="button">Erneut laden</button></div><canvas id="chart"></canvas><div class="chartleg" id="chartleg"><span data-ov="e20"><i style="background:#22d3ee"></i>EMA 20</span><span data-ov="e50"><i style="background:#f59e0b"></i>EMA 50</span><span data-ov="e200"><i style="background:#a855f7"></i>EMA 200</span><span data-ov="st"><i style="background:#22c55e"></i>SuperTrend</span><span data-ov="vwap"><i style="background:#e2e8f0"></i>VWAP</span><span data-ov="vol"><i style="background:#3b82f6"></i>Volumen</span><span data-ov="fvg"><i style="background:rgba(34,197,94,.8)"></i>FVG Zonen</span><span data-ov="liq"><i style="background:#f59e0b"></i>EQH/EQL Pools</span><span data-ov="kz"><i style="background:rgba(56,189,248,.6)"></i>Killzones</span></div><div class="chartfoot"><span>Bars</span><button class="cbtn" id="btn-zoom-in">+</button><button class="cbtn" id="btn-zoom-out">−</button><button class="cbtn" id="btn-zoom-100">100</button><button class="cbtn" id="btn-zoom-260">260</button><button class="cbtn" id="btn-zoom-500">500</button><input type="range" id="barslider" min="60" max="600" value="260" step="10"><span id="barsval">260</span><span>Scroll = Zoom · Hover = Detail</span></div></div></article>
       <div class="research-stack">
         <article class="panel sigcard" id="sigcard"><div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center"><h2>Setup Validation</h2><div id="sig-asset-badge" class="sig-asset-pill"><span class="cap-sym" id="sig-sym-badge">BTCUSDT</span><span class="tag ok" id="sig-tf">1H</span></div><button class="copy-intel-btn" id="btn-copy-setup" type="button" title="Kopiert alle quantitativen Setup-Parameter in die Zwischenablage">📋 Setup kopieren</button><button class="copy-intel-btn" id="btn-sig-tv" type="button" style="background:rgba(37,99,235,.15);border-color:rgba(59,130,246,.4);color:#60a5fa" title="Öffnet das aktuelle Setup direkt im TradingView-Webchart">📊 TV</button></div><div class="panel-body"><div class="sighead"><div class="gaugewrap"><svg id="gauge" viewBox="0 0 200 120"></svg></div><div class="sigmain"><div id="sigscoren">— <small>/100</small></div><div id="sigstrength">—</div><div id="sigbadge">LADE…</div><div id="sigplain">Lade Daten …</div></div></div><div class="subscores"><div class="subrow"><span>Trend</span><div class="sbar"><i id="sb-trend"></i></div><b id="n-trend">—</b></div><div class="subrow"><span>Momentum</span><div class="sbar"><i id="sb-mom"></i></div><b id="n-mom">—</b></div><div class="subrow"><span>Volumen</span><div class="sbar"><i id="sb-vol"></i></div><b id="n-vol">—</b></div><div class="subrow"><span>Struktur</span><div class="sbar"><i id="sb-str"></i></div><b id="n-str">—</b></div><div class="subrow"><span>Funding Z</span><div class="sbar"><i id="sb-fund"></i></div><b id="n-fund">—</b></div><div class="subrow"><span>OI</span><div class="sbar"><i id="sb-oi"></i></div><b id="n-oi">—</b></div></div><div class="spark"><canvas id="scspark"></canvas></div><div class="trades" id="trades"></div></div></article>
         <section class="time-stop-optimizer" id="time-stop-optimizer" aria-labelledby="time-stop-title"><div><b id="time-stop-title">Time-Stop Optimizer</b><span>Testet für den aktuell geladenen Coin 5–30 Bars im Anchored Walk-Forward und übernimmt das beste DSR-/Erwartungs-Ergebnis.</span></div><button class="act" id="auto-timestop" type="button" title="Time-Stop für das aktuelle Setup automatisch optimieren">⚡ Auto-Optimiere Time-Stop</button><span id="timestop-status" role="status">Bereit · aktueller Wert: 15 Bars</span></section>
@@ -833,7 +834,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.4.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.4.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -927,7 +928,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.4.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.4.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2458,6 +2459,7 @@ async function loadChartData(attempt = 0) {
   App.data.probMap = App.data.wf.probMap;
   App.data.candles = r.candles;
   App.data.chartSrc = r.source;
+  App.data.chartLoadedAt = Date.now(); // PF-39: freshness badge timestamp
   // Load Bitget contract specifications for the selected USDT-M perpetual.
   try {
     if (!App.spec || App.specSym !== App.symbol) {
@@ -2524,13 +2526,36 @@ function renderChartLoadState() {
   const retry = $('chart-load-retry');
   if (!state || !message || !retry) return;
   const chartLoad = App.chartLoad || {};
-  const isError = chartLoad.status === 'error';
-  state.hidden = !isError;
-  if (isError) {
+  const status = chartLoad.status || 'idle';
+  const isError = status === 'error';
+  const isLoading = status === 'loading';
+  // Band visible on error or loading, hidden on idle/ready
+  state.hidden = !(isError || isLoading);
+  if (isLoading) {
+    message.textContent = 'Lade Chart-Daten …';
+    retry.textContent = 'Abbrechen';
+    retry.disabled = false;
+  } else if (isError) {
     message.textContent = `${chartLoad.message} Der vorherige Chart bleibt sichtbar.`;
     retry.textContent = 'Erneut laden';
     retry.disabled = false;
   }
+}
+
+// PF-39: Freshnss badge — updates every second to show candle data age and source.
+function updateChartFreshnessBadge() {
+  const badge = $('chart-freshness-badge');
+  if (!badge) return;
+  const loadedAt = App && App.data && App.data.chartLoadedAt;
+  const chartLoad = App && App.chartLoad || {};
+  const isError = chartLoad.status === 'error';
+  if (!loadedAt) { badge.style.display = 'none'; return; }
+  const ageSec = Math.max(0, Math.floor((Date.now() - loadedAt) / 1000));
+  const src = (App && App.data && App.data.chartSrc) ? ` · ${App.data.chartSrc}` : '';
+  const ageText = ageSec < 60 ? `${ageSec}s` : ageSec < 3600 ? `${Math.floor(ageSec / 60)}m${ageSec % 60}s` : `${Math.floor(ageSec / 3600)}h`;
+  badge.style.display = '';
+  badge.style.color = isError ? 'var(--red2)' : ageSec > 120 ? 'var(--amb)' : 'var(--dim)';
+  badge.textContent = `Kerzen: vor ${ageText}${src}`;
 }
 
 async function loadMTF() {
@@ -7447,7 +7472,13 @@ function renderLiveTrades() {
       if (coin) switchToAsset(coin, tf);
     };
   });
-  
+
+  // PF-37: Keep Autobot card metrics in sync — if an Autobot instance exists
+  // and has open trades it re-renders using the same fresh tradePrices.
+  if (typeof Autobot !== 'undefined' && Autobot && Autobot.trades && Autobot.trades.length > 0 && typeof Autobot.render === 'function') {
+    Autobot.render();
+  }
+
   renderTradeHistory();
 }
 
@@ -9167,38 +9198,34 @@ const Autobot = {
       } else {
         cardTemplate.innerHTML = this.trades.map((t, idx) => {
           const px = t.markPrice || tradePrices[t.coin] || t.entry;
-          const pnl = ((px - t.entry) / t.entry * t.dir) * t.notional;
-          const roi = (pnl / t.initialMargin) * 100;
-          const side = t.dir === 1 ? 'LONG' : 'SHORT';
-          const pnlCol = pnl >= 0 ? 'grn' : 'red';
-          const riskSpan = Math.abs(t.entry - t.initialSl) || 1;
-          const rMult = pnl / (riskSpan / t.entry * t.initialMargin * t.leverage);
-          const distSlPct = Math.abs(px - t.currentSl) / px * 100;
+          // PF-37: use calculateTradeMetrics for live price/PnL/R metrics,
+          // same as the Live Tracker path, so both containers update in sync.
+          const m = calculateTradeMetrics(t, px);
+          const pnlCol = m.pnlGross >= 0 ? 'grn' : 'red';
           const distTp1Pct = t.tp1 ? Math.abs(t.tp1 - px) / px * 100 : 0;
-          const distTp2Pct = t.tp2 ? Math.abs(t.tp2 - px) / px * 100 : 0;
           const holdTimeFormatted = typeof fmtDuration === 'function' ? fmtDuration(Date.now() - t.openedAt) : `${Math.round((Date.now() - t.openedAt)/60000)} min`;
           const timeStopDisplay = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(t.timeStopBars || 12, t.signalTf || '1h') : `${t.timeStopBars || 12} Bars`;
 
-          return renderTradeCard(t, null, px, idx, {
+          return renderTradeCard(t, m, px, idx, {
             autobot: true,
             score: t.score,
             setupDsr: t.setupDsr,
             timeStopDisplay,
             botManagement: 'Auto-BE bei +1R, 50% Scale-Out bei TP2, Trailing-Stop & Dynamischer Time-Stop.',
             pnlClass: pnlCol,
-            pnlText: `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT`,
-            roiText: `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}% · ${rMult >= 0 ? '+' : ''}${rMult.toFixed(2)}R`,
+            pnlText: `${m.pnlGross >= 0 ? '+' : ''}${m.pnlGross.toFixed(2)} USDT`,
+            roiText: `${m.marginRoiPct >= 0 ? '+' : ''}${m.marginRoiPct.toFixed(1)}% · ${m.currentR >= 0 ? '+' : ''}${m.currentR.toFixed(2)}R`,
             entryDisplay: fmtP(t.entry),
-            priceDisplay: fmtP(px),
-            marginDisplay: t.margin.toFixed(2),
-            notionalDisplay: t.notional.toFixed(2),
+            priceDisplay: fmtP(m.currentPrice),
+            marginDisplay: m.notional > 0 ? (m.notional / (t.leverage || 1)).toFixed(2) : (t.margin || 0).toFixed(2),
+            notionalDisplay: m.notional.toFixed(2),
             slDisplay: fmtP(t.currentSl),
-            distSlDisplay: `-${distSlPct.toFixed(2)}%`,
+            distSlDisplay: `-${m.distSlPct.toFixed(2)}%`,
             tp1Display: fmtP(t.tp1),
             distTp1Display: `+${distTp1Pct.toFixed(2)}%`,
             tp2Display: fmtP(t.tp2),
             holdTimeFormatted,
-            rMultipleText: `${rMult >= 0 ? '+' : ''}${rMult.toFixed(2)}R`
+            rMultipleText: `${m.currentR >= 0 ? '+' : ''}${m.currentR.toFixed(2)}R`
           });
         }).join('');
       }
@@ -9276,6 +9303,15 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.4.1": {
+    title: "Regressions-Fix & Klarheit",
+    summary: "Runde 18 (PATCH): Behebt Autobot-Karten-Live-Tracking-Regression, ergänzt Endverbraucher-Tooltips für BTC-Regime & Hero-Levels, und implementiert Chart-Frische-Badge.",
+    highlights: [
+      "PF-37 Autobot-Live-Tracking: renderTradeCard() erhält wieder echte calculateTradeMetrics-Werte; Autobot-Karten aktualisieren synchron mit Ticker-Ticks ohne Flackern.",
+      "PF-38 Klartext-Tooltips: Verständliche deutsche Erklärungen für BTC-Regime (BULL/BEAR/SIDEWAYS, EMA200, ADX, Squeeze) und alle Hero-Level-Kacheln (Entry, SL, TP1, TP2) mit a11y-Attributen.",
+      "PF-39 Chart-Frische & Lade-Zustand: Neues Frische-Badge am Chartkopf ('Kerzen: vor Xs · Quelle') im Sekundentakt; Lade-Band zeigt Zustand 'Lade…' ehrlich an und verschwindet nach Erfolg."
+    ]
+  },
   "1.4.0": {
     title: "UX-Transparenz & Relay-Benachrichtigungen",
     summary: "Runde 17: Makro-Regime-Sichtbarkeit, einheitliche Trade-Karten, Chart-Positionslinien, Zero-Transient-Fix, Chart-Retry-Fehlerband, opt-in ntfy-Notifications, CDN-Asset-Logos mit Fallback und dezente Logo-Animation.",
@@ -9477,7 +9513,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.4.0');
+  showReleaseNotesOnce('1.4.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
@@ -9595,6 +9631,7 @@ function init() {
   connectWS();
   bindResumeRefresh();
   setInterval(() => renderFeedStatus(), 1000);
+  setInterval(() => updateChartFreshnessBadge(), 1000); // PF-39: freshness badge tick
   setInterval(loadAll, 60000); // Auto-Refresh alle 60 s
 }
 document.addEventListener('DOMContentLoaded', init);
