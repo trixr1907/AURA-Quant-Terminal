@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.2] – 2026-09-13 – Runde 21: Infra-PATCH — Receiver Health-Fix & Deploy-Zuverlässigkeit
+
+### Fixed
+- `wait_for_health()` im Deploy-Receiver: Timeout von 90 s auf 300 s erhöht (muss > Docker-StartPeriod 90 s sein). Dieser Race war die Root Cause des fehlgeschlagenen automatischen Deployments von v1.5.1: der Receiver hat das Image erfolgreich gebaut, dann aber den Healthcheck-Übergang von `starting` auf `healthy` nicht abgewartet und das Deployment abgebrochen.
+- `bitget_relay.py` Z.391: Beispiel-URL im Kommentar von `http://ntfy.sh/my-aura-alerts` zu `https://ntfy.sh/<TOPIC-NAME>` korrigiert (Kommentar-only, kein Verhaltenscode).
+
+### Changed
+- Deploy-Receiver sendet nach jedem Deploy-Versuch receiver-originiert ntfy ✅/❌: Erfolg (Priority default), Fehlschlag (Priority high). Benachrichigtung ist damit unabhängig vom lokalen `bitget_relay.py`-Prozess.
+- `scripts/build_package.py` und `tests/test_package_hygiene.py`: Release-Dokument-Referenz auf `RELEASE_v1.5.2.md` aktualisiert.
+
+### Infrastructure
+- `aura-quant-1` vs. `proxmox-aura` Host-Untersuchung dokumentiert: zwei physisch getrennte Maschinen in unterschiedlichen Tailscale-Netzen (`tailbb41d7` bzw. `tail8b74ea`). Beide Hosts erhalten den wait_for_health-Fix (aura-quant-1 direkt verifiziert, proxmox-aura dokumentiert mit Unterschieden im Server-Header).
+
+### Scope
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
+
 ## [1.5.1] – 2026-09-13 – Runde 20: MTF-Konfigurationsfix & Kein-Signal-Klartext
 
 ### Fixed
@@ -16,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bei null ausgewählten Setups erklärt der Funnel den dominanten Ablehnungsgrund in Klartext; fehlende positive OOS-Erwartung wird ausdrücklich als korrektes Fail-closed-Verhalten und nicht als Defekt benannt.
 - Reject-Labels besitzen Tooltips, und die Einstellungen erklären die Grenzen von MinScore, MTF und TimeStop gegenüber festen Radar- und Evidenz-Gates.
-- `bitget_relay.py` Z.391: Beispiel-URL im Kommentar von `http://ntfy.sh/` zu `https://ntfy.sh/<TOPIC-NAME>` korrigiert (Kommentar-only, kein Verhaltenscode, kein Release nötig).
+- `bitget_relay.py` Z.391: Beispiel-URL im Kommentar von `http://ntfy.sh/` zu `https://ntfy.sh/<TOPIC-NAME>` korrigiert (Kommentar-only, kein Verhaltenscode; landet real in v1.5.2).
 
 ### Infrastructure (docs-only, kein Versionsbump)
 - Deploy-Receiver auf beiden VMs (aura-quant-1, proxmox-aura) um `_ntfy_notify()`-Funktion erweitert: Push-Alert bei Deploy-Erfolg (Priority: default) und Fehlschlag (Priority: high) via `AURA_NTFY_URL` — identisches Muster wie PF-33 in `bitget_relay.py`.
