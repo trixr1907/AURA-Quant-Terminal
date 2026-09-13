@@ -184,8 +184,9 @@ Checking version=1.6.1
 
 ## Hashes (nach Merge befüllt)
 
-- Merge-Commit: (tbd — 2 Parents after PR merge)
-- Tag v1.6.1 SHA: (tbd)
-- Asset symbiose.zip SHA256: (tbd)
-- Docs-Blob SHA256 (git hash-object RELEASE_v1.6.1.md): (tbd)
-- CI-Run conclusion: (tbd — Abnahme-Kriterium)
+- Merge-Commit: 45ee08e52fcaa2fa2291f0a14091f15fb3526e86 (2 Parents: f1c013d, 34036ca)
+- Tag v1.6.1: peeled = 45ee08e52fcaa2fa2291f0a14091f15fb3526e86
+- Asset symbiose.zip SHA256 (von GitHub Release): fa90667cc58d2872591ef3b64e0c584fb3a433d2a8ca731a49c46d1043e7a009
+- Docs-Blob SHA1 (git rev-parse HEAD:RELEASE_v1.6.1.md): 44bbe2ed7724b807afea2c854691541bcf0c67b1
+- CI-Run Continuous Integration main (34790186386): conclusion=success
+- CI-Run Publish GitHub Release v1.6.1 (34790194215): conclusion=success
