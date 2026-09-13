@@ -89,29 +89,40 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .preset-chip{border:1px solid rgba(148,163,184,.15);background:rgba(148,163,184,.06);color:var(--mut);padding:3px 7px;border-radius:4px;font:700 10px var(--mono);cursor:pointer;transition:.12s}
 .preset-chip:hover{background:rgba(148,163,184,.15);color:var(--txt);border-color:rgba(56,189,248,.4)}
 
-.trade-card{background:rgba(15,23,42,.78);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
+.trade-card{background:rgba(15,23,42,.78);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s;font-variant-numeric:tabular-nums;max-width:100%;box-sizing:border-box;overflow:hidden}
 .trade-card:hover{border-color:rgba(56,189,248,.4);box-shadow:0 4px 20px rgba(0,0,0,.25)}
 .tc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid rgba(148,163,184,.08)}
-.tc-badge{font:800 13px var(--mono);display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
-.tc-pnl{font:800 13px var(--mono);display:inline-flex;align-items:center;gap:6px;text-align:right}
-.tc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 12px;margin:12px 0}
-.tc-item{background:rgba(148,163,184,.03);padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,.06)}
+.tc-badge{font:800 13px var(--mono);display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.tc-pnl{font:800 13px var(--mono);display:inline-flex;align-items:center;gap:6px;text-align:right;justify-content:flex-end;flex-shrink:0;font-variant-numeric:tabular-nums}
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px 12px;margin:12px 0;font-variant-numeric:tabular-nums}
+.tc-item{background:rgba(148,163,184,.03);padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,.06);font-variant-numeric:tabular-nums}
 .tc-item span{display:block;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
-.tc-item b{display:block;font:700 11px var(--mono);color:var(--txt);margin-top:2px}
+.tc-item b{display:block;font:700 11px var(--mono);color:var(--txt);margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-track{position:relative;height:6px;background:rgba(148,163,184,.1);border-radius:3px;margin:10px 0 6px;overflow:hidden}
 .tc-track-fill{height:100%;border-radius:3px;transition:width .2s}
-.tc-track-labels{display:flex;justify-content:space-between;font:700 10px var(--mono);color:var(--dim);margin-bottom:8px}
-.tc-intel{background:rgba(148,163,184,.05);border-left:3px solid #38bdf8;border-radius:0 6px 6px 0;padding:9px 12px;margin:10px 0;font-size:10.5px;color:var(--txt);line-height:1.0.05}
+.tc-track-labels{display:flex;justify-content:space-between;align-items:center;font:700 10px var(--mono);color:var(--dim);margin-bottom:8px;font-variant-numeric:tabular-nums;gap:6px;overflow:hidden}
+.tc-track-labels span:nth-child(1){text-align:left;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc-track-labels span:nth-child(2){flex:1;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tc-track-labels span:nth-child(3){text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc-intel{background:rgba(148,163,184,.05);border-left:3px solid #38bdf8;border-radius:0 6px 6px 0;padding:9px 12px;margin:10px 0;font-size:10.5px;color:var(--txt);line-height:1.45;font-variant-numeric:tabular-nums;word-break:break-word;overflow-wrap:break-word}
 .tc-intel.be{border-left-color:#22c55e}
 .tc-intel.warn{border-left-color:#ef4444}
-.tc-intel-sub{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,.08);font-size:10px;color:var(--dim)}
+.tc-intel-sub{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,.08);font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums}
 .tc-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(148,163,184,.08)}
-.tc-btn{border:1px solid rgba(148,163,184,.15);background:rgba(148,163,184,.07);color:var(--txt);padding:6px 10px;border-radius:6px;font:700 10px var(--mono);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:.15s}
+.tc-btn{border:1px solid rgba(148,163,184,.15);background:rgba(148,163,184,.07);color:var(--txt);padding:6px 10px;border-radius:6px;font:700 10px var(--mono);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:.15s;font-variant-numeric:tabular-nums}
 .tc-btn:hover{background:rgba(148,163,184,.16);border-color:rgba(148,163,184,.35)}
 .tc-btn.active{background:rgba(56,189,248,.18);border-color:#38bdf8;color:#38bdf8}
 .tc-btn.active-be{background:rgba(34,197,94,.18);border-color:#22c55e;color:#22c55e}
 .tc-btn.danger{color:var(--red2);border-color:rgba(239,68,68,.3)}
 .tc-btn.danger:hover{background:rgba(239,68,68,.15);border-color:var(--red2)}
+.tc-autobot-extras{font-variant-numeric:tabular-nums}
+.stale-price-dot,.live-price-dot{display:inline-block;width:6px;height:6px;flex-shrink:0;border-radius:50%;margin-left:2px;vertical-align:middle}
+@media (prefers-reduced-motion: reduce) {
+  .trade-card, .tc-track-fill, .tc-btn, .copyable-val, .preset-chip {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 
 .copyable-val{cursor:copy;transition:background .15s,color .15s,transform .1s;border-radius:4px;padding:1px 3px;display:inline-block}
 .copyable-val:hover{background:rgba(34,211,238,.18);color:var(--cyn)!important;text-decoration:underline dotted}
@@ -846,7 +857,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.3?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.4?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -940,7 +951,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.5.3</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.5.4</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3861,7 +3872,7 @@ function bindTradingViewBridge() {
     setTradingViewStatus('TradingView-Layout lokal gespeichert · Markt bleibt Bitget USDT-M Perpetual.');
   };
   const save = $('tv-save-settings'); if (save) save.onclick = persist;
-  const open = $('tv-open-current'); if (open) open.onclick = () => openTradingViewChart(App.symbol);
+  const open = $('tv-open-current'); if (open) open.onclick = () => openTradingViewChart(App.symbol, App.chartTF);
   const prev = $('tv-prev-setup'); if (prev) prev.onclick = () => tradingViewCandidateStep(-1);
   const next = $('tv-next-setup'); if (next) next.onclick = () => tradingViewCandidateStep(1);
   const top = $('tv-copy-top30'); if (top) top.onclick = () => copyTradingViewList(0, top);
@@ -5602,13 +5613,18 @@ function drawChartPositionLevels(ctx, trades, plot) {
   ctx.restore();
 }
 
-function buildTradingViewChartUrl(symbol) {
+function buildTradingViewChartUrl(symbol, tf) {
+  if (typeof buildTradingViewUrl === 'function') {
+    return buildTradingViewUrl(symbol, tf || (typeof App !== 'undefined' ? App.chartTF : '1h') || '1h');
+  }
   const clean = String(symbol || 'BTCUSDT').toUpperCase().replace(/^[A-Z0-9_]+:/, '').replace(/\.P$/, '').replace(/[^A-Z0-9]/g, '') || 'BTCUSDT';
-  return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(`BITGET:${clean}.P`)}`;
+  const intervalMap = { '15m': '15', '1h': '60', '4h': '240', '1d': 'D' };
+  const interval = tf ? (intervalMap[String(tf).toLowerCase()] || '60') : null;
+  return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(`BITGET:${clean}.P`)}${interval ? `&interval=${interval}` : ''}`;
 }
 
-function openTradingViewChart(symbol) {
-  const url = buildTradingViewChartUrl(symbol);
+function openTradingViewChart(symbol, tf) {
+  const url = buildTradingViewChartUrl(symbol, tf);
   const opened = typeof window !== 'undefined' && typeof window.open === 'function'
     ? window.open(url, '_blank', 'noopener,noreferrer')
     : null;
@@ -7129,12 +7145,19 @@ function startPaperTradeFromCockpit() {
   if (!lastPrice || lastPrice <= 0) return;
   const dir = L.longSig ? 1 : (L.shortSig ? -1 : ((A && A.last && A.last.superTrendDir) ? A.last.superTrendDir : 1));
   
+  const hasSetupSl = !!(L.sl || L.dynSl);
+  const hasSetupTp1 = !!(L.tp1 || L.dynTp1);
+  const isFallback = !hasSetupSl || !hasSetupTp1;
+  const fallbackReason = !hasSetupSl && !hasSetupTp1
+    ? 'Fallback-SL (ATR), Setup-Level fehlten'
+    : (!hasSetupSl ? 'Fallback-SL (ATR), Setup-Level fehlten' : 'Fallback-TP (ATR), Setup-Level fehlten');
+
   const atr = (A && A.last && A.last.atr) ? A.last.atr : (lastPrice * 0.015);
   const slDist = Math.max(lastPrice * 0.004, atr * 1.5);
   const sl = dir === 1 ? (L.sl || L.dynSl || (lastPrice - slDist)) : (L.sl || L.dynSl || (lastPrice + slDist));
   const tp1 = dir === 1 ? (L.tp1 || L.dynTp1 || (lastPrice + slDist * 2)) : (L.tp1 || L.dynTp1 || (lastPrice - slDist * 2));
   const tp2 = dir === 1 ? (L.tp2 || L.dynTp2 || (lastPrice + slDist * 3)) : (L.tp2 || L.dynTp2 || (lastPrice - slDist * 3));
-  const tp3 = dir === 1 ? (L.tp3 || (lastPrice + slDist * 5)) : (L.tp3 || (lastPrice - slDist * 5));
+  const tp3 = dir === 1 ? (L.tp3 || L.dynTp3 || (lastPrice + slDist * 5)) : (L.tp3 || L.dynTp3 || (lastPrice - slDist * 5));
   
   const riskAmount = (App.equity || 10000) * ((App.riskPct || 1.0) / 100);
   const priceRiskPct = Math.abs(lastPrice - sl) / (lastPrice || 1);
@@ -7153,6 +7176,7 @@ function startPaperTradeFromCockpit() {
     id: generateDeterministicOid('pt'),
     coin: sym,
     dir,
+    signalTf: App.chartTF || '1h',
     entry: lastPrice,
     markPrice: lastPrice,
     markUpdatedAt: Date.now(),
@@ -7168,6 +7192,8 @@ function startPaperTradeFromCockpit() {
     tp1: finalTp,
     tp2: finalTp2,
     tp3: finalTp3,
+    fallbackSl: isFallback,
+    fallbackReason: isFallback ? fallbackReason : '',
     autoBe: true,
     beActive: false,
     trailSl: false,
@@ -7936,6 +7962,72 @@ function bindAutobotContainerEvents(container) {
   }
 }
 
+function buildTradeIntelAssessment(t, m, px, side, isAutobot) {
+  const pFmt = (typeof fmtP === 'function') ? fmtP : ((typeof fmtPx === 'function') ? fmtPx : (p => Number(p).toFixed(2)));
+  const btcBias = (typeof computeBtcBias === 'function' && typeof App !== 'undefined' && App.data)
+    ? computeBtcBias(App.data.btcScore, App.data.btcRegime)
+    : { available: false };
+  let btcSupport = '';
+  if (btcBias && btcBias.available) {
+    if ((t.dir === 1 && btcBias.bias >= 55) || (t.dir === -1 && btcBias.bias <= 45)) {
+      btcSupport = ` · 🟢 BTC-Trend (${btcBias.text}) stützt ${side}`;
+    } else if ((t.dir === 1 && btcBias.bias <= 45) || (t.dir === -1 && btcBias.bias >= 55)) {
+      btcSupport = ` · ⚠️ BTC-Trend (${btcBias.text}) gegen ${side}`;
+    }
+  }
+  
+  const sess = typeof getCurrentSessionInfo === 'function' ? getCurrentSessionInfo() : null;
+  const sessTxt = sess ? `${sess.flag} ${sess.name} (${sess.phase})` : '—';
+  
+  let intelText = '';
+  let intelClass = 'tc-intel';
+  const holdingMinutes = Math.round((Date.now() - (t.openedAt || Date.now())) / 60000);
+  const targetsList = [];
+  if (t.tp1 || t.tp) targetsList.push(`TP1: ${pFmt(+(t.tp1 || t.tp))}`);
+  if (t.tp2) targetsList.push(`TP2: ${pFmt(+t.tp2)}`);
+  if (t.tp3) targetsList.push(`TP3: ${pFmt(+t.tp3)}`);
+  const targetsStr = targetsList.length > 1 ? ` · Ziele: [${targetsList.join(' | ')}]` : '';
+  
+  const currentRVal = Number(m?.currentR) || 0;
+  const rMultipleStr = `${currentRVal >= 0 ? '+' : ''}${currentRVal.toFixed(2)}R`;
+  const distSlPct = Number(m?.distSlPct) || 0;
+  const distTpPct = Number(m?.distTpPct) || 0;
+  const plannedRr = Number(m?.plannedRr) || 1;
+  
+  if (t.fallbackSl) {
+    const fbReason = t.fallbackReason || 'Fallback-SL (ATR), Setup-Level fehlten';
+    intelText = `⚠️ <b>${fbReason}:</b> SL auf ATR-Distanz (${pFmt(t.currentSl || t.sl)}). Risikomanagement prüfen.${targetsStr}`;
+    intelClass = 'tc-intel warn';
+  } else if (t.beActive) {
+    intelText = `🛡️ <b>Break-Even aktiv (Risikofrei):</b> SL liegt auf Entry (${pFmt(t.currentSl || t.entry)}). Gewinne weiter Richtung TP2/TP3 laufen lassen oder mit Trailing-SL sichern.${targetsStr}`;
+    intelClass = 'tc-intel be';
+  } else if (currentRVal >= 2.0 && t.tp2 && (t.dir === 1 ? px >= t.tp2 : px <= t.tp2)) {
+    intelText = `🚀 <b>TP2 erreicht (≥ +2R: ${rMultipleStr}):</b> 50-75% Teilgewinn realisieren! Restliche Position mit Trailing-SL / SuperTrend als Moonbag halten.${targetsStr}`;
+    intelClass = 'tc-intel be';
+  } else if (currentRVal >= 1.0) {
+    intelText = `🎯 <b>TP1 / +1R Zone (${rMultipleStr}):</b> Auto-Break-Even greift / Stop-Loss jetzt auf Einstieg nachziehen (<b>[🛡️ BE]</b>) und <b>[💰 Teil-TP 25/50%]</b> erwägen!${targetsStr}`;
+    intelClass = 'tc-intel be';
+  } else if (distSlPct <= 0.6) {
+    intelText = `🚨 <b>KRITISCH nahe Stop-Loss (-${distSlPct.toFixed(2)}% Puffer):</b> Risikomanagement strikt einhalten! Keine Verbilligung gegen den Markt. SL nicht nach hinten verschieben.`;
+    intelClass = 'tc-intel warn';
+  } else if (currentRVal <= -0.5 && holdingMinutes > 180) {
+    intelText = `⚠️ <b>Trade im Verzug (${rMultipleStr} seit ${holdingMinutes} Min):</b> Momentum verflacht. Prüfe Ausstieg oder Zeit-Stop, falls keine Anschlusskäufe/-verkäufe folgen.`;
+    intelClass = 'tc-intel warn';
+  } else if (currentRVal >= 0.4) {
+    intelText = `🟢 <b>Im Momentum (${rMultipleStr}):</b> Setup läuft nach Plan. Puffer zu SL: <b>-${distSlPct.toFixed(2)}%</b> · Distanz bis TP1: <b>+${distTpPct.toFixed(2)}%</b>.${targetsStr}`;
+    intelClass = 'tc-intel';
+  } else {
+    intelText = `⏳ <b>Phase 1: Positionierung:</b> Puffer bis SL: <b>-${distSlPct.toFixed(2)}%</b> · Distanz bis TP1: <b>+${distTpPct.toFixed(2)}%</b> (R:R 1:${plannedRr.toFixed(1)}).${targetsStr}`;
+    intelClass = 'tc-intel';
+  }
+  
+  return {
+    intelText,
+    intelClass,
+    sessionText: `SMC: ${sessTxt}${btcSupport}`
+  };
+}
+
 function renderLiveTrades() {
   const el = $('trade-list');
   const ts = loadTrades();
@@ -7989,7 +8081,7 @@ function renderLiveTrades() {
   const emptyHtml = '<span style="display:block;padding:16px;color:var(--dim);text-align:center">Keine aktiven Trades. Starte ein Setup über <b>⚡ Paper Trade starten</b> oder erstelle einen Trade oben manuell.</span>';
   
   const cardItems = tradeMetricsList.map(({ trade: t, metrics: m, price: px }, i) => {
-    const side = t.dir === 1 ? 'Long' : 'Short';
+    const side = t.dir === 1 ? 'LONG' : 'SHORT';
     const pnlClass = m.pnlGross >= 0 ? 'grn' : 'red';
     const pnlStr = (m.pnlGross >= 0 ? '+' : '') + m.pnlGross.toFixed(2) + ' USDT';
     const roiStr = (m.marginRoiPct >= 0 ? '+' : '') + m.marginRoiPct.toFixed(2) + '%';
@@ -7998,81 +8090,42 @@ function renderLiveTrades() {
     // Progress toward TP
     const totalSpan = Math.abs(t.tp - t.initialSl) || 1;
     const curPos = t.dir === 1 ? ((px - t.initialSl) / totalSpan) : ((t.initialSl - px) / totalSpan);
-    const progPct = clamp(Math.round(curPos * 100), 0, 100);
+    const progPct = typeof clamp === 'function' ? clamp(Math.round(curPos * 100), 0, 100) : Math.max(0, Math.min(100, Math.round(curPos * 100)));
     
-    // Confluence and Trade Intelligence
-    const btcBias = computeBtcBias(App.data.btcScore, App.data.btcRegime);
-    let btcSupport = '';
-    if (btcBias.available) {
-      if ((t.dir === 1 && btcBias.bias >= 55) || (t.dir === -1 && btcBias.bias <= 45)) {
-        btcSupport = ` · 🟢 BTC-Trend (${btcBias.text}) stützt ${side}`;
-      } else if ((t.dir === 1 && btcBias.bias <= 45) || (t.dir === -1 && btcBias.bias >= 55)) {
-        btcSupport = ` · ⚠️ BTC-Trend (${btcBias.text}) gegen ${side}`;
-      }
-    }
-    
-    const sess = getCurrentSessionInfo();
-    const sessTxt = sess ? `${sess.flag} ${sess.name} (${sess.phase})` : '—';
-    
-    // Dynamic live tactical assessment & tips
-    let intelText = '';
-    let intelClass = 'tc-intel';
-    const holdingMinutes = Math.round((Date.now() - t.openedAt) / 60000);
-    const targetsList = [];
-    if (t.tp1 || t.tp) targetsList.push(`TP1: ${fmtPx(+(t.tp1 || t.tp))}`);
-    if (t.tp2) targetsList.push(`TP2: ${fmtPx(+t.tp2)}`);
-    if (t.tp3) targetsList.push(`TP3: ${fmtPx(+t.tp3)}`);
-    const targetsStr = targetsList.length > 1 ? ` · Ziele: [${targetsList.join(' | ')}]` : '';
-    
-    if (t.beActive) {
-      intelText = `🛡️ <b>Break-Even aktiv (Risikofrei):</b> SL liegt auf Entry (${(+t.currentSl).toFixed(2)}). Gewinne weiter Richtung TP2/TP3 laufen lassen oder mit Trailing-SL sichern.${targetsStr}`;
-      intelClass = 'tc-intel be';
-    } else if (m.currentR >= 2.0 && t.tp2 && (t.dir === 1 ? px >= t.tp2 : px <= t.tp2)) {
-      intelText = `🚀 <b>TP2 erreicht (≥ +2R: ${rMultipleStr}):</b> 50-75% Teilgewinn realisieren! Restliche Position mit Trailing-SL / SuperTrend als Moonbag halten.${targetsStr}`;
-      intelClass = 'tc-intel be';
-    } else if (m.currentR >= 1.0) {
-      intelText = `🎯 <b>TP1 / +1R Zone (${rMultipleStr}):</b> Auto-Break-Even greift / Stop-Loss jetzt auf Einstieg nachziehen (<b>[🛡️ BE]</b>) und <b>[💰 Teil-TP 25/50%]</b> erwägen!${targetsStr}`;
-      intelClass = 'tc-intel be';
-    } else if (m.distSlPct <= 0.6) {
-      intelText = `🚨 <b>KRITISCH nahe Stop-Loss (-${m.distSlPct.toFixed(2)}% Puffer):</b> Risikomanagement strikt einhalten! Keine Verbilligung gegen den Markt. SL nicht nach hinten verschieben.`;
-      intelClass = 'tc-intel warn';
-    } else if (m.currentR <= -0.5 && holdingMinutes > 180) {
-      intelText = `⚠️ <b>Trade im Verzug (${rMultipleStr} seit ${holdingMinutes} Min):</b> Momentum verflacht. Prüfe Ausstieg oder Zeit-Stop, falls keine Anschlusskäufe/-verkäufe folgen.`;
-      intelClass = 'tc-intel warn';
-    } else if (m.currentR >= 0.4) {
-      intelText = `🟢 <b>Im Momentum (${rMultipleStr}):</b> Setup läuft nach Plan. Puffer zu SL: <b>-${m.distSlPct.toFixed(2)}%</b> · Distanz bis TP1: <b>+${m.distTpPct.toFixed(2)}%</b>.${targetsStr}`;
-      intelClass = 'tc-intel';
-    } else {
-      intelText = `⏳ <b>Phase 1: Positionierung:</b> Puffer bis SL: <b>-${m.distSlPct.toFixed(2)}%</b> · Distanz bis TP1: <b>+${m.distTpPct.toFixed(2)}%</b> (R:R 1:${m.plannedRr.toFixed(1)}).${targetsStr}`;
-      intelClass = 'tc-intel';
-    }
+    const intel = buildTradeIntelAssessment(t, m, px, side, false);
+    const distTp1Pct = t.tp1 ? (Math.abs(t.tp1 - (t.currentSl || t.sl)) > 0 ? Math.abs((t.tp1 - px) / px) * 100 : m.distTpPct) : m.distTpPct;
     
     const markAgeSec = t.markUpdatedAt ? Math.max(0, Math.round((Date.now() - t.markUpdatedAt) / 1000)) : 0;
     const holdingDuration = fmtDuration(Date.now() - t.openedAt);
     
+    const pFmt = (typeof fmtP === 'function') ? fmtP : ((typeof fmtPx === 'function') ? fmtPx : (p => Number(p).toFixed(2)));
     const opts = {
       pnlClass,
       pnlText: pnlStr,
       roiText: `${roiStr} · ${rMultipleStr}`,
-      entryDisplay: (+t.entry).toFixed(2),
-      priceDisplay: (+px).toFixed(2),
+      entryDisplay: pFmt(t.entry),
+      priceDisplay: pFmt(px),
       priceDiffDisplay: `${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%`,
       marginDisplay: (+(t.remainingMargin || t.margin)).toFixed(2),
       notionalDisplay: m.notional.toFixed(2),
       quantityDisplay: m.quantity.toFixed(4),
-      slDisplay: (+t.currentSl).toFixed(2),
+      slDisplay: pFmt(t.currentSl || t.sl),
       distSlDisplay: `-${m.distSlPct.toFixed(2)}%`,
-      tpDisplay: (+t.tp).toFixed(2),
-      distTpDisplay: `+${m.distTpPct.toFixed(2)}%`,
+      tpDisplay: pFmt(t.tp1 || t.tp),
+      distTpDisplay: `+${distTp1Pct.toFixed(2)}%`,
+      tp1Display: pFmt(t.tp1 || t.tp),
+      distTp1Display: `+${distTp1Pct.toFixed(2)}%`,
+      tp2Display: t.tp2 ? pFmt(t.tp2) : '—',
+      tp3Display: t.tp3 ? pFmt(t.tp3) : '—',
       riskDisplay: m.initialRiskAmount.toFixed(2),
       plannedRrDisplay: m.plannedRr.toFixed(1),
-      mfeDisplay: `+${m.mfePriceDiff.toFixed(2)} (${m.mfeR.toFixed(1)}R)`,
-      maeDisplay: `-${m.maePriceDiff.toFixed(2)} (${m.maeR.toFixed(1)}R)`,
+      mfeDisplay: `+${pFmt(m.mfePriceDiff)} (${m.mfeR.toFixed(1)}R)`,
+      maeDisplay: `-${pFmt(m.maePriceDiff)} (${m.maeR.toFixed(1)}R)`,
       progressPct: progPct,
       holdingDuration,
-      intelClass,
-      intelText,
-      sessionText: `SMC: ${sessTxt}${btcSupport}`,
+      intelClass: intel.intelClass,
+      intelText: intel.intelText,
+      sessionText: intel.sessionText,
       markAgeSec
     };
 
@@ -8089,7 +8142,11 @@ function renderLiveTrades() {
       slDisplay: opts.slDisplay,
       distSlDisplay: opts.distSlDisplay,
       tpDisplay: opts.tpDisplay,
+      tp1Display: opts.tp1Display,
+      tp2Display: opts.tp2Display,
+      tp3Display: opts.tp3Display,
       distTpDisplay: opts.distTpDisplay,
+      distTp1Display: opts.distTp1Display,
       riskDisplay: opts.riskDisplay,
       plannedRrDisplay: opts.plannedRrDisplay,
       mfeDisplay: opts.mfeDisplay,
@@ -8113,7 +8170,7 @@ function renderLiveTrades() {
     const x = loadTrades();
     const idx = +b.dataset.tvOverlay;
     if (x[idx]) {
-      openTradingViewChart(x[idx].coin);
+      openTradingViewChart(x[idx].coin, x[idx].signalTf || App.chartTF || '1h');
       const originalLabel = b.innerHTML;
       b.innerHTML = '✓ TradingView geöffnet';
       setTimeout(() => { b.innerHTML = originalLabel; }, 1800);
@@ -8442,7 +8499,7 @@ function bindTradeTracker() {
   renderTradeProjection();
   renderLiveTrades();
   refreshTradePrices(loadTrades());
-  setInterval(()=>refreshTradePrices(loadTrades()),15000);
+  setInterval(()=>refreshTradePrices(loadTrades()),5000);
 }
 async function autoOptimizeTimeStop() {
   const b = $('auto-timestop'), st = $('timestop-status');
@@ -9989,6 +10046,7 @@ const Autobot = {
         // PF-37: use calculateTradeMetrics for live price/PnL/R metrics,
         // same as the Live Tracker path, so both containers update in sync.
         const m = calculateTradeMetrics(t, px);
+        const side = t.dir === 1 ? 'LONG' : 'SHORT';
         const pnlCol = m.pnlGross >= 0 ? 'grn' : 'red';
         const distTp1Pct = t.tp1 ? Math.abs(t.tp1 - px) / px * 100 : 0;
         const holdTimeFormatted = typeof fmtDuration === 'function' ? fmtDuration(Date.now() - t.openedAt) : `${Math.round((Date.now() - t.openedAt)/60000)} min`;
@@ -9999,7 +10057,9 @@ const Autobot = {
         const curPos = t.dir === 1 ? ((px - (t.initialSl || t.sl)) / totalSpan) : (((t.initialSl || t.sl) - px) / totalSpan);
         const progPct = typeof clamp === 'function' ? clamp(Math.round(curPos * 100), 0, 100) : Math.max(0, Math.min(100, Math.round(curPos * 100)));
         const markAgeSec = t.markUpdatedAt ? Math.max(0, Math.round((Date.now() - t.markUpdatedAt) / 1000)) : 0;
+        const intel = buildTradeIntelAssessment(t, m, px, side, true);
 
+        const pFmt = (typeof fmtP === 'function') ? fmtP : ((typeof fmtPx === 'function') ? fmtPx : (p => Number(p).toFixed(2)));
         const opts = {
           autobot: true,
           score: t.score,
@@ -10009,29 +10069,30 @@ const Autobot = {
           pnlClass: pnlCol,
           pnlText: `${m.pnlGross >= 0 ? '+' : ''}${m.pnlGross.toFixed(2)} USDT`,
           roiText: `${m.marginRoiPct >= 0 ? '+' : ''}${m.marginRoiPct.toFixed(1)}% · ${m.currentR >= 0 ? '+' : ''}${m.currentR.toFixed(2)}R`,
-          entryDisplay: fmtP(t.entry),
-          priceDisplay: fmtP(m.currentPrice),
+          entryDisplay: pFmt(t.entry),
+          priceDisplay: pFmt(m.currentPrice),
           priceDiffDisplay: `${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%`,
           marginDisplay: (+(t.remainingMargin || t.margin || (m.notional / (t.leverage || 1)))).toFixed(2),
           notionalDisplay: m.notional.toFixed(2),
           quantityDisplay: m.quantity.toFixed(4),
-          slDisplay: fmtP(t.currentSl || t.sl),
+          slDisplay: pFmt(t.currentSl || t.sl),
           distSlDisplay: `-${m.distSlPct.toFixed(2)}%`,
-          tpDisplay: fmtP(t.tp1 || t.tp),
+          tpDisplay: pFmt(t.tp1 || t.tp),
           distTpDisplay: `+${distTp1Pct.toFixed(2)}%`,
-          tp1Display: fmtP(t.tp1 || t.tp),
+          tp1Display: pFmt(t.tp1 || t.tp),
           distTp1Display: `+${distTp1Pct.toFixed(2)}%`,
-          tp2Display: t.tp2 ? fmtP(t.tp2) : '—',
+          tp2Display: t.tp2 ? pFmt(t.tp2) : '—',
+          tp3Display: t.tp3 ? pFmt(t.tp3) : '—',
           riskDisplay: m.initialRiskAmount.toFixed(2),
           plannedRrDisplay: m.plannedRr.toFixed(1),
-          mfeDisplay: `+${m.mfePriceDiff.toFixed(2)} (${m.mfeR.toFixed(1)}R)`,
-          maeDisplay: `-${m.maePriceDiff.toFixed(2)} (${m.maeR.toFixed(1)}R)`,
+          mfeDisplay: `+${pFmt(m.mfePriceDiff)} (${m.mfeR.toFixed(1)}R)`,
+          maeDisplay: `-${pFmt(m.maePriceDiff)} (${m.maeR.toFixed(1)}R)`,
           progressPct: progPct,
           holdingDuration: holdTimeFormatted,
           markAgeSec,
-          intelClass: t.beActive ? 'tc-intel be' : 'tc-intel',
-          intelText: t.beActive ? '🛡️ <b>Break-Even aktiv:</b> Position läuft risikofrei.' : `🤖 <b>Autobot Status:</b> ${m.currentR >= 1.0 ? '🎯 TP1-Zone erreicht (+1R)' : 'Laufende Positionierung'}.`,
-          sessionText: `Autobot Setup · Score ${t.score || '—'} · DSR ${t.setupDsr || '—'}`
+          intelClass: intel.intelClass,
+          intelText: intel.intelText,
+          sessionText: intel.sessionText
         };
 
         const cardHtml = (function() {
@@ -10044,29 +10105,30 @@ const Autobot = {
             pnlClass: pnlCol,
             pnlText: `${m.pnlGross >= 0 ? '+' : ''}${m.pnlGross.toFixed(2)} USDT`,
             roiText: `${m.marginRoiPct >= 0 ? '+' : ''}${m.marginRoiPct.toFixed(1)}% · ${m.currentR >= 0 ? '+' : ''}${m.currentR.toFixed(2)}R`,
-            entryDisplay: fmtP(t.entry),
-            priceDisplay: fmtP(m.currentPrice),
+            entryDisplay: pFmt(t.entry),
+            priceDisplay: pFmt(m.currentPrice),
             priceDiffDisplay: `${m.priceDiffPct >= 0 ? '+' : ''}${m.priceDiffPct.toFixed(2)}%`,
             marginDisplay: (+(t.remainingMargin || t.margin || (m.notional / (t.leverage || 1)))).toFixed(2),
             notionalDisplay: m.notional.toFixed(2),
             quantityDisplay: m.quantity.toFixed(4),
-            slDisplay: fmtP(t.currentSl || t.sl),
+            slDisplay: pFmt(t.currentSl || t.sl),
             distSlDisplay: `-${m.distSlPct.toFixed(2)}%`,
-            tpDisplay: fmtP(t.tp1 || t.tp),
+            tpDisplay: pFmt(t.tp1 || t.tp),
             distTpDisplay: `+${distTp1Pct.toFixed(2)}%`,
-            tp1Display: fmtP(t.tp1 || t.tp),
+            tp1Display: pFmt(t.tp1 || t.tp),
             distTp1Display: `+${distTp1Pct.toFixed(2)}%`,
-            tp2Display: t.tp2 ? fmtP(t.tp2) : '—',
+            tp2Display: t.tp2 ? pFmt(t.tp2) : '—',
+            tp3Display: t.tp3 ? pFmt(t.tp3) : '—',
             riskDisplay: m.initialRiskAmount.toFixed(2),
             plannedRrDisplay: m.plannedRr.toFixed(1),
-            mfeDisplay: `+${m.mfePriceDiff.toFixed(2)} (${m.mfeR.toFixed(1)}R)`,
-            maeDisplay: `-${m.maePriceDiff.toFixed(2)} (${m.maeR.toFixed(1)}R)`,
+            mfeDisplay: `+${pFmt(m.mfePriceDiff)} (${m.mfeR.toFixed(1)}R)`,
+            maeDisplay: `-${pFmt(m.maePriceDiff)} (${m.maeR.toFixed(1)}R)`,
             progressPct: progPct,
             holdingDuration: holdTimeFormatted,
             markAgeSec,
-            intelClass: t.beActive ? 'tc-intel be' : 'tc-intel',
-            intelText: t.beActive ? '🛡️ <b>Break-Even aktiv:</b> Position läuft risikofrei.' : `🤖 <b>Autobot Status:</b> ${m.currentR >= 1.0 ? '🎯 TP1-Zone erreicht (+1R)' : 'Laufende Positionierung'}.`,
-            sessionText: `Autobot Setup · Score ${t.score || '—'} · DSR ${t.setupDsr || '—'}`
+            intelClass: intel.intelClass,
+            intelText: intel.intelText,
+            sessionText: intel.sessionText
           });
         })();
 
@@ -10092,7 +10154,7 @@ const Autobot = {
             const idx = +btn.dataset.tvAbIdx;
             const t = this.trades[idx];
             if (t) {
-              openTradingViewChart(t.coin);
+              openTradingViewChart(t.coin, t.signalTf || '1h');
               const originalLabel = btn.innerHTML;
               btn.innerHTML = '✓ TradingView geöffnet';
               setTimeout(() => { btn.innerHTML = originalLabel; }, 1800);
@@ -10139,6 +10201,18 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.5.4": {
+    title: "Karten-Parität, Setup-Fallbacks & Timeframe-Links",
+    summary: "Runde 23 (PATCH): Manuelle Trade-Karten auf Autobot-Niveau (fmtP, Multi-TP, 5s REST-Intervall), Setup-Validation ohne stille Fallbacks, TradingView-Links mit Timeframe, Autobot-Layout-Stabilität und Autobot-Intel-Block.",
+    highlights: [
+      "PF-53 Manuelle Trade-Karte auf Autobot-Niveau: Alle Preislevel nutzen fmtP, Multi-TP-Levels (TP1/TP2/TP3) werden voll unterstützt, REST-Intervall auf 5 s verkürzt.",
+      "PF-54 Setup-Validation ohne stille Fallbacks: SL/TP/Hebel/Time-Stop werden direkt übernommen; greift ein Heuristik-Fallback, wird dies transparent in der Karte/Intel-Zeile deklariert.",
+      "PF-55 TradingView-Links MIT Timeframe: Alle Einstiegspunkte nutzen den interval-aware URL-Builder (15m, 1h, 4h, 1d).",
+      "PF-56 Autobot Layout-Stabilität: tabular-nums und definierte Mindestbreiten verhindern Layout-Springen bei Ticks; prefers-reduced-motion respektiert.",
+      "PF-57 Autobot Intel-Block: Autobot-Karten zeigen dieselbe taktische Intel-Zeile (Phase, SMC-Session, BTC-Trend-Confluence, Ziel-TPs).",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.5.3": {
     title: "Flackerfreie DOM-stabile Trade-Karten & ntfy Trade-Pushes",
     summary: "Runde 22 (PATCH): DOM-stabile Trade-Karten im Live-Tracker und Autobot ohne zerstörerische Rebuilds bei Ticks; ntfy Trade-Push-Integration dokumentiert.",
@@ -10442,17 +10516,17 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.5.3');
+  showReleaseNotesOnce('1.5.4');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
   if (bHeroCopy) bHeroCopy.onclick = () => copySetupToClipboard(null, bHeroCopy);
   const bHeroTv = $('btn-hero-tv');
-  if (bHeroTv) bHeroTv.onclick = () => openTradingViewChart(App.symbol);
+  if (bHeroTv) bHeroTv.onclick = () => openTradingViewChart(App.symbol, App.chartTF);
   const bChartTv = $('btn-chart-tv');
-  if (bChartTv) bChartTv.onclick = () => openTradingViewChart(App.symbol);
+  if (bChartTv) bChartTv.onclick = () => openTradingViewChart(App.symbol, App.chartTF);
   const bSigTv = $('btn-sig-tv');
-  if (bSigTv) bSigTv.onclick = () => openTradingViewChart(App.symbol);
+  if (bSigTv) bSigTv.onclick = () => openTradingViewChart(App.symbol, App.chartTF);
   bindTradingViewBridge();
   const rt=$('radar-toggle'); if(rt) rt.onclick=()=>{ App.radarPaused=!App.radarPaused; rt.textContent=App.radarPaused?'▶':'⏸'; rt.setAttribute('aria-label',App.radarPaused?'Radar-Scan fortsetzen':'Radar-Scan pausieren'); if(!App.radarPaused){const w=App.radarPauseWaiters.splice(0);w.forEach(r=>r());} };
   const at=$('auto-timestop'); if(at) at.onclick=autoOptimizeTimeStop;
