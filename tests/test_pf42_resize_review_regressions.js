@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
-const fs = require('fs');
+const assert = require('node:assert');
+const fs = require('node:fs');
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
 const resize = html.match(/function initChartResize\(\)[\s\S]*?\n}\n\nfunction initChartDrawingTools/);

@@ -1,8 +1,8 @@
 'use strict';
 
-const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
