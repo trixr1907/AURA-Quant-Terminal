@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const vm=require('vm');
+const html=fs.readFileSync('Symbiose_Dashboard.html','utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const ctx={console,JSON,Math,Date,Promise,Set,Map,Number,String,Array,Object,localStorage:{getItem:()=>null,setItem(){},removeItem(){}},document:{getElementById:()=>null,querySelectorAll:()=>({forEach(){}}),addEventListener(){},createElement:()=>({}),body:{}},window:{addEventListener(){},requestAnimationFrame:cb=>cb()},setTimeout:()=>1,setInterval:()=>1,clearTimeout(){},requestAnimationFrame:cb=>cb(),fetch:async()=>({ok:true,json:async()=>({})}),location:{search:''}};
+vm.createContext(ctx); vm.runInContext(`${script};this.App=App;this.waitForFocusedLoad=waitForFocusedLoad;this.resolveFocusedLoad=resolveFocusedLoad;`,ctx);
+(async()=>{
+ ctx.App.focusRequestEpoch=1; ctx.App.focusSettledEpoch=0;
+ let radarContinued=false;
+ const wait=ctx.waitForFocusedLoad(1).then(()=>{radarContinued=true;});
+ await Promise.resolve(); assert.strictEqual(radarContinued,false,'PF-45: radar must yield to focus');
+ ctx.resolveFocusedLoad(1); await wait; assert.strictEqual(radarContinued,true,'PF-45: radar resumes after focus');
+ ctx.App.focusRequestEpoch=2;
+ const retryWait=ctx.waitForFocusedLoad(2); let retryDone=false; retryWait.then(()=>retryDone=true);
+ ctx.resolveFocusedLoad(1); await Promise.resolve(); assert.strictEqual(retryDone,false,'PF-45: 429 retry epoch stays ahead of radar');
+ ctx.resolveFocusedLoad(2); await retryWait; assert.strictEqual(retryDone,true);
+ assert(html.includes('await waitForFocusedLoad(pendingFocusEpoch)'),'PF-45: batch boundary priority missing');
+ console.log('PASS PF-45 focus preempts next radar batch and retry retains priority');
+})().catch(e=>{console.error(e);process.exitCode=1;});

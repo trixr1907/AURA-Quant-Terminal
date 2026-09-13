@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const html=fs.readFileSync('Symbiose_Dashboard.html','utf8');
+const fn=html.match(/function renderTradeCard\([\s\S]*?\n}\n/);
+assert(fn,'PF-41: shared renderer missing');
+assert(html.includes('return renderTradeCard(t, m, px, idx, {\n            autobot: true'), 'PF-41: Autobot must use shared live metrics card');
+assert(html.includes('renderTradeCard(t, m, px, i, {'), 'PF-41: live tracker must use shared card');
+for(const token of ['tc-grid','tc-track-wrap','tc-intel','tc-actions']) assert(fn[0].includes(token),`PF-41: common structure missing ${token}`);
+assert(fn[0].includes('aria-label="Position schließen"'),'PF-41: autobot action a11y name missing');
+assert(fn[0].includes('tabindex="0"'),'PF-41: symbol keyboard focus missing');
+console.log('PASS PF-41 unified trade card DOM contract and a11y');

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] – 2026-09-13 – Runde 19: Chart-Bedienung & Zeichentools-MVP
+
+### Added
+- Lokale Chart-Zeichnungen: horizontale Linie und Zwei-Punkt-Trendlinie mit Auswahl, Anker-Verschiebung, Löschen und symbolbezogener Persistenz.
+- Ziehbare Chart-Höhe für Maus/Touch/Tastatur mit 44-px-Hitbox, Grenzen und lokaler Persistenz.
+- Fokus-Kerzenloads erhalten an Radar-Batch-Grenzen Vorrang; auch begrenzte Retries bleiben vor Radar-Arbeit.
+
+### Changed
+- Live-Tracker und Paper-Autobot verwenden dieselbe kompakte Live-Karte; Autobot-Felder sind eine optionale Erweiterung.
+- Time-Stop-Werkzeug liegt eingeklappt unter „Erweitert: Manuelle Analyse“; der automatische Entry-Optimizer bleibt unverändert.
+
+### Scope
+- Prozess-/UI-Release ohne Änderungen an Score-, Signal- oder Sizing-Logik. Zeichnungen sind rein lokale Overlays.
+- Trials-Ledger bleibt nach Klassifikation als Prozess-/UI-Fix unverändert auf `EXP-032`; Scheduling ändert nur die Reihenfolge von Datenabrufen, nicht deren Auswertung.
+
 ## [1.4.1] - 2026-09-13
 
 ### Fixed
