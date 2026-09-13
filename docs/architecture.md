@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 1.5.3 (Release)
+**Version:** 1.5.4 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
