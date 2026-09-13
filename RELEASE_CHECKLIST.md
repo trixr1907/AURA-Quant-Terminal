@@ -50,6 +50,12 @@ Jede künftige Session und jeder Release-Vorgang muss die folgenden 9 Regeln aus
   - **Regel:** Hypothese und Erfolgskriterium jedes Experiments oder Diagnosepakets werden vor dem ersten Messlauf in einem eigenen Commit eingetragen. Der Hash dieses Präregistrierungs-Commits wird im Ledger-Zeilenkopf vermerkt. Ein Ergebnis ohne vorausgehenden Präregistrierungs-Commit ist als `prä-registriert (Session-Protokoll, nicht git-belegt)` zu kennzeichnen und wird nicht als git-belegte Präregistrierung gewertet.
   - **Begründung:** Ein lediglich lokaler Zwischenstand kann die Reihenfolge von Hypothesenfestlegung und Messung in der dauerhaften Repository-Historie nicht unabhängig beweisen.
 
+- [ ] **10. Kanonische Tag-Botschaft (Read-Only Positioning):**
+  - **Regel:** Alle annotierten Git-Release-Tags folgen ausnahmslos dem kanonischen Standardformat:
+    `git tag -a v<version> -m "AURA v<version> — Confluence Terminal (read-only research)"`
+    Keine Feature-Listen, Multiline-Texte oder Freitext-Variationen im Tag-Header.
+  - **Begründung:** Verankert das quantitativ auditierte Produktversprechen („read-only research“) unveränderlich im Git-Objekt; stellt deterministische Prüfbarkeit für Skripte und Release-Gates sicher. Detaillierte Feature-Beschreibungen gehören in `CHANGELOG.md` und `docs/releases/RELEASE_vX.Y.Z.md`.
+
 ---
 
 ## 2. Automatisierte Release-Gates (`release_check.py`)
