@@ -29,7 +29,7 @@ vm.createContext(context);
 try {
   vm.runInContext(functionSource('mapTradingViewInterval', 'function formatTradingViewSymbol'), context);
   vm.runInContext(functionSource('formatTradingViewSymbol', 'function buildTradingViewUrl'), context);
-  vm.runInContext(functionSource('buildTradingViewUrl', 'async function openInTradingView'), context);
+  vm.runInContext(functionSource('buildTradingViewUrl', 'function buildTradingViewWatchlist'), context);
 } catch (e) {
   console.log('Extraction failed (expected in RED phase):', e.message);
 }
