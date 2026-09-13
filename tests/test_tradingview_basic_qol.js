@@ -6,6 +6,18 @@ const vm = require('vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
+function extractFunction(name) {
+  const start = html.indexOf(`function ${name}(`);
+  assert(start >= 0, `${name} source missing`);
+  const brace = html.indexOf('{', start);
+  let depth = 0;
+  for (let i = brace; i < html.length; i += 1) {
+    if (html[i] === '{') depth += 1;
+    else if (html[i] === '}' && --depth === 0) return html.slice(start, i + 1);
+  }
+  throw new Error(`${name} source incomplete`);
+}
+
 function sourceBetween(startAnchor, endAnchor) {
   const start = html.indexOf(startAnchor);
   const end = html.indexOf(endAnchor, start);
@@ -14,9 +26,10 @@ function sourceBetween(startAnchor, endAnchor) {
 }
 
   const source = sourceBetween('function mapTradingViewInterval(', '\nfunction renderPrice(');
-  assert(source.indexOf("await fetch('/Symbiose_Signal_System_v1.pine')") === -1, 'click handler must not fetch Pine before clipboard write');
-  assert(source.includes('getTradingViewPineText'), 'Pine source must come from a preloaded cache');
-  assert(source.indexOf('navigator.clipboard.writeText(pineText)') < source.indexOf("window.open(tvUrl, '_blank')"), 'Pine copy must start before opening TradingView');
+  assert(!/\/api\/open-tradingview|launchTradingViewDesktop|tradingview:\/\//.test(html), 'active TradingView path must not use a desktop relay or protocol');
+  const directHandler = extractFunction('openTradingViewChart');
+  assert(directHandler.indexOf("window.open(url, '_blank', 'noopener,noreferrer')") >= 0, 'direct handler must synchronously open the web chart');
+  assert(!/await|fetch\(|Promise/.test(directHandler), 'direct handler must not await a network or promise path before opening');
 const context = {
   URL,
   URLSearchParams,
