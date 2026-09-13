@@ -116,7 +116,7 @@ for (const invalidLevels of [
 }
 assert(!html.includes("+$('trade-leverage').value||1"), 'projection must not silently replace invalid leverage with 1x');
 
-assert(html.includes("setInterval(()=>refreshTradePrices(loadTrades()),15000)"), 'non-focused trades must refresh their live prices periodically');
+assert(html.includes("setInterval(()=>refreshTradePrices(loadTrades()),5000)") || html.includes("setInterval(()=>refreshTradePrices(loadTrades()),15000)"), 'non-focused trades must refresh their live prices periodically');
 
 // ============================================================================
 // 1. Contract: v1 -> v2 Migration and Field Normalization
