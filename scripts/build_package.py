@@ -44,7 +44,7 @@ MANIFEST = [
     # documentation and brand assets
     "LICENSE",
     "README.md",
-    "RELEASE_v1.5.4.md",
+    "RELEASE_v1.6.0.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",
@@ -63,12 +63,13 @@ MANIFEST = [
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".hermes", ".git", "node_modules"}
 EXCLUDE_SUFFIXES = {".pyc", ".png", ".log", ".zip"}
 EXCLUDE_NAMES = {".release_dashboard_check.js", ".release_verdict.json", ".DS_Store"}
-RUNTIME_STATE_BASENAME = "aura_shared_state"
+RUNTIME_STATE_BASENAMES = {"aura_shared_state", "aura_signal_center_state"}
 
 
 def _is_runtime_state_family(name: str) -> bool:
-    """Reject every filename whose stem starts with the runtime-state basename."""
-    return Path(name).name.split(".", 1)[0] == RUNTIME_STATE_BASENAME
+    """Reject every filename whose stem starts with a runtime-state basename."""
+    stem = Path(name).name.split(".", 1)[0]
+    return stem in RUNTIME_STATE_BASENAMES or any(stem.startswith(b) for b in RUNTIME_STATE_BASENAMES)
 
 
 def _normalized_relative_path(rel: str | Path) -> str:

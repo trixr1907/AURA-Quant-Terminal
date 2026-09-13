@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.5.4 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.6.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.5.4", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.6.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import math
 import os
 import shutil
 import socket
@@ -219,12 +220,15 @@ if ($found) {{
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
 STATE_FILE = STATE_DIR / "aura_shared_state.json"
+SIGNAL_STATE_FILE = STATE_DIR / "aura_signal_center_state.json"
+SIGNAL_STATE_LOCK = threading.Lock()
 MAX_STATE_VALUE_BYTES = 1_000_000
 STATE_LOCK = threading.Lock()
 ALLOWED_STATE_KEYS = {
     "aura-autobot-state-v2",
     "aura-quant-terminal-active-trades-v1",
     "aura-quant-terminal-history-trades-v1",
+    "aura-ntfy-signals-settings-v1",
 }
 
 def _validate_mutations(mutations: Any) -> list[dict] | None:
@@ -304,21 +308,9 @@ def _save_mutation_batch(mutations: list[dict], expected_rev: int | None = None)
             tmp_path = STATE_FILE.with_suffix(".tmp")
             tmp_path.write_text(json.dumps(next_state, indent=2), encoding="utf-8")
             tmp_path.replace(STATE_FILE)
-            # PF-33: notify on trade close (delete from active trades)
-            closed_trades = [
-                m for m in mutations
-                if m.get("op") == "delete"
-                and m.get("key") == "aura-quant-terminal-active-trades-v1"
-            ]
-            for m in closed_trades:
-                trade_id = m.get("id")
-                # Recover trade details from the state before mutation
-                trade_obj = next(
-                    (t for t in (current.get("aura-quant-terminal-active-trades-v1") or [])
-                     if isinstance(t, dict) and t.get("id") == trade_id),
-                    {"id": trade_id},
-                )
-                notify_trade_closed(trade_obj)
+            # Dashboard close events own their ntfy notification after winning a
+            # persistent signal claim. The former PF-33 delete hook is absorbed
+            # here so one semantic close cannot produce a second relay push.
             return next_state, next_state["_rev"], None
         except Exception as exc:
             log.error("Failed to persist mutation batch: %s", exc)
@@ -385,25 +377,81 @@ def _save_shared_state(key: str, val: Any, expected_rev: int | None = None) -> t
 
 
 # ---------------------------------------------------------------------------
-#  PF-33: opt-in ntfy push notifications
+#  PF-59: central ntfy signal policy and persistent claims
+# ---------------------------------------------------------------------------
+
+def _cooldown_ready(state: dict, category: str, *, now: float | None = None) -> bool:
+    """Return whether a persisted category cooldown has elapsed."""
+    current = time.time() if now is None else float(now)
+    cooldowns = state.get("cooldowns", {}) if isinstance(state, dict) else {}
+    return current >= float(cooldowns.get(category, 0) or 0)
+
+
+def _set_cooldown(state: dict, category: str, minutes: int, *, now: float | None = None) -> None:
+    """Persist a category-specific cooldown deadline in a state object."""
+    current = time.time() if now is None else float(now)
+    cooldowns = state.setdefault("cooldowns", {})
+    cooldowns[category] = current + max(0, int(minutes)) * 60
+
+
+def _claim_signal_event(key: Any, *, now: float | None = None) -> tuple[bool, int, PersistenceError | None]:
+    """Atomically claim one dashboard event across tabs and process restarts."""
+    if not isinstance(key, str) or not key or len(key) > 512:
+        return False, 0, PersistenceError("invalid signal claim")
+    with STATE_LOCK:
+        current: dict = {}
+        try:
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            if STATE_FILE.exists():
+                loaded = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                if not isinstance(loaded, dict):
+                    raise ValueError("shared state must be a JSON object")
+                current = loaded
+            current_rev = int(current.get("_rev", 0))
+            claims = current.get("_signal_claims", {})
+            if not isinstance(claims, dict):
+                raise ValueError("signal claims must be a JSON object")
+            if key in claims:
+                return False, current_rev, None
+            next_state = dict(current)
+            next_claims = dict(claims)
+            claimed_at = int(time.time() if now is None else float(now))
+            next_claims[key] = claimed_at
+            next_state["_signal_claims"] = next_claims
+            next_state["_updated_at"] = claimed_at
+            next_state["_rev"] = current_rev + 1
+            tmp_path = STATE_FILE.with_suffix(".tmp")
+            tmp_path.write_text(json.dumps(next_state, indent=2), encoding="utf-8")
+            tmp_path.replace(STATE_FILE)
+            return True, next_state["_rev"], None
+        except Exception as exc:
+            log.error("Failed to persist signal claim: %s", exc)
+            return False, int(current.get("_rev", 0)) if isinstance(current, dict) else 0, PersistenceError()
+
+
+# ---------------------------------------------------------------------------
+#  PF-33/PF-59: opt-in ntfy push notifications
 # ---------------------------------------------------------------------------
 # Activated by setting AURA_NTFY_URL to an ntfy topic URL, e.g.:
 #   AURA_NTFY_URL=https://ntfy.sh/<TOPIC-NAME>
 # When the variable is absent or empty, every notification is a silent no-op.
 # All network I/O runs on a daemon thread — callers are never blocked.
 
-def _ntfy_notify(title: str, body: str) -> None:
+def _ntfy_notify(title: str, body: str, *, category: str = "general", priority: int = 3) -> bool:
     """Fire-and-forget ntfy push notification. Silent no-op when disabled."""
     url = os.environ.get("AURA_NTFY_URL", "").strip()
     if not url:
-        return
+        return False
     # Validate: only http/https accepted
     try:
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in {"http", "https"}:
-            return
+            return False
     except Exception:
-        return
+        return False
+
+    safe_priority = min(5, max(1, int(priority)))
+    safe_category = "".join(char for char in str(category).lower() if char.isalnum() or char in {"-", "_"})[:32] or "general"
 
     def _send() -> None:
         try:
@@ -412,6 +460,8 @@ def _ntfy_notify(title: str, body: str) -> None:
                 data=body.encode("utf-8"),
                 headers={
                     "X-Title": title,
+                    "Priority": str(safe_priority),
+                    "Tags": safe_category,
                     "Content-Type": "text/plain; charset=utf-8",
                 },
                 method="POST",
@@ -423,6 +473,7 @@ def _ntfy_notify(title: str, body: str) -> None:
 
     t = threading.Thread(target=_send, daemon=True, name="ntfy-notify")
     t.start()
+    return True
 
 
 def notify_trade_closed(trade: dict) -> None:
@@ -435,6 +486,344 @@ def notify_trade_closed(trade: dict) -> None:
     title = f"AURA Trade geschlossen: {symbol}"
     body = f"ID: {trade_id}  Symbol: {symbol}  Seite: {side}{pnl_str}"
     _ntfy_notify(title, body)
+
+
+# ---------------------------------------------------------------------------
+#  PF-62/PF-63: 24/7 BTC regime watcher, digest, and feed health
+# ---------------------------------------------------------------------------
+
+def _env_enabled(name: str, default: bool = True) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "off", "no", ""}
+
+
+def _ema_series(values: list[float], period: int) -> list[float]:
+    if not values:
+        return []
+    alpha = 2.0 / (period + 1)
+    out = [float(values[0])]
+    for value in values[1:]:
+        out.append(float(value) * alpha + out[-1] * (1.0 - alpha))
+    return out
+
+
+def _atr_series(high: list[float], low: list[float], close: list[float], period: int = 14) -> list[float]:
+    n = len(close)
+    out = [0.0] * n
+    if n < period + 1:
+        return out
+    true_range = [0.0] * n
+    true_range[0] = high[0] - low[0]
+    for i in range(1, n):
+        true_range[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
+    out[period] = sum(true_range[1 : period + 1]) / period
+    for i in range(period + 1, n):
+        out[i] = (out[i - 1] * (period - 1) + true_range[i]) / period
+    return out
+
+
+def _adx_series(high: list[float], low: list[float], close: list[float], period: int = 14) -> list[float]:
+    n = len(close)
+    out = [0.0] * n
+    if n < 2 * period + 1:
+        return out
+    true_range = [0.0] * n
+    plus_dm = [0.0] * n
+    minus_dm = [0.0] * n
+    for i in range(1, n):
+        up = high[i] - high[i - 1]
+        down = low[i - 1] - low[i]
+        plus_dm[i] = up if up > down and up > 0 else 0.0
+        minus_dm[i] = down if down > up and down > 0 else 0.0
+        true_range[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
+    atr = sum(true_range[1 : period + 1])
+    plus = sum(plus_dm[1 : period + 1])
+    minus = sum(minus_dm[1 : period + 1])
+    dx = [0.0] * n
+    for i in range(period, n):
+        if i > period:
+            atr = atr - atr / period + true_range[i]
+            plus = plus - plus / period + plus_dm[i]
+            minus = minus - minus / period + minus_dm[i]
+        plus_di = 100.0 * plus / atr if atr > 0 else 0.0
+        minus_di = 100.0 * minus / atr if atr > 0 else 0.0
+        dx[i] = 100.0 * abs(plus_di - minus_di) / (plus_di + minus_di) if plus_di + minus_di > 0 else 0.0
+    out[2 * period - 1] = sum(dx[period : 2 * period]) / period
+    for i in range(2 * period, n):
+        out[i] = (out[i - 1] * (period - 1) + dx[i]) / period
+    return out
+
+
+def classify_btc_regime(candles: list[dict]) -> dict:
+    """Classify BTC with the Dashboard EMA/ADX/Squeeze formulas."""
+    if not isinstance(candles, list) or len(candles) < 200:
+        raise ValueError("at least 200 valid candles are required")
+    try:
+        high = [float(item["h"]) for item in candles]
+        low = [float(item["l"]) for item in candles]
+        close = [float(item["c"]) for item in candles]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("invalid BTC candle") from exc
+    if not all(math.isfinite(x) and x > 0 for x in high + low + close):
+        raise ValueError("BTC candles must contain finite positive prices")
+    ema50 = _ema_series(close, 50)[-1]
+    ema200 = _ema_series(close, 200)[-1]
+    atr = _atr_series(high, low, close, 14)
+    adx = _adx_series(high, low, close, 14)[-1]
+    sample = close[-20:]
+    mean = sum(sample) / 20
+    variance = sum((x - mean) ** 2 for x in sample) / 20
+    stddev = math.sqrt(variance)
+    bb_width = (2.0 * stddev) / (mean or 1.0)
+    kc_width = (4.0 * atr[-1]) / (mean or 1.0)
+    squeeze = bb_width < kc_width and atr[-1] > 0
+    bull = close[-1] > ema200 and ema50 > ema200
+    bear = close[-1] < ema200 and ema50 < ema200
+    base = "SIDEWAYS" if squeeze else "BULL" if bull else "BEAR" if bear else "SIDEWAYS"
+    return {
+        "base": base,
+        "squeeze": squeeze,
+        "adx": adx,
+        "trend_strong": adx >= 20,
+        "close": close[-1],
+        "ema50": ema50,
+        "ema200": ema200,
+        "candle_close_ms": int(float(candles[-1].get("t", 0))),
+    }
+
+
+def _iso_utc(timestamp: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(timestamp))
+
+
+def btc_regime_transition(state: dict, current: dict, *, now: float | None = None, cooldown_minutes: int = 30) -> dict:
+    """Update regime state and decide whether this semantic transition may alert."""
+    current_time = time.time() if now is None else float(now)
+    previous = state.get("btc", {}) if isinstance(state, dict) else {}
+    previous_base = previous.get("base")
+    previous_signal_base = previous.get("signal_base", previous_base)
+    squeeze = bool(current.get("squeeze", False))
+    current_signal_base = previous_signal_base if squeeze else current["base"]
+    changed = previous_signal_base is not None and previous_signal_base != current_signal_base
+    last_notified = float(previous.get("last_notified_at", 0) or 0)
+    cooldown_ready = current_time - last_notified >= max(0, cooldown_minutes) * 60
+    notify = changed and not squeeze and cooldown_ready
+    strong = "Trend stark" if float(current.get("adx", 0)) >= 20 else "Trend schwach"
+    if current["base"] == "BULL":
+        structure = "BTC über EMA200 & EMA50 über EMA200. Bot-Gate blockiert jetzt Shorts."
+    elif current["base"] == "BEAR":
+        structure = "BTC unter EMA200 & EMA50 unter EMA200. Bot-Gate blockiert jetzt Longs."
+    else:
+        structure = "BTC ohne sauberen EMA50/EMA200-Trend. Bot-Gate wartet auf Richtung."
+    body = f"{current['base']} ab jetzt — {structure} ADX {float(current.get('adx', 0)):.1f} ({strong})."
+    next_btc = dict(current)
+    next_btc["signal_base"] = current_signal_base
+    next_btc["regime_changed_at"] = _iso_utc(current_time) if changed else previous.get("regime_changed_at", _iso_utc(current_time))
+    next_btc["last_success_at"] = _iso_utc(current_time)
+    if notify:
+        next_btc["last_notified_at"] = current_time
+    elif last_notified:
+        next_btc["last_notified_at"] = last_notified
+    return {"notify": notify, "body": body, "btc": next_btc}
+
+
+def _load_signal_state() -> dict:
+    with SIGNAL_STATE_LOCK:
+        if not SIGNAL_STATE_FILE.exists():
+            return {"schema_version": 1}
+        try:
+            value = json.loads(SIGNAL_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise StatePersistenceError() from exc
+        if not isinstance(value, dict):
+            raise StatePersistenceError()
+        return value
+
+
+def _save_signal_state(state: dict) -> None:
+    with SIGNAL_STATE_LOCK:
+        SIGNAL_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = SIGNAL_STATE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        tmp.replace(SIGNAL_STATE_FILE)
+
+
+def _parse_bitget_candles(response: dict, *, now_ms: int | None = None) -> list[dict]:
+    if not isinstance(response, dict) or response.get("code") != "00000" or not isinstance(response.get("data"), list):
+        raise ValueError("Bitget BTC candle request failed")
+    current_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    parsed = []
+    for row in response["data"]:
+        if not isinstance(row, list) or len(row) < 6:
+            continue
+        timestamp = int(row[0])
+        if timestamp + 3_600_000 > current_ms:
+            continue
+        parsed.append({"t": timestamp, "o": float(row[1]), "h": float(row[2]), "l": float(row[3]), "c": float(row[4]), "v": float(row[5])})
+    parsed.sort(key=lambda item: item["t"])
+    return parsed
+
+
+def _fetch_btc_closed_candles() -> list[dict]:
+    response, _ = _public_request_cached("GET", "/api/v2/mix/market/candles", {
+        "symbol": "BTCUSDT", "productType": "USDT-FUTURES", "granularity": "1H", "limit": 300,
+    })
+    return _parse_bitget_candles(response)
+
+
+def run_btc_regime_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: float | None = None) -> dict:
+    current_time = time.time() if now is None else float(now)
+    state = _load_signal_state()
+    regime = classify_btc_regime(fetch_candles())
+    cooldown = int(os.environ.get("AURA_NTFY_BTC_COOLDOWN_MIN", "30"))
+    transition = btc_regime_transition(state, regime, now=current_time, cooldown_minutes=cooldown)
+    state["schema_version"] = 1
+    state["btc"] = transition["btc"]
+    state = feed_success_transition(state, now=current_time)
+    state["updated_at"] = _iso_utc(current_time)
+    _save_signal_state(state)
+    if transition["notify"] and _env_enabled("AURA_NTFY_BTC", True):
+        _ntfy_notify("AURA BTC-Regime gewechselt", transition["body"], category="btc", priority=4)
+    return regime
+
+
+def digest_enabled() -> bool:
+    raw = os.environ.get("AURA_NTFY_DIGEST")
+    if raw is not None:
+        return _env_enabled("AURA_NTFY_DIGEST", True)
+    hour = os.environ.get("AURA_NTFY_DIGEST_UTC", "7").strip().lower()
+    return hour not in {"off", "false", "none", "disabled", "-1"}
+
+
+def _event_timestamp_seconds(event: dict) -> float:
+    raw = event.get("closedAt", event.get("closed_at", event.get("exitAt", 0)))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    return value / 1000.0 if value > 10_000_000_000 else value
+
+
+def _event_pnl(event: dict) -> float:
+    for key in ("realizedPnlGross", "realizedPnl", "netPnl", "pnl"):
+        value = event.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)):
+            return float(value)
+    return 0.0
+
+
+def daily_digest_transition(state: dict, shared: dict, *, now: float | None = None, utc_hour: int = 7) -> dict:
+    current_time = time.time() if now is None else float(now)
+    utc_hour = min(23, max(0, int(utc_hour)))
+    date_key = time.strftime("%Y-%m-%d", time.gmtime(current_time))
+    hour = time.gmtime(current_time).tm_hour
+    next_state = dict(state) if isinstance(state, dict) else {}
+    digest = dict(next_state.get("digest", {}))
+    due = hour >= utc_hour and digest.get("last_sent_utc_date") != date_key
+    shared = shared if isinstance(shared, dict) else {}
+    autobot = shared.get("aura-autobot-state-v2", {})
+    equity = float(autobot.get("equity", 0) or 0) if isinstance(autobot, dict) else 0.0
+    manual_open = shared.get("aura-quant-terminal-active-trades-v1", [])
+    manual_history = shared.get("aura-quant-terminal-history-trades-v1", [])
+    autobot_open = autobot.get("trades", []) if isinstance(autobot, dict) else []
+    autobot_history = autobot.get("history", []) if isinstance(autobot, dict) else []
+    open_count = (len(manual_open) if isinstance(manual_open, list) else 0) + (len(autobot_open) if isinstance(autobot_open, list) else 0)
+    history = []
+    if isinstance(manual_history, list):
+        history.extend(manual_history)
+    if isinstance(autobot_history, list):
+        history.extend(autobot_history)
+    recent = [item for item in history if isinstance(item, dict) and current_time - _event_timestamp_seconds(item) <= 86400 and _event_timestamp_seconds(item) <= current_time]
+    pnl = sum(_event_pnl(item) for item in recent)
+    btc = next_state.get("btc", {})
+    base = btc.get("base", "UNBEKANNT") if isinstance(btc, dict) else "UNBEKANNT"
+    body = (
+        f"Paper-Equity {equity:.2f} USDT · {open_count} offene Position"
+        f"{'en' if open_count != 1 else ''} · BTC {base} · {len(recent)} Schluss"
+        f"{'e' if len(recent) != 1 else ''} in 24h · PnL {pnl:+.2f} USDT"
+    )
+    if due:
+        digest["last_sent_utc_date"] = date_key
+        next_state["digest"] = digest
+    return {"notify": due, "body": body, "state": next_state}
+
+
+def feed_success_transition(state: dict, *, now: float | None = None) -> dict:
+    """End one consecutive feed-error period without shortening its cooldown."""
+    current_time = time.time() if now is None else float(now)
+    next_state = dict(state) if isinstance(state, dict) else {}
+    health = dict(next_state.get("health", {}))
+    health.update({
+        "first_error_at": None,
+        "last_error_at": None,
+        "last_error": None,
+        "last_success_at": current_time,
+    })
+    next_state["health"] = health
+    return next_state
+
+
+def feed_error_transition(state: dict, reason: str, *, now: float | None = None) -> dict:
+    current_time = time.time() if now is None else float(now)
+    next_state = dict(state) if isinstance(state, dict) else {}
+    health = dict(next_state.get("health", {}))
+    first_error = float(health.get("first_error_at", current_time) or current_time)
+    cooldown_until = float(health.get("data_dead_cooldown_until", 0) or 0)
+    notify = current_time - first_error > 300 and current_time >= cooldown_until
+    health.update({
+        "first_error_at": first_error,
+        "last_error_at": current_time,
+        "last_error": str(reason)[:300],
+    })
+    if notify:
+        health["data_dead_alerted_at"] = current_time
+        health["data_dead_cooldown_until"] = current_time + 3600
+    next_state["health"] = health
+    return {
+        "notify": notify,
+        "body": f"BTC-Marktdaten seit mehr als 5 Minuten nicht verfügbar: {str(reason)[:180]}",
+        "state": next_state,
+    }
+
+
+def run_signal_center_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: float | None = None) -> dict:
+    """Run one scheduler-safe cycle and persist every success/failure decision."""
+    current_time = time.time() if now is None else float(now)
+    try:
+        regime = run_btc_regime_cycle(fetch_candles, now=current_time)
+        state = _load_signal_state()
+        try:
+            shared = _load_shared_state()
+        except StatePersistenceError:
+            shared = {}
+        digest_raw = os.environ.get("AURA_NTFY_DIGEST_UTC", "7").strip().lower()
+        digest_hour = 7 if digest_raw in {"off", "false", "none", "disabled", "-1"} else int(digest_raw)
+        digest = daily_digest_transition(state, shared, now=current_time, utc_hour=digest_hour)
+        if digest["notify"] and digest_enabled():
+            _ntfy_notify("AURA Tages-Digest", digest["body"], category="digest", priority=1)
+        digest["state"]["updated_at"] = _iso_utc(current_time)
+        _save_signal_state(digest["state"])
+        return {"ok": True, "regime": regime, "digest": digest["notify"]}
+    except Exception as exc:
+        try:
+            state = _load_signal_state()
+        except StatePersistenceError:
+            state = {"schema_version": 1}
+        error = feed_error_transition(state, str(exc), now=current_time)
+        error["state"]["updated_at"] = _iso_utc(current_time)
+        _save_signal_state(error["state"])
+        if error["notify"] and _env_enabled("AURA_NTFY_ERRORS", True):
+            _ntfy_notify("AURA Datenfehler", error["body"], category="errors", priority=4)
+        return {"ok": False, "error": str(exc), "notified": error["notify"]}
+
+
+def _signal_center_loop(stop_event: threading.Event) -> None:
+    while not stop_event.is_set():
+        run_signal_center_cycle()
+        wait = 300.0 - (time.time() % 300.0)
+        stop_event.wait(max(1.0, wait))
 
 
 # ---------------------------------------------------------------------------
@@ -936,6 +1325,15 @@ class RelayHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/state":
+            if "signal_claim" in payload:
+                claim = payload.get("signal_claim")
+                key = claim.get("key") if isinstance(claim, dict) else None
+                claimed, rev, claim_error = _claim_signal_event(key)
+                if claim_error is not None:
+                    self._send_json({"code": "ERR_SIGNAL_CLAIM", "msg": "signal claim could not be persisted"}, 400, cors_headers=self._privileged_cors_headers())
+                    return
+                self._send_json({"ok": True, "claimed": claimed, "rev": rev}, cors_headers=self._privileged_cors_headers())
+                return
             expected_raw = payload.get("expected_rev")
             if expected_raw is not None and (isinstance(expected_raw, bool) or not isinstance(expected_raw, int) or expected_raw < 0):
                 self._send_json({"code": "ERR_INVALID_REV", "msg": "expected_rev must be a non-negative integer"}, 400)
@@ -1020,6 +1418,14 @@ class RelayServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    signal_stop = threading.Event()
+    signal_thread = threading.Thread(
+        target=_signal_center_loop,
+        args=(signal_stop,),
+        daemon=True,
+        name="aura-signal-center",
+    )
+    signal_thread.start()
     server = RelayServer((HOST, PORT), RelayHandler)
     log.info("AURA Relay v%s listening on http://%s:%d", VERSION, HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
@@ -1027,3 +1433,5 @@ if __name__ == "__main__":
         server.serve_forever()
     except KeyboardInterrupt:
         log.info("Relay gestoppt.")
+    finally:
+        signal_stop.set()

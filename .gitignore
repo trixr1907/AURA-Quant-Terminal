@@ -13,6 +13,7 @@ __pycache__/
 
 # Generated runtime state and reports
 data/aura_shared_state.json
+data/aura_signal_center_state.json
 scripts/.release_verdict.json
 
 # Virtual environments and dependencies
