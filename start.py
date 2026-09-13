@@ -21,7 +21,7 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get("SYM_PORT", "8787"))
 BASE_URL = f"http://127.0.0.1:{PORT}"
-UNIVERSE_FILE = ROOT / "data" / "bitget_usdt_futures_universe.json"
+UNIVERSE_FILE = Path(os.environ.get("AURA_UNIVERSE_PATH") or (ROOT / "data" / "bitget_usdt_futures_universe.json"))
 RELAY_PROC: subprocess.Popen | None = None
 DASHBOARD_OPENED = False
 
@@ -62,11 +62,14 @@ def gui_available() -> bool:
         return False
 
 
-def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 24) -> bool:
-    if not path.exists():
+def universe_snapshot_is_stale(path: Path | None = None, max_age_hours: int = 24) -> bool:
+    if path is None and os.environ.get("AURA_DISABLE_AUTO_SYNC") == "1":
+        return False
+    target = path or Path(os.environ.get("AURA_UNIVERSE_PATH") or UNIVERSE_FILE)
+    if not target.exists():
         return True
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(target.read_text(encoding="utf-8"))
         value = str(payload["synced_at"]).replace("Z", "+00:00")
         synced = datetime.fromisoformat(value)
         if synced.tzinfo is None:
@@ -78,7 +81,7 @@ def universe_snapshot_is_stale(path: Path = UNIVERSE_FILE, max_age_hours: int = 
 
 def check_relay_health() -> dict | None:
     try:
-        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.6.0"})
+        req = urllib.request.Request(f"{BASE_URL}/serving", headers={"User-Agent": "AURALauncher/1.6.1"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
