@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.10] - 2026-09-12
+## [1.4.1] - 2026-09-13
+
+### Fixed
+- **PF-37 Autobot Live-Tracking:** `renderTradeCard()` erhält wieder echte `calculateTradeMetrics`-Werte im Autobot-Container; Autobot-Karten aktualisieren synchron mit Ticker-Ticks ohne Flackern.
+- **PF-38 Klartext & Tooltips:** Deutsche Endverbraucher-Erklärungen für BTC-Regime (BULL, BEAR, SIDEWAYS, EMA200, ADX, Squeeze) mit `tabindex="0"` und `aria-describedby`; Hero-Level-Kacheln (Entry, SL, TP1, TP2) mit informativen Tooltips und Touch-Icons.
+- **PF-39 Chart-Frische & Lade-Zustand:** Neues Frische-Badge am Chartkopf (`Kerzen: vor Xs · Quelle`) aktualisiert im Sekundentakt und färbt sich bei Fehler rot; `chart-load-state`-Band zeigt Zustand `Lade…` ehrlich an und verschwindet nach erfolgreichem Laden.
+
+### Research status
+- Urteil bleibt unverändert ehrlich `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Trials-Ledger unverändert auf `EXP-032`.
+
+---
+
+## [1.4.0] - 2026-09-13
 
 ### Added
 - Separater produktpflichtiger Checkpoint (`ledger_checkpoint.json`) gegen Tail-Truncation des Trials-Ledgers.
