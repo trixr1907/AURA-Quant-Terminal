@@ -65,7 +65,8 @@ assert.deepStrictEqual(
 
 for (const [label, candidate] of [
   ['squeeze-blocked', { ...readyLong, executable: false, bestInfo: { ...readyLong.bestInfo, status: 'blocked_squeeze', tradeable: false }, tfScores: { '4h': { ...readyLong.tfScores['4h'], status: 'blocked_squeeze', tradeable: false } } }],
-  ['not marked executable', { ...readyLong, executable: undefined }],
+  ['BTC-blocked', { ...readyLong, btcBlock: true }],
+  ['incomplete radar row', { ...readyLong, incomplete: true }],
   ['zero aligned', { ...readyLong, aligned: 0 }],
   ['missing alignment', { ...readyLong, aligned: undefined }],
   ['weak best timeframe score', { ...readyLong, bestInfo: { ...readyLong.bestInfo, score: 70 }, tfScores: { '4h': { ...readyLong.tfScores['4h'], score: 70 } } }],
