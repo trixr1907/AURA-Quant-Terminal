@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.1] – 2026-09-14 – Infra-Härtung: Universum-Sync-Isolation & CI-Stabilität (v1.6.1, PATCH)
+
+### Fixed
+- **Universum-Sync-Isolation & Pfad-Konfigurierbarkeit:** `start.py`, `scripts/sync_market_data.py` und `bitget_relay.py` unterstützen nun `AURA_UNIVERSE_PATH` und `AURA_DATA_DIR`, um Schreibzugriffe auf temporäre Pfade umzuleiten.
+- **Auto-Sync-Steuerung:** `AURA_DISABLE_AUTO_SYNC=1` verhindert den automatischen Hintergrund-Download von Marktdaten während CI- und Release-Check-Läufen, sodass der getrackte Arbeitsbaum nach vollen Pytest- und Release-Gate-Durchläufen 100% sauber bleibt.
+- **Unittest-Mocking:** Subprozess-Ausführung im Launcher-Test `test_gui_failure_after_browser_open_does_not_open_dashboard_twice` gemockt; neue Regressionstests für ENV-Pfadkonfiguration und Auto-Sync-Abschaltung integriert.
+
+### Scope
+- PATCH (Infra), da rein interne Test- und Pfadisolierung ohne Verhaltensänderung an Scoring, Sizing oder Research-Modellen.
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.6.0] – 2026-09-14 – Runde 24: Signal-Center (v1.6.0, MINOR)
 
 ### Added
