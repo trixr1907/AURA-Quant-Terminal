@@ -168,6 +168,7 @@ async def run_case(port: int, chromium: str | None = None) -> dict:
         assert layout["macro"], layout
         assert layout["terminalColumns"] >= 1 and layout["contextOrder"], layout
         assert layout["optimizerInResearch"] and layout["optimizerAfterValidation"], layout
+        assert not await page.locator('#advanced-analysis-section').get_attribute('open'), layout
         assert layout["optimizerOutsideBacktest"] and layout["timeStopPresent"] and layout["timeStopBelowValidation"], layout
         assert layout["radarOutsideMain"] and layout["radarScrollable"], layout
         assert layout["radarInitiallyClosed"], layout
@@ -231,6 +232,40 @@ async def run_case(port: int, chromium: str | None = None) -> dict:
             assert 5 <= optimizer["value"] <= 30, optimizer
             assert optimizer["value"] == optimizer["appValue"], optimizer
             assert "Bestes Ergebnis" in optimizer["status"] and optimizer["enabled"], optimizer
+
+        # PF-42/PF-43: exercise real chart resize and drawing interactions.
+        chart_interactions = await page.evaluate("""async () => {
+          const chart = document.getElementById('chart');
+          const handle = document.getElementById('chart-resize-handle');
+          const hline = document.getElementById('tool-hline');
+          const beforeHeight = chart.getBoundingClientRect().height;
+          const hr = handle.getBoundingClientRect();
+          handle.dispatchEvent(new PointerEvent('pointerdown', {pointerId: 7, isPrimary: true, button: 0, clientY: hr.top + 10, bubbles: true}));
+          window.dispatchEvent(new PointerEvent('pointermove', {pointerId: 7, isPrimary: true, clientY: hr.top + 70, bubbles: true}));
+          window.dispatchEvent(new PointerEvent('pointerup', {pointerId: 7, isPrimary: true, clientY: hr.top + 70, bubbles: true}));
+          await new Promise(resolve => setTimeout(resolve, 300));
+          const resizedHeight = chart.getBoundingClientRect().height;
+          const savedHeight = Number(localStorage.getItem('aura_chart_height_v1'));
+          const beforeDrawings = App.drawings.length;
+          const sampleCandles = Array.from({length: 80}, (_, i) => ({t: 1700000000000 + i * 3600000, o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000}));
+          App.data.chart = analyze(sampleCandles);
+          App.data.candles = sampleCandles;
+          renderChart();
+          hline.click();
+          let pointerDownSeen = false;
+          chart.addEventListener('pointerdown', () => { pointerDownSeen = true; }, {once: true});
+          const cr = chart.getBoundingClientRect();
+          const pointerBefore = chartDrawingPointer(cr.left + cr.width / 2, cr.top + cr.height / 2);
+          chart.dispatchEvent(new PointerEvent('pointerdown', {pointerId: 8, isPrimary: true, pointerType: 'touch', button: 0, buttons: 1, clientX: cr.left + cr.width / 2, clientY: cr.top + cr.height / 2, bubbles: true}));
+          window.dispatchEvent(new PointerEvent('pointerup', {pointerId: 8, isPrimary: true, bubbles: true}));
+          return { beforeHeight, resizedHeight, savedHeight, beforeDrawings, afterDrawings: App.drawings.length,
+            toolAfterClick: App.drawingTool, hasPlot: !!App.chartPlot, pointerBefore, pointerDownSeen,
+            storedDrawing: localStorage.getItem(`aura_chart_drawings_v1_${App.symbol}`) || '' };
+        }""")
+        assert chart_interactions["resizedHeight"] > chart_interactions["beforeHeight"] + 40, chart_interactions
+        assert abs(chart_interactions["savedHeight"] - chart_interactions["resizedHeight"]) <= 1, chart_interactions
+        assert chart_interactions["afterDrawings"] == chart_interactions["beforeDrawings"] + 1, chart_interactions
+        assert '"type":"horizontal"' in chart_interactions["storedDrawing"], chart_interactions
 
         # Read-only invariant: privileged controls and credential inputs are 100% absent.
         forbidden_selectors = [
