@@ -184,6 +184,7 @@ Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bed
 - [**🎨 Brand Design**](docs/brand_design.md) — Design Tokens, Typography und SVG-Assets.
 - [**🏗️ Architektur & Pipeline**](docs/architecture.md) — Datenpfade, State-Management und Relay-Routing.
 - [**🚀 Proxmox & Docker Deployment**](docs/deployment/PROXMOX_GUIDE.md) — Multi-Node-, LXC- und Container-Betrieb.
+- [**🔔 ntfy Deploy-Benachrichtigungen**](docs/deployment/NTFY_GUIDE.md) — Push-Alerts bei Deploy-Erfolg/-Fehlschlag auf Handy & PC.
 - [**🔬 Quant-Modellvalidierung**](docs/research/SYMBIOSE_Model_Validation.md) — Walk-Forward Validierung & Deflated Sharpe Ratio.
 - [**🎓 Interaktives Tutorial**](SYMBIOSE_Tutorial.html) — Schritt-für-Schritt Dashboard- & Signal-Guide.
 
