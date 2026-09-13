@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.6.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.6.1 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.6.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.6.1", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -1269,7 +1269,10 @@ class RelayHandler(BaseHTTPRequestHandler):
             except OSError:
                 self._send_json({"code": "ERR_PINE_NOT_FOUND"}, 404)
         elif path == "/data/bitget_usdt_futures_universe.json":
-            universe_file = Path(__file__).resolve().parent / "data" / "bitget_usdt_futures_universe.json"
+            universe_file = Path(
+                os.environ.get("AURA_UNIVERSE_PATH")
+                or (Path(__file__).resolve().parent / "data" / "bitget_usdt_futures_universe.json")
+            )
             try:
                 self._send_json(json.loads(universe_file.read_text(encoding="utf-8")))
             except (OSError, json.JSONDecodeError):
