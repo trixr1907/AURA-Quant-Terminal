@@ -44,7 +44,7 @@ MANIFEST = [
     # documentation and brand assets
     "LICENSE",
     "README.md",
-    "RELEASE_v1.5.1.md",
+    "docs/releases/RELEASE_v1.5.1.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",

@@ -388,7 +388,7 @@ def _save_shared_state(key: str, val: Any, expected_rev: int | None = None) -> t
 #  PF-33: opt-in ntfy push notifications
 # ---------------------------------------------------------------------------
 # Activated by setting AURA_NTFY_URL to an ntfy topic URL, e.g.:
-#   AURA_NTFY_URL=http://ntfy.sh/my-aura-alerts
+#   AURA_NTFY_URL=https://ntfy.sh/<TOPIC-NAME>
 # When the variable is absent or empty, every notification is a silent no-op.
 # All network I/O runs on a daemon thread — callers are never blocked.
 
