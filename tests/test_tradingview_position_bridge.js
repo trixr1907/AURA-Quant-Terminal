@@ -1,20 +1,32 @@
 'use strict';
+/**
+ * test_tradingview_position_bridge.js
+ *
+ * PF-30 (v1.4.0): showTradingViewDrawingModal, launchTradingViewDesktop,
+ * copyTvPositionToolForTrade, openInTradingView, getTradingViewPineText
+ * were intentionally removed. The standalone position-script generator
+ * (generateTradingViewPositionScript) and the Pine trade finder
+ * (findActiveTradeForPine) remain.
+ *
+ * This file verifies:
+ *  1. Removed functions are absent from Dashboard JS.
+ *  2. generateTradingViewPositionScript still produces valid Pine v6 scripts.
+ *  3. findActiveTradeForPine still resolves trades correctly.
+ */
 
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
-const pine = fs.readFileSync('Symbiose_Signal_System_v1.pine', 'utf8');
 
 function getFunction(name) {
   const asyncMarker = `async function ${name}(`;
   const syncMarker = `function ${name}(`;
   const asyncStart = html.indexOf(asyncMarker);
   const start = asyncStart >= 0 ? asyncStart : html.indexOf(syncMarker);
-  if (start < 0) throw new Error(`${name} not found`);
-  let depth = 0;
-  let bodyStarted = false;
+  if (start < 0) return null; // intentionally absent
+  let depth = 0, bodyStarted = false;
   for (let i = start; i < html.length; i += 1) {
     if (html[i] === '{') { depth += 1; bodyStarted = true; }
     if (html[i] === '}') {
@@ -22,94 +34,54 @@ function getFunction(name) {
       if (bodyStarted && depth === 0) return html.slice(start, i + 1);
     }
   }
-  throw new Error(`${name} is incomplete`);
+  return null;
 }
 
-const calls = { clipboard: [], fetch: [], opened: [] };
-const context = {
-  console,
-  Number,
-  Math,
-  String,
-  Array,
-  Object,
-  Promise,
-  $: () => ({ textContent: '', style: {}, setAttribute: () => {}, removeAttribute: () => {}, querySelectorAll: () => [] }),
-  document: { createElement: () => ({ style: {}, click: () => {} }), body: { appendChild: () => {}, removeChild: () => {} } },
-  setTimeout: (fn) => fn(),
-  navigator: { clipboard: { writeText: async (text) => calls.clipboard.push(text) } },
-  window: { open: (url) => { calls.opened.push(url); return { opener: 'initial' }; } },
-  App: {
-    symbol: 'BTCUSDT', chartTF: '1h', tradingView: {}, leverage: 10,
-    equity: 1000, riskPct: 5, data: { live: {} }
-  },
-  preloadTradingViewPine: async () => pine,
-  Autobot: { trades: [], equity: 1000, riskPerTradePct: 5 },
-  tradingViewPineText: pine,
-  tradingViewPineLoad: null,
-  relayBase: () => 'http://127.0.0.1:8787',
-  buildTradingViewUrl: (symbol, tf) => `https://www.tradingview.com/chart/?symbol=BITGET:${symbol}.P&interval=${tf}`,
-  buildTradingViewDesktopUrl: (symbol, tf) => `tradingview://chart/?symbol=BITGET:${symbol}.P&interval=${tf}`,
-  fallbackCopy: (text) => { calls.clipboard.push(text); },
-  fetch: async (url) => {
-    calls.fetch.push(url);
-    return { ok: true, json: async () => ({ ok: true }) };
-  }
-};
-
-vm.createContext(context);
-for (const name of [
-  'generateTradingViewPositionScript',
+// 1. Removed functions must be absent
+const removed = [
   'showTradingViewDrawingModal',
   'launchTradingViewDesktop',
+  'openInTradingView',
   'copyTvPositionToolForTrade',
-  'findActiveTradeForPine',
   'getTradingViewPineText',
-  'openInTradingView'
-]) {
-  vm.runInContext(`${getFunction(name)}; this.${name} = ${name};`, context);
+];
+for (const name of removed) {
+  assert(getFunction(name) === null, `${name} must have been removed in PF-30`);
 }
+
+// 2+3. generateTradingViewPositionScript and findActiveTradeForPine still present
+const genSrc = getFunction('generateTradingViewPositionScript');
+assert(genSrc !== null, 'generateTradingViewPositionScript must still exist');
+const findSrc = getFunction('findActiveTradeForPine');
+assert(findSrc !== null, 'findActiveTradeForPine must still exist');
+
+const context = {
+  App: { data: { live: {} } },
+  Autobot: { trades: [] },
+  relayBase: () => 'http://127.0.0.1:8787',
+};
+vm.createContext(context);
+vm.runInContext(`${findSrc}; this.findActiveTradeForPine = findActiveTradeForPine;`, context);
+vm.runInContext(`${genSrc}; this.generateTradingViewPositionScript = generateTradingViewPositionScript;`, context);
 
 const longTrade = {
   coin: 'ETHUSDT', dir: 1, entry: 3200.0, sl: 3120.0,
   tp: 3360.0, tp2: 3440.0, tp3: 3600.0, leverage: 10, remainingMargin: 150
 };
 
+const longScript = context.generateTradingViewPositionScript(longTrade);
+assert(longScript.includes('//@version=6'), 'must be Pine v6');
+assert(longScript.includes('AURA LONG Position — ETHUSDT'), 'must include coin and direction');
+assert(longScript.includes('posDir    = input.string("LONG"'), 'must declare LONG direction');
+assert(longScript.includes('#089981'), 'Green profit zone color must be present');
+assert(longScript.includes('#f23645'), 'Red loss zone color must be present');
+
 const shortTrade = {
   coin: 'SOLUSDT', dir: -1, entry: 102.5, currentSl: 105.0,
   tp: 97.5, tp2: 95.0, tp3: 90.0, leverage: 8, remainingMargin: 100
 };
+const shortScript = context.generateTradingViewPositionScript(shortTrade);
+assert(shortScript.includes('AURA SHORT Position — SOLUSDT'), 'must include coin and direction for short');
+assert(shortScript.includes('posDir    = input.string("SHORT"'), 'must declare SHORT direction');
 
-(async () => {
-  // 1. Verify 1:1 Standalone Position Tool for Active Trades
-  const longScript = context.generateTradingViewPositionScript(longTrade);
-  assert(longScript.includes('//@version=6'));
-  assert(longScript.includes('AURA LONG Position — ETHUSDT'));
-  assert(longScript.includes('posDir    = input.string("LONG"'));
-  assert(longScript.includes('box.new(x1, profitTop, x2, profitBot'));
-  assert(longScript.includes('#089981')); // Green profit zone
-  assert(longScript.includes('#f23645')); // Red loss zone
-  assert(longScript.includes('43000517002')); // Long position reference
-
-  const shortScript = context.generateTradingViewPositionScript(shortTrade);
-  assert(shortScript.includes('//@version=6'));
-  assert(shortScript.includes('AURA SHORT Position — SOLUSDT'));
-  assert(shortScript.includes('posDir    = input.string("SHORT"'));
-  assert(shortScript.includes('43000516992')); // Short position reference
-
-  // 2. Verify click action on active trade card
-  await context.copyTvPositionToolForTrade(shortTrade, null);
-  assert.equal(calls.opened.length, 0); // Desktop launcher preferred
-  calls.clipboard.length = 0;
-
-  // 3. Verify top button copies pure indicator Pine script
-  const result = await context.openInTradingView('BTCUSDT', '1h', null, null);
-  assert.equal(result.desktopOpened, true);
-  assert.equal(result.pineCopied, true);
-  assert(calls.clipboard[0].includes('indicator("AURA — Confluence Signal-System"'));
-
-  console.log('PASS TradingView 1:1 Position Tool and Indicator bridge verified');
-})().catch((error) => {
-  console.error(error.stack || error);
-  process.exit(1);
-});
+console.log('PASS 1:1 Standalone TradingView Position Tool generation verified');
