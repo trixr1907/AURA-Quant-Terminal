@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.3.2 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.4.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.3.2", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.4.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -304,6 +304,21 @@ def _save_mutation_batch(mutations: list[dict], expected_rev: int | None = None)
             tmp_path = STATE_FILE.with_suffix(".tmp")
             tmp_path.write_text(json.dumps(next_state, indent=2), encoding="utf-8")
             tmp_path.replace(STATE_FILE)
+            # PF-33: notify on trade close (delete from active trades)
+            closed_trades = [
+                m for m in mutations
+                if m.get("op") == "delete"
+                and m.get("key") == "aura-quant-terminal-active-trades-v1"
+            ]
+            for m in closed_trades:
+                trade_id = m.get("id")
+                # Recover trade details from the state before mutation
+                trade_obj = next(
+                    (t for t in (current.get("aura-quant-terminal-active-trades-v1") or [])
+                     if isinstance(t, dict) and t.get("id") == trade_id),
+                    {"id": trade_id},
+                )
+                notify_trade_closed(trade_obj)
             return next_state, next_state["_rev"], None
         except Exception as exc:
             log.error("Failed to persist mutation batch: %s", exc)
@@ -367,6 +382,59 @@ def _save_shared_state(key: str, val: Any, expected_rev: int | None = None) -> t
         except Exception as e:
             log.error("Failed to persist shared state: %s", e)
             return None, int(current.get("_rev", 0)) if isinstance(current, dict) else 0, PersistenceError()
+
+
+# ---------------------------------------------------------------------------
+#  PF-33: opt-in ntfy push notifications
+# ---------------------------------------------------------------------------
+# Activated by setting AURA_NTFY_URL to an ntfy topic URL, e.g.:
+#   AURA_NTFY_URL=http://ntfy.sh/my-aura-alerts
+# When the variable is absent or empty, every notification is a silent no-op.
+# All network I/O runs on a daemon thread — callers are never blocked.
+
+def _ntfy_notify(title: str, body: str) -> None:
+    """Fire-and-forget ntfy push notification. Silent no-op when disabled."""
+    url = os.environ.get("AURA_NTFY_URL", "").strip()
+    if not url:
+        return
+    # Validate: only http/https accepted
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme not in {"http", "https"}:
+            return
+    except Exception:
+        return
+
+    def _send() -> None:
+        try:
+            req = urllib.request.Request(
+                url,
+                data=body.encode("utf-8"),
+                headers={
+                    "X-Title": title,
+                    "Content-Type": "text/plain; charset=utf-8",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10):
+                pass
+        except Exception as exc:
+            log.debug("ntfy notification failed (non-critical): %s", exc)
+
+    t = threading.Thread(target=_send, daemon=True, name="ntfy-notify")
+    t.start()
+
+
+def notify_trade_closed(trade: dict) -> None:
+    """Send a human-readable push notification when a trade is deleted/closed."""
+    symbol = trade.get("symbol", "?")
+    trade_id = trade.get("id", "?")
+    side = trade.get("side", "")
+    pnl = trade.get("pnl")
+    pnl_str = f"  PnL: {pnl:+.2f}" if isinstance(pnl, (int, float)) else ""
+    title = f"AURA Trade geschlossen: {symbol}"
+    body = f"ID: {trade_id}  Symbol: {symbol}  Seite: {side}{pnl_str}"
+    _ntfy_notify(title, body)
 
 
 # ---------------------------------------------------------------------------
