@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 1.5.4 (Release)
+**Version:** 1.6.0 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
@@ -14,6 +14,7 @@ Das AURA Quant Terminal ist ein **Client-First High-Performance Quantitative Tra
 flowchart TD
     subgraph Browser Client [AURA Browser Client - Symbiose_Dashboard.html]
         UI[UI Panels: Hero, Status, Price, Signal, MTF, Liq, Backtest, Radar, Pulse]
+        SignalHub[NtfySignals: Queue, Trade-Claims, Toggles]
         RC[RenderCache: State-Hash Dirty-Flag]
         Engine[Quant Engine: Purged Walk-Forward, Kelly, DSR, Regimes]
         WS_Client[Direct WebSocket Client]
@@ -22,6 +23,7 @@ flowchart TD
 
     subgraph Python Relay [Local / Docker Relay - bitget_relay.py]
         Proxy[RelayHandler: CORS & Security Proxy]
+        Watcher[Signal Center: BTC 5m, Digest, Feed-Fehler]
         TB[Token Bucket Rate Limiter: 10 req/s, Burst 20]
         Cache[In-Memory TTL Cache: Klines 60s, Tickers 5s, Other 10s]
         StateStore[Shared State Store: Optimistic Revision Concurrency]
@@ -38,6 +40,10 @@ flowchart TD
     WS_Client <==>|Direct Ticks / AggTrades (4s Throttled Analysis)| Bitget_WS
     HTTP_Client -->|REST Proxy Request /api/public| Proxy
     HTTP_Client <-->|State Get/Post /api/state| StateStore
+    SignalHub -->|Trade Claim /api/state| StateStore
+    SignalHub -->|Trade Push, Browser CORS| Ntfy[ntfy]
+    Watcher -->|BTC 1h alle 5 min| Proxy
+    Watcher -->|Regime/Digest/Fehler| Ntfy
 
     Proxy --> Cache
     Cache -->|Cache Miss| TB

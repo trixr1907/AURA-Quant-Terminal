@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] – 2026-09-14 – Runde 24: Signal-Center (v1.6.0, MINOR)
+
+### Added
+- **PF-59 Signal-Hub:** Ein zentraler Dashboard-Emissionspfad mit Queue, persistentem First-Writer-Wins-Claim je `tradeId:event`, genau einem Retry, Kategorien und verbindlicher Prioritätsmatrix.
+- **PF-60 Benachrichtigungszentrum:** Barrierearmes Dashboard-Panel für persönliche Topic-URL, einzelne Trade-Toggles und Test-Push; leer bedeutet aus. Einstellungen werden lokal gespeichert und über `/api/state` synchronisiert.
+- **PF-61 Trade-Ereignisse:** Pushes für Eröffnung, TP1/TP2/TP3, SL und sonstigen Schluss. Once-Flags liegen im Trade-Objekt und überleben Reload/State-Sync; der alte PF-33-Delete-Push ist absorbiert.
+- **PF-62 BTC-Regime-Wächter:** Relay prüft BTCUSDT-1h-Kerzen alle fünf Minuten, verwendet dieselben EMA50/EMA200-, Squeeze- und ADX-Formeln wie das Dashboard und sendet nur Baseregime-Wechsel mit persistentem 30-Minuten-Cooldown.
+- **PF-63 Digest & Feed-Fehler:** Täglicher UTC-Digest mit Paper-Equity, offenen Positionen, BTC-Regime und 24h-Schluss-PnL sowie persistente Prio-4-Warnung nach mehr als fünf Minuten Datenfehler (60-Minuten-Cooldown).
+- **PF-64 Regressionen:** Neue kanonische Tests für Signal-Hub, Settings, Trade-Events/Zwei-Tabs-Dedup, BTC-JS↔Python-Parität, Restart-Persistenz, Digest und ENV-Abschaltung.
+
+### Configuration
+- Relay: `AURA_NTFY_BTC=1`, `AURA_NTFY_BTC_COOLDOWN_MIN=30`, `AURA_NTFY_DIGEST=1`, `AURA_NTFY_DIGEST_UTC=7`, `AURA_NTFY_ERRORS=1`.
+- Topic-Namen bleiben ausschließlich lokale Laufzeitkonfiguration und werden nicht im Repository gespeichert.
+
+### Scope
+- MINOR, weil Signal-Center, 24/7-Regime-Wächter und Daily-Digest neue Produktfunktionalität sind.
+- Trials-Ledger bleibt auf `EXP-032`; Urteil bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Keine Änderungen an Score-, Sizing-, Radar-Klassifikations- oder Evidenzlogik.
+
 ## [1.5.4] – 2026-09-13 – Runde 23: Karten-Parität, Setup-Fallbacks & Timeframe-Links (v1.5.4, PATCH)
 
 ### Added
