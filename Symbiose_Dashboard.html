@@ -846,7 +846,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.1?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.5.2?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -940,7 +940,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.5.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.5.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -9556,6 +9556,17 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.5.2": {
+    title: "Infra-PATCH: Receiver Health-Fix & Deploy-Zuverlässigkeit",
+    summary: "Runde 21 (PATCH): wait_for_health()-Timeout auf 300 s erhöht (> Docker StartPeriod 90 s), ntfy-Receiver-Benachrichtigungen aktiviert; Kommentar-Fix https:// in bitget_relay.py; build_package + test_package_hygiene auf docs/releases/-Pfad aktualisiert.",
+    highlights: [
+      "wait_for_health(): Timeout 90 s → 300 s behebt Race Condition mit Docker StartPeriod (90 s), die v1.5.1 nicht automatisch deployt hatte.",
+      "Receiver-ntfy: Deploy-Receiver sendet nach jedem Versuch receiver-originiert ntfy ✅/❌ an AURA_NTFY_URL; Priority high bei Fehlschlag.",
+      "bitget_relay.py Z.391: Beispiel-URL Kommentar http:// → https://ntfy.sh/<TOPIC-NAME> (comment-only).",
+      "build_package.py + test_package_hygiene.py: Release-Dokument-Pfad auf docs/releases/RELEASE_v1.5.2.md aktualisiert (Konvention seit Runde 18).",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.5.1": {
     title: "MTF-Konfiguration & ehrliche Funnel-Diagnose",
     summary: "Runde 20 (PATCH): Der Paper-Autobot ehrt die konfigurierte MTF-Mindestanzahl unabhängig vom festen Radar-Ranking und erklärt verständlich, warum ein Scan ohne Signal endet.",
@@ -9838,7 +9849,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.5.1');
+  showReleaseNotesOnce('1.5.2');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
