@@ -886,7 +886,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.6.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.6.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -980,7 +980,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.6.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.6.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -10410,6 +10410,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.6.1": {
+    title: "Infra-Härtung: Universum-Sync-Isolation & CI-Stabilität",
+    summary: "Runde 25 (PATCH): Isolierbare Universum-Pfade via AURA_UNIVERSE_PATH, Abschaltung des automatischen Hintergrund-Syncs in Testläufen und stabiles CI-Release-Gate.",
+    highlights: [
+      "Universum-Sync-Isolation: start.py, scripts/sync_market_data.py und bitget_relay.py leiten Datenpfade dynamisch um.",
+      "CI-Stabilität: AURA_DISABLE_AUTO_SYNC=1 garantiert einen 100% sauberen Arbeitsbaum nach vollen Testläufen.",
+      "Unittest-Mocking: Subprozess-Ausführung im Launcher-Test isoliert; neue Regressionstests integriert.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.6.0": {
     title: "Signal-Center: Trade-Events, BTC-Regime & Digest",
     summary: "Runde 24 (MINOR): Disziplinierte ntfy-Signale für Trade-Eröffnung, TP1–TP3, SL und Schluss sowie ein persistenter 24/7-BTC-Regime-Wächter, Daily-Digest und Feed-Fehler-Alarm im Relay.",
@@ -10737,7 +10747,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.6.0');
+  showReleaseNotesOnce('1.6.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

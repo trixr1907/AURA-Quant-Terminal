@@ -149,6 +149,7 @@ def run(cmd, cwd=ROOT, env=None, timeout=900):
     child_env = dict(env) if env is not None else {**__import__("os").environ}
     child_env["PYTHONIOENCODING"] = "utf-8"
     child_env["PYTHONUTF8"] = "1"
+    child_env["AURA_DISABLE_AUTO_SYNC"] = "1"
     cur_path = child_env.get("PATH", "")
     if "/usr/local/bin" not in cur_path:
         child_env["PATH"] = f"/usr/local/bin:{cur_path}" if cur_path else "/usr/local/bin"
