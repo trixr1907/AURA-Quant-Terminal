@@ -10,19 +10,45 @@ Runde 18 adressiert das Feedback des Systemeigentümers zu v1.4.0 in Form eines 
 
 ---
 
-## Git- & Release-Belege
+## Git- & Release-Belege (mit Befehl & Ausgabe)
+
+Alle Hashes und Artefakt-Nachweise wurden direkt aus der Git-Historie und dem Dateisystem ausgelesen:
+
+```bash
+# 1. Release Merge-Commit (PR #23)
+git rev-parse v1.4.1^{commit}
+# -> f76c6f61751bcd620531c50096af4aca6448e650
+
+# 2. Release Merge-Parents
+git log -1 --format="%H %P" f76c6f61751bcd620531c50096af4aca6448e650
+# -> f76c6f61751bcd620531c50096af4aca6448e650 2058443a91cfc0c7c10c98c5d9d3d453bf24aaff 0a03fcd7f8d79fc36a649e10864ff8c87ce3f386
+
+# 3. Docs Merge-Commit (PR #24)
+git log -1 --format="%H" origin/main
+# -> 8828e50b1bd3bbf50909ab6ed08d9def80fe81de
+
+# 4. Docs PR-Commit
+git log -1 --format="%H" ed8d692965832937339d012cb10885a41fe0ad07
+# -> ed8d692965832937339d012cb10885a41fe0ad07
+
+# 5. Asset-SHA-256 (nach Download von GitHub Release)
+sha256sum /tmp/symbiose_downloaded.zip
+# -> 7394b28caebb5d3ab95cf6dd93fccc0b51790a86465bdf3398fc562c00bcbcf4  /tmp/symbiose_downloaded.zip
+```
 
 | Artefakt / Nachweis | Wert |
 |---|---|
 | **Release-Version** | `1.4.1` (PATCH) |
 | **Produkt-Branch** | `fix/round18-v1.4.1` |
 | **Produkt-Commit** | `0a03fcd7f8d79fc36a649e10864ff8c87ce3f386` |
-| **Merge-Commit main** | `f76c6f61751bcd620531c50096af4aca6448e650` |
-| **Merge-Parents** | `2058443a91cfc0c7c10c98c5d9d3d453bf24aaff` (prev main) + `0a03fcd7f8d79fc36a649e10864ff8c87ce3f386` (fix) |
+| **Merge-Commit main (Code, PR #23)** | `f76c6f61751bcd620531c50096af4aca6448e650` |
+| **Merge-Parents (PR #23)** | `2058443a91cfc0c7c10c98c5d9d3d453bf24aaff` + `0a03fcd7f8d79fc36a649e10864ff8c87ce3f386` |
 | **Annotated Tag** | `v1.4.1` → peelt auf `f76c6f61751bcd620531c50096af4aca6448e650` |
+| **Docs-Branch** | `docs/round18-final-report` |
+| **Docs-Merge-Commit (main, PR #24)** | `8828e50b1bd3bbf50909ab6ed08d9def80fe81de` |
 | **Pull Request (Code)** | [#23](https://github.com/trixr1907/AURA-Quant-Terminal/pull/23) (Merge-Commit, kein Squash) |
+| **Pull Request (Docs)** | [#24](https://github.com/trixr1907/AURA-Quant-Terminal/pull/24) (Merge-Commit, kein Squash) |
 | **GitHub Release** | [v1.4.1 Release](https://github.com/trixr1907/AURA-Quant-Terminal/releases/tag/v1.4.1) |
-| **Asset SHA-256 (berechnet)** | `7394b28caebb5d3ab95cf6dd93fccc0b51790a86465bdf3398fc562c00bcbcf4` |
 | **Asset SHA-256 (heruntergeladen)** | `7394b28caebb5d3ab95cf6dd93fccc0b51790a86465bdf3398fc562c00bcbcf4` ✓ |
 | **Ledger-Stand** | `EXP-032` (unverändert — reiner Prozess-, Anzeige- und Regressionsfix) |
 | **Verdict** | `SOFTWARE_GO / MODEL_NO_EVIDENCE` (real) |
@@ -80,14 +106,18 @@ Runde 18 adressiert das Feedback des Systemeigentümers zu v1.4.0 in Form eines 
 | `2026-09-13T13:42:12.010Z` | Simulierter Netzwerk-Drop / Bitget Rate-Limit (HTTP 429) | Relay liefert `{ error: "Rate limit exceeded" }` | `renderChartLoadState` war in v1.4.0 nur bei `status === 'error'` aktiv, behandelte aber `loading` als transparent. |
 | `2026-09-13T13:42:12.350Z` | Schneller Wechsel `BTCUSDT` → `ETHUSDT` → `BTCUSDT` | WebSocket-Kanal sendet `unsubscribe` gefolgt von `subscribe` | WebSocket-Payload traf für die alte Generation ein; Canvas ignorierte Frame, blieb aber ohne Frische-Timestamp. |
 
-#### 2. Hypothesen-Verifikation
+#### 2. Hypothesen-Status & Transparenz
 
-1. **Hypothese 1: Radar-Scan Rate-Limit-Kollision (Bestätigt):** Bei voller Radar-Aktualisierung blockierten Hintergrund-Batches die Reaktionszeit des Fokus-Charts. **Fix:** Fokus-Symbol-Requests erhalten Priorität und unterbrechen/überholen Hintergrund-Scans; Generation-Guard verhindert veraltete Rückgaben.
-2. **Hypothese 2: Sticky-Socket Race bei schnellem Symbolwechsel (Bestätigt):** Schnelles Umschalten hinterließ offene Promises der vorherigen Generation. **Fix:** Generational Chart Token (`App.chartLoad.generation`) verwirft Frames früherer Anfragen strikt.
-3. **Hypothese 3: Fehlende Lade- und Frische-Transparenz (Bestätigt):** Der Nutzer konnte nicht erkennen, ob dargestellte Kerzen 2 Sekunden oder 10 Minuten alt waren. **Fix:** Echtes Sekundentakt-Frische-Badge `#chart-freshness-badge` direkt neben `#chart-src`.
+1. **Hypothese 1: Radar-Scan Rate-Limit-Kollision (Bestätigt & Sichtbar gemacht):**
+   - *Status in v1.4.1:* Durch das neue Frische-Badge `#chart-freshness-badge` und das sichtbare Ladeband `#chart-load-state` wird dieser Zustand dem Nutzer sofort ehrlich offengelegt („Lade Chart-Daten …“ bzw. Frische-Alter in Sekunden).
+   - *Offener Punkt & Plan für v1.5.0:* Eine dedizierte Vorrang-Queue / Unterbrechung des Hintergrund-Radar-Scans bei manuellem Fokus-Symbol-Wechsel ist im aktuellen Relay/Dashboard noch nicht als Scheduling-Logik implementiert und wird als Architekturverbesserung in v1.5.0 umgesetzt.
+2. **Hypothese 2: Sticky-Socket Race bei schnellem Symbolwechsel (Bestätigt & abgesichert):**
+   - *Status in v1.4.1:* Der generationsbasierte Schutz über `App.gen` (in `Symbiose_Dashboard.html` Z. ~6520) stellt sicher, dass asynchrone Chart-Rückgaben und Socket-Frames verworfen werden, wenn der Nutzer zwischenzeitlich auf ein anderes Symbol gewechselt hat (`if (gen !== App.gen) return;`).
+3. **Hypothese 3: Fehlende Lade- und Frische-Transparenz (Behoben):**
+   - *Status in v1.4.1:* Gelöst durch das Sekundentakt-Frische-Badge `#chart-freshness-badge` und das korrigierte `#chart-load-state`-Band.
 
 #### 3. Beobachtbarkeit & Frische-Badge
-- **Frische-Badge:** Zeigt im Sekundentakt das Kerzen-Alter:
+- **Frische-Badge (`#chart-freshness-badge`):** Zeigt im Sekundentakt das Kerzen-Alter:
   - $< 120\,\text{s}$: Normalanzeige `Kerzen: vor Xs · <Quelle>`
   - $\ge 120\,\text{s}$: Warnfarbe Bernsteingelb (`var(--amb)`)
   - Fehler/Keine Daten: Warnfarbe Rot (`var(--red2)`) mit `Fehler beim Laden`
@@ -120,23 +150,24 @@ python3 scripts/release_check.py
 
 ---
 
-## Konventions-Entscheidung: Tag-Botschaft
+## Konventions-Entscheidungen
 
-### Befund
-Ab Version v1.4.0 wichen die Tag-Botschaften vom historischen Standardformat ab (Feature-Listen und Langtexte im Tag-Header).
-
-### Entscheidung & Begründung
+### 1. Tag-Botschaft: Standardformat festgeschrieben
 Ab sofort gilt für alle zukünftigen Releases ausnahmslos das kanonische Standardformat:
 ```text
 AURA vX.Y.Z — Confluence Terminal (read-only research)
 ```
-
 **Begründung:**
-1. **Auditsicherheit & Produktwahrheit:** Das kanonische Format verankert in jedem Git-Tag unveränderlich das quantitativ auditierte Produktversprechen („read-only research“), wie in `RELEASE_CHECKLIST.md` und `aura-release-versioning` gefordert.
-2. **Automatisierung & Tooling:** Deterministische Gate-Skripte und Release-Validatoren können das Tag-Format ohne komplexe Regular-Expression-Toleranzen exakt prüfen.
-3. **Klare Trennung der Verantwortlichkeiten:** Detaillierte Feature-Listen und Rundendetails gehören in `CHANGELOG.md`, `docs/releases/RELEASE_vX.Y.Z.md` und GitHub Release-Notes — nicht in den Git-Tag-Header.
+- **Auditsicherheit:** Verankert das quantitativ auditierte Produktversprechen („read-only research“) unveränderlich im Git-Objekt.
+- **Deterministische Automation:** Release-Gates können das Tag-Format ohne Freitext-Toleranzen prüfen.
+- **Klare Trennung:** Feature-Listen gehören in `CHANGELOG.md` und `docs/releases/RELEASE_vX.Y.Z.md` — nicht in den Tag-Header.
+- Verankert in `RELEASE_CHECKLIST.md` (Regel 10) und Skill `aura-release-versioning`.
 
-Die Konvention ist in `RELEASE_CHECKLIST.md` (Regel 10) und im Skill `aura-release-versioning` verbindlich festgeschrieben.
+### 2. Berichts-Hashes: Verbindliche Befehl+Ausgabe-Zitierregel
+Jeder Git-Hash in Berichten und Dokumenten wird als ausgeführter Terminalbefehl mit zugehöriger Ausgabe zitiert (`git rev-parse`, `git log`, `sha256sum`), um jegliche Rekonstruktions- oder Übertragungsfehler auszuschließen (verankert in `RELEASE_CHECKLIST.md`, Regel 2).
+
+### 3. Dokumentationsablage unter `docs/releases/`
+Das vollständige Diagnose- und Messprotokoll wurde bewusst direkt im Release-Dokument `docs/releases/RELEASE_v1.4.1.md` integriert, da es den genauen Zustand, die Fehlerreproduktion und den verifizierten Funktionsumfang von v1.4.1 als unteilbare Einheit auditierbar dokumentiert.
 
 ---
 
@@ -154,9 +185,9 @@ Die Konvention ist in `RELEASE_CHECKLIST.md` (Regel 10) und im Skill `aura-relea
 | `bitget_relay.py`, `start.py` | Code | Version auf 1.4.1 aktualisiert |
 | `Dockerfile`, `bootstrap.ps1`, `START.bat`, `START_OHNE_GUI.bat` | Scripts | Version auf 1.4.1 aktualisiert |
 | `SYMBIOSE_Tutorial.html`, `Symbiose_Signal_System_v1.pine` | Assets | Version auf 1.4.1 aktualisiert |
-| `RELEASE_v1.4.1.md`, `docs/releases/RELEASE_v1.4.1.md` | Doku | Ausführlicher Runde-18-Schlussbericht |
-| `RELEASE_CHECKLIST.md` | Runbook | Regel 10: Standard-Tag-Botschaft festgeschrieben |
+| `RELEASE_v1.4.1.md`, `docs/releases/RELEASE_v1.4.1.md` | Doku | Ausführlicher Runde-18-Schlussbericht inkl. Messprotokoll & Konventionen |
+| `RELEASE_CHECKLIST.md` | Runbook | Regel 2 (Hash-Zitierpflicht) & Regel 10 (Tag-Botschaft) festgeschrieben |
 
 ---
 
-_Bericht erstellt: 2026-09-13 | Branch: docs/round18-final-report_
+_Bericht aktualisiert: 2026-09-13 | Commit: ed8d692 / 8828e50_
