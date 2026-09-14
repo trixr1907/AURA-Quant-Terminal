@@ -1,6 +1,6 @@
 # AURA Server-Bot Guide — 24/7 Signale ohne offenen Browser
 
-Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.7.0.
+Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.7.1.
 
 ---
 
@@ -91,56 +91,111 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
 Der automatische GitHub Deploy-Receiver baut bei jedem neuen Release (`symbiose.zip`) den Docker-Container neu. Ein einmaliges `docker run -e AURA_BOT_MODE=server` ginge beim nächsten Release verloren.
 
 ### Die Lösung
-Die Konfiguration liegt in `/var/lib/aura/aura_bot.env` auf dem persistenten Volume `aura-state`. Der Receiver liest diese Datei bei jedem Container-Start/Rebuild automatisch ein und merged sie in die `docker run`-Parameter.
+Die Konfiguration liegt in `/var/lib/aura/aura_bot.env` auf dem persistenten Volume `aura-state`. Der Receiver (`scripts/ops/aura_webhook_receiver.reference.py`) wendet diese Datei beim Container-Bootstrap sowie bei jedem Container-Recreate über den nativen Docker-Parameter `--env-file /var/lib/aura/aura_bot.env` an (sofern vorhanden). Der Receiver liest oder parst die Datei nicht selbst, sondern übergibt den Pfad direkt an `docker run`.
 
-#### Receiver-Referenz-Muster (für eigene Deploy-Receiver / Fremd-Installationen):
+#### Receiver-Referenz-Muster (`scripts/ops/aura_webhook_receiver.reference.py`):
 ```python
-def read_persistent_bot_env() -> dict[str, str]:
-    """Read /var/lib/aura/aura_bot.env if present to persist bot env across releases."""
-    env_file = Path(DEPLOY_STATE_DIR) / "aura_bot.env"
-    if not env_file.exists():
-        env_file = Path("/var/lib/docker/volumes/aura-state/_data/aura_bot.env")
-    if not env_file.exists():
-        return {}
-    res = {}
-    try:
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k, v = k.strip(), v.strip()
-            if k:
-                res[k] = v
-    except Exception as exc:
-        log.warning("Failed to read persistent bot env file %s: %s", env_file, exc)
-    return res
+def resolve_bot_env_file() -> Path | None:
+    """Locate the persistent bot env file on host if present."""
+    custom_path = os.environ.get("AURA_BOT_ENV_FILE", "/var/lib/aura/aura_bot.env")
+    for candidate_str in (custom_path, "/var/lib/docker/volumes/aura-state/_data/aura_bot.env"):
+        try:
+            candidate = Path(candidate_str)
+            if candidate.is_file():
+                return candidate
+        except (PermissionError, OSError):
+            continue
+    return None
+
+
+def bootstrap_arguments(image: str) -> list[str]:
+    """Build canonical docker run arguments for fresh installation (no prior container)."""
+    args = [
+        "docker", "run", "-d",
+        "--name", CONTAINER_NAME,
+        "--restart", "unless-stopped",
+        "--read-only",
+        "--security-opt", "no-new-privileges:true",
+        "--cap-drop", "ALL",
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+        "-p", os.environ.get("AURA_PORT_BINDING", "127.0.0.1:8787:8787"),
+        "-v", f"{os.environ.get('AURA_STATE_VOLUME', 'aura-state')}:/var/lib/aura",
+        "-e", "SYM_PORT=8787",
+        "-e", "SYM_HOST=0.0.0.0",
+        "-e", f"AURA_ALLOWED_HOSTS={os.environ.get('AURA_ALLOWED_HOSTS', '127.0.0.1')}",
+        "-e", "AURA_STATE_DIR=/var/lib/aura",
+        "-e", "AURA_NTFY_BTC=1",
+        "-e", "AURA_NTFY_BTC_COOLDOWN_MIN=30",
+        "-e", "AURA_NTFY_DIGEST=1",
+        "-e", "AURA_NTFY_DIGEST_UTC=7",
+        "-e", "AURA_NTFY_ERRORS=1",
+    ]
+    
+    ntfy_url = os.environ.get("AURA_NTFY_URL", "").strip()
+    if ntfy_url:
+        args.extend(["-e", f"AURA_NTFY_URL={ntfy_url}"])
+
+    bot_mode = os.environ.get("AURA_BOT_MODE", "").strip()
+    if bot_mode:
+        args.extend(["-e", f"AURA_BOT_MODE={bot_mode}"])
+
+    bot_env = resolve_bot_env_file()
+    if bot_env is not None:
+        args.extend(["--env-file", str(bot_env)])
+
+    args.append(image)
+    return args
 
 
 def recreate_arguments(config: dict[str, Any], image: str) -> list[str]:
+    """Build docker run arguments from the existing container configuration."""
     host_config = config.get("HostConfig") or {}
     args = ["docker", "run", "-d", "--name", CONTAINER_NAME]
-    
+
     restart_name = ((host_config.get("RestartPolicy") or {}).get("Name") or "unless-stopped")
     args.extend(["--restart", restart_name])
 
-    env_map = {}
+    if host_config.get("ReadonlyRootfs"):
+        args.append("--read-only")
+
+    for sec_opt in host_config.get("SecurityOpt") or []:
+        args.extend(["--security-opt", sec_opt])
+
+    for cap in host_config.get("CapDrop") or []:
+        args.extend(["--cap-drop", cap])
+
+    for tmpfs_path, tmpfs_opts in (host_config.get("Tmpfs") or {}).items():
+        opt_str = f":{tmpfs_opts}" if tmpfs_opts else ""
+        args.extend(["--tmpfs", f"{tmpfs_path}{opt_str}"])
+
     for env_value in (config.get("Config") or {}).get("Env") or []:
-        key, _, val = env_value.partition("=")
-        if key not in {"AURA_ALLOWED_HOSTS", "AURA_STATE_DIR"}:
-            env_map[key] = val
+        args.extend(["-e", env_value])
 
-    # Persistent bot env file wins
-    persistent_bot_env = read_persistent_bot_env()
-    env_map.update(persistent_bot_env)
+    bot_env = resolve_bot_env_file()
+    if bot_env is not None:
+        args.extend(["--env-file", str(bot_env)])
 
-    # Core deployment parameters
-    env_map["AURA_ALLOWED_HOSTS"] = DEPLOY_ALLOWED_HOSTS
-    env_map["AURA_STATE_DIR"] = DEPLOY_STATE_DIR
+    for mount in config.get("Mounts") or []:
+        mount_type = mount.get("Type")
+        source = mount.get("Name") if mount_type == "volume" else mount.get("Source")
+        destination = mount.get("Destination")
+        if mount_type in {"volume", "bind"} and source and destination:
+            value = f"{source}:{destination}"
+            if not mount.get("RW", True):
+                value += ":ro"
+            args.extend(["-v", value])
 
-    for k, v in env_map.items():
-        args.extend(["-e", f"{k}={v}"])
-    ...
+    for container_port, bindings in (host_config.get("PortBindings") or {}).items():
+        for binding in bindings or []:
+            host_port = binding.get("HostPort")
+            if not host_port:
+                continue
+            host_ip = binding.get("HostIp") or ""
+            published = f"{host_ip}:{host_port}:{container_port}" if host_ip else f"{host_port}:{container_port}"
+            args.extend(["-p", published])
+
+    args.append(image)
+    return args
 ```
 
 ---
@@ -151,7 +206,7 @@ Möchte ein Freund oder Teampartner eine eigene AURA-Instanz mit 24/7 Server-Bot
 
 1. **Eigener Server / VM:** Eigene Docker-VM oder Proxmox-Node.
 2. **Eigenes Topic:** Ein völlig eigenständiges, geheimes ntfy-Topic wählen (niemals Topics teilen!).
-3. **Eigener Receiver:** Den Webhook-Receiver auf seiner VM mit eigenem `AURA_WEBHOOK_SECRET` und eigenem Topic einrichten (Timeout: 300 s, Version-Polling auf `/serving`).
+3. **Eigener Receiver:** Den Webhook-Receiver auf seiner VM mit `scripts/ops/aura_webhook_receiver.reference.py` einrichten (siehe [DOCKER_GUIDE.md](DOCKER_GUIDE.md#--frischinstallation-receiver-einrichten-automatischer-github-deploy-receiver)).
 4. **Gleiche 3 Aktivierungsschritte:** `enable_server_bot.sh` mit seinem Topic ausführen.
 
 ---

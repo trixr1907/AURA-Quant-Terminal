@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.7.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.7.1 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.7.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.7.1", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -221,6 +221,7 @@ if ($found) {{
 
 
 STATE_DIR = Path(os.environ.get("AURA_STATE_DIR", Path(__file__).resolve().parent / "data"))
+RELAY_START_TIME = time.time()
 STATE_FILE = STATE_DIR / "aura_shared_state.json"
 SIGNAL_STATE_FILE = STATE_DIR / "aura_signal_center_state.json"
 SIGNAL_STATE_LOCK = threading.Lock()
@@ -755,19 +756,47 @@ def daily_digest_transition(state: dict, shared: dict, *, now: float | None = No
     return {"notify": due, "body": body, "state": next_state}
 
 
-def runner_dead_transition(state: dict, runner_health: dict, *, mode: str = "server", now: float | None = None) -> dict:
-    """Trigger P4 alert with 60 min cooldown when server runner is dead or stale."""
+def runner_dead_transition(
+    state: dict,
+    runner_health: dict,
+    *,
+    mode: str = "server",
+    now: float | None = None,
+    relay_start_time: float | None = None,
+    startup_grace_sec: float = 120.0,
+) -> dict:
+    """Trigger P4 alert with 60 min cooldown when server runner is dead or stale.
+    
+    Startup Grace: suppresses dead-runner alarms during the initial startup window
+    until the runner has completed at least one full cycle (cycle_count >= 1) or
+    until the grace period (default: 120s) after relay start expires.
+    """
     current_time = time.time() if now is None else float(now)
+    start_time = (RELAY_START_TIME if now is None else 0.0) if relay_start_time is None else float(relay_start_time)
     next_state = dict(state) if isinstance(state, dict) else {}
     health = dict(next_state.get("runner_health_alert", {}))
     
     if mode != "server":
         return {"notify": False, "body": "", "state": next_state}
 
+    cycle_count = runner_health.get("cycle_count")
+    if cycle_count is None:
+        cycle_count = runner_health.get("cycleCount", 0)
+    try:
+        cycle_count = int(cycle_count or 0)
+    except (ValueError, TypeError):
+        cycle_count = 0
+
     is_running = runner_health.get("running", False)
     age = runner_health.get("last_cycle_age_sec")
     is_stale = age is None or age > 300.0  # > 5 minutes without cycle
-    
+
+    # Startup grace: do not alert before runner has completed its first cycle,
+    # provided we are still within the initial grace window after relay startup.
+    in_startup_grace = (cycle_count < 1) and ((current_time - start_time) < startup_grace_sec)
+    if in_startup_grace:
+        return {"notify": False, "body": "", "state": next_state}
+
     if not is_running or is_stale:
         cooldown_until = float(health.get("cooldown_until", 0) or 0)
         notify = current_time >= cooldown_until
@@ -1068,12 +1097,12 @@ def _runner_health() -> dict:
         return {
             "running": data.get("running", False),
             "last_cycle_age_sec": age_sec,
-            "cycle_count": data.get("cycleCount"),
-            "trade_count": data.get("tradeCount"),
+            "cycle_count": data.get("cycleCount", 0),
+            "trade_count": data.get("tradeCount", 0),
             "equity": data.get("equity"),
         }
     except (OSError, json.JSONDecodeError, TypeError):
-        return {"running": False, "last_cycle_age_sec": None}
+        return {"running": False, "last_cycle_age_sec": None, "cycle_count": 0}
 
 class SingleFlight:
     def __init__(self):
