@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] – 2026-09-14
+
+### Added
+- **Daten-Fundament (Slice A):** `scripts/data_foundation_audit.py` auditiert lokale CSV-Dateien und Bitget-Candles auf Kerzenanzahl, Lückenfreiheit, Duplikate, Plausibilität und Provenienz (`REAL`, `SYNTHETIC`, `UNKNOWN`). Mindestschwellenwert $N=1000$ für Walk-Forward-Tauglichkeit; Dokumentation in `docs/research/DATA_FOUNDATION.md`.
+- **PreReg & Check (Slice B):** Präregistrierungs-Modus in `scripts/append_ledger.py --prereg` und deterministischer Prüfer `scripts/hypothesis_check.py` zum Abgleich experimenteller Ergebnisse gegen registrierte `Hypothesis-PreReg`-Einträge.
+- **Shadow Collector (Slice C):** Server-Runner erfasst in `shadow_collector.js` alle Funnel-Kandidaten (`ACCEPTED` / `REJECTED`) mit exaktem Ablehnungsgrund und bewertet diese nach 24 Bars deterministisch (`hit_sl`, `hit_tp1`, `hit_tp2`, `time_stop`, Netto-R). Telemetrie in `/ready` und Daily-Digest.
+- **Lockbox Registrar (Slice D):** `scripts/lockbox_register.py` sperrt Holdout-Daten mit Pflicht-Bestätigung für $N$ Tage unter Status `LOCKED` (Single-Shot-Governance).
+- **Evidenz-Protokoll (Slice E):** Umfassende Spezifikation `docs/research/EVIDENCE_PROTOCOL.md` mit 6-Stufen-Modell (S1–S6), Kriterien zur Statushebung, 90-Tage-Rollfenster, Evidence-Decay und ehrlicher Begründung des heutigen `NO_EVIDENCE`-Status.
+
+### Scope
+- MINOR (`1.9.0`, Evidenz-Programm A–E).
+- Keine Änderungen an Signalrichtung, Score-, Regime-, ADX-, Squeeze-, OOS-/DSR- oder Universe-Gates.
+- Trials-Ledger unverändert auf `EXP-032`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [1.8.2] – 2026-09-14
 
 ### Fixed
