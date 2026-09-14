@@ -28,6 +28,7 @@ const http    = require('http');
 const https   = require('https');
 const path    = require('path');
 const crypto  = require('crypto');
+const { ShadowCollector } = require('./shadow_collector.js');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -444,14 +445,23 @@ function readBotConfig(serverState) {
 // Main scan cycle (PF-66 Autobot logic, server-side)
 // ---------------------------------------------------------------------------
 let _scanInProgress = false;
+let _defaultShadowCollector = null;
 
-async function runScanCycle(engine, state, config) {
+function getDefaultShadowCollector() {
+  if (!_defaultShadowCollector) {
+    _defaultShadowCollector = new ShadowCollector();
+  }
+  return _defaultShadowCollector;
+}
+
+async function runScanCycle(engine, state, config, collector = null) {
   if (_scanInProgress) {
     console.log('[Runner] Scan already in progress — skipping cycle');
     return null;
   }
   _scanInProgress = true;
   const cycleStart = Date.now();
+  const shadowCollector = collector || getDefaultShadowCollector();
 
   const funnel = {
     scanned: 0, radarFiltered: 0, wfEvaluated: 1, selected: 0,
@@ -502,7 +512,7 @@ async function runScanCycle(engine, state, config) {
     const cfg = readBotConfig(serverState);
 
     // --- 5. Fetch Universe ---
-    const universe = await fetchUniverseViaRelay();
+    const universe = config.universe || await fetchUniverseViaRelay();
     if (!universe || !universe.length) {
       console.log('[Runner] Universe unavailable — skipping scan');
       funnel.lastError = 'Universe fetch failed';
@@ -511,7 +521,7 @@ async function runScanCycle(engine, state, config) {
 
     // --- 6. BTC regime from server state ---
     const btcData = serverState['aura-btc-regime-v1'] || {};
-    const btcBias = engine.computeBtcBias(
+    const btcBias = config.btcBias || engine.computeBtcBias(
       Number.isFinite(+btcData.score) ? +btcData.score : 50,
       Number.isFinite(+btcData.regime) ? +btcData.regime : 0,
     );
@@ -532,7 +542,7 @@ async function runScanCycle(engine, state, config) {
     funnel.scanned = liquidUniverse.length * 4; // 4 TFs hypothetically
 
     // Candidates that already have tfScores (full radar rows) can be accepted directly
-    const radarCandidates = engine.sortAutobotCandidates(
+    const radarCandidates = config.radarData || engine.sortAutobotCandidates(
       engine.collectAutobotCandidates(liquidUniverse)
     );
     funnel.radarFiltered = radarCandidates.filter(
@@ -602,8 +612,36 @@ async function runScanCycle(engine, state, config) {
 
     for (const c of radarCandidates) {
       if (state.trades.length >= cfg.maxOpenTrades) break;
+
+      const candidateTf = c.bestTF || '1h';
+      const cScore = Number(c.tfScores?.[candidateTf]?.score ?? c.bestInfo?.score ?? 0);
+      const cDir = Number(c.mtfDir ?? c.tfScores?.[candidateTf]?.dir ?? 0);
+      const cReg = c.tfScores?.[candidateTf]?.regime ?? 0;
+      const cAdx = Number(c.tfScores?.[candidateTf]?.adx ?? 0);
+      const cAtrPct = Number(c.tfScores?.[candidateTf]?.atrPct ?? 0);
+      const cPrice = Number(c.price ?? c.tfScores?.[candidateTf]?.price ?? 0);
+
+      const candidateBase = {
+        symbol: c.symbol,
+        tf: candidateTf,
+        dir: cDir,
+        score: cScore,
+        regime: cReg,
+        adx: cAdx,
+        atrPct: cAtrPct,
+        signalPrice: cPrice,
+      };
+
       if (!c?.symbol || openCoins.has(c.symbol)) {
         engine.addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            decision: 'REJECTED',
+            reject_reason: 'DUPLICATE_OR_INVALID',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -611,12 +649,30 @@ async function runScanCycle(engine, state, config) {
       if (!universeRow || universeRow.liquidityVerified !== true ||
           !Number.isFinite(+universeRow.vol) || +universeRow.vol < cfg.min24hVol) {
         engine.addAutobotReject(funnel, 'LIQUIDITY');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            decision: 'REJECTED',
+            reject_reason: 'LIQUIDITY',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
       const candidateGate = engine.evaluateAutobotCandidate(c, cfg.minScore, cfg.mtfNeed);
       if (!candidateGate.accepted) {
         engine.addAutobotReject(funnel, 'NO_RADAR_READY');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            tf: candidateGate.tf || candidateBase.tf,
+            dir: candidateGate.dir || candidateBase.dir,
+            decision: 'REJECTED',
+            reject_reason: 'NO_RADAR_READY',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -625,6 +681,16 @@ async function runScanCycle(engine, state, config) {
         if ((candidateGate.dir === 1  && btcBias.regTxt === 'BEAR') ||
             (candidateGate.dir === -1 && btcBias.regTxt === 'BULL')) {
           engine.addAutobotReject(funnel, 'BTC_CONFLICT');
+          try {
+            shadowCollector.recordDecision({
+              ...candidateBase,
+              tf: candidateGate.tf,
+              dir: candidateGate.dir,
+              decision: 'REJECTED',
+              reject_reason: 'BTC_CONFLICT',
+              config: cfg,
+            });
+          } catch (_) {}
           continue;
         }
       }
@@ -635,16 +701,46 @@ async function runScanCycle(engine, state, config) {
         kdata = await fetchKlinesViaRelay(c.symbol, candidateGate.tf, 1000);
         if (!kdata || kdata.candles.length < 40) {
           engine.addAutobotReject(funnel, 'FRESH_DATA');
+          try {
+            shadowCollector.recordDecision({
+              ...candidateBase,
+              tf: candidateGate.tf,
+              dir: candidateGate.dir,
+              decision: 'REJECTED',
+              reject_reason: 'FRESH_DATA',
+              config: cfg,
+            });
+          } catch (_) {}
           continue;
         }
       } catch {
         engine.addAutobotReject(funnel, 'FRESH_DATA');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            tf: candidateGate.tf,
+            dir: candidateGate.dir,
+            decision: 'REJECTED',
+            reject_reason: 'FRESH_DATA',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
       const A = engine.analyze(kdata.candles);
       if (!A || !A.n || !A.last) {
         engine.addAutobotReject(funnel, 'FRESH_ANALYSIS');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            tf: candidateGate.tf,
+            dir: candidateGate.dir,
+            decision: 'REJECTED',
+            reject_reason: 'FRESH_ANALYSIS',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -653,6 +749,21 @@ async function runScanCycle(engine, state, config) {
       const lastCandleTs = Number(lastCandle?.t || 0);
       if (lastCandleTs > 1_000_000_000_000 && Date.now() - lastCandleTs > 1.5 * candleDurationMs(candidateGate.tf)) {
         engine.addAutobotReject(funnel, 'STALE_CANDLE');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateBase,
+            tf: candidateGate.tf,
+            dir: candidateGate.dir,
+            score: A.last.score,
+            regime: freshRegime.reg,
+            adx: A.last.adx,
+            atrPct: lastCandle.c > 0 ? (A.last.atr / lastCandle.c * 100) : 0,
+            signalPrice: lastCandle.c,
+            decision: 'REJECTED',
+            reject_reason: 'STALE_CANDLE',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
       const signalPrice = lastCandle.c;
@@ -669,9 +780,28 @@ async function runScanCycle(engine, state, config) {
         bestTF: candidateGate.tf,
       }, cfg.minScore, cfg.mtfNeed);
 
+      const candidateEvaluated = {
+        symbol: c.symbol,
+        tf: candidateGate.tf,
+        dir: freshCandidate.dir || candidateGate.dir,
+        score: A.last.score,
+        regime: freshRegime.reg,
+        adx: A.last.adx,
+        atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0,
+        signalPrice: signalPrice,
+      };
+
       if (!freshGate.tradeable || !freshCandidate.accepted ||
           freshCandidate.dir !== candidateGate.dir) {
         engine.addAutobotReject(funnel, 'FRESH_GATE');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateEvaluated,
+            decision: 'REJECTED',
+            reject_reason: 'FRESH_GATE',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -688,6 +818,14 @@ async function runScanCycle(engine, state, config) {
       });
       if (!edgeGate.accepted) {
         engine.addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateEvaluated,
+            decision: 'REJECTED',
+            reject_reason: 'MODEL_NO_EVIDENCE',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -699,6 +837,14 @@ async function runScanCycle(engine, state, config) {
       );
       if (!kelly.hasEdge || kelly.riskAmt <= 0) {
         engine.addAutobotReject(funnel, 'MODEL_NO_EVIDENCE');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateEvaluated,
+            decision: 'REJECTED',
+            reject_reason: 'MODEL_NO_EVIDENCE',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -726,12 +872,28 @@ async function runScanCycle(engine, state, config) {
 
       if (margin > state.equity * 0.35 || margin < 10) {
         engine.addAutobotReject(funnel, 'MARGIN');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateEvaluated,
+            decision: 'REJECTED',
+            reject_reason: 'MARGIN',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
       // Belt-and-suspenders duplicate check after all awaits
       if (state.trades.some(x => x.coin === c.symbol)) {
         engine.addAutobotReject(funnel, 'DUPLICATE_OR_INVALID');
+        try {
+          shadowCollector.recordDecision({
+            ...candidateEvaluated,
+            decision: 'REJECTED',
+            reject_reason: 'DUPLICATE_OR_INVALID',
+            config: cfg,
+          });
+        } catch (_) {}
         continue;
       }
 
@@ -773,6 +935,15 @@ async function runScanCycle(engine, state, config) {
       state.trades.push(newTrade);
       openCoins.add(c.symbol);
       funnel.selected++;
+
+      try {
+        shadowCollector.recordDecision({
+          ...candidateEvaluated,
+          decision: 'ACCEPTED',
+          reject_reason: null,
+          config: cfg,
+        });
+      } catch (_) {}
 
       const slippagePct = signalPrice > 0 ? ((execPrice - signalPrice) / signalPrice) * 100 : 0;
       console.log(`[Runner] OPEN ${c.symbol} ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x entry=${execPrice} signal=${signalPrice} slippage=${slippagePct >= 0 ? '+' : ''}${slippagePct.toFixed(2)}% margin=${margin} tf=${freshCandidate.tf} score=${newTrade.score} dsr=${edgeGate.setupDsr.toFixed(2)} edge=${edgeGate.edge.toFixed(3)}`);
@@ -958,5 +1129,6 @@ module.exports = {
   fetchTickerViaRelay,
   candleDurationMs,
   runScanCycle,
+  getDefaultShadowCollector,
   isScanInProgress: () => _scanInProgress,
 };

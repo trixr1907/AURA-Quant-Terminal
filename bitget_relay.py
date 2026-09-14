@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.8.2 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.9.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.8.2", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.9.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -774,6 +774,46 @@ def daily_digest_transition(
         f"{'e' if len(recent) != 1 else ''} in 24h · PnL {pnl:+.2f} USDT"
         f" · {restart_count_24h} Selbstheilungen in 24 h"
     )
+
+    shadow_info = _shadow_health()
+    if shadow_info.get("enabled"):
+        state_dir = Path(os.environ.get("AURA_STATE_DIR") or STATE_DIR)
+        log_path = state_dir / "shadow_log.jsonl"
+        acc_rs = []
+        rej_rs = []
+        total_entries = 0
+        total_eval = 0
+        if log_path.exists():
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                            total_entries += 1
+                            if rec.get("outcome") is not None:
+                                total_eval += 1
+                                r_val = rec.get("r_net", rec.get("rNet"))
+                                if r_val is not None:
+                                    try:
+                                        r_float = float(r_val)
+                                        if rec.get("decision") == "ACCEPTED":
+                                            acc_rs.append(r_float)
+                                        else:
+                                            rej_rs.append(r_float)
+                                    except (TypeError, ValueError):
+                                        pass
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+        acc_avg_str = f"{sum(acc_rs)/len(acc_rs):+.2f}R" if acc_rs else "N/A"
+        rej_avg_str = f"{sum(rej_rs)/len(rej_rs):+.2f}R" if rej_rs else "N/A"
+        body += f" · Schatten: {total_entries} Setups beobachtet, {total_eval} bewertet, Ø-R {acc_avg_str} vs. {rej_avg_str}"
+
     if due:
         digest["last_sent_utc_date"] = date_key
         next_state["digest"] = digest
@@ -1280,6 +1320,68 @@ def _runner_health(*, mode: str | None = None) -> dict:
             "runner_restart_count": restart_count,
         }
 
+
+# Slice C: Shadow Collector health — reports {enabled, entries, pending_outcomes, evaluated}
+def _shadow_health() -> dict:
+    env_shadow = os.environ.get("AURA_SHADOW", "").strip().lower()
+    enabled = env_shadow not in {"0", "false", "off", "no"}
+    if not enabled:
+        return {
+            "enabled": False,
+            "entries": 0,
+            "pending_outcomes": 0,
+            "evaluated": 0,
+        }
+    state_dir = Path(os.environ.get("AURA_STATE_DIR") or STATE_DIR)
+    stats_path = state_dir / "shadow_stats.json"
+    if stats_path.exists():
+        try:
+            stats = json.loads(stats_path.read_text(encoding="utf-8"))
+            if isinstance(stats, dict) and "entries" in stats:
+                return {
+                    "enabled": True,
+                    "entries": int(stats.get("entries", 0)),
+                    "pending_outcomes": int(stats.get("pending_outcomes", 0)),
+                    "evaluated": int(stats.get("evaluated", 0)),
+                }
+        except Exception:
+            pass
+
+    log_path = state_dir / "shadow_log.jsonl"
+    if not log_path.exists():
+        return {
+            "enabled": True,
+            "entries": 0,
+            "pending_outcomes": 0,
+            "evaluated": 0,
+        }
+    entries = 0
+    evaluated = 0
+    pending = 0
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                    entries += 1
+                    if rec.get("outcome") is not None:
+                        evaluated += 1
+                    else:
+                        pending += 1
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return {
+        "enabled": True,
+        "entries": entries,
+        "pending_outcomes": pending,
+        "evaluated": evaluated,
+    }
+
 class SingleFlight:
     def __init__(self):
         self._lock = threading.Lock()
@@ -1564,11 +1666,13 @@ class RelayHandler(BaseHTTPRequestHandler):
             # PF-69: include runner health (last cycle age)
             runner_health = _runner_health()
             bot_enabled = (os.environ.get("AURA_BOT_MODE", "").strip().lower() == "server")
+            shadow_health = _shadow_health()
             self._send_json({
                 **readiness,
                 "bot_enabled": bot_enabled,
                 "mode": "server" if bot_enabled else "none",
                 "runner": runner_health,
+                "shadow": shadow_health,
             }, 200 if readiness["ok"] else 503)
         elif path == "/api/state":
             if not self._authorize_privileged():
