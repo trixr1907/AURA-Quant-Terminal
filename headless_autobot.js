@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA v1.7.1 — Headless Paper Autobot (Server Mode)
+ * AURA v1.8.0 — Headless Paper Autobot (Server Mode)
  * ====================================================
  * PF-66: Runs the full Autobot cycle server-side inside the Docker container.
  *        Loads the Engine block directly from Symbiose_Dashboard.html
@@ -151,7 +151,7 @@ function loadEngine() {
 // ---------------------------------------------------------------------------
 // HTTP helpers (relay calls)
 // ---------------------------------------------------------------------------
-function relayRequest(method, urlPath, body = null) {
+function relayRequest(method, urlPath, body = null, requestImpl = null) {
   return new Promise((resolve, reject) => {
     const full = RELAY_URL + urlPath;
     const parsed = new URL(full);
@@ -161,7 +161,16 @@ function relayRequest(method, urlPath, body = null) {
     if (RELAY_TOKEN) headers['X-AURA-Token'] = RELAY_TOKEN;
     if (bodyData) headers['Content-Length'] = Buffer.byteLength(bodyData);
 
-    const req = lib.request({
+    let settled = false;
+    let req;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      callback(value);
+    };
+    const onError = error => finish(reject, error);
+    const request = requestImpl || lib.request.bind(lib);
+    req = request({
       hostname: parsed.hostname,
       port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
       path: parsed.pathname + (parsed.search || ''),
@@ -171,11 +180,17 @@ function relayRequest(method, urlPath, body = null) {
       let raw = '';
       res.on('data', chunk => { raw += chunk; });
       res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
-        catch { resolve({ status: res.statusCode, body: raw }); }
+        try { finish(resolve, { status: res.statusCode, body: JSON.parse(raw) }); }
+        catch { finish(resolve, { status: res.statusCode, body: raw }); }
       });
+      res.on('error', onError);
     });
-    req.on('error', reject);
+    req.once('error', onError);
+    req.setTimeout(10000, () => {
+      const error = new Error('Relay request timed out after 10000ms');
+      req.destroy(error);
+      finish(reject, error);
+    });
     if (bodyData) req.write(bodyData);
     req.end();
   });
@@ -338,6 +353,8 @@ class ServerBotState {
       if (Number.isFinite(srv.equity)) this.equity = srv.equity;
       if (Number.isFinite(srv.initialEquity)) this.initialEquity = srv.initialEquity;
       if (Number.isFinite(srv.startedAt)) this.startedAt = srv.startedAt;
+      if (Number.isFinite(srv.lastCycleAt) && srv.lastCycleAt >= 0) this.lastCycleAt = srv.lastCycleAt;
+      if (Number.isInteger(srv.cycleCount) && srv.cycleCount >= 0) this.cycleCount = srv.cycleCount;
     }
     // Restore server-owned trades (identified by source: 'server')
     const remoteTrades = serverState[KEY_TRADES];
@@ -420,7 +437,8 @@ async function runScanCycle(engine, state, config) {
     // --- 1. Read server state (get current rev, mode flag, config, trades) ---
     let serverState;
     try {
-      serverState = await getState();
+      const getStateFn = config.getState || getState;
+      serverState = await getStateFn();
     } catch (e) {
       console.error('[Runner] Cannot read relay state:', e.message);
       return null;
@@ -805,7 +823,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.7.1)`);
+  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.0)`);
   console.log(`[Runner] Dashboard: ${DASHBOARD}`);
   console.log(`[Runner] Relay:     ${RELAY_URL}`);
   console.log(`[Runner] Interval:  ${SCAN_SEC}s`);
@@ -885,4 +903,7 @@ module.exports = {
   readBotConfig,
   ServerBotState,
   closeTradeRecord,
+  relayRequest,
+  runScanCycle,
+  isScanInProgress: () => _scanInProgress,
 };
