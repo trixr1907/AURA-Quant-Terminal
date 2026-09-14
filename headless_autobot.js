@@ -67,12 +67,31 @@ function loadEngine() {
     }
   }
 
+  // Helper to extract a complete top-level function by brace-matching
+  function extractFunction(name) {
+    const start = html.indexOf('function ' + name + '(');
+    if (start < 0) return '';
+    const paramEnd = html.indexOf(')', start);
+    if (paramEnd < 0) return '';
+    const bodyStart = html.indexOf('{', paramEnd);
+    if (bodyStart < 0) return '';
+    let depth = 0;
+    for (let i = bodyStart; i < html.length; i++) {
+      if (html[i] === '{') depth++;
+      else if (html[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          return html.slice(start, i + 1);
+        }
+      }
+    }
+    return '';
+  }
+
   // Also extract Autobot gate helpers (pure functions before const Autobot = {)
   // These functions are pure: collectAutobotCandidates, sortAutobotCandidates,
   // selectAutobotTimeframe, evaluateAutobotCandidate, evaluateAutobotEdge,
-  // addAutobotReject, sanitizeAutobotError, autobotProfileSettings, computeBtcBias,
-  // generateDeterministicOid, optimizeTimeStopForAsset, stagnationFallbackForTimeframe,
-  // tfToMinutes, tfToHours, formatAutobotEntryLog, fmtP
+  // addAutobotReject, sanitizeAutobotError, autobotProfileSettings
   const gateBegin = html.indexOf('function autobotProfileSettings');
   const gateEnd   = html.indexOf('\nconst Autobot = {'); // stop BEFORE the stateful Autobot object
   if (gateBegin < 0 || gateEnd <= gateBegin) {
@@ -80,46 +99,18 @@ function loadEngine() {
   }
   const gateSrc = html.slice(gateBegin, gateEnd);
 
-  // tfToMinutes/tfToHours live slightly before the gate block — extract separately
-  const tfBegin = html.indexOf('function tfToMinutes(');
-  const tfEnd   = html.indexOf('function stagnationFallbackForTimeframe(') + 200; // include the function body
-  const tfSrc   = tfBegin >= 0 && tfEnd > tfBegin ? html.slice(tfBegin, tfEnd) : '';
-
-  // computeBtcBias lives before the gate block too
-  const btcBiasBegin = html.indexOf('function computeBtcBias(');
-  const btcBiasEnd   = html.indexOf('\nfunction ', btcBiasBegin + 30);
-  const btcBiasSrc   = btcBiasBegin >= 0 && btcBiasEnd > btcBiasBegin ? html.slice(btcBiasBegin, btcBiasEnd) : '';
-
-  // generateDeterministicOid
-  const oidBegin = html.indexOf('function generateDeterministicOid(');
-  const oidEnd   = html.indexOf('\nfunction ', oidBegin + 30);
-  const oidSrc   = oidBegin >= 0 && oidEnd > oidBegin ? html.slice(oidBegin, oidEnd) : '';
-
-  // optimizeTimeStopForAsset
-  const tsBegin = html.indexOf('function optimizeTimeStopForAsset(');
-  const tsEnd   = html.indexOf('\nfunction ', tsBegin + 30);
-  const tsSrc   = tsBegin >= 0 && tsEnd > tsBegin ? html.slice(tsBegin, tsEnd) : '';
-
-  // fmtP (price formatter, needed for ntfy bodies)
-  const fmtPBegin = html.indexOf('function fmtP(');
-  const fmtPEnd   = html.indexOf('\nfunction ', fmtPBegin + 30);
-  const fmtPSrc   = fmtPBegin >= 0 && fmtPEnd > fmtPBegin ? html.slice(fmtPBegin, fmtPEnd) : '';
-
-  // formatAutobotEntryLog
-  const fmtLogBegin = html.indexOf('function formatAutobotEntryLog(');
-  const fmtLogEnd   = html.indexOf('\nfunction ', fmtLogBegin + 30);
-  const fmtLogSrc   = fmtLogBegin >= 0 && fmtLogEnd > fmtLogBegin ? html.slice(fmtLogBegin, fmtLogEnd) : '';
-
   const combined = [
     engineSrc,
-    tfSrc,
-    btcBiasSrc,
-    oidSrc,
-    tsSrc,
-    fmtPSrc,
-    fmtLogSrc,
+    extractFunction('tfToMinutes'),
+    extractFunction('tfToHours'),
+    extractFunction('stagnationFallbackForTimeframe'),
+    extractFunction('computeBtcBias'),
+    extractFunction('generateDeterministicOid'),
+    extractFunction('optimizeTimeStopForAsset'),
+    extractFunction('fmtP'),
+    extractFunction('formatAutobotEntryLog'),
     gateSrc,
-  ].join('\n');
+  ].join('\n;\n');
 
   // Node-compatible crypto shim for generateDeterministicOid
   const ctx = {
@@ -238,7 +229,11 @@ async function fetchKlinesViaRelay(symbol, tf, limit = 1000) {
 // ---------------------------------------------------------------------------
 async function fetchUniverseViaRelay() {
   const r = await relayRequest('GET', '/api/universe');
-  if (r.status === 200 && Array.isArray(r.body)) return r.body;
+  if (r.status === 200 && r.body) {
+    if (Array.isArray(r.body)) return r.body;
+    if (Array.isArray(r.body.contracts)) return r.body.contracts;
+    if (Array.isArray(r.body.symbols)) return r.body.symbols;
+  }
   return null;
 }
 
@@ -476,8 +471,13 @@ async function runScanCycle(engine, state, config) {
     // Server bot uses universe rows directly as candidates if they carry tfScores.
     // If not available, we do a lightweight per-symbol analysis on the top-N by vol.
     const liquidUniverse = universe
-      .filter(row => row && row.liquidityVerified === true &&
-              Number.isFinite(+row.vol) && +row.vol >= cfg.min24hVol)
+      .map(row => {
+        if (!row) return null;
+        const vol = Number.isFinite(+row.usdtVolume) ? +row.usdtVolume : (Number.isFinite(+row.vol) ? +row.vol : 0);
+        const liquidityVerified = row.liquidityVerified === true || row.symbolStatus === 'normal' || vol > 0;
+        return { ...row, vol, usdtVolume: vol, liquidityVerified };
+      })
+      .filter(row => row && row.liquidityVerified && row.vol >= cfg.min24hVol)
       .sort((a, b) => (+b.vol || 0) - (+a.vol || 0));
 
     funnel.scanned = liquidUniverse.length * 4; // 4 TFs hypothetically
@@ -852,8 +852,8 @@ async function main() {
     exposeHealth(state);
   }, SCAN_SEC * 1000);
 
-  // Unref so Node exits cleanly in test environments
-  if (timer && typeof timer.unref === 'function') timer.unref();
+  // Keep the process alive for periodic scanning
+  // (timer stays referenced in main process)
 
   // Graceful shutdown
   process.on('SIGTERM', () => {
