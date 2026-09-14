@@ -30,6 +30,10 @@ services:
       - AURA_NTFY_DIGEST=${AURA_NTFY_DIGEST:-1}
       - AURA_NTFY_DIGEST_UTC=${AURA_NTFY_DIGEST_UTC:-7}
       - AURA_NTFY_ERRORS=${AURA_NTFY_ERRORS:-1}
+      # PF-66/PF-69: Headless Paper-Autobot (Server-Modus)
+      - AURA_BOT_MODE=${AURA_BOT_MODE:-}
+      - AURA_BOT_SCAN_SEC=${AURA_BOT_SCAN_SEC:-60}
+      - AURA_BOT_EQUITY=${AURA_BOT_EQUITY:-10000}
     volumes:
       - aura-state:/var/lib/aura
     healthcheck:
