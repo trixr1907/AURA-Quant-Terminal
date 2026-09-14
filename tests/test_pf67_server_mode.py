@@ -323,18 +323,16 @@ class TestRunnerDeadAlert(unittest.TestCase):
         )
         self.assertFalse(res90["notify"])
 
-    def test_death_after_first_cycle_fires_p4_immediately(self):
-        """Once runner has completed cycle >= 1, failure triggers P4 immediately even within startup grace."""
+    def test_running_flag_does_not_override_fresh_completed_cycle(self):
+        """Freshness is authoritative even if the runner's running flag is false."""
         t_relay_start = 100000.0
         state = {}
-        # Runner completed 1 cycle at second 30, then crashed at second 45
         runner_health = {"running": False, "last_cycle_age_sec": 15.0, "cycle_count": 1}
         res = relay.runner_dead_transition(
             state, runner_health, mode="server", now=t_relay_start + 45.0, relay_start_time=t_relay_start
         )
-        self.assertTrue(res["notify"])
-        self.assertIn("nicht mehr", res["body"])
-        self.assertEqual(res["state"]["runner_health_alert"]["alerted_at"], t_relay_start + 45.0)
+        self.assertFalse(res["notify"])
+        self.assertFalse(res["stalled"])
 
     def test_startup_timeout_after_grace_period_fires_p4(self):
         """If runner fails to start and grace period expires (>=120s), P4 alarm is fired."""
