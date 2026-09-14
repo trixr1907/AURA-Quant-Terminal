@@ -886,7 +886,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.8.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.8.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -980,7 +980,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.8.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.8.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -6530,8 +6530,13 @@ const NtfySignals = {
     return false;
   },
 
+  _lastTestPushAt: 0,
+
   testPush() {
     if (!this.settings.topicUrl) return Promise.resolve(false);
+    const now = Date.now();
+    if (now - (this._lastTestPushAt || 0) < 10000) return Promise.resolve(false);
+    this._lastTestPushAt = now;
     return this.publish('AURA · Test', 'AURA Signal-Center ist verbunden.', 3);
   },
 
@@ -6545,18 +6550,35 @@ const NtfySignals = {
       const control = document.getElementById(`ntfy-toggle-${event}`);
       if (control) control.checked = settings[event] === true;
     });
+    if (topic.dataset && topic.dataset.ntfyBound === 'true') return;
+    if (topic.dataset) topic.dataset.ntfyBound = 'true';
     const persist = () => this.save({
       topicUrl: topic.value.trim(),
       ...Object.fromEntries(events.map(event => [event, document.getElementById(`ntfy-toggle-${event}`)?.checked === true])),
     });
     topic.addEventListener('change', persist);
     events.forEach(event => document.getElementById(`ntfy-toggle-${event}`)?.addEventListener('change', persist));
-    document.getElementById('ntfy-test-button')?.addEventListener('click', async () => {
-      persist();
-      const status = document.getElementById('ntfy-test-status');
-      const sent = await NtfySignals.testPush();
-      if (status) status.textContent = sent ? 'Test-Push gesendet.' : 'Nicht gesendet — bitte Topic-URL prüfen.';
-    });
+    const testBtn = document.getElementById('ntfy-test-button');
+    if (testBtn) {
+      testBtn.addEventListener('click', async () => {
+        persist();
+        const status = document.getElementById('ntfy-test-status');
+        const now = Date.now();
+        if (now - (NtfySignals._lastTestPushAt || 0) < 10000) {
+          const waitSec = Math.ceil((10000 - (now - (NtfySignals._lastTestPushAt || 0))) / 1000);
+          if (status) status.textContent = `Bitte warten (${waitSec}s Cooldown)...`;
+          return;
+        }
+        testBtn.disabled = true;
+        if (status) status.textContent = 'Sende Test-Push...';
+        try {
+          const sent = await NtfySignals.testPush();
+          if (status) status.textContent = sent ? 'Test-Push gesendet.' : 'Nicht gesendet — bitte Topic-URL prüfen.';
+        } finally {
+          setTimeout(() => { if (testBtn) testBtn.disabled = false; }, 10000);
+        }
+      });
+    }
   },
 
   emitTradeEvent(trade, event, detail = {}) {
@@ -7308,29 +7330,50 @@ function checkTradeAutomations(trades) {
 }
 
 async function refreshTradePrices(trades) {
-  const ts = trades || loadTrades();
-  for (const t of ts) {
+  const manualTrades = trades || loadTrades();
+  const botTrades = (typeof Autobot !== 'undefined' && Array.isArray(Autobot.trades)) ? Autobot.trades : [];
+  const allCoins = Array.from(new Set([...manualTrades, ...botTrades].map(t => t && t.coin).filter(Boolean)));
+
+  for (const coin of allCoins) {
     try {
-      if (t.coin === App.symbol && App.data.ticker?.price) {
-        tradePrices[t.coin] = App.data.ticker.price;
-        t.markPrice = App.data.ticker.price;
-        t.markUpdatedAt = Date.now();
-        t.markSource = 'Bitget / Live';
+      if (coin === App.symbol && App.data && App.data.ticker?.price) {
+        tradePrices[coin] = App.data.ticker.price;
       } else {
-        const q = await fetchTicker(t.coin);
-        if (q?.price) {
-          tradePrices[t.coin] = q.price;
-          t.markPrice = q.price;
-          t.markUpdatedAt = Date.now();
-          t.markSource = 'Bitget / Live';
+        const q = await fetchTicker(coin);
+        if (q && q.price) {
+          tradePrices[coin] = q.price;
         }
       }
     } catch (_) {}
-    const mark = tradePrices[t.coin];
-    if (Number.isFinite(+mark) && +mark > 0) await emitTradeEvents(t, +mark);
   }
-  saveTrades(ts);
-  checkTradeAutomations(ts);
+
+  for (const t of manualTrades) {
+    const mark = tradePrices[t.coin];
+    if (Number.isFinite(+mark) && +mark > 0) {
+      t.markPrice = +mark;
+      t.markUpdatedAt = Date.now();
+      t.markSource = 'Bitget / Live';
+      await emitTradeEvents(t, +mark);
+    }
+  }
+
+  saveTrades(manualTrades);
+  checkTradeAutomations(manualTrades);
+
+  if (botTrades.length > 0) {
+    for (const t of botTrades) {
+      const mark = tradePrices[t.coin];
+      if (Number.isFinite(+mark) && +mark > 0) {
+        t.markPrice = +mark;
+        t.markUpdatedAt = Date.now();
+        t.markSource = 'Bitget / Live';
+      }
+    }
+    if (typeof Autobot !== 'undefined' && typeof Autobot.updateActiveTrades === 'function') {
+      await Autobot.updateActiveTrades();
+    }
+  }
+
   renderLiveTrades();
 }
 
@@ -7611,8 +7654,9 @@ function renderTradeCard(t, m, px, index, options = {}) {
     </div>
   ` : '';
 
+  const tradeId = esc(t.id || index);
   const actionButtons = isAutobot
-    ? `<button class="tc-btn" data-tv-ab-idx="${index}" type="button" aria-label="In TradingView visualisieren">📊 In TV visualisieren</button><button class="tc-btn" data-copy-ab-idx="${index}" type="button" aria-label="Setup kopieren">📋 Setup</button><button class="tc-btn danger" data-close-ab-idx="${index}" type="button" aria-label="Position schließen">✕ Schließen</button>`
+    ? `<button class="tc-btn" data-tv-ab-id="${tradeId}" data-tv-ab-idx="${index}" type="button" aria-label="In TradingView visualisieren">📊 In TV visualisieren</button><button class="tc-btn" data-copy-ab-id="${tradeId}" data-copy-ab-idx="${index}" type="button" aria-label="Setup kopieren">📋 Setup</button><button class="tc-btn danger" data-close-ab-id="${tradeId}" data-close-ab-idx="${index}" type="button" aria-label="Position schließen">✕ Schließen</button>`
     : `<button class="tc-btn tv-pos-btn" data-tv-overlay="${index}" type="button" aria-label="1:1 TradingView Position Tool">📐 1:1 TV Position Tool</button><button class="tc-btn" data-copy-trade="${index}" type="button" aria-label="Setup kopieren">📋 Setup</button><button class="tc-btn ${t.beActive ? 'active-be' : ''}" data-action-be="${index}" type="button" aria-label="Stop Loss auf Break-Even setzen">🛡️ SL = Entry (BE)</button><button class="tc-btn" data-action-tp25="${index}" type="button" aria-label="25% Teilgewinn realisieren">💰 25% TP</button><button class="tc-btn" data-action-tp50="${index}" type="button" aria-label="50% Teilgewinn realisieren">💰 50% TP</button><button class="tc-btn" data-action-tp75="${index}" type="button" aria-label="75% Teilgewinn realisieren">💰 75% TP</button><button class="tc-btn ${t.trailSl ? 'active' : ''}" data-action-trail="${index}" type="button" aria-label="Trailing Stop Loss umschalten">📈 Trail-SL</button><button class="tc-btn" data-action-tp-plus="${index}" type="button" aria-label="+1R Take Profit Ziel hinzufügen">🎯 +1R Ziel</button><div style="flex:1"></div><button class="tc-btn danger" data-close-trade="${index}" type="button" aria-label="Trade schließen">✖ Schließen</button><button class="tc-btn" data-remove-trade="${index}" type="button" aria-label="Trade aus Liste entfernen" style="color:var(--dim)">Del</button>`;
 
   return `<div class="trade-card" data-trade-id="${esc(t.id || index)}"${isAutobot ? ' style="border-color:rgba(168,85,247,.35);margin-bottom:8px"' : ''}>
@@ -7817,12 +7861,22 @@ function updateTradeCardElement(card, t, m, px, index, options = {}) {
   const actions = card.querySelector ? card.querySelector('.tc-actions') : null;
   if (actions && typeof actions.querySelector === 'function') {
     if (isAutobot) {
-      const tvBtn = actions.querySelector('[data-tv-ab-idx]');
-      if (tvBtn && typeof tvBtn.setAttribute === 'function') tvBtn.setAttribute('data-tv-ab-idx', String(index));
-      const copyBtn = actions.querySelector('[data-copy-ab-idx]');
-      if (copyBtn && typeof copyBtn.setAttribute === 'function') copyBtn.setAttribute('data-copy-ab-idx', String(index));
-      const closeBtn = actions.querySelector('[data-close-ab-idx]');
-      if (closeBtn && typeof closeBtn.setAttribute === 'function') closeBtn.setAttribute('data-close-ab-idx', String(index));
+      const tradeId = String(t.id || index);
+      const tvBtn = actions.querySelector('[data-tv-ab-id], [data-tv-ab-idx]');
+      if (tvBtn && typeof tvBtn.setAttribute === 'function') {
+        tvBtn.setAttribute('data-tv-ab-id', tradeId);
+        tvBtn.setAttribute('data-tv-ab-idx', String(index));
+      }
+      const copyBtn = actions.querySelector('[data-copy-ab-id], [data-copy-ab-idx]');
+      if (copyBtn && typeof copyBtn.setAttribute === 'function') {
+        copyBtn.setAttribute('data-copy-ab-id', tradeId);
+        copyBtn.setAttribute('data-copy-ab-idx', String(index));
+      }
+      const closeBtn = actions.querySelector('[data-close-ab-id], [data-close-ab-idx]');
+      if (closeBtn && typeof closeBtn.setAttribute === 'function') {
+        closeBtn.setAttribute('data-close-ab-id', tradeId);
+        closeBtn.setAttribute('data-close-ab-idx', String(index));
+      }
     } else {
       const tvBtn = actions.querySelector('[data-tv-overlay]');
       if (tvBtn && typeof tvBtn.setAttribute === 'function') tvBtn.setAttribute('data-tv-overlay', String(index));
@@ -8099,6 +8153,17 @@ function bindAutobotContainerEvents(container) {
   if (!container || container._abEventsBound) return;
   container._abEventsBound = true;
 
+  function findAutobotTrade(idOrIdx) {
+    if (typeof Autobot === 'undefined' || !Array.isArray(Autobot.trades)) return null;
+    if (idOrIdx != null && idOrIdx !== '') {
+      const found = Autobot.trades.find(t => t && String(t.id || '') === String(idOrIdx));
+      if (found) return found;
+    }
+    const idx = Number(idOrIdx);
+    if (Number.isInteger(idx) && idx >= 0 && idx < Autobot.trades.length) return Autobot.trades[idx];
+    return null;
+  }
+
   if (typeof container.addEventListener === 'function') {
     container.addEventListener('click', e => {
       const copyValTarget = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-copy-val]') : null;
@@ -8118,12 +8183,13 @@ function bindAutobotContainerEvents(container) {
         return;
       }
 
-      const tvBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-tv-ab-idx]') : null;
+      const tvBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-tv-ab-id], [data-tv-ab-idx]') : null;
       if (tvBtn) {
-        const idx = +tvBtn.dataset.tvAbIdx;
-        const t = Autobot.trades[idx];
+        e.stopPropagation();
+        const tradeId = tvBtn.dataset.tvAbId || tvBtn.dataset.tvAbIdx;
+        const t = findAutobotTrade(tradeId);
         if (t) {
-          openTradingViewChart(t.coin);
+          openTradingViewChart(t.coin, t.signalTf || '1h');
           const originalLabel = tvBtn.innerHTML;
           tvBtn.innerHTML = '✓ TradingView geöffnet';
           setTimeout(() => { tvBtn.innerHTML = originalLabel; }, 1800);
@@ -8131,20 +8197,24 @@ function bindAutobotContainerEvents(container) {
         return;
       }
 
-      const copyBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-copy-ab-idx]') : null;
+      const copyBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-copy-ab-id], [data-copy-ab-idx]') : null;
       if (copyBtn) {
-        const idx = +copyBtn.dataset.copyAbIdx;
-        if (Autobot.trades[idx]) copySetupToClipboard(Autobot.trades[idx], copyBtn);
+        e.stopPropagation();
+        const tradeId = copyBtn.dataset.copyAbId || copyBtn.dataset.copyAbIdx;
+        const t = findAutobotTrade(tradeId);
+        if (t) copySetupToClipboard(t, copyBtn);
         return;
       }
 
-      const closeBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-close-ab-idx]') : null;
+      const closeBtn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-close-ab-id], [data-close-ab-idx]') : null;
       if (closeBtn) {
-        const idx = +closeBtn.dataset.closeAbIdx;
-        const t = Autobot.trades[idx];
-        if (t) {
+        e.stopPropagation();
+        const tradeId = closeBtn.dataset.closeAbId || closeBtn.dataset.closeAbIdx;
+        const t = findAutobotTrade(tradeId);
+        if (t && typeof Autobot !== 'undefined' && typeof Autobot.closeTrade === 'function') {
           const px = t.markPrice || tradePrices[t.coin] || t.entry;
-          Autobot.closeTrade(idx, px, 'MANUAL_INTERVENTION');
+          const idx = Autobot.trades.findIndex(x => x && (x.id === t.id || x === t));
+          Autobot.closeTrade(idx >= 0 ? idx : (+closeBtn.dataset.closeAbIdx || 0), px, 'MANUAL_INTERVENTION');
         }
         return;
       }
@@ -10394,49 +10464,6 @@ const Autobot = {
 
       syncTradeCardsContainer(container, cardItems, emptyHtml, true);
       bindAutobotContainerEvents(container);
-
-      if (this.trades.length) {
-        container.querySelectorAll('[data-copy-val]').forEach(span => {
-          span.onclick = (e) => {
-            e.stopPropagation();
-            const val = span.getAttribute('data-copy-val');
-            if (val) copyTextToClipboard(val, span);
-          };
-        });
-
-        bindAssetSwitchControls(container);
-
-        container.querySelectorAll('[data-tv-ab-idx]').forEach(btn => {
-          btn.onclick = () => {
-            const idx = +btn.dataset.tvAbIdx;
-            const t = this.trades[idx];
-            if (t) {
-              openTradingViewChart(t.coin, t.signalTf || '1h');
-              const originalLabel = btn.innerHTML;
-              btn.innerHTML = '✓ TradingView geöffnet';
-              setTimeout(() => { btn.innerHTML = originalLabel; }, 1800);
-            }
-          };
-        });
-
-        container.querySelectorAll('[data-copy-ab-idx]').forEach(btn => {
-          btn.onclick = () => {
-            const idx = +btn.dataset.copyAbIdx;
-            if (this.trades[idx]) copySetupToClipboard(this.trades[idx], btn);
-          };
-        });
-
-        container.querySelectorAll('[data-close-ab-idx]').forEach(btn => {
-          btn.onclick = () => {
-            const idx = +btn.dataset.closeAbIdx;
-            const t = this.trades[idx];
-            if (t) {
-              const px = t.markPrice || tradePrices[t.coin] || t.entry;
-              this.closeTrade(idx, px, 'MANUAL_INTERVENTION');
-            }
-          };
-        });
-      }
     }
     this.renderLogs();
   },
@@ -10458,6 +10485,18 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.8.1": {
+    title: "Watchdog-Pause-Awareness, Heilungs-Quittung & Dashboard-Event-Hygiene",
+    summary: "Runde 31 (PATCH): Der Relay-Watchdog respektiert Pausenzyklen des Server-Runners bei aktivem Browser-Bot, liefert P3-Heilungsquittungen nach Neustarts und eliminiert Test-Push- sowie TradingView-Doppelöffnungen.",
+    highlights: [
+      "Watchdog-Pause-Awareness: Pausierte Runner-Zyklen aktualisieren den Heartbeat und lösen keinen Falsch-Restart mehr aus.",
+      "P3-Heilungsquittung: Nach Watchdog-Restart wird nach dem ersten Folgezyklus zuverlässig P3 gesendet.",
+      "Heilung entkoppelt: Physische Selbstheilung läuft unabhängig vom 3600-s-Alert-Cooldown für P4-Meldungen.",
+      "Ntfy-Hygiene: Idempotentes bindUI() verhindert Listener-Akkumulation; Test-Push ist auf 1 Push/10s limitiert.",
+      "TradingView- & Trade-Hygiene: Single-Window-Öffnung mit StopPropagation und stabile Trade-ID-Adressierung.",
+      "Live-Tracking: refreshTradePrices zieht Autobot-Markpreise, PnL und R-Multiples im 5-s-Takt live nach."
+    ]
+  },
   "1.8.0": {
     title: "Runner-Selbstheilung & Timeout-Härtung",
     summary: "Runde 30 (MINOR): Das Relay erkennt ausgebliebene Runner-Zyklen, sichert einmalig Stack-Forensik und startet den Paper-Runner kontrolliert neu.",
@@ -10828,7 +10867,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.8.0');
+  showReleaseNotesOnce('1.8.1');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
