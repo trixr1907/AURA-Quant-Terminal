@@ -97,6 +97,8 @@ function test(name, fn) {
   catch (e) { console.error(`  FAIL  ${name}\n        ${e.message}`); errors.push({ name, message: e.message }); failed++; }
 }
 function section(title) { console.log(`\n[${title}]`); }
+const asyncTests = [];
+function testAsync(name, fn) { asyncTests.push({ name, fn }); }
 
 // ---------------------------------------------------------------------------
 // Fixtures: deterministic candle series (same as test_autobot_statistical_edge.js)
@@ -308,6 +310,21 @@ test('ServerBotState.loadFromServerState: restores equity from server', () => {
   assert.strictEqual(s.trades[0].id, 't1');
 });
 
+test('ServerBotState.loadFromServerState: restores valid runner cycle metadata', () => {
+  const s = new autobot.ServerBotState();
+  s.loadFromServerState({
+    'aura-server-bot-state-v1': { cycleCount: 52, lastCycleAt: 1234567890 },
+  });
+  assert.strictEqual(s.cycleCount, 52, 'cycleCount should continue across runner restart');
+  assert.strictEqual(s.lastCycleAt, 1234567890, 'lastCycleAt should continue across runner restart');
+
+  s.loadFromServerState({
+    'aura-server-bot-state-v1': { cycleCount: -1, lastCycleAt: 'invalid' },
+  });
+  assert.strictEqual(s.cycleCount, 52, 'invalid cycleCount must not replace restored metadata');
+  assert.strictEqual(s.lastCycleAt, 1234567890, 'invalid lastCycleAt must not replace restored metadata');
+});
+
 test('mode flag: KEY_STATE with mode=browser → server bot should pause', () => {
   // This mimics the check in runScanCycle: autobotState.enabled=true and mode!='server'
   const autobotState = { enabled: true, mode: 'browser' };
@@ -425,11 +442,51 @@ test('computeBtcBias: sideways regime → no block', () => {
 });
 
 // ---------------------------------------------------------------------------
+// v1.8.0 — bounded relay requests and cycle recovery
+// ---------------------------------------------------------------------------
+section('v1.8.0: Relay timeout recovery');
+
+testAsync('10s timeout destroys request once and a following cycle can run', async () => {
+  const events = require('events');
+  let timeoutMs = null;
+  let destroyCalls = 0;
+  const timingOutRequest = () => {
+    const req = new events.EventEmitter();
+    req.setTimeout = (ms, callback) => { timeoutMs = ms; req.timeoutCallback = callback; };
+    req.write = () => {};
+    req.end = () => { req.timeoutCallback(); };
+    req.destroy = (error) => { destroyCalls++; req.emit('error', error); };
+    return req;
+  };
+
+  await assert.rejects(
+    autobot.relayRequest('GET', '/api/state', null, timingOutRequest),
+    /timed out after 10000ms/,
+  );
+  assert.strictEqual(timeoutMs, 10000);
+  assert.strictEqual(destroyCalls, 1);
+
+  const engine = {};
+  const state = {};
+  const timeout = new Error('simulated timeout');
+  await autobot.runScanCycle(engine, state, { getState: async () => { throw timeout; } });
+  assert.strictEqual(autobot.isScanInProgress(), false, 'timeout must release scan guard');
+  await autobot.runScanCycle(engine, state, { getState: async () => { throw timeout; } });
+  assert.strictEqual(autobot.isScanInProgress(), false, 'following turn must run and release guard');
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
-console.log(`\n${'='.repeat(60)}`);
-console.log(`PF-70 Headless Runner: ${passed} passed, ${failed} failed`);
-if (errors.length) {
-  errors.forEach(e => console.error(`  FAIL: ${e.name} — ${e.message}`));
-}
-process.exit(failed > 0 ? 1 : 0);
+(async () => {
+  for (const { name, fn } of asyncTests) {
+    try { await fn(); console.log(`  PASS  ${name}`); passed++; }
+    catch (e) { console.error(`  FAIL  ${name}\n        ${e.message}`); errors.push({ name, message: e.message }); failed++; }
+  }
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`PF-70 Headless Runner: ${passed} passed, ${failed} failed`);
+  if (errors.length) {
+    errors.forEach(e => console.error(`  FAIL: ${e.name} — ${e.message}`));
+  }
+  process.exit(failed > 0 ? 1 : 0);
+})();

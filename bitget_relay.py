@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.7.1 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.8.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.7.1", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.8.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -20,6 +20,7 @@ API-Vertrag (für das Dashboard):
 from __future__ import annotations
 
 import base64
+import faulthandler
 import json
 import logging
 import math
@@ -720,7 +721,14 @@ def _event_pnl(event: dict) -> float:
     return 0.0
 
 
-def daily_digest_transition(state: dict, shared: dict, *, now: float | None = None, utc_hour: int = 7) -> dict:
+def daily_digest_transition(
+    state: dict,
+    shared: dict,
+    *,
+    now: float | None = None,
+    utc_hour: int = 7,
+    restart_timestamps: list[float] | tuple[float, ...] | None = None,
+) -> dict:
     current_time = time.time() if now is None else float(now)
     utc_hour = min(23, max(0, int(utc_hour)))
     date_key = time.strftime("%Y-%m-%d", time.gmtime(current_time))
@@ -730,7 +738,16 @@ def daily_digest_transition(state: dict, shared: dict, *, now: float | None = No
     due = hour >= utc_hour and digest.get("last_sent_utc_date") != date_key
     shared = shared if isinstance(shared, dict) else {}
     autobot = shared.get("aura-autobot-state-v2", {})
-    equity = float(autobot.get("equity", 0) or 0) if isinstance(autobot, dict) else 0.0
+    server_bot = shared.get("aura-server-bot-state-v1", {})
+    equity_raw = server_bot.get("equity") if isinstance(server_bot, dict) else None
+    if not isinstance(equity_raw, (int, float)) or isinstance(equity_raw, bool) or not math.isfinite(float(equity_raw)):
+        equity_raw = os.environ.get("AURA_BOT_EQUITY", "10000")
+    try:
+        equity = float(equity_raw)
+    except (TypeError, ValueError):
+        equity = 10000.0
+    if not math.isfinite(equity):
+        equity = 10000.0
     manual_open = shared.get("aura-quant-terminal-active-trades-v1", [])
     manual_history = shared.get("aura-quant-terminal-history-trades-v1", [])
     autobot_open = autobot.get("trades", []) if isinstance(autobot, dict) else []
@@ -743,17 +760,48 @@ def daily_digest_transition(state: dict, shared: dict, *, now: float | None = No
         history.extend(autobot_history)
     recent = [item for item in history if isinstance(item, dict) and current_time - _event_timestamp_seconds(item) <= 86400 and _event_timestamp_seconds(item) <= current_time]
     pnl = sum(_event_pnl(item) for item in recent)
+    restarts = restart_timestamps or ()
+    restart_count_24h = sum(
+        1 for stamp in restarts
+        if isinstance(stamp, (int, float)) and not isinstance(stamp, bool)
+        and math.isfinite(float(stamp)) and current_time - 86400.0 <= float(stamp) <= current_time
+    )
     btc = next_state.get("btc", {})
     base = btc.get("base", "UNBEKANNT") if isinstance(btc, dict) else "UNBEKANNT"
     body = (
         f"Paper-Equity {equity:.2f} USDT · {open_count} offene Position"
         f"{'en' if open_count != 1 else ''} · BTC {base} · {len(recent)} Schluss"
         f"{'e' if len(recent) != 1 else ''} in 24h · PnL {pnl:+.2f} USDT"
+        f" · {restart_count_24h} Selbstheilungen in 24 h"
     )
     if due:
         digest["last_sent_utc_date"] = date_key
         next_state["digest"] = digest
     return {"notify": due, "body": body, "state": next_state}
+
+
+def runner_stale_threshold(
+    scan_sec: float | str | None = None,
+    override_raw: float | str | None = None,
+) -> float:
+    """Return the configured positive stale threshold with a safe fallback."""
+    if scan_sec is None:
+        scan_sec = os.environ.get("AURA_BOT_SCAN_SEC", "60")
+    try:
+        scan_value = float(scan_sec)
+    except (TypeError, ValueError):
+        scan_value = 60.0
+    if not math.isfinite(scan_value) or scan_value <= 0:
+        scan_value = 60.0
+    fallback = max(3.0 * scan_value, 180.0)
+
+    if override_raw is None:
+        override_raw = os.environ.get("AURA_RUNNER_STALE_SEC")
+    try:
+        override = float(override_raw)
+    except (TypeError, ValueError):
+        return fallback
+    return override if math.isfinite(override) and override > 0 else fallback
 
 
 def runner_dead_transition(
@@ -764,6 +812,7 @@ def runner_dead_transition(
     now: float | None = None,
     relay_start_time: float | None = None,
     startup_grace_sec: float = 120.0,
+    stale_sec: float | None = None,
 ) -> dict:
     """Trigger P4 alert with 60 min cooldown when server runner is dead or stale.
     
@@ -777,7 +826,7 @@ def runner_dead_transition(
     health = dict(next_state.get("runner_health_alert", {}))
     
     if mode != "server":
-        return {"notify": False, "body": "", "state": next_state}
+        return {"notify": False, "stalled": False, "body": "", "state": next_state}
 
     cycle_count = runner_health.get("cycle_count")
     if cycle_count is None:
@@ -787,17 +836,22 @@ def runner_dead_transition(
     except (ValueError, TypeError):
         cycle_count = 0
 
-    is_running = runner_health.get("running", False)
     age = runner_health.get("last_cycle_age_sec")
-    is_stale = age is None or age > 300.0  # > 5 minutes without cycle
+    threshold = runner_stale_threshold() if stale_sec is None else float(stale_sec)
+    is_stale = (
+        age is None
+        or not isinstance(age, (int, float))
+        or not math.isfinite(float(age))
+        or float(age) > threshold
+    )
 
     # Startup grace: do not alert before runner has completed its first cycle,
     # provided we are still within the initial grace window after relay startup.
     in_startup_grace = (cycle_count < 1) and ((current_time - start_time) < startup_grace_sec)
     if in_startup_grace:
-        return {"notify": False, "body": "", "state": next_state}
+        return {"notify": False, "stalled": False, "body": "", "state": next_state}
 
-    if not is_running or is_stale:
+    if is_stale:
         cooldown_until = float(health.get("cooldown_until", 0) or 0)
         notify = current_time >= cooldown_until
         health["last_error_at"] = current_time
@@ -808,14 +862,67 @@ def runner_dead_transition(
         age_str = f"{age:.0f}s" if isinstance(age, (int, float)) else "unbekannt"
         return {
             "notify": notify,
-            "body": f"AURA Server-Autobot reagiert nicht mehr (running={is_running}, letzter Zyklus vor {age_str}). Bitte Container prüfen.",
+            "stalled": True,
+            "body": f"AURA Server-Autobot reagiert nicht mehr (letzter Zyklus vor {age_str}). Selbstheilung ausgelöst",
             "state": next_state,
         }
     else:
         # Runner is healthy: clear error state but preserve cooldown timestamp
         health["last_error_at"] = None
         next_state["runner_health_alert"] = health
-        return {"notify": False, "body": "", "state": next_state}
+        return {"notify": False, "stalled": False, "body": "", "state": next_state}
+
+
+def runner_watchdog_cycle(
+    state: dict,
+    runner_health: dict,
+    *,
+    manager: "RunnerManager",
+    now: float | None = None,
+    stale_sec: float | None = None,
+    relay_start_time: float | None = None,
+) -> dict:
+    """Apply alert cooldown plus one atomic manager lifecycle transition."""
+    transition = runner_dead_transition(
+        state,
+        runner_health,
+        mode="server",
+        now=now,
+        relay_start_time=relay_start_time,
+        stale_sec=stale_sec,
+    )
+    if not transition["stalled"]:
+        cycle_count = RunnerManager._cycle_count(runner_health)
+        age = runner_health.get("last_cycle_age_sec")
+        in_startup_grace = (
+            cycle_count < 1
+            and age is None
+            and float(time.time() if now is None else now)
+            - float(RELAY_START_TIME if relay_start_time is None else relay_start_time) < 120.0
+        )
+        lifecycle = (
+            {"restarted": False, "recovered": False}
+            if in_startup_grace
+            else manager.watchdog(runner_health, now=now, stale_sec=stale_sec)
+        )
+        notification = None
+        if lifecycle["recovered"]:
+            notification = {
+                "title": "AURA Runner wieder aktiv",
+                "body": "Selbstheilung erfolgreich — Runner wieder aktiv",
+                "priority": 3,
+            }
+        return {"state": transition["state"], "notification": notification, **lifecycle}
+
+    lifecycle = manager.watchdog(runner_health, now=now, stale_sec=stale_sec)
+    notification = None
+    if transition["notify"]:
+        notification = {
+            "title": "AURA Runner-Fehler",
+            "body": transition["body"],
+            "priority": 4,
+        }
+    return {"state": transition["state"], "notification": notification, **lifecycle}
 
 
 def feed_success_transition(state: dict, *, now: float | None = None) -> dict:
@@ -868,21 +975,35 @@ def run_signal_center_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: flo
             shared = {}
         digest_raw = os.environ.get("AURA_NTFY_DIGEST_UTC", "7").strip().lower()
         digest_hour = 7 if digest_raw in {"off", "false", "none", "disabled", "-1"} else int(digest_raw)
-        digest = daily_digest_transition(state, shared, now=current_time, utc_hour=digest_hour)
+        digest = daily_digest_transition(
+            state,
+            shared,
+            now=current_time,
+            utc_hour=digest_hour,
+            restart_timestamps=RUNNER_MANAGER.snapshot(now=current_time)["restart_timestamps"],
+        )
         if digest["notify"] and digest_enabled():
             _ntfy_notify("AURA Tages-Digest", digest["body"], category="digest", priority=1)
         digest["state"]["updated_at"] = _iso_utc(current_time)
         _save_signal_state(digest["state"])
 
-        # PF-69: Runner health check in server mode
         bot_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
         if bot_mode == "server":
-            r_health = _runner_health()
-            state_curr = _load_signal_state()
-            r_trans = runner_dead_transition(state_curr, r_health, mode=bot_mode, now=current_time)
-            if r_trans["notify"] and _env_enabled("AURA_NTFY_ERRORS", True):
-                _ntfy_notify("AURA Runner-Fehler", r_trans["body"], category="errors", priority=4)
-            _save_signal_state(r_trans["state"])
+            watchdog = runner_watchdog_cycle(
+                _load_signal_state(),
+                _runner_health(),
+                manager=RUNNER_MANAGER,
+                now=current_time,
+            )
+            notification = watchdog["notification"]
+            if notification and _env_enabled("AURA_NTFY_ERRORS", True):
+                _ntfy_notify(
+                    notification["title"],
+                    notification["body"],
+                    category="errors",
+                    priority=notification["priority"],
+                )
+            _save_signal_state(watchdog["state"])
 
         return {"ok": True, "regime": regime, "digest": digest["notify"]}
     except Exception as exc:
@@ -900,7 +1021,10 @@ def run_signal_center_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: flo
 
 def _signal_center_loop(stop_event: threading.Event) -> None:
     while not stop_event.is_set():
-        run_signal_center_cycle()
+        try:
+            run_signal_center_cycle()
+        except Exception:
+            log.exception("Signal-Center cycle crashed; continuing scheduler loop")
         wait = 300.0 - (time.time() % 300.0)
         stop_event.wait(max(1.0, wait))
 
@@ -941,7 +1065,7 @@ def _request(method: str, path: str, body: dict | None = None, public: bool = Tr
         method=method,
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body_err = e.read().decode(errors="replace")
@@ -1100,9 +1224,15 @@ def _runner_health() -> dict:
             "cycle_count": data.get("cycleCount", 0),
             "trade_count": data.get("tradeCount", 0),
             "equity": data.get("equity"),
+            "runner_restart_count": RUNNER_MANAGER.snapshot()["runner_restart_count"],
         }
     except (OSError, json.JSONDecodeError, TypeError):
-        return {"running": False, "last_cycle_age_sec": None, "cycle_count": 0}
+        return {
+            "running": False,
+            "last_cycle_age_sec": None,
+            "cycle_count": 0,
+            "runner_restart_count": RUNNER_MANAGER.snapshot()["runner_restart_count"],
+        }
 
 class SingleFlight:
     def __init__(self):
@@ -1572,6 +1702,120 @@ def _start_runner_if_enabled() -> subprocess.Popen | None:
         return None
 
 
+class RunnerManager:
+    """Coordinate runner ownership and self-healing without holding locks over I/O."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._process: subprocess.Popen | None = None
+        self._restart_count = 0
+        self._restart_timestamps: list[float] = []
+        self._recovery_cycle_count: int | None = None
+        self._stall_active = False
+        self._restart_in_progress = False
+
+    def set_process(self, process: subprocess.Popen | None) -> None:
+        with self._lock:
+            self._process = process
+
+    def current_process(self) -> subprocess.Popen | None:
+        with self._lock:
+            return self._process
+
+    def snapshot(self, *, now: float | None = None) -> dict:
+        current_time = time.time() if now is None else float(now)
+        cutoff = current_time - 86400.0
+        with self._lock:
+            self._restart_timestamps = [stamp for stamp in self._restart_timestamps if stamp >= cutoff]
+            recent = list(self._restart_timestamps)
+            return {
+                "runner_restart_count": self._restart_count,
+                "restart_timestamps": recent,
+                "restarts_24h": len(recent),
+                "recovery_pending": self._recovery_cycle_count is not None,
+            }
+
+    @staticmethod
+    def _cycle_count(health: dict) -> int:
+        try:
+            return int(health.get("cycle_count", health.get("cycleCount", 0)) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    def watchdog(self, health: dict, *, now: float | None = None, stale_sec: float | None = None) -> dict:
+        current_time = time.time() if now is None else float(now)
+        threshold = runner_stale_threshold() if stale_sec is None else float(stale_sec)
+        cycle_count = self._cycle_count(health)
+        age = health.get("last_cycle_age_sec")
+        stale = age is None or not isinstance(age, (int, float)) or not math.isfinite(float(age)) or float(age) > threshold
+
+        with self._lock:
+            recovery_cycle = self._recovery_cycle_count
+            if recovery_cycle is not None and not stale and cycle_count > recovery_cycle:
+                self._recovery_cycle_count = None
+                self._stall_active = False
+                return {"restarted": False, "recovered": True}
+            if not stale:
+                if recovery_cycle is None:
+                    self._stall_active = False
+                return {"restarted": False, "recovered": False}
+            if self._restart_in_progress or (self._process is not None and self._stall_active):
+                return {"restarted": False, "recovered": False}
+            needs_dump = not self._stall_active
+            self._stall_active = True
+            self._restart_in_progress = True
+            old_process = self._process
+
+        if needs_dump:
+            log.error("RUNNER_STALL_STACK_DUMP: runner cycle stale; dumping all relay threads")
+            try:
+                sys.stderr.flush()
+                faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+                sys.stderr.flush()
+            except Exception:
+                log.exception("RUNNER_STALL_STACK_DUMP_FAILED")
+
+        if old_process is not None:
+            try:
+                old_process.terminate()
+                old_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                old_process.kill()
+                try:
+                    old_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    log.error("Runner did not exit after terminate and kill timeouts")
+            except Exception:
+                log.exception("Controlled runner stop failed")
+
+        replacement = _start_runner_if_enabled()
+        with self._lock:
+            self._process = replacement
+            if replacement is not None:
+                self._restart_count += 1
+                self._restart_timestamps.append(current_time)
+                self._recovery_cycle_count = cycle_count
+            self._restart_in_progress = False
+        return {"restarted": replacement is not None, "recovered": False}
+
+    def stop(self) -> None:
+        process = self.current_process()
+        if process is None:
+            return
+        try:
+            process.terminate()
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                log.error("Runner shutdown exceeded terminate and kill timeouts")
+
+
+RUNNER_MANAGER = RunnerManager()
+
+
 # ---------------------------------------------------------------------------
 #  Entry point
 # ---------------------------------------------------------------------------
@@ -1583,6 +1827,7 @@ class RelayServer(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     signal_stop = threading.Event()
+    RUNNER_MANAGER.set_process(_start_runner_if_enabled())
     signal_thread = threading.Thread(
         target=_signal_center_loop,
         args=(signal_stop,),
@@ -1590,7 +1835,6 @@ if __name__ == "__main__":
         name="aura-signal-center",
     )
     signal_thread.start()
-    runner_proc = _start_runner_if_enabled()
     server = RelayServer((HOST, PORT), RelayHandler)
     log.info("AURA Relay v%s listening on http://%s:%d", VERSION, HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
@@ -1600,10 +1844,6 @@ if __name__ == "__main__":
         log.info("Relay gestoppt.")
     finally:
         signal_stop.set()
-        if runner_proc is not None:
+        if RUNNER_MANAGER.current_process() is not None:
             log.info("Terminating headless autobot runner...")
-            runner_proc.terminate()
-            try:
-                runner_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                runner_proc.kill()
+            RUNNER_MANAGER.stop()
