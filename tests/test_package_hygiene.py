@@ -39,6 +39,7 @@ def test_release_package_excludes_historical_and_homelab_material():
 
 
 def test_release_package_keeps_runtime_and_current_docs():
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     files = build_package.collect_files()
     required = {
         "VERSION",
@@ -47,7 +48,7 @@ def test_release_package_keeps_runtime_and_current_docs():
         "Symbiose_Dashboard.html",
         "Symbiose_Signal_System_v1.pine",
         "README.md",
-        "docs/releases/RELEASE_v1.6.1.md",
+        f"docs/releases/RELEASE_v{version}.md",
         "assets/aura_logo.svg",
         "assets/aura_logo_horizontal.svg",
     }

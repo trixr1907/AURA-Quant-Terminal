@@ -7,7 +7,7 @@ FROM python:3.12-alpine
 # Set build & runtime metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="1.6.1"
+LABEL version="1.7.0"
 
 # Set non-interactive & python optimization flags
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +15,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     SYM_HOST=0.0.0.0 \
     SYM_PORT=8787 \
     AURA_STATE_DIR=/var/lib/aura
+
+# Install Node.js for PF-66 Headless Paper-Autobot
+RUN apk add --no-cache nodejs
 
 # Create non-root user for maximum security (Best Practice)
 RUN addgroup -S aura && adduser -S aura -G aura
@@ -26,6 +29,7 @@ WORKDIR /app
 
 # Copy application files
 COPY --chown=aura:aura bitget_relay.py .
+COPY --chown=aura:aura headless_autobot.js .
 COPY --chown=aura:aura VERSION .
 COPY --chown=aura:aura Symbiose_Dashboard.html .
 COPY --chown=aura:aura SYMBIOSE_Tutorial.html .

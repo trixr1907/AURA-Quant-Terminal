@@ -39,12 +39,13 @@ MANIFEST = [
     "requirements.txt",
     # source
     "bitget_relay.py",
+    "headless_autobot.js",
     "Symbiose_Dashboard.html",
     "Symbiose_Signal_System_v1.pine",
     # documentation and brand assets
     "LICENSE",
     "README.md",
-    "docs/releases/RELEASE_v1.6.1.md",
+    "docs/releases/RELEASE_v1.7.0.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",
