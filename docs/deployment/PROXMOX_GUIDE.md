@@ -27,8 +27,8 @@ Der neue **Smart Installer** scannt das Zielsystem vollautomatisch und wählt oh
 
 ## 🐧 1-Befehl Ausführung auf dem Linux-Host / Proxmox Shell
 ```bash
-chmod +x smart_homelab_installer.sh
-./smart_homelab_installer.sh
+chmod +x scripts/ops/smart_homelab_installer.sh
+./scripts/ops/smart_homelab_installer.sh
 ```
 
 ---

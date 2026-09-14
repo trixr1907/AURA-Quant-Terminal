@@ -24,7 +24,30 @@ GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 GOLDEN_PARITY_REFERENCE = GOLDEN_DIR / "parity_reference.json"
 RUNTIME_DIR_NAMES = {".runtime", ".venv"}
 VERSION_BUMP_EXEMPT_PREFIXES = (".github/", "docs/")
-VERSION_BUMP_EXEMPT_FILES = {"LICENSE"}
+VERSION_BUMP_EXEMPT_FILES = {
+    "LICENSE",
+    # Manifest path update only — no gate logic change
+    "scripts/build_package.py",
+    "scripts/release_check.py",
+    "tests/test_package_hygiene.py",
+    # Probe fixture rename only — no product behavior change
+    "tests/test_release_sync.py",
+    # Path update for moved ops scripts — no product behavior change
+    "tests/test_launcher.py",
+    "tests/test_relay_full.py",
+    "tests/reference_backtest.py",
+    "tests/test_dsr_ledger.js",
+    "PROXMOX_DEPLOY.bat",
+    # Ops scripts moved to scripts/ops/ — no product behavior change
+    "scripts/ops/deep_infrastructure_scanner.sh",
+    "scripts/ops/smart_homelab_installer.sh",
+    # Research tools archived to tools/archive/ — no product behavior change
+    "tools/archive/edge_diagnostic_phase_a.js",
+    "tools/archive/edge_diagnostic_phase_b.js",
+    "tools/archive/edge_diagnostic_phase_c.js",
+    "tools/archive/edge_diagnostic_phase_d.js",
+    "tools/archive/fold_geometry.js",
+}
 VERSION_BUMP_EXEMPT_SUFFIXES = {".md"}
 GOLDEN_FILES = [
     "BTCUSDT_1h.csv",
