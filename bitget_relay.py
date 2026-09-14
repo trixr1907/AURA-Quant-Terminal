@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.6.1 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.7.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,10 +9,12 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.6.1", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.7.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
+  POST /api/signals      -> Push-Notification via ntfy (PF-68: Server-Bot signal emission)
+  GET  /api/universe     -> Cached universe list (liquid contracts)
 """
 
 from __future__ import annotations
@@ -229,6 +231,9 @@ ALLOWED_STATE_KEYS = {
     "aura-quant-terminal-active-trades-v1",
     "aura-quant-terminal-history-trades-v1",
     "aura-ntfy-signals-settings-v1",
+    # PF-67: server-bot config (written by Dashboard panel) and runtime state (written by runner)
+    "aura-server-bot-config-v1",
+    "aura-server-bot-state-v1",
 }
 
 def _validate_mutations(mutations: Any) -> list[dict] | None:
@@ -750,6 +755,40 @@ def daily_digest_transition(state: dict, shared: dict, *, now: float | None = No
     return {"notify": due, "body": body, "state": next_state}
 
 
+def runner_dead_transition(state: dict, runner_health: dict, *, mode: str = "server", now: float | None = None) -> dict:
+    """Trigger P4 alert with 60 min cooldown when server runner is dead or stale."""
+    current_time = time.time() if now is None else float(now)
+    next_state = dict(state) if isinstance(state, dict) else {}
+    health = dict(next_state.get("runner_health_alert", {}))
+    
+    if mode != "server":
+        return {"notify": False, "body": "", "state": next_state}
+
+    is_running = runner_health.get("running", False)
+    age = runner_health.get("last_cycle_age_sec")
+    is_stale = age is None or age > 300.0  # > 5 minutes without cycle
+    
+    if not is_running or is_stale:
+        cooldown_until = float(health.get("cooldown_until", 0) or 0)
+        notify = current_time >= cooldown_until
+        health["last_error_at"] = current_time
+        if notify:
+            health["alerted_at"] = current_time
+            health["cooldown_until"] = current_time + 3600.0  # 60 min cooldown
+        next_state["runner_health_alert"] = health
+        age_str = f"{age:.0f}s" if isinstance(age, (int, float)) else "unbekannt"
+        return {
+            "notify": notify,
+            "body": f"AURA Server-Autobot reagiert nicht mehr (running={is_running}, letzter Zyklus vor {age_str}). Bitte Container prüfen.",
+            "state": next_state,
+        }
+    else:
+        # Runner is healthy: clear error state but preserve cooldown timestamp
+        health["last_error_at"] = None
+        next_state["runner_health_alert"] = health
+        return {"notify": False, "body": "", "state": next_state}
+
+
 def feed_success_transition(state: dict, *, now: float | None = None) -> dict:
     """End one consecutive feed-error period without shortening its cooldown."""
     current_time = time.time() if now is None else float(now)
@@ -805,6 +844,17 @@ def run_signal_center_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: flo
             _ntfy_notify("AURA Tages-Digest", digest["body"], category="digest", priority=1)
         digest["state"]["updated_at"] = _iso_utc(current_time)
         _save_signal_state(digest["state"])
+
+        # PF-69: Runner health check in server mode
+        bot_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
+        if bot_mode == "server":
+            r_health = _runner_health()
+            state_curr = _load_signal_state()
+            r_trans = runner_dead_transition(state_curr, r_health, mode=bot_mode, now=current_time)
+            if r_trans["notify"] and _env_enabled("AURA_NTFY_ERRORS", True):
+                _ntfy_notify("AURA Runner-Fehler", r_trans["body"], category="errors", priority=4)
+            _save_signal_state(r_trans["state"])
+
         return {"ok": True, "regime": regime, "digest": digest["notify"]}
     except Exception as exc:
         try:
@@ -1004,6 +1054,26 @@ def market_data_readiness() -> dict:
     if age > READINESS_FRESH_SECONDS:
         return {"ok": False, "code": "MARKET_DATA_STALE", **snapshot}
     return {"ok": True, "code": "MARKET_DATA_READY", **snapshot}
+
+
+# PF-69: Runner health — reads runner_health.json written by headless_autobot.js
+def _runner_health() -> dict:
+    health_path = STATE_DIR / "runner_health.json"
+    try:
+        data = json.loads(health_path.read_text(encoding="utf-8"))
+        last_cycle = data.get("lastCycleAt")
+        age_sec: float | None = None
+        if isinstance(last_cycle, (int, float)) and last_cycle > 0:
+            age_sec = round((time.time() * 1000 - last_cycle) / 1000, 1)
+        return {
+            "running": data.get("running", False),
+            "last_cycle_age_sec": age_sec,
+            "cycle_count": data.get("cycleCount"),
+            "trade_count": data.get("tradeCount"),
+            "equity": data.get("equity"),
+        }
+    except (OSError, json.JSONDecodeError, TypeError):
+        return {"running": False, "last_cycle_age_sec": None}
 
 class SingleFlight:
     def __init__(self):
@@ -1268,7 +1338,7 @@ class RelayHandler(BaseHTTPRequestHandler):
                 self._send_text(pine_file.read_bytes())
             except OSError:
                 self._send_json({"code": "ERR_PINE_NOT_FOUND"}, 404)
-        elif path == "/data/bitget_usdt_futures_universe.json":
+        elif path == "/data/bitget_usdt_futures_universe.json" or path == "/api/universe":
             universe_file = Path(
                 os.environ.get("AURA_UNIVERSE_PATH")
                 or (Path(__file__).resolve().parent / "data" / "bitget_usdt_futures_universe.json")
@@ -1286,7 +1356,9 @@ class RelayHandler(BaseHTTPRequestHandler):
             })
         elif path == "/ready":
             readiness = market_data_readiness()
-            self._send_json(readiness, 200 if readiness["ok"] else 503)
+            # PF-69: include runner health (last cycle age)
+            runner_health = _runner_health()
+            self._send_json({**readiness, "runner": runner_health}, 200 if readiness["ok"] else 503)
         elif path == "/api/state":
             if not self._authorize_privileged():
                 return
@@ -1384,6 +1456,21 @@ class RelayHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "key": key, "rev": rev, "state": saved}, cors_headers=self._privileged_cors_headers())
             return
 
+        if path == "/api/signals":
+            # PF-68: Server-Bot signal emission — relay-side ntfy push.
+            # Runner has already claimed the event via /api/state signal_claim.
+            # This endpoint just performs the actual ntfy push so the runner
+            # never needs AURA_NTFY_URL in its own environment.
+            title    = str(payload.get("title", "AURA · Signal")).strip()[:128]
+            body     = str(payload.get("body", "")).strip()[:1024]
+            priority = int(payload.get("priority", 3))
+            if not body:
+                self._send_json({"code": "ERR_EMPTY_BODY"}, 400)
+                return
+            sent = _ntfy_notify(title, body, priority=priority)
+            self._send_json({"ok": sent})
+            return
+
         if path == "/api/public":
             # Public Bitget REST passthrough with TTL caching & Token-Bucket rate limiting.
             raw = payload.get("path") or payload.get("url", "")
@@ -1412,6 +1499,51 @@ class RelayHandler(BaseHTTPRequestHandler):
 
 
 # ---------------------------------------------------------------------------
+#  PF-66: Headless Paper-Autobot Runner Process Manager
+# ---------------------------------------------------------------------------
+
+def _start_runner_if_enabled() -> subprocess.Popen | None:
+    """Start headless_autobot.js as a managed child process if AURA_BOT_MODE=server."""
+    mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
+    if mode != "server":
+        return None
+    runner_script = Path(__file__).resolve().parent / "headless_autobot.js"
+    if not runner_script.exists():
+        log.warning("Headless autobot script missing at %s — server bot not started", runner_script)
+        return None
+    node = shutil.which("node") or os.environ.get("SYM_NODE")
+    if not node:
+        log.error("Node.js not found in PATH — cannot start headless autobot")
+        return None
+    env = dict(os.environ)
+    env["AURA_BOT_MODE"] = "server"
+    env["AURA_RELAY_URL"] = f"http://127.0.0.1:{PORT}"
+    try:
+        proc = subprocess.Popen(
+            [node, str(runner_script)],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        log.info("Headless Paper Autobot started (PID %d)", proc.pid)
+
+        # Background thread to log runner output
+        def _log_runner_output():
+            if proc.stdout:
+                for line in proc.stdout:
+                    log.info("[Runner] %s", line.rstrip())
+
+        t = threading.Thread(target=_log_runner_output, daemon=True, name="autobot-runner-log")
+        t.start()
+        return proc
+    except Exception as exc:
+        log.error("Failed to start headless autobot: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
 #  Entry point
 # ---------------------------------------------------------------------------
 
@@ -1429,6 +1561,7 @@ if __name__ == "__main__":
         name="aura-signal-center",
     )
     signal_thread.start()
+    runner_proc = _start_runner_if_enabled()
     server = RelayServer((HOST, PORT), RelayHandler)
     log.info("AURA Relay v%s listening on http://%s:%d", VERSION, HOST, PORT)
     log.info("Modus: Quant Research & Signal Analysis (Read-Only CORS Proxy + Cross-Device Sync)")
@@ -1438,3 +1571,10 @@ if __name__ == "__main__":
         log.info("Relay gestoppt.")
     finally:
         signal_stop.set()
+        if runner_proc is not None:
+            log.info("Terminating headless autobot runner...")
+            runner_proc.terminate()
+            try:
+                runner_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner_proc.kill()
