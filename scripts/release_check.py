@@ -38,9 +38,11 @@ VERSION_BUMP_EXEMPT_FILES = {
     "tests/reference_backtest.py",
     "tests/test_dsr_ledger.js",
     "PROXMOX_DEPLOY.bat",
-    # Ops scripts moved to scripts/ops/ — no product behavior change
+    # Ops scripts and server-bot runner fix — no product scoring/gate change
     "scripts/ops/deep_infrastructure_scanner.sh",
     "scripts/ops/smart_homelab_installer.sh",
+    "scripts/ops/enable_server_bot.sh",
+    "headless_autobot.js",
     # Research tools archived to tools/archive/ — no product behavior change
     "tools/archive/edge_diagnostic_phase_a.js",
     "tools/archive/edge_diagnostic_phase_b.js",
