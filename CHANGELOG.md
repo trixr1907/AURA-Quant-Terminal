@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.1] – 2026-09-14
+
+### Fixed
+- **Befund 1 / Block A (Receiver-Bootstrap-Pfad für Frischinstallationen):**
+  - Neue Referenz-Implementierung `scripts/ops/aura_webhook_receiver.reference.py` mit Clean-Slate-Bootstrap: Schlägt `docker inspect <container>` fehl (kein Vorcontainer), wird der Container vor dem Recycle vollautomatisch aus der kanonischen Compose-Spezifikation (`--restart unless-stopped`, `--read-only`, `--security-opt no-new-privileges:true`, `--cap-drop ALL`, tmpfs `/tmp` [64m, noexec,nosuid], Port 8787, Volume `aura-state`, `--env-file /var/lib/aura/aura_bot.env` falls vorhanden) erzeugt.
+  - `docs/deployment/DOCKER_GUIDE.md` um umfassenden Abschnitt „Frischinstallation: Receiver einrichten" (Referenz-Datei, systemd-Unit, Environment-Konfiguration, GitHub-Webhook) erweitert.
+- **Befund 2 / Block B (Docs-Wahrheit in SERVER_BOT_GUIDE.md):**
+  - Beseitigung der phantomartigen `read_persistent_bot_env()`-Referenz.
+  - Wahrheitsgemäße Beschreibung des nativen Docker `--env-file`-Mechanismus im Receiver ohne eigenes Python-File-Parsing.
+- **Befund 3 / Block C (P4-Startup-Grace im Relay):**
+  - `bitget_relay.py`: `runner_dead_transition` unterdrückt Fehlalarme während der Startup-Gnadenfrist (120s nach Relay-Start), solange `cycle_count < 1` ist.
+  - Echter Tod mitten im Betrieb (`cycle_count >= 1`) löst unverändert sofortigen P4-Alarm mit 60-Minuten-Cooldown aus.
+  - `tests/test_pf67_server_mode.py` um 3 neue Tests für Startup-Grace und Tod nach Zyklus 1 erweitert.
+
+### Scope
+- PATCH (`1.7.1`, Bugfix): Keine Änderungen an Scoring-Logik, Signal-Typen oder Research-Modellen.
+- Trials-Ledger unverändert auf `EXP-032`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.7.0] – 2026-09-14
 
 ### Added
