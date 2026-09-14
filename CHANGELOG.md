@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] – 2026-09-14
+
+### Added
+- **Runner-Selbstheilung:** Ein threadsicherer Relay-Manager erkennt fehlende bzw. überalterte Runner-Zyklen unabhängig vom `running`-Flag, erzeugt pro Stall-Ereignis genau einen markierten Thread-Dump und startet den Node-Runner kontrolliert über den bestehenden Boot-Pfad neu.
+- **Recovery-Telemetrie:** P4 meldet `Selbstheilung ausgelöst`; P3 meldet `Selbstheilung erfolgreich — Runner wieder aktiv` erst nach dem ersten höheren erfolgreichen Zyklus des Ersatzprozesses. `/ready` und Tages-Digest zeigen Restart-Zähler.
+
+### Fixed
+- **Netzwerk-Timeouts:** Python-`urlopen` und Node-`http.request`/`https.request` sind einheitlich auf 10 Sekunden begrenzt; Timeout-Pfade räumen Request und Scan-Guard sauber auf.
+- **Digest-Quelle:** Server-Digest-Equity kommt aus `aura-server-bot-state-v1.equity`, mit `AURA_BOT_EQUITY` und 10000 als sichere Fallbacks.
+- **Stall-Forensik:** `faulthandler` schreibt vor dem Stop genau einen klar markierten Dump aller Relay-Threads nach stderr.
+
+### Scope
+- MINOR (`1.8.0`), weil Runner-Selbstheilung und Recovery-Sichtbarkeit neue rückwärtskompatible Betriebsfunktionen sind.
+- Keine Scoring-, Sizing-, Signal-, OOS-, DSR- oder Universe-Änderung.
+- Trials-Ledger unverändert `EXP-032`; Verdict `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.7.1] – 2026-09-14
 
 ### Fixed

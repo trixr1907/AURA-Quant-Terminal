@@ -1,6 +1,6 @@
 # AURA Server-Bot Guide — 24/7 Signale ohne offenen Browser
 
-Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.7.1.
+Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.8.0.
 
 ---
 
@@ -71,7 +71,8 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
      "last_cycle_age_sec": 14.2,
      "cycle_count": 1,
      "trade_count": 0,
-     "equity": 10000
+     "equity": 10000,
+     "runner_restart_count": 0
    }
    ```
 
@@ -82,6 +83,40 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
      -d '{"title":"AURA Server-Bot Test","body":"Signal-Pfad 24/7 verifiziert","priority":3}'
    ```
    Ergebnis: `{"ok": true}` und sofortiger Push-Eingang auf allen abonnierten Geräten.
+
+---
+
+
+## Runner-Selbstheilung und Netzwerkgrenzen
+
+Das Relay überwacht im Signal-Center-Thread ausschließlich die Freshness erfolgreich abgeschlossener Runner-Zyklen. Das Feld `running` ist nur sichtbar und kein Stall-Kriterium. Vor dem ersten Zyklus bleibt die bestehende Startup-Gnadenfrist von 120 Sekunden aktiv.
+
+Ablauf eines Stall-Ereignisses:
+
+1. Fehlt nach der Startup-Gnadenfrist ein Zyklus-Timestamp oder überschreitet `last_cycle_age_sec` die Schwelle, markiert das Relay genau ein Stall-Ereignis.
+2. Vor dem Stop schreibt `RUNNER_STALL_STACK_DUMP` einmalig einen `faulthandler`-Dump aller Relay-Threads nach stderr für die Container-Logs.
+3. Der Manager sendet `terminate()`, wartet höchstens fünf Sekunden, nutzt nötigenfalls `kill()` und wartet nochmals begrenzt.
+4. Der Ersatzprozess startet ausschließlich über `_start_runner_if_enabled()` und lädt Trading-State, Positionen und Equity wieder über den bestehenden Relay-State.
+5. Die P4-Meldung enthält `Selbstheilung ausgelöst`. Erst ein höherer erfolgreicher `cycle_count` des Ersatzprozesses erzeugt P3 `Selbstheilung erfolgreich — Runner wieder aktiv`.
+
+Die Standardschwelle lautet:
+
+```text
+max(3 * AURA_BOT_SCAN_SEC, 180.0)
+```
+
+Ein positiver und endlicher `AURA_RUNNER_STALE_SEC`-Wert überschreibt die Formel. Ungültige, nicht-endliche oder nicht-positive Werte fallen ohne Startfehler auf die berechnete Schwelle zurück. Alle ausgehenden Relay- und Runner-Netzwerkaufrufe sind auf 10 Sekunden begrenzt; ein Timeout beendet nur den aktuellen Scan sauber, gibt den Scan-Guard frei und lässt den nächsten Turn zu.
+
+### Betriebs-ENV
+
+| Variable | Standard | Bedeutung |
+|---|---:|---|
+| `AURA_BOT_MODE` | aus | `server` aktiviert den Headless Paper-Autobot. |
+| `AURA_BOT_SCAN_SEC` | `60` | Scanintervall; bestimmt auch die berechnete Stall-Schwelle. |
+| `AURA_RUNNER_STALE_SEC` | berechnet | Optionaler positiver, endlicher Override der Stall-Schwelle. |
+| `AURA_BOT_EQUITY` | `10000` | Start- und Digest-Fallback-Equity, falls der kanonische Server-State ungültig ist. |
+| `AURA_NTFY_ERRORS` | `1` | Aktiviert P4-Selbstheilungs- und P3-Recovery-Meldungen über den bestehenden Relay-Pfad. |
+| `AURA_NTFY_DIGEST` | `1` | Aktiviert den Tages-Digest inklusive Selbstheilungen der letzten 24 Stunden. |
 
 ---
 
