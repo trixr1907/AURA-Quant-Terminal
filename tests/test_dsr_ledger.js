@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm'); // NOSONAR -- executes a fixed repository function slice in an isolated test context.
 
 const root = path.join(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'tools', 'edge_diagnostic_phase_d.js'), 'utf8');
+const source = fs.readFileSync(path.join(root, 'tools', 'archive', 'edge_diagnostic_phase_d.js'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'Symbiose_Dashboard.html'), 'utf8');
 const begin = dashboard.indexOf('<script>') + '<script>'.length;
 const end = dashboard.indexOf('</script>', begin);

@@ -353,7 +353,7 @@ class TestVersionProgression(unittest.TestCase):
         with mock.patch.object(
             release_check,
             "run",
-            return_value=(0, " M scripts/release_check.py\n", ""),
+            return_value=(0, " M bitget_relay.py\n", ""),
         ):
             changed, error = release_check.inspect_worktree_changes()
         self.assertTrue(changed)
@@ -362,7 +362,7 @@ class TestVersionProgression(unittest.TestCase):
     def test_committed_product_changes_since_remote_release_tag_are_detected(self):
         responses = [
             (0, "abc123\trefs/tags/v1.2.5\n", ""),
-            (0, "scripts/release_check.py\n", ""),
+            (0, "bitget_relay.py\n", ""),
         ]
         with mock.patch.object(release_check, "run", side_effect=responses):
             changed, error = release_check.inspect_committed_changes_since_tag("v1.2.5", remote=True)
