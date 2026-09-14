@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.8.1 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.8.2 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.8.1", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.8.2", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -1224,7 +1224,17 @@ def market_data_readiness() -> dict:
 
 
 # PF-69: Runner health — reads runner_health.json written by headless_autobot.js
-def _runner_health() -> dict:
+def _runner_health(*, mode: str | None = None) -> dict:
+    eff_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower() if mode is None else str(mode).strip().lower()
+    restart_count = RUNNER_MANAGER.snapshot()["runner_restart_count"]
+    if eff_mode != "server":
+        return {
+            "mode": "none",
+            "bot_enabled": False,
+            "running": False,
+            "state": "not_configured",
+        }
+
     health_path = STATE_DIR / "runner_health.json"
     try:
         data = json.loads(health_path.read_text(encoding="utf-8"))
@@ -1238,8 +1248,13 @@ def _runner_health() -> dict:
             heartbeat_age_sec = round((time.time() * 1000 - last_heartbeat) / 1000, 1)
         paused = bool(data.get("paused", False))
         paused_by = data.get("pausedBy", data.get("paused_by", None)) if paused else None
+        running = bool(data.get("running", False))
+        state_str = "paused" if paused else ("running" if running else "stopped")
         return {
-            "running": data.get("running", False),
+            "mode": "server",
+            "bot_enabled": True,
+            "running": running,
+            "state": state_str,
             "last_cycle_age_sec": age_sec,
             "last_heartbeat_age_sec": heartbeat_age_sec,
             "paused": paused,
@@ -1247,11 +1262,14 @@ def _runner_health() -> dict:
             "cycle_count": data.get("cycleCount", 0),
             "trade_count": data.get("tradeCount", 0),
             "equity": data.get("equity"),
-            "runner_restart_count": RUNNER_MANAGER.snapshot()["runner_restart_count"],
+            "runner_restart_count": restart_count,
         }
     except (OSError, json.JSONDecodeError, TypeError):
         return {
+            "mode": "server",
+            "bot_enabled": True,
             "running": False,
+            "state": "stopped",
             "last_cycle_age_sec": None,
             "last_heartbeat_age_sec": None,
             "paused": False,
@@ -1259,7 +1277,7 @@ def _runner_health() -> dict:
             "cycle_count": 0,
             "trade_count": 0,
             "equity": None,
-            "runner_restart_count": RUNNER_MANAGER.snapshot()["runner_restart_count"],
+            "runner_restart_count": restart_count,
         }
 
 class SingleFlight:
@@ -1545,7 +1563,13 @@ class RelayHandler(BaseHTTPRequestHandler):
             readiness = market_data_readiness()
             # PF-69: include runner health (last cycle age)
             runner_health = _runner_health()
-            self._send_json({**readiness, "runner": runner_health}, 200 if readiness["ok"] else 503)
+            bot_enabled = (os.environ.get("AURA_BOT_MODE", "").strip().lower() == "server")
+            self._send_json({
+                **readiness,
+                "bot_enabled": bot_enabled,
+                "mode": "server" if bot_enabled else "none",
+                "runner": runner_health,
+            }, 200 if readiness["ok"] else 503)
         elif path == "/api/state":
             if not self._authorize_privileged():
                 return
@@ -1688,6 +1712,63 @@ class RelayHandler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 #  PF-66: Headless Paper-Autobot Runner Process Manager
 # ---------------------------------------------------------------------------
+
+def check_unconfigured_bot_startup() -> bool:
+    """Warn loudly if bot state history exists but AURA_BOT_MODE is not set to 'server'."""
+    mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
+    if mode == "server":
+        return False
+
+    has_history = False
+    try:
+        state = _load_shared_state()
+        bot_state = state.get("aura-server-bot-state-v1")
+        if isinstance(bot_state, dict):
+            if (
+                int(bot_state.get("cycle_count", bot_state.get("cycleCount", 0)) or 0) > 0
+                or bool(bot_state.get("trades"))
+                or bool(bot_state.get("history"))
+            ):
+                has_history = True
+    except Exception:
+        pass
+
+    if not has_history:
+        health_path = STATE_DIR / "runner_health.json"
+        try:
+            if health_path.exists():
+                hdata = json.loads(health_path.read_text(encoding="utf-8"))
+                if (
+                    int(hdata.get("cycleCount", hdata.get("cycle_count", 0)) or 0) > 0
+                    or int(hdata.get("tradeCount", hdata.get("trade_count", 0)) or 0) > 0
+                ):
+                    has_history = True
+        except Exception:
+            pass
+
+    if not has_history:
+        return False
+
+    log.error(
+        "Bot-State-Historie vorhanden, aber AURA_BOT_MODE nicht gesetzt — "
+        "Server-Bot ist DEAKTIVIERT (vermutlich verlorene ENV bei manueller Container-Operation)."
+    )
+    ntfy_url = os.environ.get("AURA_NTFY_URL", "").strip()
+    if ntfy_url:
+        _ntfy_notify(
+            "AURA Server-Bot deaktiviert",
+            "WARNUNG: Bot-State-Historie vorhanden, aber AURA_BOT_MODE ist nicht gesetzt. "
+            "Der Server-Bot laeuft nicht! Bitte Container mit korrekter ENV starten.",
+            category="warnings",
+            priority=3,
+        )
+    else:
+        log.error(
+            "AURA_NTFY_URL fehlt ebenfalls — Push-Warnung unmoeglich. "
+            "Siehe docs/deployment/SERVER_BOT_GUIDE.md"
+        )
+    return True
+
 
 def _start_runner_if_enabled() -> subprocess.Popen | None:
     """Start headless_autobot.js as a managed child process if AURA_BOT_MODE=server."""
@@ -1876,6 +1957,7 @@ class RelayServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    check_unconfigured_bot_startup()
     signal_stop = threading.Event()
     RUNNER_MANAGER.set_process(_start_runner_if_enabled())
     signal_thread = threading.Thread(

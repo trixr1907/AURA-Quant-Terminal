@@ -6,10 +6,10 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v1.8.1 — Confluence Terminal
+# AURA v1.8.2 — Confluence Terminal
 
 <div align="center">
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.8.1-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.8.1"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.8.2-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 1.8.2"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
   <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
   <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">
@@ -182,8 +182,8 @@ Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bed
 
 ## Releases & Changelog
 
-- [**Aktuelles Release v1.8.1 (docs/releases/RELEASE_v1.8.1.md)**](docs/releases/RELEASE_v1.8.1.md) — PATCH: Watchdog-Pause-Awareness, Heilungs-Quittung, Dashboard-Event-Hygiene (Test-Push-Flut, TV-Doppelöffnung, Bot-Trade-Live-Tracking).
-- [**Alle Release Notes (docs/releases/)**](docs/releases/) — v1.1.0 bis v1.8.1 (36 Dateien, kanonisch).
+- [**Aktuelles Release v1.8.2 (docs/releases/RELEASE_v1.8.2.md)**](docs/releases/RELEASE_v1.8.2.md) — PATCH: ehrliches `/ready`, Anti-Stumm-Bootwarnung, Ops-Checkliste und Signal-/Live-Ausführungspreis-Split.
+- [**Alle Release Notes (docs/releases/)**](docs/releases/) — v1.1.0 bis v1.8.2 (37 Dateien, kanonisch).
 - [**Changelog (CHANGELOG.md)**](CHANGELOG.md) — Lückenlose Release-Historie nach Keep a Changelog.
 
 ## Dokumentation & SOTA Index

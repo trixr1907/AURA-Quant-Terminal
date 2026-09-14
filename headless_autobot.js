@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA v1.8.1 — Headless Paper Autobot (Server Mode)
+ * AURA v1.8.2 — Headless Paper Autobot (Server Mode)
  * ====================================================
  * PF-66: Runs the full Autobot cycle server-side inside the Docker container.
  *        Loads the Engine block directly from Symbiose_Dashboard.html
@@ -215,7 +215,7 @@ async function claimSignalEvent(key) {
 }
 
 // ---------------------------------------------------------------------------
-// Bitget klines via relay /api/public
+// Bitget market data via relay /api/public
 // ---------------------------------------------------------------------------
 async function fetchKlinesViaRelay(symbol, tf, limit = 1000) {
   const tfMap = { '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
@@ -237,6 +237,22 @@ async function fetchKlinesViaRelay(symbol, tf, limit = 1000) {
     }))
     .sort((a, b) => a.t - b.t);
   return candles.length >= 40 ? { candles } : null;
+}
+
+async function fetchTickerViaRelay(symbol) {
+  const r = await relayRequest('POST', '/api/public', {
+    path: `/api/v2/mix/market/ticker?symbol=${symbol}&productType=usdt-futures`,
+    method: 'GET',
+  });
+  const item = Array.isArray(r.body?.data) ? r.body.data[0] : r.body?.data;
+  const price = Number(item?.lastPr ?? item?.last ?? item?.markPrice);
+  if (!Number.isFinite(price) || price <= 0) throw new Error('Ticker response has no valid price');
+  return { price };
+}
+
+function candleDurationMs(tf) {
+  const minutes = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240, '1d': 1440 }[tf] || 60;
+  return minutes * 60_000;
 }
 
 // ---------------------------------------------------------------------------
@@ -633,12 +649,18 @@ async function runScanCycle(engine, state, config) {
       }
 
       const freshRegime = engine.regimeOf(A);
-      const lastPrice   = kdata.candles[kdata.candles.length - 1].c;
+      const lastCandle  = kdata.candles[kdata.candles.length - 1];
+      const lastCandleTs = Number(lastCandle?.t || 0);
+      if (lastCandleTs > 1_000_000_000_000 && Date.now() - lastCandleTs > 1.5 * candleDurationMs(candidateGate.tf)) {
+        engine.addAutobotReject(funnel, 'STALE_CANDLE');
+        continue;
+      }
+      const signalPrice = lastCandle.c;
       const freshGate   = engine.classifyRadarTf({
         score: A.last.score, dir: A.last.dir,
         regime: freshRegime.reg, isSqz: freshRegime.isSqz,
         adx: A.last.adx,
-        atrPct: lastPrice > 0 ? (A.last.atr / lastPrice * 100) : 0,
+        atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0,
       });
       const freshCandidate = engine.evaluateAutobotCandidate({
         executable: freshGate.tradeable,
@@ -680,15 +702,24 @@ async function runScanCycle(engine, state, config) {
         continue;
       }
 
-      const dir     = freshCandidate.dir;
-      const atr     = A.last.atr || (lastPrice * 0.015);
-      const slDist  = Math.max(lastPrice * 0.005, atr * 1.5);
-      const sl      = dir === 1 ? (lastPrice - slDist) : (lastPrice + slDist);
-      const tp1     = dir === 1 ? (lastPrice + slDist * 1.5) : (lastPrice - slDist * 1.5);
-      const tp2     = dir === 1 ? (lastPrice + slDist * 3.0) : (lastPrice - slDist * 3.0);
-      const tp3     = dir === 1 ? (lastPrice + slDist * 5.0) : (lastPrice - slDist * 5.0);
+      // Fetch the executable mark only after every signal/evidence gate has passed.
+      let execPrice = signalPrice;
+      try {
+        const ticker = await fetchTickerViaRelay(c.symbol);
+        execPrice = ticker.price;
+      } catch (tickerError) {
+        console.warn(`[Runner] Live ticker failed for ${c.symbol}; using closed-candle fallback ${signalPrice}: ${tickerError.message}`);
+      }
 
-      const priceRiskPct   = slDist / lastPrice;
+      const dir     = freshCandidate.dir;
+      const atr     = A.last.atr || (signalPrice * 0.015);
+      const slDist  = Math.max(execPrice * 0.005, atr * 1.5);
+      const sl      = dir === 1 ? (execPrice - slDist) : (execPrice + slDist);
+      const tp1     = dir === 1 ? (execPrice + slDist * 1.5) : (execPrice - slDist * 1.5);
+      const tp2     = dir === 1 ? (execPrice + slDist * 3.0) : (execPrice - slDist * 3.0);
+      const tp3     = dir === 1 ? (execPrice + slDist * 5.0) : (execPrice - slDist * 5.0);
+
+      const priceRiskPct   = slDist / execPrice;
       const targetNotional = Math.min(state.equity * 2.5, kelly.riskAmt / priceRiskPct);
       const leverage       = Math.min(cfg.maxLeverage, Math.max(2, Math.ceil(targetNotional / (state.equity * 0.25))));
       const margin         = Math.round(targetNotional / leverage);
@@ -718,7 +749,8 @@ async function runScanCycle(engine, state, config) {
         source:       'server',
         coin:         c.symbol,
         dir,
-        entry:        lastPrice, markPrice: lastPrice,
+        signalPrice,
+        entry:        execPrice, markPrice: execPrice,
         initialSl:    sl, currentSl: sl,
         tp: tp1, tp1, tp2, tp3,
         margin, initialMargin: margin, leverage,
@@ -742,10 +774,11 @@ async function runScanCycle(engine, state, config) {
       openCoins.add(c.symbol);
       funnel.selected++;
 
-      console.log(`[Runner] OPEN ${c.symbol} ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x @${lastPrice} margin=${margin} tf=${freshCandidate.tf} score=${newTrade.score} dsr=${edgeGate.setupDsr.toFixed(2)} edge=${edgeGate.edge.toFixed(3)}`);
+      const slippagePct = signalPrice > 0 ? ((execPrice - signalPrice) / signalPrice) * 100 : 0;
+      console.log(`[Runner] OPEN ${c.symbol} ${dir === 1 ? 'LONG' : 'SHORT'} ${leverage}x entry=${execPrice} signal=${signalPrice} slippage=${slippagePct >= 0 ? '+' : ''}${slippagePct.toFixed(2)}% margin=${margin} tf=${freshCandidate.tf} score=${newTrade.score} dsr=${edgeGate.setupDsr.toFixed(2)} edge=${edgeGate.edge.toFixed(3)}`);
 
       // Emit open signal
-      await emitTradeEvent(engine, newTrade, 'open', { price: lastPrice });
+      await emitTradeEvent(engine, newTrade, 'open', { price: execPrice, signalPrice });
 
       break; // 1 trade per scan cycle (consistent with browser bot)
     }
@@ -841,7 +874,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.1)`);
+  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.2)`);
   console.log(`[Runner] Dashboard: ${DASHBOARD}`);
   console.log(`[Runner] Relay:     ${RELAY_URL}`);
   console.log(`[Runner] Interval:  ${SCAN_SEC}s`);
@@ -922,6 +955,8 @@ module.exports = {
   ServerBotState,
   closeTradeRecord,
   relayRequest,
+  fetchTickerViaRelay,
+  candleDurationMs,
   runScanCycle,
   isScanInProgress: () => _scanInProgress,
 };

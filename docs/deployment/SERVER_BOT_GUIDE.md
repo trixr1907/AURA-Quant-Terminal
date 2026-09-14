@@ -1,6 +1,6 @@
 # AURA Server-Bot Guide — 24/7 Signale ohne offenen Browser
 
-Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.8.1.
+Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.8.2.
 
 ---
 
@@ -67,6 +67,8 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
    Erwartetes Ergebnis:
    ```json
    {
+     "mode": "server",
+     "bot_enabled": true,
      "running": true,
      "last_cycle_age_sec": 14.2,
      "last_heartbeat_age_sec": 14.2,
@@ -89,6 +91,41 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
 
 ---
 
+## Nach manuellen Container-Operationen (Pflicht-Checkliste)
+
+Ein manuelles `docker rm`/`docker run` umgeht den Release-Receiver. Dabei darf die persistente Bot-ENV nicht verloren gehen: Ein gemountetes State-Volume allein aktiviert den Bot nicht. Quelle der Betriebswahrheit ist `AURA_BOT_MODE` in der Container-ENV; alter State ist nur Historie.
+
+Bevorzugt deshalb entweder den Receiver/Redeliver-Pfad aus der [Receiver-Anleitung](DOCKER_GUIDE.md#--frischinstallation-receiver-einrichten-automatischer-github-deploy-receiver) oder `sudo ./scripts/ops/enable_server_bot.sh`. Falls der Container bewusst manuell ersetzt wird, muss seine kanonische gehärtete Spec mindestens so wiederhergestellt werden (Image-Tag anpassen):
+
+```bash
+docker rm -f aura-terminal 2>/dev/null || true
+docker run -d --name aura-terminal \
+  --restart unless-stopped \
+  --read-only \
+  --security-opt no-new-privileges:true \
+  --cap-drop ALL \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  -p 127.0.0.1:8787:8787 \
+  -v aura-state:/var/lib/aura \
+  --env-file /var/lib/aura/aura_bot.env \
+  -e SYM_PORT=8787 \
+  -e SYM_HOST=0.0.0.0 \
+  -e AURA_STATE_DIR=/var/lib/aura \
+  aura-quant-terminal:<VERSION>
+```
+
+30-Sekunden-Check direkt danach:
+
+```bash
+first=$(curl -fsS http://127.0.0.1:8787/ready | jq -r '.runner | [.mode,.bot_enabled,.state,.cycle_count] | @tsv')
+sleep 30
+second=$(curl -fsS http://127.0.0.1:8787/ready | jq -r '.runner | [.mode,.bot_enabled,.state,.cycle_count] | @tsv')
+printf 'vorher: %s\nnachher: %s\n' "$first" "$second"
+```
+
+Pflichtbefund: `mode=server`, `bot_enabled=true`, kein `not_configured`; nach spätestens einem konfigurierten Scanintervall muss `cycle_count` wachsen. `mode=none`, `bot_enabled=false`, `state=not_configured` bedeutet ausdrücklich: Server-Bot ist deaktiviert. Nicht anhand alter State-Werte weiterbetreiben.
+
+---
 
 ## Runner-Selbstheilung und Netzwerkgrenzen
 
@@ -268,6 +305,9 @@ Möchte ein Freund oder Teampartner eine eigene AURA-Instanz mit 24/7 Server-Bot
 
 ### Watchdog-Pause-Semantik & `/ready` Status
 
+- `mode`: `"server"` | `"none"` — Ausschließlich aus der aktuellen Container-ENV abgeleitet.
+- `bot_enabled`: `true` | `false` — Ehrliche Konfigurationsanzeige; alter Shared State kann sie nicht aktivieren.
+- `state`: Bei fehlendem `AURA_BOT_MODE` immer `"not_configured"`; dann werden keine alten Staleness-, Zyklus-, Trade- oder Equity-Werte ausgegeben.
 - `paused`: `true` | `false` — Zeigt an, ob der Server-Runner wegen aktivem Browser-Bot pausiert ist.
 - `paused_by`: `"browser"` | `null` — Ursache der Pause.
 - `last_cycle_age_sec`: Alter des letzten vollständigen Handelszyklus (bleibt während Pause auf dem letzten Scan-Zeitpunkt stehen).
@@ -279,6 +319,17 @@ Möchte ein Freund oder Teampartner eine eigene AURA-Instanz mit 24/7 Server-Bot
 - **5 Sekunden:** Live-Preise für manuelle und Bot-Trade-Karten (`refreshTradePrices` aktualisiert PnL, R-Multiple, Mark-Preise).
 - **60 Sekunden:** Vollständiger Signal- und Positions-Scan des Server-Runners (`AURA_BOT_SCAN_SEC=60`).
 - **Chart:** Interaktives TradingView-Widget wie gewohnt.
+
+### FAQ: Warum weicht mein Entry vom Chart-Kurs ab?
+
+AURA trennt seit v1.8.2 Signalpreis und simulierten Ausführungspreis bewusst:
+
+- Richtung, Score, Regime-, ADX-, Squeeze- und OOS-Gates verwenden ausschließlich die letzte geschlossene Kerze. Das verhindert Repainting.
+- Unmittelbar vor Erzeugung eines Paper-Trades wird der öffentliche Live-Ticker abgerufen. `entry`, `markPrice`, Initial-SL, TP1–TP3 und die Risikoprozent-Basis werden aus diesem Ausführungspreis berechnet.
+- Log und Open-Push zeigen beide Werte inklusive prozentualer Differenz, etwa `Entry 145.42 (Signal 145.50, -0.05%)`.
+- Ist der Ticker kurzzeitig nicht verfügbar, fällt die Simulation auf den Kerzenschluss zurück und schreibt eine WARN-Zeile. Ist bereits die letzte geschlossene Kerze älter als das 1,5-Fache ihrer Kerzendauer, wird der Einstieg fail-closed als `STALE_CANDLE` abgelehnt.
+
+Eine kleine Abweichung zum sichtbaren Chart ist daher normale Marktbewegung zwischen Signalabschluss und Ausführung — nicht zwangsläufig ein Fehler. Eine Abweichung bis zu einer ganzen Kerze als absichtlich verwendeter Entry ist dagegen nicht mehr vorgesehen.
 
 ---
 

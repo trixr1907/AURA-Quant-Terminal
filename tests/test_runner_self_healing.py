@@ -251,7 +251,7 @@ class TestRunnerReadyVisibility(unittest.TestCase):
         manager = relay.RunnerManager()
         with patch.object(relay, "RUNNER_MANAGER", manager), \
              patch.object(relay.Path, "read_text", side_effect=OSError("missing")):
-            health = relay._runner_health()
+            health = relay._runner_health(mode="server")
         self.assertEqual(health["runner_restart_count"], 0)
 
     def test_restart_count_is_merged_with_existing_health(self):
@@ -260,7 +260,7 @@ class TestRunnerReadyVisibility(unittest.TestCase):
         payload = '{"running":true,"lastCycleAt":1,"cycleCount":9}'
         with patch.object(relay, "RUNNER_MANAGER", manager), \
              patch.object(relay.Path, "read_text", return_value=payload):
-            health = relay._runner_health()
+            health = relay._runner_health(mode="server")
         self.assertEqual(health["runner_restart_count"], 3)
 
 class TestWatchdogStartupGraceIntegration(unittest.TestCase):
@@ -344,7 +344,7 @@ class TestRunnerPauseAwareness(unittest.TestCase):
         payload = '{"running":true,"lastCycleAt":1000,"lastHeartbeatAt":99000,"paused":true,"pausedBy":"browser","cycleCount":5,"tradeCount":0,"equity":10000}'
         with patch.object(relay.Path, "read_text", return_value=payload), \
              patch.object(relay.time, "time", return_value=100.0):
-            health = relay._runner_health()
+            health = relay._runner_health(mode="server")
             self.assertTrue(health["paused"])
             self.assertEqual(health["paused_by"], "browser")
             self.assertEqual(health["last_cycle_age_sec"], 99.0)
