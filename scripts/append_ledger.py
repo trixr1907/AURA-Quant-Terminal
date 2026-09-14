@@ -26,6 +26,7 @@ from verify_ledger import (
     canonical_record,
     verify_ledger,
 )
+from hypothesis_check import validate_prereg, PreregValidationError
 
 INPUT_FIELDS = (
     "date", "version", "type", "hypothesis", "change", "success_criterion",
@@ -33,12 +34,53 @@ INPUT_FIELDS = (
 )
 
 
-def _load_entry_fields(path: Path) -> dict:
+def _load_entry_fields(path: Path, *, is_prereg: bool = False) -> dict:
     path = path.resolve()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise LedgerVerificationError(f"cannot read entry file: {exc}") from exc
+
+    if is_prereg:
+        try:
+            validate_prereg(data)
+        except PreregValidationError as exc:
+            raise LedgerVerificationError(f"prereg validation failed: {exc}") from exc
+
+        # Extract horizon details
+        horizon_obj = {"bars": data["bars"]} if "bars" in data else {"until_date": data["until_date"]}
+
+        # Construct canonical change JSON holding the full structured prereg spec
+        change_spec = {
+            "setup_id": data["setup_id"],
+            "symbol": data["symbol"],
+            "tf": data["tf"],
+            "regime_context": data["regime_context"],
+            "params_sha256": data["params_sha256"],
+            "acceptance": data["acceptance"],
+            "frozen_at": data["frozen_at"],
+            **horizon_obj,
+        }
+        canonical_change = json.dumps(change_spec, sort_keys=True, separators=(",", ":"))
+
+        # Construct success criterion JSON
+        canonical_criterion = json.dumps({"acceptance": data["acceptance"], **horizon_obj}, sort_keys=True, separators=(",", ":"))
+
+        # Map to standard ledger fields
+        entry_date = data.get("date") or data["frozen_at"][:10]
+        return {
+            "date": str(entry_date),
+            "version": str(data.get("version", "v1.9.0")),
+            "type": "Hypothesis-PreReg",
+            "hypothesis": str(data["hypothesis"]),
+            "change": canonical_change,
+            "success_criterion": canonical_criterion,
+            "result": str(data.get("result", f"Präregistriert ({data['setup_id']})")),
+            "delta": int(data.get("delta", 0)),
+            "status": "PREREGISTERED",
+            "prereg_commit": str(data.get("prereg_commit", "HEAD")),
+        }
+
     if not isinstance(data, dict) or set(data) != set(INPUT_FIELDS):
         raise LedgerVerificationError(f"entry file must contain exactly: {', '.join(INPUT_FIELDS)}")
     if any(not isinstance(data[field], str) or not data[field].strip() for field in INPUT_FIELDS if field != "delta"):
@@ -130,6 +172,7 @@ def append_ledger(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--entry-file", required=True, type=Path)
+    parser.add_argument("--prereg", action="store_true", default=False, help="Explicit PreReg mode (validates Hypothesis-PreReg mandatory fields)")
     parser.add_argument("--legacy", type=Path, default=LEGACY_LEDGER)
     parser.add_argument("--chain", type=Path, default=CHAIN_LEDGER)
     parser.add_argument("--checkpoint", type=Path, default=LEDGER_CHECKPOINT)
@@ -138,7 +181,7 @@ def main() -> int:
     parser.add_argument("--baseline-total", type=int, default=BASELINE_TOTAL)
     args = parser.parse_args()
     try:
-        fields = _load_entry_fields(args.entry_file)
+        fields = _load_entry_fields(args.entry_file, is_prereg=args.prereg)
         result = append_ledger(
             fields,
             legacy_path=args.legacy,

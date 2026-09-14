@@ -886,7 +886,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.8.2?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.9.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -980,7 +980,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.8.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.9.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -10525,6 +10525,18 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.9.0": {
+    title: "Evidenz-Programm, Daten-Fundament, PreReg & Shadow Collector",
+    summary: "Runde 33 (MINOR): Vollständiges Evidenz-Programm mit automatisiertem Daten-Audit, PreReg-Hypothesenprüfung, deterministischem Shadow Collector, Lockbox-Governance und Evidenzprotokoll S1–S6.",
+    highlights: [
+      "Daten-Fundament: scripts/data_foundation_audit.py prüft Kerzen, Lücken, Duplikate und Provenienz; N>=1000 WF-Kriterium.",
+      "PreReg & Check: scripts/append_ledger.py --prereg und scripts/hypothesis_check.py sichern exakte Acceptance- und Hash-Übereinstimmung.",
+      "Shadow Collector: Deterministische Aufzeichnung aller Funnel-Kandidaten im Server-Runner inklusive 24-Bar-Outcome-Auswertung.",
+      "Lockbox Governance: scripts/lockbox_register.py sperrt Holdout-Daten mit Pflicht-Bestätigung und Einmal-Nutzungs-Schutz.",
+      "Evidenz-Protokoll: S1–S6 Stufenmodell, 90-Tage-Rollfenster, Evidence-Decay und ehrliches SOFTWARE_GO / MODEL_NO_EVIDENCE.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.8.2": {
     title: "Ehrliches Ready, Anti-Stumm-Warnung & Live-Ausführungspreis",
     summary: "Runde 32 (PATCH): /ready folgt der aktuellen Container-ENV statt alter Runner-Historie; Paper-Entries trennen geschlossene Signal-Kerze und Live-Ausführungspreis.",
@@ -10919,7 +10931,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.8.2');
+  showReleaseNotesOnce('1.9.0');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
