@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.1] – 2026-09-14
+
+### Fixed
+- **Watchdog-Pause-Awareness (Auftrag A):**
+  - Wenn der Server-Runner pausiert (aktiver Browser-Autobot mit `mode != 'server'`), aktualisiert er minütlich seinen Heartbeat (`lastHeartbeatAt`), sodass der Relay-Watchdog Pausenzyklen als gesund und lebendig einstuft und keine Fehlalarme/Falsch-Neustarts auslöst.
+  - `/ready` exponiert im `runner`-Block die neuen Felder `paused` (`true`/`false`), `paused_by` (`"browser"`/`null`) sowie `last_heartbeat_age_sec`.
+- **P3-Heilungsquittung (Auftrag B):**
+  - Nach einem Watchdog-Neustart wird nach dem ersten erfolgreich vollendeten Folgezyklus (oder gesunder Pausen-Fortführung) die P3-Quittung `Selbstheilung erfolgreich — Runner wieder aktiv` zuverlässig emittiert.
+- **Entkopplung der Heilung vom Alert-Cooldown (Auftrag C):**
+  - Die Ausführung der Selbstheilung läuft unabhängig vom 3600-s-Alert-Cooldown für P4-Meldungen. Tritt innerhalb des Benachrichtigungs-Cooldowns ein erneuter Stall auf, wird der Runner geheilt, `runner_restart_count` inkrementiert und ein WARN-Log erzeugt, während nur die doppelte P4-Push-Meldung gedrosselt bleibt.
+- **Ntfy-Bind-Akkumulation & Test-Push-Flut (Auftrag D):**
+  - `NtfySignals.bindUI()` ist nun strikt idempotent über ein `data-ntfy-bound`-Attribut am DOM-Element abgesichert. Wiederholte Sync-Pulls (`SyncEngine.applyRemote`) stapeln keine Event-Listener mehr auf Test-Button und Toggles.
+  - Sende-Cap implementiert: Test-Push ist auf maximal 1 Push pro 10 Sekunden gedrosselt mit Feedback-Label und temporärer Deaktivierung des Buttons.
+- **TradingView-Doppelöffnung & Trade-ID-Adressierung (Auftrag E):**
+  - Redundante Direkt-`onclick`-Schleife in `Autobot.render()` entfernt (-3 innerHTML; Gesamtbestand 63).
+  - Einzige autoritative Delegations-Logik auf dem Container stoppt Event-Propagation (`e.stopPropagation()`) und öffnet TradingView exakt 1× mit einheitlicher Timeframe-URL (`signalTf || '1h'`).
+  - Umstellung der Karten-Buttons auf stabile Trade-IDs (`data-tv-ab-id`, `data-copy-ab-id`, `data-close-ab-id`): Schließen, Kopieren und Visualisieren treffen auch nach Listen-Umsortierungen immer den korrekten Trade.
+- **Live-Tracking der Bot-Trade-Karten (Auftrag F):**
+  - `refreshTradePrices` aktualisiert im 5-Sekunden-Takt dedupliziert alle Symbole aus manuellen und Autobot-Positionen.
+  - Mark-Preise, PnL und R-Multiples offener Bot-Trades werden live nachgezogen (keine eingefrorenen `+0.0R`-Karten mehr).
+
+### Documentation
+- **SERVER_BOT_GUIDE.md (Auftrag G & F.3):**
+  - Detaillierter Abschnitt zu Betriebsmodi (Tab zu 24/7, Tab als Fernglas, Tab mit aktivem Browser-Bot).
+  - Spezifikation der `/ready`-Felder, der Watchdog-Pause-Semantik und der Klarstellung zur `localStorage`-Persistenz von Browser-Paper-Positionen.
+  - Dokumentation der Update-Kadenz (5s Karten-Preise, 60s Voll-Scan, interaktiver Chart).
+
+### Scope
+- PATCH (`1.8.1`, Bugfixes & Robustheit an v1.8.0/v1.7.0).
+- Keine Änderungen an Scoring-Logik, Signal-Typen oder Research-Modellen.
+- Trials-Ledger unverändert auf `EXP-032`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.8.0] – 2026-09-14
 
 ### Added
