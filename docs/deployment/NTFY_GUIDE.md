@@ -10,6 +10,8 @@ ntfy (sprich: „notify") ist ein einfacher Push-Benachrichtigungsdienst. Das Pr
 
 Der AURA Deploy-Receiver schickt nach jedem Deploy-Versuch automatisch eine Nachricht an deinen Topic.
 
+> 💡 **24/7 Trade- & BTC-Signale:** Für permanente Benachrichtigungen über eröffnete Trades, TP/SL und BTC-Regime-Wechsel ohne geöffneten Browser siehe [SERVER_BOT_GUIDE.md](SERVER_BOT_GUIDE.md).
+
 ---
 
 ## Handy einrichten

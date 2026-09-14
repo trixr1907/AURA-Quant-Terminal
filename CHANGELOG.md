@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PF-68 (Zentrale Signal-Emission):** Relay-Endpoint `/api/signals` für entkoppelte ntfy-Push-Benachrichtigungen mit atomarem Event-Claiming und Cooldown-Schutz.
 - **PF-69 (Robustheit & Health):** Runner-Health-Check im `/ready`-Endpoint, 429-Backoff, Fail-Close bei Datenfehlern, vollständige Restart-Persistenz.
 - **PF-70 (Funnel-Paritäts-Suite):** 33 JS-Tests + 24 Python-Tests zur Verifikation identischer Gate-Entscheidungen und Push-Dedup.
-- **PF-71 (Docs):** `docs/deployment/SERVER_BOT_GUIDE.md` und `docs/releases/RELEASE_v1.7.0.md`.
+- **PF-71 (Docs & Ops):** `docs/deployment/SERVER_BOT_GUIDE.md`, `scripts/ops/enable_server_bot.sh` (generisches Aktivierungs-Werkzeug) und `docs/releases/RELEASE_v1.7.0.md`.
+
+### Infrastructure
+- **Persistenter ENV-Mechanismus:** Server-Bot-Konfiguration wird in `/var/lib/aura/aura_bot.env` hinterlegt und überlebt automatische Deploy-Rebuilds des Webhook-Receivers.
 
 ## [1.6.1] - 2026-09-14 – Infra-Härtung: Universum-Sync-Isolation & CI-Stabilität (v1.6.1, PATCH)
 
