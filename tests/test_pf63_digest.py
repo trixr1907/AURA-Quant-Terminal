@@ -14,7 +14,8 @@ class TestDailyDigest(unittest.TestCase):
     def test_digest_is_once_per_utc_day_and_contains_required_state(self):
         now = datetime(2026, 9, 14, 7, 0, tzinfo=timezone.utc).timestamp()
         shared = {
-            "aura-autobot-state-v2": {"equity": 1234.5},
+            "aura-server-bot-state-v1": {"equity": 1234.5},
+            "aura-autobot-state-v2": {"equity": 999.0},
             "aura-quant-terminal-active-trades-v1": [{"id": "open"}],
             "aura-quant-terminal-history-trades-v1": [
                 {"closedAt": int((now - 60) * 1000), "realizedPnlGross": 12.25},
