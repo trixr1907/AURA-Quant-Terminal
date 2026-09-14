@@ -176,8 +176,9 @@ class TestDockerDeploymentContract(unittest.TestCase):
 
         root = Path(__file__).resolve().parent.parent
         starters = [
-            "DOCKER_START.bat", "docker_start.sh", "smart_homelab_installer.sh",
-            "deep_infrastructure_scanner.sh",
+            "DOCKER_START.bat", "docker_start.sh",
+            "scripts/ops/smart_homelab_installer.sh",
+            "scripts/ops/deep_infrastructure_scanner.sh",
         ]
         for name in starters:
             text = (root / name).read_text(encoding="utf-8")
