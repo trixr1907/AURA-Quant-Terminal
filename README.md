@@ -17,9 +17,11 @@
 
 <p align="center">
   <a href="#schnellstart">Schnellstart</a> ·
-  <a href="#tradingview-positionen">TradingView</a> ·
+  <a href="#tradingview-native-position-tool-assist">TradingView</a> ·
   <a href="#architektur">Architektur</a> ·
-  <a href="#qualitaet-und-grenzen">Qualität</a>
+  <a href="#qualitaet-und-grenzen">Qualität</a> ·
+  <a href="#releases--changelog">Releases</a> ·
+  <a href="#dokumentation--sota-index">Docs</a>
 </p>
 
 ---
@@ -177,6 +179,12 @@ AURA folgt strikt Semantic Versioning (`MAJOR.MINOR.PATCH`):
 | Öffentliche Bitget-Daten ohne API-Schlüssel | Pine kann externe Funding-/OI-REST-Daten nicht selbst laden. |
 
 Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bedeutet: Die Software funktioniert als Research-Werkzeug, aber die geprüfte Stichprobe liefert keinen belastbaren Profitabilitätsnachweis.
+
+## Releases & Changelog
+
+- [**Aktuelles Release v1.6.1 (docs/releases/RELEASE_v1.6.1.md)**](docs/releases/RELEASE_v1.6.1.md) — PATCH: Infra-Härtung, Universum-Sync-Isolation & CI-Stabilität.
+- [**Alle Release Notes (docs/releases/)**](docs/releases/) — v1.1.0 bis v1.6.1 (32 Dateien, kanonisch).
+- [**Changelog (CHANGELOG.md)**](CHANGELOG.md) — Lückenlose Release-Historie nach Keep a Changelog.
 
 ## Dokumentation & SOTA Index
 

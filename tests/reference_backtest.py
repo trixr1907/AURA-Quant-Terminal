@@ -335,7 +335,7 @@ def main() -> int:
         failures.append("totalTrials mismatch")
 
     # --- 10B: EXP-025 fair fold geometry (real JS/Python parity) ------------
-    geometry_script = ROOT / "tools" / "fold_geometry.js"
+    geometry_script = ROOT / "tools" / "archive" / "fold_geometry.js"
     for n_bars, tf_minutes, min_train in [(14773, 60, 2000), (10270, 240, 500)]:
         js_code = (
             f"const {{fairFoldBoundaries}}=require({json.dumps(str(geometry_script))});"

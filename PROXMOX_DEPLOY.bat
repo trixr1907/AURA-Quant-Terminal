@@ -38,7 +38,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-scp deep_infrastructure_scanner.sh smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html VERSION %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
+scp scripts/ops/deep_infrastructure_scanner.sh scripts/ops/smart_homelab_installer.sh proxmox_lxc_install.sh Dockerfile docker-compose.yml bitget_relay.py Symbiose_Dashboard.html SYMBIOSE_Tutorial.html VERSION %REMOTE_USER%@%REMOTE_HOST%:/root/aura_deploy/
 if errorlevel 1 (
     echo [FEHLER] Die AURA-Dateien konnten nicht vollstaendig uebertragen werden.
     echo Starte diese BAT direkt aus dem entpackten AURA-Projektordner.

@@ -134,7 +134,7 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertIn('exit 1', script[script.index('Keine gültige LAN-IPv4'):])
 
     def test_native_scanner_configures_and_probes_state_before_success(self):
-        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        script = (ROOT / "scripts/ops/deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         native = script[script.index('elif [[ "$SEL_TYPE" =~ ^lxc_native: ]]'):]
         self.assertIn('/var/lib/aura', native)
         self.assertIn('SYM_HOST=0.0.0.0', native)
@@ -146,7 +146,7 @@ class LauncherDependencyTests(unittest.TestCase):
         self.assertNotIn('SEL_IP=$(pct exec', native[native.index('AURA_STATE_DIR'):])
 
     def test_proxmox_deployer_avoids_early_exit_pipe_checks(self):
-        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        script = (ROOT / "scripts/ops/deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         self.assertNotIn('"http://${ip}:${PORT}/" | grep -q', script)
         self.assertIn('curl -fsS --max-time 10 -o "$probe_dir/dashboard.html"', script)
         self.assertIn('grep -q "AURA" "$probe_dir/dashboard.html"', script)
@@ -155,11 +155,11 @@ class LauncherDependencyTests(unittest.TestCase):
         script = (ROOT / "PROXMOX_DEPLOY.bat").read_text(encoding="utf-8")
         self.assertIn('cd /d "%~dp0"', script)
         self.assertGreaterEqual(script.count("if errorlevel 1"), 4)
-        self.assertIn("scp deep_infrastructure_scanner.sh", script)
+        self.assertIn("scp scripts/ops/deep_infrastructure_scanner.sh", script)
         self.assertIn("scp -r data", script)
 
     def test_proxmox_deployer_configures_lan_state_and_verifies_health(self):
-        script = (ROOT / "deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
+        script = (ROOT / "scripts/ops/deep_infrastructure_scanner.sh").read_text(encoding="utf-8")
         self.assertIn("-e AURA_ALLOWED_HOSTS='$SEL_IP'", script)
         self.assertIn('AURA_STATE_DIR=/var/lib/aura', script)
         self.assertIn('aura-state:/var/lib/aura', script)
