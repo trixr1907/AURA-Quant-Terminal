@@ -167,3 +167,94 @@ Dann `AURA_NTFY_URL=http://<SERVER-IP>:8080/mein-topic`.
 - Die Benachrichtigung läuft auf einem Daemon-Thread (fire-and-forget). HTTP-Fehler oder Verbindungsprobleme blockieren **nie** den Relay-Betrieb.
 - Benachrichtigungen enthalten keine API-Keys, keine Passwörter und keine sensitiven Kontodetails — nur Symbol, Trade-ID, Seite (Long/Short) und PnL.
 - Nutze einen **zufälligen, unguessable Topic-Namen**, um unbefugten Zugriff auf deine Benachrichtigungen zu vermeiden.
+
+---
+
+## 🔄 Frischinstallation: Receiver einrichten (Automatischer GitHub Deploy-Receiver)
+
+Für Server, Proxmox-VMs und VPS-Instanzen steht mit `scripts/ops/aura_webhook_receiver.reference.py` eine kanonische Referenz-Implementierung des Deploy-Receivers bereit.
+
+Der Receiver empfängt GitHub Release-Webhooks, validiert die kryptografische HMAC-SHA256 Signatur, lädt das offizielle `symbiose.zip` Release-Asset herunter, baut das gehärtete Image und startet bzw. aktualisiert den Container automatisch.
+
+### Eigenschaften & Sicherheitsmodell
+- **Clean-Slate Bootstrap:** Existiert noch kein `aura-terminal` Container auf dem Zielsystem (Frischinstallation), erzeugt der Receiver den Container vollautomatisch aus der kanonischen Compose-Spezifikation (`--restart unless-stopped`, `--read-only`, `--security-opt no-new-privileges:true`, `--cap-drop ALL`, tmpfs `/tmp`, Port 8787, Volume `aura-state`, `--env-file /var/lib/aura/aura_bot.env` falls vorhanden).
+- **Rollback-Schutz:** Bei existierenden Containern wird vor dem Update ein Backup-Container (`aura-terminal-rollback`) vorgehalten. Schlägt Build oder `/serving` Health-Check fehl, wird der vorherige Zustand atomar wiederhergestellt.
+- **Push-Benachrichtigungen:** Bei gesetzter `AURA_NTFY_URL` sendet der Receiver Erfolgsmeldungen (P3) und Fehleralarme (P4) direkt aufs Smartphone.
+- **Keine Secrets im Code:** Alle Parameter werden über systemd Environment / Drop-ins konfiguriert.
+
+### 1. Referenz-Datei installieren
+
+Auf dem Zielserver (als Root bzw. via `sudo`):
+
+```bash
+sudo cp scripts/ops/aura_webhook_receiver.reference.py /opt/aura_webhook_receiver.py
+sudo chmod 0755 /opt/aura_webhook_receiver.py
+```
+
+### 2. systemd-Service einrichten
+
+Erstelle `/etc/systemd/system/aura-webhook.service`:
+
+```ini
+[Unit]
+Description=AURA GitHub Webhook Release Deploy Receiver
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt
+ExecStart=/usr/bin/python3 /opt/aura_webhook_receiver.py
+Restart=always
+RestartSec=5
+EnvironmentFile=-/etc/default/aura-webhook
+
+# Sicherheitshärtung
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Konfiguration anlegen
+
+Erstelle `/etc/default/aura-webhook` mit mindestens 32 Zeichen Secret:
+
+```env
+AURA_WEBHOOK_PORT=8443
+AURA_WEBHOOK_SECRET=HIER_MINDESTENS_32_ZEICHEN_LANGES_GEHEIMES_TOKEN
+AURA_WEBHOOK_REPOSITORY=trixr1907/AURA-Quant-Terminal
+AURA_APP_DIR=/opt/aura
+AURA_CONTAINER_NAME=aura-terminal
+AURA_IMAGE_REPOSITORY=aura-quant-terminal
+AURA_ALLOWED_HOSTS=127.0.0.1,192.168.8.115
+AURA_NTFY_URL=https://ntfy.sh/<DEIN-GEHEIMER-TOPIC>
+```
+
+Dienst aktivieren und starten:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now aura-webhook.service
+```
+
+Status und Liveness prüfen:
+
+```bash
+sudo systemctl status aura-webhook.service
+curl -s http://127.0.0.1:8443/
+# Antwort: {"ok": true, "service": "aura-webhook-receiver"}
+```
+
+### 4. GitHub Webhook konfigurieren
+
+Im GitHub Repository unter **Settings → Webhooks → Add webhook**:
+- **Payload URL:** `https://<DEINE-DOMAIN-ODER-IP>:8443/github-webhook`
+- **Content type:** `application/json`
+- **Secret:** Das in `/etc/default/aura-webhook` konfigurierte `AURA_WEBHOOK_SECRET`
+- **Which events would you like to trigger this webhook?** `Let me select individual events` → **Releases** auswählen.
+- **Active:** ✅
+
+Sobald ein Release veröffentlicht wird, baut der Receiver das Release vollautomatisch und bootet das Terminal schlüsselfertig.
