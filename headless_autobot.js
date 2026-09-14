@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA v1.7.0 — Headless Paper Autobot (Server Mode)
+ * AURA v1.7.1 — Headless Paper Autobot (Server Mode)
  * ====================================================
  * PF-66: Runs the full Autobot cycle server-side inside the Docker container.
  *        Loads the Engine block directly from Symbiose_Dashboard.html
@@ -805,7 +805,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.7.0)`);
+  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.7.1)`);
   console.log(`[Runner] Dashboard: ${DASHBOARD}`);
   console.log(`[Runner] Relay:     ${RELAY_URL}`);
   console.log(`[Runner] Interval:  ${SCAN_SEC}s`);

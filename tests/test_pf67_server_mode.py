@@ -292,7 +292,7 @@ class TestTradeSourceIsolation(StateMixin, unittest.TestCase):
 # ===========================================================================
 class TestRunnerDeadAlert(unittest.TestCase):
     def test_runner_dead_alert_triggers_p4_with_60m_cooldown(self):
-        """Runner not running triggers notify=True and sets 60m cooldown."""
+        """Runner not running triggers notify=True and sets 60m cooldown (outside startup grace)."""
         state = {}
         runner_health = {"running": False, "last_cycle_age_sec": None}
         t0 = 100000.0
@@ -302,6 +302,51 @@ class TestRunnerDeadAlert(unittest.TestCase):
         alert_state = res["state"]["runner_health_alert"]
         self.assertEqual(alert_state["cooldown_until"], t0 + 3600.0)
         self.assertEqual(alert_state["alerted_at"], t0)
+
+    def test_startup_window_suppresses_alarm_before_first_cycle(self):
+        """During startup window (<120s) with 0 cycles completed, no false alarm is triggered."""
+        t_relay_start = 100000.0
+        state = {}
+        # Runner starting up: not yet running / no cycle completed yet
+        runner_health = {"running": False, "last_cycle_age_sec": None, "cycle_count": 0}
+        
+        # 15s after relay start
+        res15 = relay.runner_dead_transition(
+            state, runner_health, mode="server", now=t_relay_start + 15.0, relay_start_time=t_relay_start
+        )
+        self.assertFalse(res15["notify"])
+        self.assertEqual(res15["body"], "")
+
+        # 90s after relay start (still in grace window)
+        res90 = relay.runner_dead_transition(
+            state, runner_health, mode="server", now=t_relay_start + 90.0, relay_start_time=t_relay_start
+        )
+        self.assertFalse(res90["notify"])
+
+    def test_death_after_first_cycle_fires_p4_immediately(self):
+        """Once runner has completed cycle >= 1, failure triggers P4 immediately even within startup grace."""
+        t_relay_start = 100000.0
+        state = {}
+        # Runner completed 1 cycle at second 30, then crashed at second 45
+        runner_health = {"running": False, "last_cycle_age_sec": 15.0, "cycle_count": 1}
+        res = relay.runner_dead_transition(
+            state, runner_health, mode="server", now=t_relay_start + 45.0, relay_start_time=t_relay_start
+        )
+        self.assertTrue(res["notify"])
+        self.assertIn("nicht mehr", res["body"])
+        self.assertEqual(res["state"]["runner_health_alert"]["alerted_at"], t_relay_start + 45.0)
+
+    def test_startup_timeout_after_grace_period_fires_p4(self):
+        """If runner fails to start and grace period expires (>=120s), P4 alarm is fired."""
+        t_relay_start = 100000.0
+        state = {}
+        runner_health = {"running": False, "last_cycle_age_sec": None, "cycle_count": 0}
+        # 121 seconds after relay start
+        res = relay.runner_dead_transition(
+            state, runner_health, mode="server", now=t_relay_start + 121.0, relay_start_time=t_relay_start
+        )
+        self.assertTrue(res["notify"])
+        self.assertIn("nicht mehr", res["body"])
 
     def test_runner_dead_alert_respects_cooldown(self):
         """Within 60 min cooldown, no re-alert is sent."""
