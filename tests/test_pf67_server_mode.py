@@ -175,12 +175,27 @@ class TestSignalClaim(StateMixin, unittest.TestCase):
 # PF-69: Runner health
 # ===========================================================================
 class TestRunnerHealth(StateMixin, unittest.TestCase):
+    def test_unconfigured_mode_hides_stale_runner_history(self):
+        hf = relay.STATE_DIR / "runner_health.json"
+        hf.write_text(json.dumps({
+            "running": True, "lastCycleAt": int(time.time() * 1000) - 999000,
+            "cycleCount": 99, "tradeCount": 2, "equity": 9300.0,
+        }))
+        with unittest.mock.patch.dict(os.environ, {"AURA_BOT_MODE": ""}, clear=False):
+            health = relay._runner_health()
+        self.assertEqual(health, {
+            "mode": "none", "bot_enabled": False,
+            "running": False, "state": "not_configured",
+        })
+        self.assertNotIn("last_cycle_age_sec", health)
+        self.assertNotIn("cycle_count", health)
+
     def test_runner_health_missing_file(self):
         """No runner_health.json → running=False, age=None."""
         hf = relay.STATE_DIR / "runner_health.json"
         if hf.exists():
             hf.unlink()
-        health = relay._runner_health()
+        health = relay._runner_health(mode="server")
         self.assertFalse(health["running"])
         self.assertIsNone(health["last_cycle_age_sec"])
 
@@ -195,16 +210,57 @@ class TestRunnerHealth(StateMixin, unittest.TestCase):
             "equity": 9300.0,
         }
         hf.write_text(json.dumps(data))
-        health = relay._runner_health()
+        health = relay._runner_health(mode="server")
         self.assertTrue(health["running"])
+        self.assertTrue(health["bot_enabled"])
+        self.assertEqual(health["mode"], "server")
         self.assertLessEqual(health["last_cycle_age_sec"], 10)
         self.assertEqual(health["cycle_count"], 7)
 
     def test_runner_health_in_ready_response(self):
         """_runner_health is exported from market_data_readiness merge in /ready."""
-        # We test the function exists and returns a dict — HTTP-level test lives in e2e
-        self.assertIsNotNone(relay._runner_health())
-        self.assertIn("running", relay._runner_health())
+        health = relay._runner_health(mode="server")
+        self.assertIsNotNone(health)
+        self.assertIn("running", health)
+
+
+class TestUnconfiguredBotStartupWarning(StateMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        health_file = relay.STATE_DIR / "runner_health.json"
+        if health_file.exists():
+            health_file.unlink()
+
+    def test_history_without_mode_logs_and_attempts_configured_push(self):
+        relay._save_shared_state("aura-server-bot-state-v1", {"cycleCount": 7})
+        with unittest.mock.patch.dict(os.environ, {
+            "AURA_BOT_MODE": "", "AURA_NTFY_URL": "https://ntfy.invalid/test",
+        }, clear=False), unittest.mock.patch.object(relay, "_ntfy_notify") as notify, \
+                self.assertLogs(level="ERROR") as logs:
+            warned = relay.check_unconfigured_bot_startup()
+        self.assertTrue(warned)
+        self.assertTrue(any("AURA_BOT_MODE nicht gesetzt" in line for line in logs.output))
+        notify.assert_called_once()
+        self.assertEqual(notify.call_args.kwargs["priority"], 3)
+
+    def test_history_without_mode_or_ntfy_logs_guide_hint_without_push(self):
+        relay._save_shared_state("aura-server-bot-state-v1", {"cycle_count": 2})
+        with unittest.mock.patch.dict(os.environ, {
+            "AURA_BOT_MODE": "", "AURA_NTFY_URL": "",
+        }, clear=False), unittest.mock.patch.object(relay, "_ntfy_notify") as notify, \
+                self.assertLogs(level="ERROR") as logs:
+            warned = relay.check_unconfigured_bot_startup()
+        self.assertTrue(warned)
+        joined = "\n".join(logs.output)
+        self.assertIn("docs/deployment/SERVER_BOT_GUIDE.md", joined)
+        notify.assert_not_called()
+
+    def test_no_history_does_not_warn(self):
+        with unittest.mock.patch.dict(os.environ, {
+            "AURA_BOT_MODE": "", "AURA_NTFY_URL": "",
+        }, clear=False), unittest.mock.patch.object(relay, "_ntfy_notify") as notify:
+            self.assertFalse(relay.check_unconfigured_bot_startup())
+        notify.assert_not_called()
 
 
 # ===========================================================================
