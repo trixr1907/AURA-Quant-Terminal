@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.2] – 2026-09-14
+
+### Fixed
+- **Ehrliche `/ready`-Anzeige (Auftrag A):** `AURA_BOT_MODE` aus der laufenden Container-ENV ist die einzige Quelle für Bot-Aktivierung. Ohne `server` meldet der Runner-Block `mode: "none"`, `bot_enabled: false`, `running: false`, `state: "not_configured"` und blendet historische Zyklus-, Trade-, Equity- und Staleness-Werte aus Shared State vollständig aus.
+- **Anti-Stumm-Bootwarnung (Auftrag B):** Erkennt das Relay persistente Server-Bot-Historie ohne `AURA_BOT_MODE`, schreibt es einen ERROR mit wahrscheinlicher ENV-Verlustursache. Bei gesetzter `AURA_NTFY_URL` wird einmalig ein P3-Warnversuch ausgelöst; ohne URL folgt stattdessen ein ERROR mit Guide-Verweis. Es wird keine URL geraten.
+- **Signal-/Ausführungspreis-Split (Auftrag E):** Browser- und Headless-Paper-Autobot behalten Richtung, Score und Gates vollständig auf geschlossenen Kerzen, holen aber direkt vor Trade-Erzeugung den Live-Ticker. Entry, Mark, Initial-SL, TP1–TP3 und Risikoprozent basieren auf dem Ausführungspreis. Logs und Open-Pushes zeigen Signalpreis, Entry und prozentuale Differenz; Tickerfehler fallen mit WARN auf den Kerzenschluss zurück.
+- **Frische-Guard:** Eine letzte geschlossene Kerze, die älter als das 1,5-Fache der Signal-Kerzendauer ist, wird fail-closed als `STALE_CANDLE` abgelehnt.
+
+### Documentation
+- **Manuelle Container-Operationen (Auftrag C):** `SERVER_BOT_GUIDE.md` enthält die kanonische gehärtete `docker run`-Spec inklusive `--env-file /var/lib/aura/aura_bot.env`, Receiver-/`enable_server_bot.sh`-Verweise und einen verpflichtenden 30-Sekunden-Check.
+- **FAQ:** Signal-Kerze versus Live-Ausführung, Slippage-Anzeige, Ticker-Fallback und `STALE_CANDLE` sind dokumentiert.
+
+### Scope
+- PATCH (`1.8.2`, Betriebswahrheit und Korrektur der Paper-Ausführungspreis-Basis).
+- Keine Änderungen an Signalrichtung, Score-, Regime-, ADX-, Squeeze-, OOS-/DSR- oder Universe-Gates.
+- Trials-Ledger unverändert auf `EXP-032`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
 ## [1.8.1] – 2026-09-14
 
 ### Fixed

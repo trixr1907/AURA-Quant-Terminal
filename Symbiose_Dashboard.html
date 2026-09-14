@@ -886,7 +886,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.8.1?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.8.2?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -980,7 +980,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.8.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.8.2</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -3283,7 +3283,13 @@ function formatAutobotEntryLog(p) {
   const samples = p.sampleSize || 0;
   const margin = p.margin != null ? p.margin : 50;
   const timeStopFormatted = typeof formatTimeStopDisplay === 'function' ? formatTimeStopDisplay(p.timeStopBars, tf) : `${p.timeStopBars || 12} Bars`;
-  const entry = fmtPx(p.entry != null ? p.entry : p.lastPrice);
+  const entryVal = p.entry != null ? +p.entry : +p.lastPrice;
+  const signal = (p.signalPrice != null && Number.isFinite(+p.signalPrice)) ? +p.signalPrice : (p.signal != null && Number.isFinite(+p.signal) ? +p.signal : null);
+  let entry = fmtPx(entryVal);
+  if (signal !== null && Number.isFinite(entryVal) && signal > 0 && Math.abs(entryVal - signal) > 1e-6) {
+    const slip = ((entryVal - signal) / signal) * 100;
+    entry = `${fmtPx(entryVal)} (Signal ${fmtPx(signal)}, ${slip >= 0 ? '+' : ''}${slip.toFixed(2)}%)`;
+  }
   const sl = fmtPx(p.sl);
   const tp2 = fmtPx(p.tp2);
 
@@ -6491,6 +6497,7 @@ const NtfySignals = {
       open: 'Trade eröffnet', tp1: 'TP1 getroffen', tp2: 'TP2 getroffen', tp3: 'TP3 getroffen',
       sl_close: 'Stop-Loss getroffen', other_close: detail.reason === 'Time-Stop' ? 'Time-Stop' : 'Trade geschlossen',
     };
+    const signalPrice = Number.isFinite(+detail.signalPrice) ? +detail.signalPrice : (Number.isFinite(+trade?.signalPrice) ? +trade.signalPrice : null);
     const initialRisk = Math.abs((+trade?.entry || 0) - (+trade?.initialSl || +trade?.currentSl || 0));
     const price = Number.isFinite(+detail.price) ? +detail.price : (+trade?.markPrice || +trade?.entry || 0);
     const direction = Number(trade?.dir) === -1 ? -1 : 1;
@@ -6498,7 +6505,12 @@ const NtfySignals = {
     const pct = +trade?.entry > 0 ? ((price - +trade.entry) / +trade.entry) * direction * 100 : null;
     const parts = [`${coin} ${side}${leverage ? ` ${leverage}` : ''} — ${labels[event] || event}`];
     if (r !== null) parts[0] += ` (${r >= 0 ? '+' : ''}${r.toFixed(1)}R)`;
-    if (price > 0) parts.push(`Preis ${typeof fmtP === 'function' ? fmtP(price) : String(price)}${pct !== null ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''}`);
+    if (event === 'open' && signalPrice !== null && price > 0 && Math.abs(price - signalPrice) > 1e-6) {
+      const slip = ((price - signalPrice) / signalPrice) * 100;
+      parts.push(`Entry ${typeof fmtP === 'function' ? fmtP(price) : String(price)} (Signal ${typeof fmtP === 'function' ? fmtP(signalPrice) : String(signalPrice)}, ${slip >= 0 ? '+' : ''}${slip.toFixed(2)}%)`);
+    } else if (price > 0) {
+      parts.push(`Preis ${typeof fmtP === 'function' ? fmtP(price) : String(price)}${pct !== null ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''}`);
+    }
     if (detail.managed) parts.push(String(detail.managed));
     if (detail.reason && event === 'other_close') parts.push(`Grund: ${detail.reason}`);
     return parts.join(' · ');
@@ -9393,6 +9405,7 @@ function autobotRejectDetails(funnel) {
     AUTOBOT_CONFIG: { label: 'Autobot-Konfiguration', title: 'Die technisch qualifizierte Radar-Zeile unterschreitet die konfigurierte MinScore- oder MTF-Mindestbedingung.' },
     BTC_CONFLICT: { label: 'BTC-Konflikt', title: 'Die Setup-Richtung widerspricht dem aktivierten Bitcoin-Makrofilter.' },
     FRESH_DATA: { label: 'Fresh-Daten', title: 'Für die unmittelbare Revalidierung vor dem Einstieg liegen zu wenige frische Kerzen vor.' },
+    STALE_CANDLE: { label: 'Kerzen veraltet', title: 'Die letzte geschlossene Kerze ist älter als 1,5× Kerzendauer (Feed hängt).' },
     FRESH_ANALYSIS: { label: 'Fresh-Analyse', title: 'Die frischen Marktdaten konnten nicht vollständig analysiert werden.' },
     FRESH_GATE: { label: 'Fresh-Gate', title: 'Die unmittelbare Revalidierung erfüllt Score, Regime, ADX oder Squeeze-Schutz nicht mehr.' },
     MODEL_NO_EVIDENCE: { label: 'keine OOS-Evidenz', title: 'Die frische Walk-Forward-Prüfung zeigt keine positive OOS-Erwartung oder unterschreitet die DSR-Grenze.' },
@@ -10080,14 +10093,24 @@ const Autobot = {
             continue;
           }
           const freshRegime = regimeOf(A);
-          const lastPrice = kdata.candles[kdata.candles.length - 1].c;
+          const lastCandle = kdata.candles[kdata.candles.length - 1];
+          const lastCandleTs = Number(lastCandle?.t || lastCandle?.time || lastCandle?.ts || 0);
+          const tfMinutes = typeof tfToMinutes === 'function' ? tfToMinutes(candidateGate.tf) : 60;
+          const tfMs = (typeof TFMS !== 'undefined' && TFMS[candidateGate.tf]) || (tfMinutes * 60000);
+          if (lastCandleTs > 1000000000000 && (Date.now() - lastCandleTs) > 1.5 * tfMs) {
+            addAutobotReject(funnel, 'STALE_CANDLE');
+            continue;
+          }
+
+          const signalPrice = lastCandle.c;
+
           const freshGate = classifyRadarTf({
             score: A.last.score,
             dir: A.last.dir,
             regime: freshRegime.reg,
             isSqz: freshRegime.isSqz,
             adx: A.last.adx,
-            atrPct: lastPrice > 0 ? (A.last.atr / lastPrice * 100) : 0
+            atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0
           });
           const freshCandidate = evaluateAutobotCandidate({
             executable: freshGate.tradeable,
@@ -10130,16 +10153,31 @@ const Autobot = {
             continue;
           }
 
+          // Fetch the executable mark only after every signal/evidence gate has passed.
+          let execPrice = signalPrice;
+          try {
+            if (typeof fetchTicker === 'function') {
+              const tk = await fetchTicker(c.symbol);
+              if (tk && Number.isFinite(+tk.price) && +tk.price > 0) {
+                execPrice = +tk.price;
+              } else {
+                console.warn(`[Autobot] Ticker für ${c.symbol} ohne Preis — Fallback auf Kerzenschluss (${signalPrice})`);
+              }
+            }
+          } catch (tErr) {
+            console.warn(`[Autobot] Live-Ticker-Fehler für ${c.symbol}: ${tErr?.message || tErr} — Fallback auf Kerzenschluss (${signalPrice})`);
+          }
+
           const dir = freshCandidate.dir;
-          const atr = A.last.atr || (lastPrice * 0.015);
-          const slDist = Math.max(lastPrice * 0.005, atr * 1.5);
-          const sl = dir === 1 ? (lastPrice - slDist) : (lastPrice + slDist);
-          const tp1 = dir === 1 ? (lastPrice + slDist * 1.5) : (lastPrice - slDist * 1.5);
-          const tp2 = dir === 1 ? (lastPrice + slDist * 3.0) : (lastPrice - slDist * 3.0);
-          const tp3 = dir === 1 ? (lastPrice + slDist * 5.0) : (lastPrice - slDist * 5.0);
+          const atr = A.last.atr || (signalPrice * 0.015);
+          const slDist = Math.max(execPrice * 0.005, atr * 1.5);
+          const sl = dir === 1 ? (execPrice - slDist) : (execPrice + slDist);
+          const tp1 = dir === 1 ? (execPrice + slDist * 1.5) : (execPrice - slDist * 1.5);
+          const tp2 = dir === 1 ? (execPrice + slDist * 3.0) : (execPrice - slDist * 3.0);
+          const tp3 = dir === 1 ? (execPrice + slDist * 5.0) : (execPrice - slDist * 5.0);
 
           const riskCapital = kelly.riskAmt;
-          const priceRiskPct = slDist / lastPrice;
+          const priceRiskPct = slDist / execPrice;
           const targetNotional = Math.min(this.equity * 2.5, riskCapital / priceRiskPct);
           const leverage = Math.min(this.maxLeverage, Math.max(2, Math.ceil(targetNotional / (this.equity * 0.25))));
           const margin = Math.round(targetNotional / leverage);
@@ -10175,8 +10213,9 @@ const Autobot = {
             id: generateDeterministicOid('ab'),
             coin: c.symbol,
             dir,
-            entry: lastPrice,
-            markPrice: lastPrice,
+            signalPrice,
+            entry: execPrice,
+            markPrice: execPrice,
             initialSl: sl,
             currentSl: sl,
             tp: tp1,
@@ -10205,8 +10244,8 @@ const Autobot = {
           };
 
           this.trades.push(newTrade);
-          tradePrices[c.symbol] = lastPrice;
-          NtfySignals.emitTradeEvent(newTrade, 'open', { price: lastPrice }).then(sent => { if (sent) newTrade.openNotified = true; }).catch(() => {});
+          tradePrices[c.symbol] = execPrice;
+          NtfySignals.emitTradeEvent(newTrade, 'open', { price: execPrice, signalPrice }).then(sent => { if (sent) newTrade.openNotified = true; }).catch(() => {});
 
           this.log(formatAutobotEntryLog({
             symbol: c.symbol,
@@ -10221,7 +10260,8 @@ const Autobot = {
             sampleSize: edgeGate.sampleSize,
             margin,
             timeStopBars: optTimeStop.bars,
-            entry: lastPrice,
+            entry: execPrice,
+            signalPrice,
             sl,
             tp2
           }));
@@ -10485,6 +10525,18 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.8.2": {
+    title: "Ehrliches Ready, Anti-Stumm-Warnung & Live-Ausführungspreis",
+    summary: "Runde 32 (PATCH): /ready folgt der aktuellen Container-ENV statt alter Runner-Historie; Paper-Entries trennen geschlossene Signal-Kerze und Live-Ausführungspreis.",
+    highlights: [
+      "Ready-Wahrheit: Ohne AURA_BOT_MODE=server zeigt der Runner not_configured und keine historischen Staleness-, Zyklus-, Trade- oder Equity-Werte.",
+      "Anti-Stumm: Bot-Historie ohne Bot-ENV erzeugt beim Relay-Start einen ERROR und, falls konfigurierbar, einen einmaligen P3-Warnversuch.",
+      "Live-Ausführung: Entry, Mark, Initial-SL, TP1–TP3 und Risikoprozent basieren unmittelbar vor Eröffnung auf dem öffentlichen Ticker.",
+      "Signal bleibt geschlossen: Richtung, Score, Regime, ADX, Squeeze und OOS-Gates bleiben unverändert auf abgeschlossenen Kerzen.",
+      "Transparenz & Frische: Log und Open-Push zeigen Signal-vs.-Entry; Tickerfehler warnen und STALE_CANDLE blockiert überalterte Feeds.",
+      "Ops-Checkliste: Manuelle Container-Ersetzungen müssen die persistente aura_bot.env und den anschließenden Ready-/Zyklus-Check erhalten."
+    ]
+  },
   "1.8.1": {
     title: "Watchdog-Pause-Awareness, Heilungs-Quittung & Dashboard-Event-Hygiene",
     summary: "Runde 31 (PATCH): Der Relay-Watchdog respektiert Pausenzyklen des Server-Runners bei aktivem Browser-Bot, liefert P3-Heilungsquittungen nach Neustarts und eliminiert Test-Push- sowie TradingView-Doppelöffnungen.",
@@ -10867,7 +10919,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.8.1');
+  showReleaseNotesOnce('1.8.2');
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');

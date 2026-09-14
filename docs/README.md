@@ -1,6 +1,6 @@
 # AURA — Documentation & Architecture Master Index
 
-Willkommen im zentralen Dokumentations-Hub von **AURA v1.8.1 — Confluence Terminal**.
+Willkommen im zentralen Dokumentations-Hub von **AURA v1.8.2 — Confluence Terminal**.
 Dieses Verzeichnis strukturiert alle Spezifikationen, mathematischen Validierungen, Deployment-Leitfäden, Brand-Assets und Changelogs nach SOTA Best Practices.
 
 ---
@@ -20,8 +20,9 @@ docs/
 │   ├── NTFY_GUIDE.md          # Push-Benachrichtigungen (Deploy-Alerts, Handy & PC)
 │   ├── webhook-incident-20260912.md  # Incidentbericht 2026-09-12
 │   └── webhook-incident-20260913.md  # Incidentbericht 2026-09-13 (v1.5.1 Health-Race)
-├── releases/                  # Release-Notes aller Versionen (v1.1.0–v1.8.1)  [Pflege: Release-Manager]
-│   ├── RELEASE_v1.8.1.md      # Aktuelles Release (v1.8.1, PATCH: Watchdog-Pause-Awareness & Event-Hygiene)
+├── releases/                  # Release-Notes aller Versionen (v1.1.0–v1.8.2)  [Pflege: Release-Manager]
+│   ├── RELEASE_v1.8.2.md      # Aktuelles Release (v1.8.2, PATCH: ehrliches Ready & Ausführungspreis-Split)
+│   ├── RELEASE_v1.8.1.md      # v1.8.1 (PATCH: Watchdog-Pause-Awareness & Event-Hygiene)
 │   ├── RELEASE_v1.8.0.md      # v1.8.0 (MINOR: Runner-Selbstheilung)
 │   ├── RELEASE_v1.7.1.md      # v1.7.1 (PATCH: Receiver-Bootstrap & Grace)
 │   ├── RELEASE_v1.7.0.md      # v1.7.0 (MINOR: Headless Paper-Autobot)
@@ -88,6 +89,7 @@ Alle Release-Notes liegen kanonisch in `docs/releases/`. Root-Stubs wurden in Ru
 
 | Version | Typ | Datum | Kurzbeschreibung |
 | --- | --- | --- | --- |
+| **v1.8.2** | PATCH | 2026-09 | Ehrliches `/ready`, Anti-Stumm-Warnung, Ops-Checkliste & Live-Ausführungspreis-Split |
 | **v1.8.1** | PATCH | 2026-09 | Watchdog-Pause-Awareness, P3-Heilungsquittung, Dashboard-Event-Hygiene & Live-Tracking |
 | **v1.8.0** | MINOR | 2026-09 | Runner-Selbstheilung, 10-s-Timeouts, Stall-Forensik & Digest-Equity |
 | **v1.7.1** | PATCH | 2026-09 | Receiver-Bootstrap, Docs-Wahrheit & P4-Startup-Grace |
