@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA v1.8.0 — Headless Paper Autobot (Server Mode)
+ * AURA v1.8.1 — Headless Paper Autobot (Server Mode)
  * ====================================================
  * PF-66: Runs the full Autobot cycle server-side inside the Docker container.
  *        Loads the Engine block directly from Symbiose_Dashboard.html
@@ -342,6 +342,9 @@ class ServerBotState {
     this.initialEquity = this.equity;
     this.startedAt     = Date.now();
     this.lastCycleAt   = null;
+    this.lastHeartbeatAt = Date.now();
+    this.paused        = false;
+    this.pausedBy      = null;
     this.cycleCount    = 0;
     this.rev           = undefined; // track server state rev
   }
@@ -354,6 +357,9 @@ class ServerBotState {
       if (Number.isFinite(srv.initialEquity)) this.initialEquity = srv.initialEquity;
       if (Number.isFinite(srv.startedAt)) this.startedAt = srv.startedAt;
       if (Number.isFinite(srv.lastCycleAt) && srv.lastCycleAt >= 0) this.lastCycleAt = srv.lastCycleAt;
+      if (Number.isFinite(srv.lastHeartbeatAt) && srv.lastHeartbeatAt >= 0) this.lastHeartbeatAt = srv.lastHeartbeatAt;
+      if (typeof srv.paused === 'boolean') this.paused = srv.paused;
+      if (typeof srv.pausedBy === 'string' || srv.pausedBy === null) this.pausedBy = srv.pausedBy;
       if (Number.isInteger(srv.cycleCount) && srv.cycleCount >= 0) this.cycleCount = srv.cycleCount;
     }
     // Restore server-owned trades (identified by source: 'server')
@@ -375,6 +381,9 @@ class ServerBotState {
       initialEquity: this.initialEquity,
       startedAt: this.startedAt,
       lastCycleAt: this.lastCycleAt,
+      lastHeartbeatAt: this.lastHeartbeatAt,
+      paused: this.paused === true,
+      pausedBy: this.paused ? (this.pausedBy || 'browser') : null,
       cycleCount: this.cycleCount,
       tradeCount: this.trades.length,
     };
@@ -450,8 +459,14 @@ async function runScanCycle(engine, state, config) {
     const autobotState = serverState[KEY_STATE];
     if (autobotState && autobotState.enabled === true && autobotState.mode !== 'server') {
       console.log('[Runner] Browser bot is active — server bot paused this cycle');
+      state.paused = true;
+      state.pausedBy = 'browser';
+      state.lastHeartbeatAt = Date.now();
       return null;
     }
+    state.paused = false;
+    state.pausedBy = null;
+    state.lastHeartbeatAt = Date.now();
 
     // --- 3. Sync local trade/history from server (post-restart recovery) ---
     const remoteTrades  = (Array.isArray(serverState[KEY_TRADES])  ? serverState[KEY_TRADES]  : []).filter(t => t?.source === 'server');
@@ -803,12 +818,15 @@ function exposeHealth(state) {
   );
   try {
     const data = {
-      running:      true,
-      lastCycleAt:  state.lastCycleAt,
-      cycleCount:   state.cycleCount,
-      tradeCount:   state.trades.length,
-      equity:       state.equity,
-      updatedAt:    Date.now(),
+      running:         true,
+      lastCycleAt:     state.lastCycleAt,
+      lastHeartbeatAt: state.lastHeartbeatAt || state.lastCycleAt || Date.now(),
+      paused:          state.paused === true,
+      pausedBy:        state.paused ? (state.pausedBy || 'browser') : null,
+      cycleCount:      state.cycleCount,
+      tradeCount:      state.trades.length,
+      equity:          state.equity,
+      updatedAt:       Date.now(),
     };
     fs.writeFileSync(healthPath, JSON.stringify(data), 'utf8');
   } catch (_) { /* non-critical */ }
@@ -823,7 +841,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.0)`);
+  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.1)`);
   console.log(`[Runner] Dashboard: ${DASHBOARD}`);
   console.log(`[Runner] Relay:     ${RELAY_URL}`);
   console.log(`[Runner] Interval:  ${SCAN_SEC}s`);

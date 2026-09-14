@@ -278,3 +278,158 @@ class TestWatchdogStartupGraceIntegration(unittest.TestCase):
         )
         self.assertFalse(result["restarted"])
         start_runner.assert_not_called()
+
+
+class TestRunnerPauseAwareness(unittest.TestCase):
+    def test_paused_runner_heartbeat_fresh_no_restart_no_p4(self):
+        """Auftrag A.1 & A.3: 10 min pause with fresh heartbeats does not trigger stall or P4."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        paused_health = {
+            "running": True,
+            "paused": True,
+            "paused_by": "browser",
+            "last_cycle_age_sec": 600.0,  # 10 minutes since last full trade cycle
+            "last_heartbeat_age_sec": 5.0,  # fresh heartbeat every 60s
+            "cycle_count": 11,
+        }
+        with patch.object(relay, "_start_runner_if_enabled") as start:
+            result = relay.runner_watchdog_cycle({}, paused_health, manager=manager, now=2000.0, stale_sec=180.0)
+            self.assertFalse(result["stalled"])
+            self.assertFalse(result["restarted"])
+            self.assertIsNone(result["notification"])
+            start.assert_not_called()
+
+    def test_paused_runner_stale_heartbeat_triggers_heal_and_p4(self):
+        """Auftrag A.3: Genuine death during pause (heartbeat missing/stale) triggers P4 and self-healing."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        dead_paused_health = {
+            "running": True,
+            "paused": True,
+            "paused_by": "browser",
+            "last_cycle_age_sec": 600.0,
+            "last_heartbeat_age_sec": 181.0,  # dead during pause
+            "cycle_count": 11,
+        }
+        with patch.object(relay, "_start_runner_if_enabled", return_value=FakeProcess()) as start, \
+             patch.object(relay.faulthandler, "dump_traceback"):
+            result = relay.runner_watchdog_cycle({}, dead_paused_health, manager=manager, now=2000.0, stale_sec=180.0)
+            self.assertTrue(result["stalled"])
+            self.assertTrue(result["restarted"])
+            self.assertIsNotNone(result["notification"])
+            self.assertEqual(result["notification"]["priority"], 4)
+            self.assertIn("Selbstheilung ausgelöst", result["notification"]["body"])
+            start.assert_called_once()
+
+    def test_pause_end_resumes_clean_cycle(self):
+        """Auftrag A.3: When pause ends and next cycle runs, staleness is fully reset."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        resumed_health = {
+            "running": True,
+            "paused": False,
+            "paused_by": None,
+            "last_cycle_age_sec": 2.0,
+            "last_heartbeat_age_sec": 2.0,
+            "cycle_count": 12,
+        }
+        result = relay.runner_watchdog_cycle({}, resumed_health, manager=manager, now=2000.0, stale_sec=180.0)
+        self.assertFalse(result["stalled"])
+        self.assertFalse(result["restarted"])
+        self.assertIsNone(result["notification"])
+
+    def test_ready_health_parsing_paused_fields(self):
+        """Auftrag A.2: _runner_health exposes paused, paused_by, and last_heartbeat_age_sec."""
+        payload = '{"running":true,"lastCycleAt":1000,"lastHeartbeatAt":99000,"paused":true,"pausedBy":"browser","cycleCount":5,"tradeCount":0,"equity":10000}'
+        with patch.object(relay.Path, "read_text", return_value=payload), \
+             patch.object(relay.time, "time", return_value=100.0):
+            health = relay._runner_health()
+            self.assertTrue(health["paused"])
+            self.assertEqual(health["paused_by"], "browser")
+            self.assertEqual(health["last_cycle_age_sec"], 99.0)
+            self.assertEqual(health["last_heartbeat_age_sec"], 1.0)
+
+
+class TestWatchdogHealUncoupledFromAlertCooldown(unittest.TestCase):
+    def test_second_stall_within_alert_cooldown_triggers_heal_without_p4(self):
+        """Auftrag C: Second stall within 3600s alert cooldown triggers heal and increments count, without second P4."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        stalled_1 = {"running": True, "last_cycle_age_sec": 181.0, "cycle_count": 5}
+        stalled_2 = {"running": True, "last_cycle_age_sec": 185.0, "cycle_count": 5}
+
+        with patch.object(relay, "_start_runner_if_enabled", side_effect=[FakeProcess(), FakeProcess()]) as start, \
+             patch.object(relay.faulthandler, "dump_traceback"):
+            # 1st stall at t=1000 -> P4 + Heal #1
+            turn_1 = relay.runner_watchdog_cycle({}, stalled_1, manager=manager, now=1000.0, stale_sec=180.0)
+            self.assertTrue(turn_1["stalled"])
+            self.assertTrue(turn_1["restarted"])
+            self.assertIsNotNone(turn_1["notification"])
+            self.assertEqual(turn_1["notification"]["priority"], 4)
+            self.assertEqual(manager.snapshot(now=1000.0)["runner_restart_count"], 1)
+
+            # 2nd stall at t=1500 (within 3600s cooldown) -> NO P4, but Heal #2 executes!
+            turn_2 = relay.runner_watchdog_cycle(turn_1["state"], stalled_2, manager=manager, now=1500.0, stale_sec=180.0)
+            self.assertTrue(turn_2["stalled"])
+            self.assertTrue(turn_2["restarted"])
+            self.assertIsNone(turn_2["notification"], "Notification must be suppressed by cooldown")
+            self.assertEqual(manager.snapshot(now=1500.0)["runner_restart_count"], 2)
+            self.assertEqual(start.call_count, 2)
+
+
+class TestHealingReceiptDelivery(unittest.TestCase):
+    def test_p3_receipt_delivered_on_completed_follow_up_cycle(self):
+        """Auftrag B: After watchdog restart, first completed follow-up cycle delivers P3 receipt."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        stalled = {"running": True, "last_cycle_age_sec": 181.0, "cycle_count": 10}
+        healthy_followup = {"running": True, "last_cycle_age_sec": 1.0, "cycle_count": 11}
+        subsequent_cycle = {"running": True, "last_cycle_age_sec": 1.0, "cycle_count": 12}
+
+        with patch.object(relay, "_start_runner_if_enabled", return_value=FakeProcess()), \
+             patch.object(relay.faulthandler, "dump_traceback"):
+            # Turn 1: Stall & restart
+            turn_1 = relay.runner_watchdog_cycle({}, stalled, manager=manager, now=1000.0, stale_sec=180.0)
+            self.assertTrue(turn_1["restarted"])
+            self.assertEqual(turn_1["notification"]["priority"], 4)
+
+            # Turn 2: Follow-up cycle completes (cycle 10 -> 11) -> P3 receipt sent!
+            turn_2 = relay.runner_watchdog_cycle(turn_1["state"], healthy_followup, manager=manager, now=1060.0, stale_sec=180.0)
+            self.assertFalse(turn_2["restarted"])
+            self.assertTrue(turn_2["recovered"])
+            self.assertIsNotNone(turn_2["notification"])
+            self.assertEqual(turn_2["notification"]["priority"], 3)
+            self.assertEqual(turn_2["notification"]["title"], "AURA Runner wieder aktiv")
+            self.assertEqual(turn_2["notification"]["body"], "Selbstheilung erfolgreich — Runner wieder aktiv")
+
+            # Turn 3: Normal next cycle -> no more P3 receipt
+            turn_3 = relay.runner_watchdog_cycle(turn_2["state"], subsequent_cycle, manager=manager, now=1120.0, stale_sec=180.0)
+            self.assertFalse(turn_3["recovered"])
+            self.assertIsNone(turn_3["notification"])
+
+    def test_p3_receipt_delivered_when_recovering_in_paused_mode(self):
+        """Auftrag B: If runner restarts and recovers into healthy paused mode, P3 receipt is delivered."""
+        manager = relay.RunnerManager()
+        manager.set_process(FakeProcess())
+        stalled = {"running": True, "last_cycle_age_sec": 181.0, "cycle_count": 10}
+        paused_followup = {
+            "running": True,
+            "paused": True,
+            "paused_by": "browser",
+            "last_cycle_age_sec": 181.0,
+            "last_heartbeat_age_sec": 1.0,
+            "cycle_count": 10,
+        }
+
+        with patch.object(relay, "_start_runner_if_enabled", return_value=FakeProcess()), \
+             patch.object(relay.faulthandler, "dump_traceback"):
+            turn_1 = relay.runner_watchdog_cycle({}, stalled, manager=manager, now=1000.0, stale_sec=180.0)
+            self.assertTrue(turn_1["restarted"])
+
+            turn_2 = relay.runner_watchdog_cycle(turn_1["state"], paused_followup, manager=manager, now=1060.0, stale_sec=180.0)
+            self.assertTrue(turn_2["recovered"])
+            self.assertIsNotNone(turn_2["notification"])
+            self.assertEqual(turn_2["notification"]["priority"], 3)
+            self.assertEqual(turn_2["notification"]["body"], "Selbstheilung erfolgreich — Runner wieder aktiv")
+

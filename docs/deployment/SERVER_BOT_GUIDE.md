@@ -1,6 +1,6 @@
 # AURA Server-Bot Guide — 24/7 Signale ohne offenen Browser
 
-Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.8.0.
+Dieses Dokument beschreibt die Inbetriebnahme, Persistenz und den 24/7-Betrieb des **Headless Paper-Autobots (Server-Modus)** in AURA v1.8.1.
 
 ---
 
@@ -69,6 +69,9 @@ Abonniere dein ntfy-Topic auf dem Smartphone (ntfy-App) und/oder PC (Browser):
    {
      "running": true,
      "last_cycle_age_sec": 14.2,
+     "last_heartbeat_age_sec": 14.2,
+     "paused": false,
+     "paused_by": null,
      "cycle_count": 1,
      "trade_count": 0,
      "equity": 10000,
@@ -246,14 +249,36 @@ Möchte ein Freund oder Teampartner eine eigene AURA-Instanz mit 24/7 Server-Bot
 
 ---
 
-## 🎛️ Bedienung über das Dashboard
+## 🎛️ Bedienung & Betriebsmodi
 
-Das Dashboard fungiert im Server-Modus als **Fernglas** und Fernbedienung:
+### Betriebsmodi
 
-1. **Status-Badge:** Im Autobot-Bereich erscheint das blaue Banner `🌐 SERVER-BOT AKTIV (24/7)`.
-2. **Doppel-Handel-Schutz:** Der Browser-Autobot pausiert seinen lokalen Scan automatisch (Start-Button ist gesperrt, verhindert doppelte Orders).
-3. **Parameter ändern:** Klicke auf `⚙ Parameter`, passe Profil/Schwellen/Hebel an und klicke `✓ Speichern & Anwenden`. Die Parameter werden im nächsten Scan-Zyklus (~60s) vom Server-Runner übernommen.
-4. **Trade-Karten:** Offene Positionen tragen das Badge `🌐 SERVER`.
+1. **Tab geschlossen (Standard 24/7-Betrieb):**
+   - Der Server-Runner führt jede Minute autonom den Scan durch, überwacht Take-Profits / Stop-Losses und sendet Signale via ntfy.
+   - `/ready` zeigt `paused: false` und `paused_by: null`.
+2. **Tab als Fernglas (Beobachtung):**
+   - Das Dashboard ist geöffnet, der lokale Browser-Autobot ist inaktiv/pausiert.
+   - Das blaue Banner `🌐 SERVER-BOT AKTIV (24/7)` signalisiert, dass der Server-Bot die Positionen managed.
+   - Der Server-Runner läuft unterbrechungsfrei weiter (`paused: false`).
+3. **Tab mit aktivem Browser-Autobot (Lokaler Test/Handel):**
+   - Wird der Browser-Autobot im Dashboard manuell gestartet (`enabled: true`, `mode != 'server'`), greift der v1.7.0 Anti-Doppel-Handel-Schutz.
+   - Der Server-Runner pausiert seinen Scan-Zyklus („Browser bot is active — server bot paused this cycle").
+   - `/ready` meldet `paused: true` und `paused_by: "browser"`.
+   - **Wichtig:** Browser-Paper-Positionen leben im `localStorage` des jeweiligen Browsers und frieren beim Schließen des Browser-Tabs ein (by design). Nur der Server-Bot führt Trades 24/7 persistent im Relay/Container weiter.
+
+### Watchdog-Pause-Semantik & `/ready` Status
+
+- `paused`: `true` | `false` — Zeigt an, ob der Server-Runner wegen aktivem Browser-Bot pausiert ist.
+- `paused_by`: `"browser"` | `null` — Ursache der Pause.
+- `last_cycle_age_sec`: Alter des letzten vollständigen Handelszyklus (bleibt während Pause auf dem letzten Scan-Zeitpunkt stehen).
+- `last_heartbeat_age_sec`: Alter des letzten Heartbeats des Runners (wird auch bei Pausen-Zyklen minütlich aktualisiert).
+- **Watchdog-Regel:** Solange der Runner im Pausen-Zustand seinen Heartbeat aktualisiert, gilt er als lebendig. Der Watchdog löst keinen Stall-Alarm (P4) und keinen unnötigen Selbstheilungs-Neustart aus. Stirbt der Runner-Prozess jedoch auch während einer Pause (Heartbeat älter als Stall-Schwelle), greift die Selbstheilung weiterhin zuverlässig.
+
+### Update-Kadenz
+
+- **5 Sekunden:** Live-Preise für manuelle und Bot-Trade-Karten (`refreshTradePrices` aktualisiert PnL, R-Multiple, Mark-Preise).
+- **60 Sekunden:** Vollständiger Signal- und Positions-Scan des Server-Runners (`AURA_BOT_SCAN_SEC=60`).
+- **Chart:** Interaktives TradingView-Widget wie gewohnt.
 
 ---
 

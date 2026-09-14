@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.8.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.8.1 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,7 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.8.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.8.1", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -836,14 +836,28 @@ def runner_dead_transition(
     except (ValueError, TypeError):
         cycle_count = 0
 
-    age = runner_health.get("last_cycle_age_sec")
+    paused = bool(runner_health.get("paused", False))
     threshold = runner_stale_threshold() if stale_sec is None else float(stale_sec)
-    is_stale = (
-        age is None
-        or not isinstance(age, (int, float))
-        or not math.isfinite(float(age))
-        or float(age) > threshold
-    )
+    if paused:
+        heartbeat_age = runner_health.get("last_heartbeat_age_sec")
+        if heartbeat_age is None:
+            heartbeat_age = runner_health.get("last_cycle_age_sec")
+        is_stale = (
+            heartbeat_age is None
+            or not isinstance(heartbeat_age, (int, float))
+            or not math.isfinite(float(heartbeat_age))
+            or float(heartbeat_age) > threshold
+        )
+        display_age = heartbeat_age
+    else:
+        cycle_age = runner_health.get("last_cycle_age_sec")
+        is_stale = (
+            cycle_age is None
+            or not isinstance(cycle_age, (int, float))
+            or not math.isfinite(float(cycle_age))
+            or float(cycle_age) > threshold
+        )
+        display_age = cycle_age
 
     # Startup grace: do not alert before runner has completed its first cycle,
     # provided we are still within the initial grace window after relay startup.
@@ -859,7 +873,7 @@ def runner_dead_transition(
             health["alerted_at"] = current_time
             health["cooldown_until"] = current_time + 3600.0  # 60 min cooldown
         next_state["runner_health_alert"] = health
-        age_str = f"{age:.0f}s" if isinstance(age, (int, float)) else "unbekannt"
+        age_str = f"{display_age:.0f}s" if isinstance(display_age, (int, float)) and math.isfinite(float(display_age)) else "unbekannt"
         return {
             "notify": notify,
             "stalled": True,
@@ -893,7 +907,7 @@ def runner_watchdog_cycle(
     )
     if not transition["stalled"]:
         cycle_count = RunnerManager._cycle_count(runner_health)
-        age = runner_health.get("last_cycle_age_sec")
+        age = runner_health.get("last_cycle_age_sec") if not runner_health.get("paused") else runner_health.get("last_heartbeat_age_sec")
         in_startup_grace = (
             cycle_count < 1
             and age is None
@@ -912,7 +926,7 @@ def runner_watchdog_cycle(
                 "body": "Selbstheilung erfolgreich — Runner wieder aktiv",
                 "priority": 3,
             }
-        return {"state": transition["state"], "notification": notification, **lifecycle}
+        return {"state": transition["state"], "stalled": transition["stalled"], "notification": notification, **lifecycle}
 
     lifecycle = manager.watchdog(runner_health, now=now, stale_sec=stale_sec)
     notification = None
@@ -922,7 +936,7 @@ def runner_watchdog_cycle(
             "body": transition["body"],
             "priority": 4,
         }
-    return {"state": transition["state"], "notification": notification, **lifecycle}
+    return {"state": transition["state"], "stalled": transition["stalled"], "notification": notification, **lifecycle}
 
 
 def feed_success_transition(state: dict, *, now: float | None = None) -> dict:
@@ -1215,12 +1229,21 @@ def _runner_health() -> dict:
     try:
         data = json.loads(health_path.read_text(encoding="utf-8"))
         last_cycle = data.get("lastCycleAt")
+        last_heartbeat = data.get("lastHeartbeatAt", last_cycle)
         age_sec: float | None = None
         if isinstance(last_cycle, (int, float)) and last_cycle > 0:
             age_sec = round((time.time() * 1000 - last_cycle) / 1000, 1)
+        heartbeat_age_sec: float | None = None
+        if isinstance(last_heartbeat, (int, float)) and last_heartbeat > 0:
+            heartbeat_age_sec = round((time.time() * 1000 - last_heartbeat) / 1000, 1)
+        paused = bool(data.get("paused", False))
+        paused_by = data.get("pausedBy", data.get("paused_by", None)) if paused else None
         return {
             "running": data.get("running", False),
             "last_cycle_age_sec": age_sec,
+            "last_heartbeat_age_sec": heartbeat_age_sec,
+            "paused": paused,
+            "paused_by": paused_by,
             "cycle_count": data.get("cycleCount", 0),
             "trade_count": data.get("tradeCount", 0),
             "equity": data.get("equity"),
@@ -1230,7 +1253,12 @@ def _runner_health() -> dict:
         return {
             "running": False,
             "last_cycle_age_sec": None,
+            "last_heartbeat_age_sec": None,
+            "paused": False,
+            "paused_by": None,
             "cycle_count": 0,
+            "trade_count": 0,
+            "equity": None,
             "runner_restart_count": RUNNER_MANAGER.snapshot()["runner_restart_count"],
         }
 
@@ -1707,18 +1735,21 @@ class RunnerManager:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._process: subprocess.Popen | None = None
+        self._process: Any = None
         self._restart_count = 0
         self._restart_timestamps: list[float] = []
         self._recovery_cycle_count: int | None = None
+        self._recovery_pending = False
         self._stall_active = False
         self._restart_in_progress = False
+        self._last_restart_at: float | None = None
+        self._last_dump_at: float = 0.0
 
-    def set_process(self, process: subprocess.Popen | None) -> None:
+    def set_process(self, process: Any) -> None:
         with self._lock:
             self._process = process
 
-    def current_process(self) -> subprocess.Popen | None:
+    def current_process(self) -> Any:
         with self._lock:
             return self._process
 
@@ -1732,7 +1763,7 @@ class RunnerManager:
                 "runner_restart_count": self._restart_count,
                 "restart_timestamps": recent,
                 "restarts_24h": len(recent),
-                "recovery_pending": self._recovery_cycle_count is not None,
+                "recovery_pending": self._recovery_pending or (self._recovery_cycle_count is not None),
             }
 
     @staticmethod
@@ -1746,27 +1777,43 @@ class RunnerManager:
         current_time = time.time() if now is None else float(now)
         threshold = runner_stale_threshold() if stale_sec is None else float(stale_sec)
         cycle_count = self._cycle_count(health)
-        age = health.get("last_cycle_age_sec")
-        stale = age is None or not isinstance(age, (int, float)) or not math.isfinite(float(age)) or float(age) > threshold
+        paused = bool(health.get("paused", False))
+        if paused:
+            check_age = health.get("last_heartbeat_age_sec")
+            if check_age is None:
+                check_age = health.get("last_cycle_age_sec")
+        else:
+            check_age = health.get("last_cycle_age_sec")
+        stale = check_age is None or not isinstance(check_age, (int, float)) or not math.isfinite(float(check_age)) or float(check_age) > threshold
 
         with self._lock:
             recovery_cycle = self._recovery_cycle_count
-            if recovery_cycle is not None and not stale and cycle_count > recovery_cycle:
-                self._recovery_cycle_count = None
-                self._stall_active = False
-                return {"restarted": False, "recovered": True}
+            recovery_needed = self._recovery_pending or (recovery_cycle is not None)
+            if recovery_needed and not stale:
+                # Require cycle count advance, or a completed cycle in restarted process, or active pause
+                cycle_advanced = (recovery_cycle is None) or (cycle_count > recovery_cycle) or (cycle_count > 0 and cycle_count < recovery_cycle)
+                if cycle_advanced or paused:
+                    self._recovery_cycle_count = None
+                    self._recovery_pending = False
+                    self._stall_active = False
+                    log.info("RUNNER_RECOVERED: Runner healthy after restart (cycle=%d, paused=%s)", cycle_count, paused)
+                    return {"restarted": False, "recovered": True}
             if not stale:
-                if recovery_cycle is None:
+                if not recovery_needed:
                     self._stall_active = False
                 return {"restarted": False, "recovered": False}
-            if self._restart_in_progress or (self._process is not None and self._stall_active):
+            if self._restart_in_progress:
                 return {"restarted": False, "recovered": False}
-            needs_dump = not self._stall_active
+            # Suppress rapid duplicate restarts within 5s grace window of previous restart
+            if self._last_restart_at is not None and (current_time - self._last_restart_at) < 5.0:
+                return {"restarted": False, "recovered": False}
+            needs_dump = not self._stall_active or (current_time - self._last_dump_at) > 300.0
             self._stall_active = True
             self._restart_in_progress = True
             old_process = self._process
 
         if needs_dump:
+            self._last_dump_at = current_time
             log.error("RUNNER_STALL_STACK_DUMP: runner cycle stale; dumping all relay threads")
             try:
                 sys.stderr.flush()
@@ -1794,7 +1841,10 @@ class RunnerManager:
             if replacement is not None:
                 self._restart_count += 1
                 self._restart_timestamps.append(current_time)
+                self._last_restart_at = current_time
                 self._recovery_cycle_count = cycle_count
+                self._recovery_pending = True
+                log.warning("RUNNER_HEAL: Runner restart #%d executed (staleness detected)", self._restart_count)
             self._restart_in_progress = False
         return {"restarted": replacement is not None, "recovered": False}
 
