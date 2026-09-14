@@ -69,9 +69,20 @@ Beide Quellen schicken Nachrichten in denselben Topic — eine App, alles im Bli
 
 ---
 
-## Trade-Pushes aktivieren
+## Trade- & Signal-Pushes (24/7 ohne offenen Browser)
 
-Neben Deploy-Benachrichtigungen kann AURA bei jedem Trade-Abschluss (manueller Paper-Trade oder Autobot-Position) eine sofortige Trade-Zusammenfassung via ntfy auf Handy und PC senden.
+Ab **AURA v1.7.0** sendet der **Headless Paper-Autobot** im Docker-Container alle Trade-Events und Regime-Wechsel **rund um die Uhr**, völlig unabhängig davon, ob auf PC oder Handy ein Browser geöffnet ist.
+
+### Signal-Matrix
+
+| Ereignis | Auslöser | Priorität | Bemerkung |
+|---|---|---|---|
+| **Trade eröffnet** | Headless-Runner findet OOS-valides Setup | P3 (default) | Sofort nach Order-Freigabe |
+| **TP1 / TP2 / TP3** | Kurs erreicht Take-Profit-Levels | P3 (default) | Once-Flag verhindert Re-Pushes |
+| **Stop-Loss / Time-Stop** | SL oder Stagnations-Stop getriggert | P4 (hoch) / P3 | Sofortiger Exit-Push |
+| **BTC-Regime-Wechsel** | Makro-Trend wechselt (z. B. BULL → BEAR) | P4 (hoch) | Relay BTC-Wächter |
+| **Tages-Digest** | Täglicher PnL- & Trade-Report (07:00 UTC) | P1 (niedrig) | 24h Performance-Zusammenfassung |
+| **Runner-Fehler** | Server-Bot ausgefallen (>5 Min kein Zyklus) | P4 (hoch) | 60 Min Cooldown |
 
 ### 1. Umgebungsvariable setzen
 Dem Container `aura-terminal` auf der VM (z. B. VM 201) die Umgebungsvariable mitgeben:

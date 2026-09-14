@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.6.1] – 2026-09-14 – Infra-Härtung: Universum-Sync-Isolation & CI-Stabilität (v1.6.1, PATCH)
+## [1.7.0] – 2026-09-14
+
+### Added
+- **PF-66 (Headless Paper-Autobot):** Server-seitiger Autobot-Runner (`headless_autobot.js`) im Docker-Container. Lädt die Original-Engine aus `Symbiose_Dashboard.html` via VM-Extraktion für 100% mathematische Parität.
+- **PF-67 (Server-State & Mode-Switch):** Persistente State-Synchronisation über `/api/state` (`/var/lib/aura`), Mode-Switch-Flag verhindert Doppel-Trades zwischen Browser- und Server-Bot.
+- **PF-68 (Zentrale Signal-Emission):** Relay-Endpoint `/api/signals` für entkoppelte ntfy-Push-Benachrichtigungen mit atomarem Event-Claiming und Cooldown-Schutz.
+- **PF-69 (Robustheit & Health):** Runner-Health-Check im `/ready`-Endpoint, 429-Backoff, Fail-Close bei Datenfehlern, vollständige Restart-Persistenz.
+- **PF-70 (Funnel-Paritäts-Suite):** 33 JS-Tests + 24 Python-Tests zur Verifikation identischer Gate-Entscheidungen und Push-Dedup.
+- **PF-71 (Docs):** `docs/deployment/SERVER_BOT_GUIDE.md` und `docs/releases/RELEASE_v1.7.0.md`.
+
+## [1.6.1] - 2026-09-14 – Infra-Härtung: Universum-Sync-Isolation & CI-Stabilität (v1.6.1, PATCH)
 
 ### Fixed
 - **Universum-Sync-Isolation & Pfad-Konfigurierbarkeit:** `start.py`, `scripts/sync_market_data.py` und `bitget_relay.py` unterstützen nun `AURA_UNIVERSE_PATH` und `AURA_DATA_DIR`, um Schreibzugriffe auf temporäre Pfade umzuleiten.
