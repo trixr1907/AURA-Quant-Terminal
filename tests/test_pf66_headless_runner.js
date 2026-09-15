@@ -299,7 +299,7 @@ test('ServerBotState.loadFromServerState: restores equity from server', () => {
   const s = new autobot.ServerBotState();
   s.loadFromServerState({
     'aura-server-bot-state-v1': { equity: 8500, initialEquity: 10000, startedAt: 1234567890 },
-    'aura-quant-terminal-active-trades-v1': [
+    'aura-quant-terminal-active-trades-v2': [
       { id: 't1', source: 'server', margin: 200, coin: 'XUSDT', dir: 1 },
       { id: 't2', source: 'browser', margin: 300, coin: 'YUSDT', dir: -1 }, // should be excluded
     ],

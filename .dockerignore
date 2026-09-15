@@ -11,4 +11,8 @@ dist
 *.zip
 *.apk
 .env
+data/aura_shared_state.json*
+data/aura_signal_center_state.json*
+data/shadow_log.jsonl
+data/shadow_stats.json
 .release_verdict.json

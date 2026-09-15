@@ -42,8 +42,8 @@ const DASHBOARD    = path.resolve(process.env.AURA_DASHBOARD || 'Symbiose_Dashbo
 const EXPECTED_ENGINE_HASH = process.env.AURA_ENGINE_HASH || ''; // optional; skip when empty
 
 // Persistent state keys (same key namespace as browser/relay)
-const KEY_TRADES   = 'aura-quant-terminal-active-trades-v1';
-const KEY_HISTORY  = 'aura-quant-terminal-history-trades-v1';
+const KEY_TRADES   = 'aura-quant-terminal-active-trades-v2';
+const KEY_HISTORY  = 'aura-quant-terminal-history-trades-v2';
 const KEY_STATE    = 'aura-autobot-state-v2';
 const KEY_SRV_CFG  = 'aura-server-bot-config-v1';   // written by Dashboard panel
 const KEY_SRV_BOT  = 'aura-server-bot-state-v1';    // Runner writes here (mode flag, equity, flags)
@@ -208,6 +208,14 @@ async function writeStateKey(key, value, expectedRev) {
   if (expectedRev !== undefined) payload.expected_rev = expectedRev;
   const r = await relayRequest('POST', '/api/state', payload);
   return r;
+}
+
+async function writeStateMutations(mutations, expectedRev) {
+  const payload = { mutations, expected_rev: expectedRev };
+  const r = await relayRequest('POST', '/api/state', payload);
+  if (r.status === 409) throw new Error('State revision conflict');
+  if (r.status !== 200 || r.body?.ok !== true) throw new Error('State mutation failed: ' + r.status);
+  return r.body;
 }
 
 async function claimSignalEvent(key) {
@@ -942,6 +950,8 @@ async function runScanCycle(engine, state, config, collector = null) {
       });
 
       const newTrade = {
+        record_schema: 2,
+        schemaVersion: 2,
         id:           engine.generateDeterministicOid('sb'),
         source:       'server',
         coin:         c.symbol,
@@ -1006,21 +1016,29 @@ async function runScanCycle(engine, state, config, collector = null) {
     const cutoff24h = Date.now() - 86400000;
     state.funnelCycles = state.funnelCycles.filter(c => c && c.ts >= cutoff24h);
 
-    // Write server-bot meta state
-    await writeStateKey(KEY_SRV_BOT, state.toServerPayload());
-
-    // Write trades (all trades: server-bot trades only — browser trades left untouched)
-    // We get current server trades, replace server-owned ones, preserve browser-owned ones
+    // Persist server-owned records atomically with optimistic concurrency. This
+    // avoids overwriting concurrent browser mutations between separate writes.
     const currentServerState = await getState();
-    const browserTrades  = (Array.isArray(currentServerState[KEY_TRADES])
-      ? currentServerState[KEY_TRADES] : []).filter(t => t?.source !== 'server');
-    const allTrades      = [...browserTrades, ...state.trades];
-    const browserHistory = (Array.isArray(currentServerState[KEY_HISTORY])
-      ? currentServerState[KEY_HISTORY] : []).filter(h => h?.source !== 'server');
-    const allHistory     = [...browserHistory, ...state.history];
+    const metaWrite = await writeStateKey(KEY_SRV_BOT, state.toServerPayload(), currentServerState._rev);
+    if (metaWrite.status === 409) throw new Error('State revision conflict');
+    if (metaWrite.status !== 200 || metaWrite.body?.ok !== true) throw new Error('State metadata write failed: ' + metaWrite.status);
 
-    await writeStateKey(KEY_TRADES,  allTrades);
-    await writeStateKey(KEY_HISTORY, allHistory);
+    // Refresh revision after metadata write, then batch record-level mutations.
+    const afterMeta = await getState();
+    const tradeMutations = [];
+    const existingServerTrades = (Array.isArray(afterMeta[KEY_TRADES]) ? afterMeta[KEY_TRADES] : [])
+      .filter(t => t?.source === 'server');
+    const existingServerHistory = (Array.isArray(afterMeta[KEY_HISTORY]) ? afterMeta[KEY_HISTORY] : [])
+      .filter(h => h?.source === 'server');
+    for (const trade of existingServerTrades) {
+      if (!state.trades.some(item => item.id === trade.id)) tradeMutations.push({ key: KEY_TRADES, op: 'delete', id: trade.id });
+    }
+    for (const trade of state.trades) tradeMutations.push({ key: KEY_TRADES, op: 'upsert', id: trade.id, value: trade });
+    for (const history of existingServerHistory) {
+      if (!state.history.some(item => item.id === history.id)) tradeMutations.push({ key: KEY_HISTORY, op: 'delete', id: history.id });
+    }
+    for (const history of state.history) tradeMutations.push({ key: KEY_HISTORY, op: 'upsert', id: history.id, value: history });
+    if (tradeMutations.length) await writeStateMutations(tradeMutations, afterMeta._rev);
 
     const cycleMs = Date.now() - cycleStart;
     console.log(`[Runner] Cycle #${state.cycleCount} done. Open=${state.trades.length} Equity=${state.equity.toFixed(0)} Funnel=${JSON.stringify(funnel.rejects)} (${cycleMs}ms)`);
@@ -1045,6 +1063,8 @@ function closeTradeRecord(trade, exitPrice, reason) {
   const r   = initialRisk > 0 ? ((exitPrice - trade.entry) * dir) / initialRisk : 0;
   return {
     ...trade,
+    record_schema: 2,
+    schemaVersion: 2,
     id:         engine_generateHistoryId(trade.id),
     parentId:   trade.id,
     source:     'server',
@@ -1175,6 +1195,7 @@ module.exports = {
   ServerBotState,
   computeFunnel24h,
   closeTradeRecord,
+  schemaV2Keys: { trades: KEY_TRADES, history: KEY_HISTORY },
   relayRequest,
   fetchTickerViaRelay,
   candleDurationMs,

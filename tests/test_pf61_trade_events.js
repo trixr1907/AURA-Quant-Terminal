@@ -8,7 +8,7 @@ const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function createContext(initialTrades = []) {
-  const store = { 'aura-quant-terminal-active-trades-v1': JSON.stringify(initialTrades) };
+  const store = { 'aura-quant-terminal-active-trades-v2': JSON.stringify(initialTrades) };
   const emitted = [];
   const ctx = {
     console, JSON, Math, Date, Promise, Set, Map, Number, String, Array, Object,
@@ -49,7 +49,7 @@ function createContext(initialTrades = []) {
 
   assert.deepStrictEqual(Array.from(ctx.detectTradeEvents(trades[0], 0.000712)), ['tp1']);
   await ctx.emitTradeEvents(trades[0], 0.000712);
-  store['aura-quant-terminal-active-trades-v1'] = JSON.stringify(trades);
+  store['aura-quant-terminal-active-trades-v2'] = JSON.stringify(trades);
   trades = ctx.loadTrades();
   assert.strictEqual(trades[0].tp1Hit, true, 'TP1 once flag must survive reload');
   assert.deepStrictEqual(Array.from(ctx.detectTradeEvents(trades[0], 0.000712)), [], 'same price must not emit TP1 twice');

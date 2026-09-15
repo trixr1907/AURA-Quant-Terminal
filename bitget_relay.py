@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.10.1 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v2.0.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -10,7 +10,7 @@ API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
   GET  /status           -> Human Status Page (HTML)
-  GET  /serving          -> {"ok": true, "version": "1.10.1", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "2.0.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -41,6 +41,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+if not _VERSION_FILE.exists():
+    raise RuntimeError(
+        f"CRITICAL DEPLOYMENT ERROR: VERSION file missing at {_VERSION_FILE}. "
+        "AURA Relay requires a valid VERSION file to start (fail-closed)."
+    )
+VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip()
+
+from scripts.state_migration import (  # noqa: E402
+    TARGET_SCHEMA_VERSION,
+    migrate_state_directory,
+)
+
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
@@ -51,13 +64,6 @@ except ImportError:
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
-if not _VERSION_FILE.exists():
-    raise RuntimeError(
-        f"CRITICAL DEPLOYMENT ERROR: VERSION file missing at {_VERSION_FILE}. "
-        "AURA Relay requires a valid VERSION file to start (fail-closed)."
-    )
-VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip()
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -238,6 +244,9 @@ MAX_STATE_VALUE_BYTES = 1_000_000
 STATE_LOCK = threading.Lock()
 ALLOWED_STATE_KEYS = {
     "aura-autobot-state-v2",
+    "aura-quant-terminal-active-trades-v2",
+    "aura-quant-terminal-history-trades-v2",
+    # v1 keys remain readable/writable for one compatibility cycle.
     "aura-quant-terminal-active-trades-v1",
     "aura-quant-terminal-history-trades-v1",
     "aura-ntfy-signals-settings-v1",
@@ -245,6 +254,45 @@ ALLOWED_STATE_KEYS = {
     "aura-server-bot-config-v1",
     "aura-server-bot-state-v1",
 }
+
+def _normalize_runtime_records(key: str, value: Any) -> Any:
+    """Stamp v2 record schemas while preserving IDs and all existing values."""
+    is_trade = key in {
+        "aura-quant-terminal-active-trades-v1",
+        "aura-quant-terminal-active-trades-v2",
+    }
+    is_history = key in {
+        "aura-quant-terminal-history-trades-v1",
+        "aura-quant-terminal-history-trades-v2",
+    }
+    if not (is_trade or is_history):
+        return value
+    if not isinstance(value, list):
+        return value
+    normalized = []
+    for record in value:
+        if not isinstance(record, dict):
+            return value
+        stamped = dict(record)
+        stamped["record_schema"] = TARGET_SCHEMA_VERSION
+        normalized.append(stamped)
+    return normalized
+
+
+def _assert_supported_runtime_schema(state: dict, *, source: str) -> None:
+    """Refuse reads/writes when persisted state is newer than this build."""
+    try:
+        schema_version = int(state.get("schema_version", 1))
+    except (TypeError, ValueError) as exc:
+        raise StatePersistenceError() from exc
+    if schema_version > TARGET_SCHEMA_VERSION:
+        log.error(
+            "%s schema_version=%d: state newer than build — rollback image or restore backup",
+            source,
+            schema_version,
+        )
+        raise StatePersistenceError()
+
 
 def _validate_mutations(mutations: Any) -> list[dict] | None:
     """Validate an ID-based batch completely before applying any mutation."""
@@ -257,7 +305,12 @@ def _validate_mutations(mutations: Any) -> list[dict] | None:
         key = mutation.get("key")
         op = mutation.get("op")
         ident = mutation.get("id")
-        if key not in {"aura-quant-terminal-active-trades-v1", "aura-quant-terminal-history-trades-v1"}:
+        if key not in {
+            "aura-quant-terminal-active-trades-v1",
+            "aura-quant-terminal-history-trades-v1",
+            "aura-quant-terminal-active-trades-v2",
+            "aura-quant-terminal-history-trades-v2",
+        }:
             return None
         if op not in {"upsert", "delete"} or not isinstance(ident, str) or not ident or len(ident) > 256:
             return None
@@ -265,6 +318,8 @@ def _validate_mutations(mutations: Any) -> list[dict] | None:
             value = mutation.get("value")
             if not isinstance(value, dict) or value.get("id") != ident:
                 return None
+            value = dict(value)
+            value["record_schema"] = TARGET_SCHEMA_VERSION
             try:
                 if len(json.dumps(value, separators=(",", ":")).encode()) > MAX_STATE_VALUE_BYTES:
                     return None
@@ -291,14 +346,20 @@ def _apply_mutations_locked(current: dict, mutations: list[dict]) -> dict:
             if index is not None:
                 values.pop(index)
         elif index is None:
-            if mutation["key"] == "aura-quant-terminal-history-trades-v1":
+            if mutation["key"] in {
+                "aura-quant-terminal-history-trades-v1",
+                "aura-quant-terminal-history-trades-v2",
+            }:
                 values.insert(0, mutation["value"])
             else:
                 values.append(mutation["value"])
         else:
             values[index] = mutation["value"]
     for key, values in arrays.items():
-        limit = 200 if key == "aura-quant-terminal-history-trades-v1" else 500
+        limit = 200 if key in {
+            "aura-quant-terminal-history-trades-v1",
+            "aura-quant-terminal-history-trades-v2",
+        } else 500
         next_state[key] = values[:limit]
     return next_state
 
@@ -314,10 +375,13 @@ def _save_mutation_batch(mutations: list[dict], expected_rev: int | None = None)
                 if not isinstance(loaded, dict):
                     raise ValueError("shared state must be a JSON object")
                 current = loaded
+                _assert_supported_runtime_schema(current, source="shared state")
             current_rev = int(current.get("_rev", 0))
             if expected_rev is not None and expected_rev != current_rev:
                 return None, current_rev, None
             next_state = _apply_mutations_locked(current, mutations)
+            next_state["schema_version"] = TARGET_SCHEMA_VERSION
+            next_state["rev"] = current_rev + 1
             next_state["_updated_at"] = int(time.time())
             next_state["_rev"] = current_rev + 1
             tmp_path = STATE_FILE.with_suffix(".tmp")
@@ -358,6 +422,7 @@ def _load_shared_state() -> dict:
         if not isinstance(state, dict):
             log.error("Existing state file is not a JSON object")
             raise StatePersistenceError()
+        _assert_supported_runtime_schema(state, source="shared state")
         return state
 
 
@@ -374,12 +439,15 @@ def _save_shared_state(key: str, val: Any, expected_rev: int | None = None) -> t
                     if not isinstance(loaded, dict):
                         raise ValueError("shared state must be a JSON object")
                     current = loaded
+                    _assert_supported_runtime_schema(current, source="shared state")
                 except Exception:
                     raise PersistenceError("shared state is corrupt")
             current_rev = int(current.get("_rev", 0))
             if expected_rev is not None and expected_rev != current_rev:
                 return None, current_rev, None
-            current[key] = val
+            current[key] = _normalize_runtime_records(key, val)
+            current["schema_version"] = TARGET_SCHEMA_VERSION
+            current["rev"] = current_rev + 1
             current["_updated_at"] = int(time.time())
             current["_rev"] = current_rev + 1
             tmp_path = STATE_FILE.with_suffix(".tmp")
@@ -422,6 +490,7 @@ def _claim_signal_event(key: Any, *, now: float | None = None) -> tuple[bool, in
                 if not isinstance(loaded, dict):
                     raise ValueError("shared state must be a JSON object")
                 current = loaded
+                _assert_supported_runtime_schema(current, source="shared state")
             current_rev = int(current.get("_rev", 0))
             claims = current.get("_signal_claims", {})
             if not isinstance(claims, dict):
@@ -433,6 +502,8 @@ def _claim_signal_event(key: Any, *, now: float | None = None) -> tuple[bool, in
             claimed_at = int(time.time() if now is None else float(now))
             next_claims[key] = claimed_at
             next_state["_signal_claims"] = next_claims
+            next_state["schema_version"] = TARGET_SCHEMA_VERSION
+            next_state["rev"] = current_rev + 1
             next_state["_updated_at"] = claimed_at
             next_state["_rev"] = current_rev + 1
             tmp_path = STATE_FILE.with_suffix(".tmp")
@@ -647,18 +718,21 @@ def btc_regime_transition(state: dict, current: dict, *, now: float | None = Non
 def _load_signal_state() -> dict:
     with SIGNAL_STATE_LOCK:
         if not SIGNAL_STATE_FILE.exists():
-            return {"schema_version": 1}
+            return {"schema_version": TARGET_SCHEMA_VERSION}
         try:
             value = json.loads(SIGNAL_STATE_FILE.read_text(encoding="utf-8"))
         except Exception as exc:
             raise StatePersistenceError() from exc
         if not isinstance(value, dict):
             raise StatePersistenceError()
+        _assert_supported_runtime_schema(value, source="signal state")
         return value
 
 
 def _save_signal_state(state: dict) -> None:
     with SIGNAL_STATE_LOCK:
+        _assert_supported_runtime_schema(state, source="signal state")
+        state["schema_version"] = TARGET_SCHEMA_VERSION
         SIGNAL_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = SIGNAL_STATE_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
@@ -694,7 +768,7 @@ def run_btc_regime_cycle(fetch_candles=_fetch_btc_closed_candles, *, now: float 
     regime = classify_btc_regime(fetch_candles())
     cooldown = int(os.environ.get("AURA_NTFY_BTC_COOLDOWN_MIN", "30"))
     transition = btc_regime_transition(state, regime, now=current_time, cooldown_minutes=cooldown)
-    state["schema_version"] = 1
+    state["schema_version"] = TARGET_SCHEMA_VERSION
     state["btc"] = transition["btc"]
     state = feed_success_transition(state, now=current_time)
     state["updated_at"] = _iso_utc(current_time)
@@ -756,8 +830,14 @@ def daily_digest_transition(
         equity = 10000.0
     if not math.isfinite(equity):
         equity = 10000.0
-    manual_open = shared.get("aura-quant-terminal-active-trades-v1", [])
-    manual_history = shared.get("aura-quant-terminal-history-trades-v1", [])
+    manual_open = shared.get(
+        "aura-quant-terminal-active-trades-v2",
+        shared.get("aura-quant-terminal-active-trades-v1", []),
+    )
+    manual_history = shared.get(
+        "aura-quant-terminal-history-trades-v2",
+        shared.get("aura-quant-terminal-history-trades-v1", []),
+    )
     autobot_open = autobot.get("trades", []) if isinstance(autobot, dict) else []
     autobot_history = autobot.get("history", []) if isinstance(autobot, dict) else []
     open_count = (len(manual_open) if isinstance(manual_open, list) else 0) + (len(autobot_open) if isinstance(autobot_open, list) else 0)
@@ -1484,6 +1564,22 @@ def render_status_html(
     shadow = _shadow_health()
     funnel = _funnel_health()
     signal_state = _load_signal_state()
+    try:
+        shared_state = _load_shared_state()
+    except StatePersistenceError:
+        shared_state = {}
+    state_schema = int(shared_state.get("schema_version", 1))
+    migrated_at_raw = shared_state.get("_migrated_at")
+    if state_schema == TARGET_SCHEMA_VERSION and migrated_at_raw:
+        try:
+            migrated_date = datetime.fromtimestamp(float(migrated_at_raw), timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            schema_display = f"Schema v2 (migriert {migrated_date})"
+        except (TypeError, ValueError, OSError):
+            schema_display = "Schema v2"
+    elif state_schema == TARGET_SCHEMA_VERSION:
+        schema_display = "Schema v2 (nativ)"
+    else:
+        schema_display = f"v{state_schema} (Migration ausstehend)"
 
     bot_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
     bot_enabled = bot_mode == "server"
@@ -1824,6 +1920,13 @@ footer {{
     </div>
 
     <div class="card">
+      <div class="card-head">Datenhaltung</div>
+      <div class="row"><span class="label">Runtime-Schema</span><span class="val {'val-ok' if state_schema == TARGET_SCHEMA_VERSION else 'val-warn'}">{html.escape(schema_display)}</span></div>
+      <div class="row"><span class="label">Signal-Schema</span><span class="val">v{signal_state.get('schema_version', 1)}</span></div>
+      <div class="row"><span class="label">Revision</span><span class="val">{shared_state.get('_rev', shared_state.get('rev', 0))}</span></div>
+    </div>
+
+    <div class="card">
       <div class="card-head">State-Verzeichnis &amp; Disk</div>
       <div class="row"><span class="label">Pfad</span><span class="val" style="font-size:10px">{html.escape(str(state_dir))}</span></div>
       <div class="row"><span class="label">State-Größe</span><span class="val">{state_size_mb:.2f} MB</span></div>
@@ -2149,8 +2252,17 @@ class RelayHandler(BaseHTTPRequestHandler):
             bot_enabled = (os.environ.get("AURA_BOT_MODE", "").strip().lower() == "server")
             shadow_health = _shadow_health()
             funnel_health = _funnel_health()
+            try:
+                shared_state = _load_shared_state()
+                schema_version = int(shared_state.get("schema_version", 1))
+                migrated_at = shared_state.get("_migrated_at")
+            except (StatePersistenceError, TypeError, ValueError):
+                schema_version = None
+                migrated_at = None
             self._send_json({
                 **readiness,
+                "schema_version": schema_version,
+                "schema_migrated_at": migrated_at,
                 "bot_enabled": bot_enabled,
                 "mode": "server" if bot_enabled else "none",
                 "runner": runner_health,
@@ -2232,6 +2344,7 @@ class RelayHandler(BaseHTTPRequestHandler):
                 return
 
             # Legacy single-key writes remain supported for autobot/bootstrap only.
+            # Deprecation removal is scheduled no earlier than v2.1.
             key = str(payload.get("key", "")).strip()
             val = payload.get("value")
             if not key or key.startswith("_") or key not in ALLOWED_STATE_KEYS:
@@ -2251,7 +2364,12 @@ class RelayHandler(BaseHTTPRequestHandler):
             if saved is None:
                 self._send_json({"code": "ERR_STATE_CONFLICT", "msg": "state revision is stale; pull current state before retrying", "rev": rev, "state": _load_shared_state()}, 409, cors_headers=self._privileged_cors_headers())
                 return
-            self._send_json({"ok": True, "key": key, "rev": rev, "state": saved}, cors_headers=self._privileged_cors_headers())
+            log.warning("DEPRECATED_SINGLE_KEY_WRITE key=%s removal>=v2.1", key)
+            self._send_json(
+                {"ok": True, "key": key, "rev": rev, "state": saved},
+                cors_headers=self._privileged_cors_headers(),
+                extra_headers={"X-Aura-Deprecation": "single-key-writes; removal >= v2.1"},
+            )
             return
 
         if path == "/api/signals":
@@ -2608,6 +2726,13 @@ class RelayServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    # Schema migration must complete before runner startup and any state write.
+    migration_result = migrate_state_directory(STATE_DIR)
+    if not migration_result.get("ok"):
+        log.error(
+            "STATE_MIGRATION_FAILED: state newer than build — rollback image or restore backup"
+        )
+        raise SystemExit(78)
     check_unconfigured_bot_startup()
     signal_stop = threading.Event()
     RUNNER_MANAGER.set_process(_start_runner_if_enabled())

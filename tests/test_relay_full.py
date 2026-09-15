@@ -18,6 +18,7 @@ import urllib.request
 from email.message import Message
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch, MagicMock
 
 import bitget_relay
@@ -241,6 +242,22 @@ class TestHTTPServer(unittest.TestCase):
                 return resp.status, json.loads(resp.read())
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read())
+
+    def _post_with_headers(self, path: str, data: dict, headers: dict | None = None) -> tuple[int, dict, Any]:
+        body = json.dumps(data).encode()
+        request_headers = {
+            "Content-Type": "application/json",
+            "Content-Length": str(len(body)),
+        }
+        request_headers.update(headers or {})
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}{path}",
+            data=body,
+            headers=request_headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status, json.loads(resp.read()), resp.headers
 
     def _post_raw(self, path: str, body: bytes, content_type: str = "application/json") -> tuple[int, dict]:
         headers = {"Content-Type": content_type, "Content-Length": str(len(body))}
@@ -467,6 +484,20 @@ class TestHTTPServer(unittest.TestCase):
             status, body = self._get_status("/api/state", {"Host": "aura.example:8787", "Origin": "https://aura.example"})
         self.assertEqual(status, 403)
         self.assertEqual(body["code"], "ERR_FORBIDDEN_ORIGIN")
+
+    def test_legacy_single_key_write_returns_deprecation_header_over_http(self):
+        _, current = self._get_status("/api/state")
+        status, body, headers = self._post_with_headers("/api/state", {
+            "key": "aura-autobot-state-v2",
+            "value": {"enabled": True, "mode": "server"},
+            "expected_rev": current["data"].get("_rev", 0),
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(
+            headers.get("X-Aura-Deprecation"),
+            "single-key-writes; removal >= v2.1",
+        )
 
     def test_state_mutation_batch_is_atomic_and_single_revision(self):
         _, current = self._get_status("/api/state")
