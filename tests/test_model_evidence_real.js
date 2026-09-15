@@ -17,15 +17,16 @@ assert.strictEqual(normalizeTimestamp('invalid', 5), 5 * 3600000, 'Invalid times
 assert.strictEqual(normalizeTimestamp(null, 2), 2 * 3600000, 'Null timestamp uses fallback index');
 console.log('  PASS  normalizeTimestamp: seconds and milliseconds normalized identically to ms');
 
-// 2. Integration Test: verify BTCUSDT_1h baseline values match canonical control measurement
+// 2. Integration Test: verify BTCUSDT_1h baseline accounting and ledger-adjusted DSR
 assert.strictEqual(output.verdict, 'NO_EVIDENCE', 'Model verdict must fail-closed to NO_EVIDENCE');
 const btc = output.per_symbol.find(s => s.symbol === 'BTCUSDT_1h');
 assert.ok(btc, 'BTCUSDT_1h must be present in per_symbol output');
 assert.strictEqual(btc.trades, 11, `BTC trades must be 11 with ms timestamps, got ${btc.trades}`);
 assert.ok(Math.abs(btc.exp - 0.003212) < 1e-4, `BTC expectancy must be ≈ 0.003212, got ${btc.exp}`);
 assert.ok(Math.abs(btc.pf - 1.004130) < 1e-4, `BTC profit factor must be ≈ 1.004130, got ${btc.pf}`);
-assert.ok(Math.abs(btc.dsr - 0.032064) < 1e-4, `BTC DSR must be ≈ 0.032064, got ${btc.dsr}`);
-console.log('  PASS  BTCUSDT_1h baseline metrics match canonical ms control measurement');
+assert.ok(Math.abs(btc.dsr - 0.012758) < 1e-4, `BTC ledger-adjusted DSR must be ≈ 0.012758, got ${btc.dsr}`);
+assert.ok(btc.trials >= 18, `BTC trials must retain at least the legacy 18-trial floor, got ${btc.trials}`);
+console.log('  PASS  BTCUSDT_1h baseline accounting and ledger-adjusted DSR match control measurement');
 
 // 3. All symbols fail-closed
 for (const s of output.per_symbol) {

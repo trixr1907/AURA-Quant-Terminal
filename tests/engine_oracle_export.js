@@ -16,7 +16,9 @@ const ctx = { console, Float64Array, Int8Array, Uint8Array, Math, Date, isFinite
 vm.createContext(ctx);
 vm.runInContext(
   html.slice(begin, end) + `
-  this.__E = { evaluateTrades, reconcileBacktestAccounting, calcDSR, calibrateProbabilities, selectionObjective, runWalkForwardBacktest };`,
+  this.__E = { evaluateTrades, reconcileBacktestAccounting, calcDSR, calibrateProbabilities, selectionObjective, runWalkForwardBacktest };
+  this.__LEDGER_TRIALS = LEDGER_TRIALS;
+  this.__DSR_TRIALS = DSR_TRIALS;`,
   ctx
 );
 const E = ctx.__E;
@@ -25,6 +27,7 @@ const trades = JSON.parse(fs.readFileSync('tests/fixtures/backtest/trades.json',
 const returns = JSON.parse(fs.readFileSync('tests/fixtures/backtest/returns.json', 'utf8'));
 
 const out = {};
+const referenceTrials = Math.max(18, Number.isInteger(ctx.__DSR_TRIALS) ? ctx.__DSR_TRIALS : 10);
 
 // 10A — accounting oracle
 out.evaluateTrades = E.evaluateTrades(trades);
@@ -33,7 +36,7 @@ out.reconcile = E.reconcileBacktestAccounting({ startingEquity: 1000, trades, ri
 // 10B — DSR oracle
 out.dsr = {};
 for (const [name, arr] of Object.entries(returns)) {
-  out.dsr[name] = E.calcDSR(arr, 18);
+  out.dsr[name] = E.calcDSR(arr, referenceTrials);
 }
 
 // 10B — calibration oracle (sample the returned PAVA function at key scores)
