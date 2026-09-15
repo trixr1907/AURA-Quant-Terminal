@@ -170,6 +170,39 @@ Dann `AURA_NTFY_URL=http://<SERVER-IP>:8080/mein-topic`.
 
 ---
 
+## Datenhaltung v2: Upgrade und Downgrade
+
+AURA v2.0.0 migriert den persistenten Laufzeit-State beim Relay-Start automatisch und vor Freigabe des Headless Runners. Der persistente Pfad bleibt `/var/lib/aura`; dadurch bleibt der read-only Rootfs kompatibel.
+
+Vor dem Deploy prüfen:
+
+```bash
+python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --dry-run
+```
+
+Nach dem Deploy prüfen:
+
+```bash
+curl -fsS http://127.0.0.1:8787/ready
+ls -l /var/lib/aura/aura_shared_state.json.v1-backup-*
+```
+
+Erwartet werden `schema_version: 2` und genau ein neues, zeitgestempeltes v1-Backup. `shadow_log.jsonl` ist nicht Teil der Migration.
+
+Downgrade auf das letzte v1.x-Image:
+
+1. Container stoppen, damit kein Schreiber aktiv ist.
+2. Rollback zunächst ohne Schreibzugriff prüfen:
+   `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --rollback`
+3. Backup wiederherstellen:
+   `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --rollback --yes`
+4. Das weiterhin lokal vorgehaltene letzte v1.x-Image starten.
+5. `/ready`, Runner-Zyklen und State-Revision prüfen.
+
+Ohne `--yes` überschreibt der Rollback nichts. Bei Schema >2 beendet sich der v2-Relay fail-closed und empfiehlt Image-Rollback oder Backup-Restore.
+
+---
+
 ## 🔄 Frischinstallation: Receiver einrichten (Automatischer GitHub Deploy-Receiver)
 
 Für Server, Proxmox-VMs und VPS-Instanzen steht mit `scripts/ops/aura_webhook_receiver.reference.py` eine kanonische Referenz-Implementierung des Deploy-Receivers bereit.
