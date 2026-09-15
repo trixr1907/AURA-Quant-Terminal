@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.10.1] – 2026-09-15
+
+### Fixed
+- **Runner-Crash-Loop (Packaging-Lücke):** `shadow_collector.js` in `scripts/build_package.py` Manifest und `Dockerfile` COPY-Block aufgenommen, wodurch das Fehlen des Moduls beim Container-Start behoben wird.
+
+### Added
+- **Runtime-Packaging-Closure Gate (`scripts/release_check.py`):** Neues fail-closed Release-Gate parst transitiv alle relativen require-/import-Referenzen von Laufzeitmodulen und erzwingt deren Vorhandensein im Release-Zip und Dockerfile.
+- **Crash-Fast-Detector (`bitget_relay.py`):** Erkennt Runner-Abstürze unter 10 s nach Prozessstart sofort, loggt `RUNNER_CRASH_FAST`, führt unverzüglichen Neustart aus und exponiert `runner_crash_count` sowie `crash_loop_detected: true` (bei ≥3 schnellen Abstürzen in Folge) in `/ready` und `/status`.
+- **Analyse & Dokumentation:** Erklärung der sekundären `MARKET_DATA_STALE`-Beobachtung als direkte Folge fehlender Abfragen bei inaktivem Runner und geschlossenem Browser.
+
+### Scope
+- PATCH (`1.10.1`, Hotfix).
+- Trials-Ledger unverändert auf `EXP-032`; Lockbox `UNUSED`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [1.10.0] – 2026-09-15
 
 ### Added
