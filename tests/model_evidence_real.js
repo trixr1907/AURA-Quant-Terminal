@@ -14,6 +14,22 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { execFileSync } = require('node:child_process');
+
+function loadVerifiedLedgerTrials() {
+  try {
+    const output = execFileSync(process.env.PYTHON || 'python3', [path.join(__dirname, '..', 'scripts', 'verify_ledger.py')], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const evidence = JSON.parse(output);
+    const trials = evidence.total_model_experiments;
+    if (evidence.ok !== true || !Number.isInteger(trials) || trials < 1) throw new Error('invalid verified trial total');
+    return trials;
+  } catch (error) {
+    throw new Error(`TRIALS_LEDGER_INVALID: ${error.message}`);
+  }
+}
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'Symbiose_Dashboard.html'), 'utf8');
 const b = html.indexOf('//  ==ENGINE_BEGIN==');
@@ -21,8 +37,10 @@ const e = html.indexOf('// ==ENGINE_END==', b);
 const code = html.slice(b, e);
 const sandbox = { console, Float64Array, Date, Math, Array, Object, JSON, Number };
 vm.createContext(sandbox);
-vm.runInContext(code + '\n__E = { analyze, runWalkForwardBacktest, evaluateTrades };', sandbox);
-const { analyze, runWalkForwardBacktest } = sandbox.__E;
+vm.runInContext(code + '\n__E = { analyze, runWalkForwardBacktest, evaluateTrades, calcDSR }; __DSR_TRIALS = DSR_TRIALS;', sandbox);
+const { analyze, runWalkForwardBacktest, calcDSR } = sandbox.__E;
+const ENGINE_DSR_TRIALS = sandbox.__DSR_TRIALS;
+const DSR_TRIALS = Math.max(18, loadVerifiedLedgerTrials(), ENGINE_DSR_TRIALS);
 
 const GOLDEN_DIR = path.join(__dirname, 'fixtures', 'golden');
 const GOLDEN_FILES = [
@@ -117,9 +135,13 @@ for (const f of GOLDEN_FILES) {
   const exp = wf?.stats?.exp || 0;
   const pf = wf?.stats?.pf || 0;
   const wr = wf?.stats?.wr || 0;
-  const dsr = Number.isFinite(+wf?.setupDsr?.dsr) ? +wf.setupDsr.dsr : (Number.isFinite(+wf?.dsr?.dsr) ? +wf.dsr.dsr : 0);
+  const dsr = (() => {
+    const returns = Array.isArray(wf?.stats?.returns) ? wf.stats.returns : [];
+    const sourceDsr = Number.isFinite(+wf?.setupDsr?.dsr) ? wf.setupDsr : wf?.dsr;
+    return returns.length >= 3 ? calcDSR(returns, DSR_TRIALS).dsr : (Number.isFinite(+sourceDsr?.dsr) ? +sourceDsr.dsr : 0);
+  })();
   const total = wf?.stats?.total || 0;
-  const trials = wf?.totalTrials || 18;
+  const trials = Math.max(wf?.totalTrials || 18, DSR_TRIALS);
 
   const passedSymbol = exp > 0 && dsr >= 0.5 && total >= 15;
   if (!passedSymbol) {

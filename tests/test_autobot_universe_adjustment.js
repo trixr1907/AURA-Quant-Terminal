@@ -62,10 +62,10 @@ console.log('--- Testing Acceptance Criteria 1: Kein Doppelzählen ---');
   const A = context.analyze(candles);
   assert(A && A.n, 'Candle analysis must succeed');
 
-  // Multiplier = 1 -> totalTrials = 18 * 1 = 18
+  // Multiplier = 1 -> totalTrials retains the larger legacy/ledger DSR floor
   const wf1 = context.runWalkForwardBacktest(candles, A, { trialMultiplier: 1 });
   assert.strictEqual(wf1.setupTrials, 18, 'setupTrials must be exactly 18 (internal paramGrid.length)');
-  assert.strictEqual(wf1.totalTrials, 18, 'totalTrials must be 18 when trialMultiplier = 1');
+  assert.strictEqual(wf1.totalTrials, 45, 'totalTrials must retain the legacy Phase-D floor of 45');
   assert.strictEqual(wf1.trialMultiplier, 1, 'trialMultiplier must equal 1');
 
   // Multiplier = 480 -> totalTrials = 18 * 480 = 8640 (No double counting of 18)
@@ -75,7 +75,7 @@ console.log('--- Testing Acceptance Criteria 1: Kein Doppelzählen ---');
   assert.strictEqual(wf480.trialMultiplier, 480, 'trialMultiplier must equal 480');
   assert(Number.isFinite(wf480.setupDsr.dsr), 'setupDsr must be calculated');
   assert(Number.isFinite(wf480.universeDsr.dsr), 'universeDsr must be calculated');
-  assert(wf480.setupDsr.dsr >= wf480.universeDsr.dsr, 'setupDsr (18 trials) must be >= universeDsr (8640 trials)');
+  assert(wf480.setupDsr.dsr >= wf480.universeDsr.dsr, 'setupDsr (DSR floor) must be >= universeDsr (8640 trials)');
 }
 console.log('PASS Acceptance Criteria 1: Kein Doppelzählen verified');
 

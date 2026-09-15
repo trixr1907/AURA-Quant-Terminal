@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] – 2026-09-15
+
+### Fixed
+- **F4 Slippage-Kosten:** Dashboard-Walk-Forward nutzt `0.0005` als nicht-null Default, lädt Contract-Specs vor der kostenabhängigen Auswertung und behandelt `0` als ungültige Slippage. Netto-R enthält dadurch wieder Gebühren und Slippage.
+- **F5 Verdict-Aggregation:** `FAIL` und `NO-GO` werden vor `MODEL_NO_EVIDENCE` aggregiert; maschinenlesbares Verdict und menschenlesbare Release-Zeile maskieren echte Blocker nicht mehr.
+- **F1 Ledger-N:** Produkt-DSR, Real-Evidence-Harness und Python-Referenz nutzen konservativ die größere Trial-Zahl aus aktueller Suche, Legacy-Phase-D-Floor und verifiziertem Ledger.
+
+### Added
+- Regressionstests für nicht-null Slippage, Verdict-Priorität, dynamisches Ledger-Embedding, Fail-closed Ledger-Auslieferung und monotone DSR-Verschärfung.
+
+### Scope
+- MINOR (`2.2.0`): Evidenz-Infrastruktur-Härtung mit rückwärtskompatibler Kostenkorrektur.
+- Keine Änderung an Signalen, Entries, Exits, Gates, Scoring oder Sizing außer der zuvor fehlenden Slippage-Kostenrechnung.
+- Shadow/Runner-Kosten bleiben bewusst bei `0.001/0.001/0.001`; vollständige Kostenmodell-Vereinheitlichung ist auf R37 verschoben.
+- Ledger bleibt auf `EXP-032` (Chain-Head `ac613227...`), Lockbox `UNUSED`, Verdict `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [2.1.0] – 2026-09-15
 
 ### Added

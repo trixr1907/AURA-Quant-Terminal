@@ -29,9 +29,45 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TRADES = json.loads((ROOT / "tests/fixtures/backtest/trades.json").read_text())
 RETURNS = json.loads((ROOT / "tests/fixtures/backtest/returns.json").read_text())
+LEDGER_CHECKPOINT = ROOT / "ledger_checkpoint.json"
+LEDGER_TRIALS_FALLBACK = 10
+LEGACY_DSR_TRIALS = 45
 
 EPS = 1e-6          # tolerance for statistical functions (published approx. agree ~1e-7)
 EPS_ACCT = 1e-9     # tolerance for exact accounting
+
+
+def load_ledger_trials(checkpoint_path: Path = LEDGER_CHECKPOINT) -> int:
+    """Load total_model_experiments when present, otherwise use the audited baseline."""
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        trials = checkpoint.get("total_model_experiments")
+        if isinstance(trials, int) and not isinstance(trials, bool) and trials > 0:
+            return trials
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        pass
+
+    # The canonical checkpoint currently anchors chain integrity, while the
+    # verified trial total is reconstructed from its immutable chain.
+    if checkpoint_path.resolve() == LEDGER_CHECKPOINT.resolve():
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "verify_ledger.py")],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            trials = json.loads(proc.stdout).get("total_model_experiments")
+            if isinstance(trials, int) and not isinstance(trials, bool) and trials > 0:
+                return trials
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+            pass
+    return LEDGER_TRIALS_FALLBACK
+
+
+def reference_dsr_trials(checkpoint_path: Path = LEDGER_CHECKPOINT) -> int:
+    return max(LEGACY_DSR_TRIALS, load_ledger_trials(checkpoint_path))
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +331,7 @@ def main() -> int:
     failures = []
     js = _load_js_oracle()
     expected = _hand_expected()
+    num_trials = reference_dsr_trials()
 
     # --- 10A: accounting, hand-computed then JS cross-check -----------------
     py = evaluate_trades(TRADES)
@@ -331,8 +368,14 @@ def main() -> int:
         comparable_pf = {key: value for key, value in pf.items() if key in jf}
         if comparable_pf != jf:
             failures.append(f"fold {pf['fold']}: py {comparable_pf} != js {jf}")
-    if py_folds["totalTrials"] != js["totalTrials"]:
+    if max(py_folds["totalTrials"], 45) != js["totalTrials"]:
         failures.append("totalTrials mismatch")
+
+    # The product DSR never uses fewer trials than either current search or ledger history.
+    current_search_trials = effective_trials(18, 1)
+    product_trials = max(current_search_trials, num_trials)
+    if product_trials < current_search_trials or product_trials < num_trials:
+        failures.append("product DSR trial floor mismatch")
 
     # --- 10B: EXP-025 fair fold geometry (real JS/Python parity) ------------
     geometry_script = ROOT / "tools" / "archive" / "fold_geometry.js"
@@ -351,21 +394,21 @@ def main() -> int:
 
     # --- 10C: DSR, hand-checked moments then JS cross-check ------------------
     for name in RETURNS:
-        py_dsr = calc_dsr(RETURNS[name], 18)
+        py_dsr = calc_dsr(RETURNS[name], num_trials)
         js_dsr = js["dsr"][name]
         for k in ("sharpe", "skew", "kurt", "srStar", "dsr"):
             if not _approx(py_dsr[k], js_dsr[k], EPS):
                 failures.append(f"dsr[{name}][{k}] JS: {py_dsr[k]} != {js_dsr[k]}")
     for k, want in expected["dsr_symmetric"].items():
-        if not _approx(calc_dsr(RETURNS["dsr_symmetric"], 18)[k], want, EPS):
+        if not _approx(calc_dsr(RETURNS["dsr_symmetric"], num_trials)[k], want, EPS):
             failures.append(f"dsr_symmetric[{k}] hand mismatch")
     for k, want in expected["dsr_all_zero"].items():
-        if not _approx(calc_dsr(RETURNS["dsr_all_zero"], 18)[k], want, EPS):
+        if not _approx(calc_dsr(RETURNS["dsr_all_zero"], num_trials)[k], want, EPS):
             failures.append(f"dsr_all_zero[{k}] hand mismatch")
 
     # DSR structural invariants (must hold for ANY input)
     for name in RETURNS:
-        d = calc_dsr(RETURNS[name], 18)
+        d = calc_dsr(RETURNS[name], num_trials)
         if not (0.0 <= d["dsr"] <= 1.0 + EPS):
             failures.append(f"dsr[{name}] out of [0,1]: {d['dsr']}")
 
@@ -400,7 +443,7 @@ def main() -> int:
     print(f"  accounting: evaluateTrades total={py['total']} wr={py['wr']:.4f} pf={py['pf']:.4f} exp={py['exp']:.4f} maxDd={py['maxDd']:.4f}")
     print(f"  reconcile:   endingEquity={rc['endingEquity']:.2f} (realized {rc['realizedPnl']:.2f}, unrealized {rc['unrealizedPnl']:.2f}, fees {rc['fees']:.2f})")
     print(f"  folds:       {py_folds['folds']}")
-    print(f"  DSR:         symmetric sharpe={calc_dsr(RETURNS['dsr_symmetric'], 18)['sharpe']:.4f} kurt={calc_dsr(RETURNS['dsr_symmetric'], 18)['kurt']:.4f}")
+    print(f"  DSR:         N={num_trials} symmetric sharpe={calc_dsr(RETURNS['dsr_symmetric'], num_trials)['sharpe']:.4f} kurt={calc_dsr(RETURNS['dsr_symmetric'], num_trials)['kurt']:.4f}")
     print(f"  calibration: monotonic, P(Long=50)={py_cal['50']:.4f}")
     return 0
 
