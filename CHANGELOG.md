@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] – 2026-09-15
+
+### Added
+- **Design-System Gen 2 (final):** Vollständiger Token-Katalog im CSS `:root` von `Symbiose_Dashboard.html` (Farben, Typografie, 4-px-Raster `--space-1` bis `--space-8`, Radien, Schatten, Z-Layer).
+- **Komponentenverträge:** Standardisierte Komponentenklassen (`.ui-card`, `.ui-panel`, `.ui-button`, `.ui-badge`, `.ui-table`) für konsistente Panel-, Button- und Tabellenstile.
+- **Mobile Viewport-Optimierung (390/420 px):** Vollständige responsive Unterstützung für iPhone (390 px) und kompakte Screens (420 px); alle interaktiven Touch-Ziele >= 44 px; Tabellen adaptieren zu sauberen Zeilenkarten.
+- **Barrierefreiheit (WCAG AA):** Nachgewiesene Farbkontraste >= 4.5:1 / 3:1 auf allen Oberflächen, globale `:focus-visible`-Tastaturringe, `prefers-reduced-motion`-Unterstützung und `tabular-nums` für alle Finanzmetriken.
+- **Design-System-Spezifikation:** Vollständig dokumentiert in `docs/design_system.md`.
+
+### Fixed
+- **UI-Konsistenz:** Vereinheitlichung verstreuter lokaler Padding- und Farb-Overrides ohne DOM-Strukturbrüche.
+
+### Scope
+- MINOR (`2.1.0`): Visuelle Design-System-Konsolidierung; reine Präsentationsschicht.
+- `innerHTML`-Kanon strikt bei **63 -> 63** gehalten (0 neue Senken).
+- Keine externen Ressourcen (keine CDNs/Google Fonts/Bilder).
+- Schema v2 Datenhaltung, Migrationslogik und Backups bleiben bytegenau unverändert.
+- Null Drift an Trading-Mathematik, Gates, Scoring, Sizing oder Signal-Arithmetik.
+- Ledger bleibt auf `EXP-032` (Chain-Head `ac613227...`), Lockbox `UNUSED`, Verdict `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [2.0.0] – 2026-09-15
 
 ### Added
