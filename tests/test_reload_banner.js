@@ -36,7 +36,7 @@ function createReloadEnvironment() {
   };
 
   const env = {
-    AURA_CLIENT_VERSION: '1.10.0',
+    AURA_CLIENT_VERSION: '1.10.1',
     _dismissedReloadVersion: null,
     $: (id) => elements[id] || null,
     fetchMock: null,
@@ -77,13 +77,13 @@ function createReloadEnvironment() {
 console.log('--- Running Auftrag D: Reload-Banner Tests ---');
 
 (async () => {
-  // Test 1: Version Mismatch (v1.10.1 available)
+  // Test 1: Version Mismatch (v1.10.2 available)
   const env1 = createReloadEnvironment();
   env1.fetchMock = async (url) => {
     assert.strictEqual(url, '/serving');
     return {
       ok: true,
-      json: async () => ({ ok: true, version: '1.10.1' })
+      json: async () => ({ ok: true, version: '1.10.2' })
     };
   };
 
@@ -92,15 +92,16 @@ console.log('--- Running Auftrag D: Reload-Banner Tests ---');
   const text1 = env1.elements['reload-banner-text'];
   assert.strictEqual(banner1.hidden, false, 'Banner is visible on version mismatch');
   assert.strictEqual(banner1.style.display, 'block');
-  assert.strictEqual(text1.textContent, 'Neue Version v1.10.1 verfügbar — bitte Seite neu laden');
-  assert.strictEqual(text1.dataset.remoteVersion, '1.10.1');
+  assert.strictEqual(text1.textContent, 'Neue Version v1.10.2 verfügbar — bitte Seite neu laden');
+  assert.strictEqual(text1.dataset.remoteVersion, '1.10.2');
   console.log('✓ Test 1: Mismatch triggers visible reload banner with correct version text');
 
-  // Test 2: Version Match (v1.10.0 matches client)
+  // Test 2: Version Match (v1.10.1 matches client)
   const env2 = createReloadEnvironment();
   env2.fetchMock = async () => ({
     ok: true,
-    json: async () => ({ ok: true, version: '1.10.0' })
+    status: 200,
+    json: async () => ({ ok: true, version: '1.10.1' })
   });
 
   await env2.checkServingVersionForReload();

@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.10.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.10.1 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -10,7 +10,7 @@ API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
   GET  /status           -> Human Status Page (HTML)
-  GET  /serving          -> {"ok": true, "version": "1.10.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "1.10.1", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -1287,7 +1287,10 @@ def market_data_readiness() -> dict:
 # PF-69: Runner health — reads runner_health.json written by headless_autobot.js
 def _runner_health(*, mode: str | None = None) -> dict:
     eff_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower() if mode is None else str(mode).strip().lower()
-    restart_count = RUNNER_MANAGER.snapshot()["runner_restart_count"]
+    snap = RUNNER_MANAGER.snapshot()
+    restart_count = snap.get("runner_restart_count", 0)
+    crash_count = snap.get("runner_crash_count", 0)
+    crash_loop = snap.get("crash_loop_detected", False)
     if eff_mode != "server":
         return {
             "mode": "none",
@@ -1324,6 +1327,8 @@ def _runner_health(*, mode: str | None = None) -> dict:
             "trade_count": data.get("tradeCount", 0),
             "equity": data.get("equity"),
             "runner_restart_count": restart_count,
+            "runner_crash_count": crash_count,
+            "crash_loop_detected": crash_loop,
         }
     except (OSError, json.JSONDecodeError, TypeError):
         return {
@@ -1339,6 +1344,8 @@ def _runner_health(*, mode: str | None = None) -> dict:
             "trade_count": 0,
             "equity": None,
             "runner_restart_count": restart_count,
+            "runner_crash_count": crash_count,
+            "crash_loop_detected": crash_loop,
         }
 
 
@@ -1513,6 +1520,8 @@ def render_status_html(
     threshold = runner_stale_threshold()
 
     if bot_mode == "server":
+        if runner.get("crash_loop_detected"):
+            violations.append("Crash-Loop erkannt: Runner stürzt wiederholt kurz nach dem Start ab (>= 3 schnelle Abstürze).")
         runner_state = runner.get("state", "stopped")
         if runner_state == "stopped" or not runner.get("running"):
             violations.append("Server-Bot ist aktiviert (AURA_BOT_MODE=server), aber der Runner läuft nicht (Status: gestoppt).")
@@ -1795,6 +1804,7 @@ footer {{
       <div class="row"><span class="label">Letzter Zyklus</span><span class="val">{cycle_age_str}</span></div>
       <div class="row"><span class="label">Pausiert</span><span class="val">{paused_display}</span></div>
       <div class="row"><span class="label">Restarts (24h)</span><span class="val">{restarts_24h}</span></div>
+      <div class="row"><span class="label">Crashes</span><span class="val {'val-err' if runner.get('crash_loop_detected') else ('val-warn' if runner.get('runner_crash_count', 0) > 0 else 'val')}">{runner.get('runner_crash_count', 0)}{' (CRASH-LOOP)' if runner.get('crash_loop_detected') else ''}</span></div>
     </div>
 
     <div class="card">
@@ -2374,11 +2384,16 @@ def _start_runner_if_enabled() -> subprocess.Popen | None:
         )
         log.info("Headless Paper Autobot started (PID %d)", proc.pid)
 
-        # Background thread to log runner output
+        # Background thread to log runner output and detect exit
         def _log_runner_output():
             if proc.stdout:
                 for line in proc.stdout:
                     log.info("[Runner] %s", line.rstrip())
+            try:
+                proc.poll()
+                RUNNER_MANAGER.handle_child_exit(proc.returncode)
+            except Exception:
+                pass
 
         t = threading.Thread(target=_log_runner_output, daemon=True, name="autobot-runner-log")
         t.start()
@@ -2389,11 +2404,12 @@ def _start_runner_if_enabled() -> subprocess.Popen | None:
 
 
 class RunnerManager:
-    """Coordinate runner ownership and self-healing without holding locks over I/O."""
+    """Coordinate runner ownership, fast crash detection, and self-healing without holding locks over I/O."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._process: Any = None
+        self._process_started_at: float | None = None
         self._restart_count = 0
         self._restart_timestamps: list[float] = []
         self._recovery_cycle_count: int | None = None
@@ -2402,14 +2418,68 @@ class RunnerManager:
         self._restart_in_progress = False
         self._last_restart_at: float | None = None
         self._last_dump_at: float = 0.0
+        self._crash_count = 0
+        self._fast_crash_count = 0
+        self._last_crash_at: float | None = None
 
-    def set_process(self, process: Any) -> None:
+    def set_process(self, process: Any, *, started_at: float | None = None) -> None:
         with self._lock:
             self._process = process
+            self._process_started_at = time.time() if started_at is None else float(started_at)
 
     def current_process(self) -> Any:
         with self._lock:
             return self._process
+
+    def handle_child_exit(self, returncode: int | None = None, *, now: float | None = None) -> dict:
+        """Handle early/unexpected exit of the runner child process with fast-crash detection."""
+        current_time = time.time() if now is None else float(now)
+        with self._lock:
+            if self._restart_in_progress:
+                return {"restarted": False, "fast_crash": False}
+            started = self._process_started_at if self._process_started_at is not None else current_time
+            elapsed = max(0.0, current_time - started)
+            is_fast = elapsed < 10.0
+            self._crash_count += 1
+            self._last_crash_at = current_time
+            if is_fast:
+                self._fast_crash_count += 1
+                log.warning(
+                    "RUNNER_CRASH_FAST: Runner process exited with code %s after %.1fs (<10s). Consecutive fast crashes: %d",
+                    returncode,
+                    elapsed,
+                    self._fast_crash_count,
+                )
+            else:
+                self._fast_crash_count = 0
+                log.warning(
+                    "RUNNER_EXIT: Runner process exited with code %s after %.1fs",
+                    returncode,
+                    elapsed,
+                )
+            self._restart_in_progress = True
+            old_process = self._process
+
+        if old_process is not None:
+            try:
+                if hasattr(old_process, "poll") and old_process.poll() is None:
+                    old_process.terminate()
+                    old_process.wait(timeout=2)
+            except Exception:
+                pass
+
+        replacement = _start_runner_if_enabled()
+        with self._lock:
+            self._process = replacement
+            self._process_started_at = current_time
+            if replacement is not None:
+                self._restart_count += 1
+                self._restart_timestamps.append(current_time)
+                self._last_restart_at = current_time
+                self._recovery_pending = True
+                log.warning("RUNNER_HEAL: Immediate runner restart #%d executed after child exit", self._restart_count)
+            self._restart_in_progress = False
+        return {"restarted": replacement is not None, "fast_crash": is_fast}
 
     def snapshot(self, *, now: float | None = None) -> dict:
         current_time = time.time() if now is None else float(now)
@@ -2419,6 +2489,9 @@ class RunnerManager:
             recent = list(self._restart_timestamps)
             return {
                 "runner_restart_count": self._restart_count,
+                "runner_crash_count": self._crash_count,
+                "fast_crash_count": self._fast_crash_count,
+                "crash_loop_detected": self._fast_crash_count >= 3,
                 "restart_timestamps": recent,
                 "restarts_24h": len(recent),
                 "recovery_pending": self._recovery_pending or (self._recovery_cycle_count is not None),
@@ -2454,6 +2527,7 @@ class RunnerManager:
                     self._recovery_cycle_count = None
                     self._recovery_pending = False
                     self._stall_active = False
+                    self._fast_crash_count = 0
                     log.info("RUNNER_RECOVERED: Runner healthy after restart (cycle=%d, paused=%s)", cycle_count, paused)
                     return {"restarted": False, "recovered": True}
             if not stale:

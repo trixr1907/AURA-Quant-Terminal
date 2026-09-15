@@ -33,7 +33,7 @@ class MockRelayHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(b'{"ok": true, "version": "1.10.0", "port": 8787, "mode": "quant_research"}')
+            self.wfile.write(b'{"ok": true, "version": "1.10.1", "port": 8787, "mode": "quant_research"}')
         elif self.path == "/ready":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
