@@ -1,6 +1,6 @@
 'use strict';
 /**
- * AURA Shadow Collector Module (v1.10.0 / Slice C)
+ * AURA Shadow Collector Module (v1.10.1 / Slice C)
  * ===============================================
  * Records trading decisions (ACCEPTED / REJECTED with exact reason) for every
  * considered candidate in the bot funnel. Evaluates forward outcomes after 24
