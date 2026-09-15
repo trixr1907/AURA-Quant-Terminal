@@ -36,7 +36,8 @@ vm.runInContext(
     regimeOf, squeezeAt,
     classifyRadarTf, rankRadarCandidates, recommendLeverage, explainDecision,
     sizePosition,
-    emaArr, smaArr, rsiArr, atrArr, analyze
+    emaArr, smaArr, rsiArr, atrArr, analyze,
+    DSR_TRIALS
   };`,
   ctx
 );
@@ -48,7 +49,8 @@ const {
   regimeOf, squeezeAt,
   classifyRadarTf, rankRadarCandidates, recommendLeverage, explainDecision,
   sizePosition,
-  emaArr, smaArr, rsiArr, atrArr, analyze
+  emaArr, smaArr, rsiArr, atrArr, analyze,
+  DSR_TRIALS
 } = ctx.__E;
 
 // ---------------------------------------------------------------------------
@@ -584,6 +586,8 @@ test('runWalkForwardBacktest: zu wenig Daten liefert keine In-Sample-Trades als 
     assert.deepStrictEqual(Array.from(wf.folds), [], `n=${n}`);
     assert.deepStrictEqual(Array.from(wf.oosTrades), [], `n=${n}`);
     assert.strictEqual(wf.stats.total, 0, `n=${n}`);
+    assert.strictEqual(wf.totalTrials, DSR_TRIALS, `n=${n}`);
+    assert.strictEqual(wf.setupTrials, DSR_TRIALS, `n=${n}`);
     assert.strictEqual(wf.evidenceStatus, 'INSUFFICIENT_DATA', `n=${n}`);
   }
 });
@@ -1183,7 +1187,8 @@ test('DSR and walk-forward use the effective selection-trial family', () => {
   const A = makeMinimalA(1000, 50);
   for (const multiplier of [26, 0, -1, NaN, Infinity, 2.5]) {
     const wf = runWalkForwardBacktest(candles, A, { trialMultiplier: multiplier });
-    const expected = multiplier === 26 ? 18 * 26 : 18;
+    const currentSearchTrials = multiplier === 26 ? 18 * 26 : 18;
+    const expected = Math.max(currentSearchTrials, DSR_TRIALS);
     assert.strictEqual(wf.totalTrials, expected, `multiplier=${multiplier}`);
   }
 });
