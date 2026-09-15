@@ -51,6 +51,7 @@ MANIFEST = [
     "docs/design_system.md",
     "docs/architecture.md",
     "docs/deployment/DOCKER_GUIDE.md",
+    "docs/releases/RELEASE_v2.1.0.md",
     "docs/releases/RELEASE_v2.0.0.md",
     "docs/releases/RELEASE_v1.10.0.md",
     "docs/releases/RELEASE_v1.9.0.md",
