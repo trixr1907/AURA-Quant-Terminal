@@ -963,7 +963,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.1.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.2.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1057,7 +1057,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v2.1.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v2.2.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1401,6 +1401,15 @@ function analyze(candles) {
     }
   };
 }
+
+// Server-side rendering replaces this value from verified ledger metadata before serving.
+const VERIFIED_LEDGER_TRIALS = 10;
+function loadVerifiedLedgerTrials() {
+  return Number.isInteger(VERIFIED_LEDGER_TRIALS) && VERIFIED_LEDGER_TRIALS > 0 ? VERIFIED_LEDGER_TRIALS : 10;
+}
+const LEDGER_TRIALS = loadVerifiedLedgerTrials();
+const LEGACY_PHASE_D_TRIALS = 45;
+const DSR_TRIALS = Math.max(LEGACY_PHASE_D_TRIALS, LEDGER_TRIALS);
 
 // ============================================================================
 //  STATISTISCHE HILFSFUNKTIONEN & METRIKEN (DSR, PAVA, KELLY)
@@ -2089,6 +2098,10 @@ function selectionObjective(exp, total, minTrainTrades = 2) {
   return exp * Math.sqrt(total) * (1 - 1 / (1 + total));
 }
 
+function resolveSlippage(value) {
+  return Number.isFinite(+value) && +value > 0 ? +value : 0.0005;
+}
+
 function runWalkForwardBacktest(candles, A, options = {}) {
   const n = candles.length;
   const effWarmup = n < (SYM.warmup || 235) ? 30 : (SYM.warmup || 235);
@@ -2105,11 +2118,12 @@ function runWalkForwardBacktest(candles, A, options = {}) {
   if (testableBars < minTestPerFold * K) {
     const oosTrades = [];
     const stats = evaluateTrades(oosTrades);
-    const setupDsr = calcDSR(stats.returns, 1);
-    const universeDsr = calcDSR(stats.returns, trialMultiplier);
+    const effectiveTrials = Math.max(trialMultiplier, DSR_TRIALS);
+    const setupDsr = calcDSR(stats.returns, DSR_TRIALS);
+    const universeDsr = calcDSR(stats.returns, effectiveTrials);
     return {
       oosTrades, stats, dsr: universeDsr, setupDsr, universeDsr, folds: [],
-      probMap: calibrateProbabilities(oosTrades), totalTrials: 0, setupTrials: 0, trialMultiplier,
+      probMap: calibrateProbabilities(oosTrades), totalTrials: effectiveTrials, setupTrials: DSR_TRIALS, trialMultiplier,
       evidenceStatus: 'INSUFFICIENT_DATA', method: 'anchored_t1'
     };
   }
@@ -2121,7 +2135,7 @@ function runWalkForwardBacktest(candles, A, options = {}) {
         paramGrid.push({ longTh: lt, shortTh: st, regimeGate: rg, atrSl: SYM.atrSl,
           cooldown: SYM.cooldown, maxHold: SYM.maxHold,
           timeStopBars: options.timeStopBars || SYM.timeStopBars,
-          makerFee: options.makerFee, takerFee: options.takerFee, slippage: options.slippage });
+          makerFee: options.makerFee, takerFee: options.takerFee, slippage: resolveSlippage(options.slippage) });
       }
     }
   }
@@ -2179,8 +2193,9 @@ function runWalkForwardBacktest(candles, A, options = {}) {
 
   const aggStats = evaluateTrades(allOosTrades);
   const setupTrials = paramGrid.length;
-  const totalTrials = paramGrid.length * trialMultiplier;
-  const setupDsr = calcDSR(aggStats.returns, setupTrials);
+  const currentSearchTrials = paramGrid.length * trialMultiplier;
+  const totalTrials = Math.max(currentSearchTrials, DSR_TRIALS);
+  const setupDsr = calcDSR(aggStats.returns, Math.max(setupTrials, DSR_TRIALS));
   const universeDsr = calcDSR(aggStats.returns, totalTrials);
   return {
     oosTrades: allOosTrades, stats: aggStats, dsr: universeDsr,
@@ -2355,6 +2370,7 @@ async function bitgetContracts(symbol) {
   const s = j.data[0];
   return {
     ctVal: +s.sizeMultiplier, makerFee: +s.makerFeeRate, takerFee: +s.takerFeeRate,
+    slippage: Number.isFinite(+s.slippageRate) && +s.slippageRate > 0 ? +s.slippageRate : null,
     minSize: +s.minTradeNum, minNotional: +s.minTradeUSDT, maxLever: +s.maxLever,
     tick: +s.priceEndStep, volPlace: +s.volumePlace, pricePlace: +s.pricePlace,
     status: s.symbolStatus, base: s.baseCoin
@@ -2504,7 +2520,7 @@ const App = {
   radarPaused: false, radarPauseWaiters: [],
   focusRequestEpoch: 0, focusSettledEpoch: 0, focusWaiters: [],
   spec: null, specSym: null,                 // Bitget-Kontrakt-Specs (gecacht)
-  fees: { taker: null, maker: null }, slippage: 0,
+  fees: { taker: null, maker: null }, slippage: 0.0005,
   data: { chart: null, mtf: {}, ticker: null, fng: null, cg: null, crypto: null, wf: null, bt: [], probMap: null, live: null },
   tradingView: { market: 'bitget_perp', layout: '' }, // TradingView Basic: one preferred market and optional saved layout
   universe: null,                              // dynamische Top-Coins aus Bitget-Tickern (Sort nach 24h-Volumen)
@@ -2600,14 +2616,10 @@ async function loadChartData(attempt = 0) {
   if (typeof resolveFocusedLoad === 'function') resolveFocusedLoad(focusEpoch);
   if (gen !== App.gen || sym !== App.symbol || tf !== App.chartTF) return;  // stale response
   App.data.chart = analyze(r.candles);
-  // Anchored t1-safe Walk-Forward mit K=4 Folds und DSR
-  App.data.wf = runWalkForwardBacktest(r.candles, App.data.chart, { makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: App.slippage, timeStopBars: App.timeStopBars, tfMinutes: tfToMinutes(App.chartTF) });
-  App.data.bt = App.data.wf.oosTrades;
-  App.data.probMap = App.data.wf.probMap;
   App.data.candles = r.candles;
   App.data.chartSrc = r.source;
   App.data.chartLoadedAt = Date.now(); // PF-39: freshness badge timestamp
-  // Load Bitget contract specifications for the selected USDT-M perpetual.
+  // Load Bitget contract specifications before cost-sensitive walk-forward evaluation.
   try {
     if (!App.spec || App.specSym !== App.symbol) {
       const spec = await bitgetContracts(App.symbol);
@@ -2615,8 +2627,13 @@ async function loadChartData(attempt = 0) {
       App.spec = spec;
       App.specSym = App.symbol;
       App.fees.taker = spec.takerFee; App.fees.maker = spec.makerFee;
+      App.slippage = spec.slippage || 0.0005;
     }
-  } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; }
+  } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; App.slippage = 0.0005; }
+  // Anchored t1-safe Walk-Forward mit K=4 Folds und DSR
+  App.data.wf = runWalkForwardBacktest(r.candles, App.data.chart, { makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: resolveSlippage(App.slippage), timeStopBars: App.timeStopBars, tfMinutes: tfToMinutes(App.chartTF) });
+  App.data.bt = App.data.wf.oosTrades;
+  App.data.probMap = App.data.wf.probMap;
 
   // Ticker-Cache VOR dem Fetch zwingend zurücksetzen, um Mismatches zwischen Symbolen zu verhindern
   App.data.ticker = null;
@@ -7841,7 +7858,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '2.1.0';
+const AURA_CLIENT_VERSION = '2.2.0';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -9130,7 +9147,7 @@ async function autoOptimizeTimeStop() {
     const values = [], minBars = 5, maxBars = 30, trialMultiplier = maxBars - minBars + 1;
     for (let bars = minBars; bars <= maxBars; bars++) {
       const wf = runWalkForwardBacktest(App.data.candles, App.data.chart, {
-        makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: App.slippage,
+        makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: resolveSlippage(App.slippage),
         timeStopBars: bars, trialMultiplier, tfMinutes: tfToMinutes(App.chartTF)
       });
       values.push({ bars, dsr: wf.dsr?.dsr ?? 0, exp: wf.stats?.exp ?? -Infinity });
@@ -9175,7 +9192,7 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
 
     const makerFee = options.makerFee ?? (typeof App !== 'undefined' ? App.fees?.maker : 0.0002) ?? 0.0002;
     const takerFee = options.takerFee ?? (typeof App !== 'undefined' ? App.fees?.taker : 0.0006) ?? 0.0006;
-    const slippage = options.slippage ?? (typeof App !== 'undefined' ? App.slippage : 0.0005) ?? 0.0005;
+    const slippage = resolveSlippage(options.slippage ?? (typeof App !== 'undefined' ? App.slippage : 0.0005));
 
     const trialMultiplier = maxBars - minBars + 1;
     for (let b = minBars; b <= maxBars; b++) {
@@ -10465,7 +10482,7 @@ const Autobot = {
           const freshWalkForward = runWalkForwardBacktest(kdata.candles, A, {
             makerFee: App.fees.maker,
             takerFee: App.fees.taker,
-            slippage: App.slippage, timeStopBars: App.timeStopBars,
+            slippage: resolveSlippage(App.slippage), timeStopBars: App.timeStopBars,
             trialMultiplier: funnel.wfEvaluated, tfMinutes: tfToMinutes(freshCandidate.tf)
           });
           const edgeGate = evaluateAutobotEdge(freshWalkForward, this.minOosSamples, {
@@ -10862,6 +10879,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "2.2.0": {
+    title: "Evidence Infrastructure Hardening",
+    summary: "Runde 36 (MINOR): Slippage-Kosten, Verdict-Priorität und ledger-gebundene DSR-Trial-Zählung wurden fail-closed gehärtet — ohne Änderungen an Signal-, Entry-, Exit-, Scoring- oder Sizing-Logik.",
+    highlights: [
+      "Slippage-Fix: Dashboard-Walk-Forward nutzt mindestens 0,05 % Slippage statt implizit 0 %; Contract-Specs werden vor der kostenabhängigen Auswertung geladen.",
+      "Verdict-Fix: FAIL und NO-GO haben Vorrang vor MODEL_NO_EVIDENCE und bleiben auch in menschenlesbaren Release-Zeilen sichtbar.",
+      "Ledger-N: DSR nutzt konservativ max(aktuelle Such-Trials, 45, verifizierte total_model_experiments); wachsende Ledger-Historie kann DSR nie verbessern.",
+      "Evidenz unverändert: EXP-032, Lockbox UNUSED und SOFTWARE_GO / MODEL_NO_EVIDENCE."
+    ]
+  },
   "2.1.0": {
     title: "UI Generation 2 — Design System Final",
     summary: "Runde 35b (MINOR): Vollständige visuelle Konsolidierung und Design-System-Finalisierung — CSS-Tokens, standardisierte Komponentenklassen, mobile 390/420-px-Regeln und WCAG-AA-Barrierefreiheit ohne Änderung von Daten oder Trading-Logik.",
@@ -11312,7 +11339,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('2.0.0');
+  showReleaseNotesOnce('2.2.0');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;

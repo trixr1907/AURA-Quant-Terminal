@@ -50,7 +50,11 @@ Um Data-Mining-Artefakte, Overfitting, Look-Ahead-Bias und P-Hacking mathematisc
 
 ### Stufe S3: Walk-Forward Out-of-Sample (OOS)
 - Walk-Forward Backtesting mit $K \ge 4$ nicht-überlappenden Test-Folds.
-- Statistische Absicherung gegen multiples Testen via Deflated Sharpe Ratio (DSR), berechnet über die Gesamtzahl aller historischen Modell-Trials im Ledger ($N_{trials}$).
+- Statistische Absicherung gegen multiples Testen via Deflated Sharpe Ratio (DSR). Das Produkt behält den historischen Phase-D-Floor und bindet die verifizierte Ledger-Historie monoton ein:
+  - Setup-Floor: `DSR_TRIALS = max(45, total_model_experiments)`.
+  - Aktuelle Suche: `totalTrials = max(currentSearchTrials, DSR_TRIALS)`.
+  - Die unabhängige Python-Referenz nutzt denselben konservativen Floor; der S3-Harness verwendet mindestens `max(18, total_model_experiments)` und zusätzlich den Produkt-Floor.
+- `total_model_experiments` stammt aus der durch `scripts/verify_ledger.py` verifizierten Kette. Ein ungültiger Ledger blockiert die Produkt-Auslieferung; wachsende Historie darf DSR nie erhöhen.
 
 ### Stufe S4: Single-Shot Lockbox Holdout
 - Prüfung auf einem vorab kryptographisch und zeitlich gesperrten Forward-Holdout-Datensatz (`LOCKED`).
