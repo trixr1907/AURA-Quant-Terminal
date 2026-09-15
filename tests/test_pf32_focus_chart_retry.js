@@ -51,6 +51,7 @@ const context = {
   runWalkForwardBacktest: () => ({ oosTrades: [], probMap: {} }),
   tfToMinutes: () => 60,
   bitgetContracts: async () => ({ takerFee: 0, makerFee: 0 }),
+  resolveSlippage: value => value || 0.0005,
   fetchTicker: async () => ({ price: 101 }),
   setTimeout: fn => { scheduled = fn; return timer; },
   clearTimeout: () => {},

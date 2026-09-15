@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 2.1.0 (Release)
+**Version:** 2.2.0 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
@@ -118,7 +118,31 @@ renderAll(force = false)
 
 ---
 
-## 5. Ausblick: Modul-Split-Plan (Architektur-Vorschlag)
+## 5. Evidenzkosten und DSR-Trial-Zählung
+
+### 5.1 Kostenmodelle
+
+Die Kostenparameter bleiben für Runde 36 bewusst nach Evidenzpfad getrennt:
+
+| Pfad | Maker | Taker | Slippage |
+|---|---:|---:|---:|
+| Dashboard / S3 Walk-Forward | 0,02 % | 0,06 % | 0,05 % (`0.0005`) |
+| Shadow Collector / Headless Runner | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+
+Das Dashboard lädt verfügbare Contract-Fees vor dem Walk-Forward. Fehlt eine valide positive Slippage-Spec oder liefert sie `0`, gilt `0.0005`. Runde 36 korrigiert damit den früheren 0-%-Fehler; sie vereinheitlicht die konservativeren Shadow-/Runner-Kosten bewusst nicht. Deshalb bleiben S3 und S5 bis zur geplanten R37-Neuevaluation nur innerhalb ihres jeweiligen Kostenpfads vergleichbar.
+
+### 5.2 DSR-Trials
+
+Der Relay verifiziert die unveränderliche Ledger-Kette und bettet `total_model_experiments` beim Ausliefern in das Dashboard ein. Der DSR-Floor lautet:
+
+- Setup/Legacy: `DSR_TRIALS = max(45, total_model_experiments)`.
+- Universe/Search: `totalTrials = max(currentSearchTrials, DSR_TRIALS)`.
+
+Dadurch kann eine wachsende Ledger-Historie den DSR niemals künstlich verbessern. Bei ungültigem Ledger liefert der Relay das Dashboard fail-closed nicht aus.
+
+---
+
+## 6. Ausblick: Modul-Split-Plan (Architektur-Vorschlag)
 
 *Hinweis: Das Single-File-Format (`Symbiose_Dashboard.html`) bleibt als finales Release-Artefakt verbindlich erhalten.*
 
@@ -148,7 +172,7 @@ Vorteile:
 
 ---
 
-## 6. Zeitstempel-Konvention (Millisekunden-Standard)
+## 7. Zeitstempel-Konvention (Millisekunden-Standard)
 
 - **Verbindlicher Standard:** Sämtliche Zeitstempel im gesamten System (`candles[i].t`, Engine-Indikatoren, Session-Filter, VWAP-Tagesgruppierung) werden ausnahmslos in **Millisekunden (ms)** geführt.
 - **Produktions-APIs:** WebSocket- und REST-Streams (Bitget `openTime`, Binance `openTime`) liefern Zeitstempel nativ in ms (z. B. `1735689600000`).
@@ -158,7 +182,7 @@ Vorteile:
 
 ---
 
-## 7. Datenhaltung v2 (Migration/Rollback)
+## 8. Datenhaltung v2 (Migration/Rollback)
 
 Schema v2 gilt ausschließlich für Laufzeit-/Portfolio-State. Die Evidenzkette behält dauerhaft Ledger-Schema v1; `LEGACY_LEDGER` und `LEGACY_SHA256` sind nachgewiesene Evidenzpfade und dürfen nicht bereinigt werden.
 
