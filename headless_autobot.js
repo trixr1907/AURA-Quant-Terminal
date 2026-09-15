@@ -351,6 +351,37 @@ function checkTimeStop(trade) {
 // ---------------------------------------------------------------------------
 // Server Bot State (PF-67: equity, flags, mode flag, restart-persistent)
 // ---------------------------------------------------------------------------
+function computeFunnel24h(funnelCycles, now = Date.now()) {
+  const cutoff = now - 86400000;
+  const recent = Array.isArray(funnelCycles)
+    ? funnelCycles.filter(c => c && Number.isFinite(c.ts) && c.ts >= cutoff)
+    : [];
+  let scanned = 0;
+  let radar_passed = 0;
+  let wf_evaluated = 0;
+  let selected = 0;
+  const reject_reasons = {};
+
+  for (const c of recent) {
+    scanned += Number(c.scanned) || 0;
+    radar_passed += Number(c.radar_passed || c.radarFiltered) || 0;
+    wf_evaluated += Number(c.wf_evaluated || c.wfEvaluated) || 0;
+    selected += Number(c.selected) || 0;
+    const rej = c.reject_reasons || c.rejects || {};
+    for (const [code, cnt] of Object.entries(rej)) {
+      reject_reasons[code] = (reject_reasons[code] || 0) + (Number(cnt) || 0);
+    }
+  }
+
+  return {
+    scanned,
+    radar_passed,
+    wf_evaluated,
+    selected,
+    reject_reasons,
+  };
+}
+
 class ServerBotState {
   constructor() {
     this.trades        = [];
@@ -363,6 +394,7 @@ class ServerBotState {
     this.paused        = false;
     this.pausedBy      = null;
     this.cycleCount    = 0;
+    this.funnelCycles  = [];
     this.rev           = undefined; // track server state rev
   }
 
@@ -378,6 +410,7 @@ class ServerBotState {
       if (typeof srv.paused === 'boolean') this.paused = srv.paused;
       if (typeof srv.pausedBy === 'string' || srv.pausedBy === null) this.pausedBy = srv.pausedBy;
       if (Number.isInteger(srv.cycleCount) && srv.cycleCount >= 0) this.cycleCount = srv.cycleCount;
+      if (Array.isArray(srv.funnelCycles)) this.funnelCycles = srv.funnelCycles;
     }
     // Restore server-owned trades (identified by source: 'server')
     const remoteTrades = serverState[KEY_TRADES];
@@ -403,6 +436,8 @@ class ServerBotState {
       pausedBy: this.paused ? (this.pausedBy || 'browser') : null,
       cycleCount: this.cycleCount,
       tradeCount: this.trades.length,
+      funnel24h: computeFunnel24h(this.funnelCycles),
+      funnelCycles: Array.isArray(this.funnelCycles) ? this.funnelCycles.slice(-1440) : [],
     };
   }
 }
@@ -958,6 +993,19 @@ async function runScanCycle(engine, state, config, collector = null) {
     state.cycleCount++;
     state.lastCycleAt = Date.now();
 
+    // Record funnel in rolling 24h history
+    if (!Array.isArray(state.funnelCycles)) state.funnelCycles = [];
+    state.funnelCycles.push({
+      ts: Date.now(),
+      scanned: funnel.scanned,
+      radar_passed: funnel.radarFiltered,
+      wf_evaluated: funnel.wfEvaluated,
+      selected: funnel.selected,
+      rejects: { ...funnel.rejects },
+    });
+    const cutoff24h = Date.now() - 86400000;
+    state.funnelCycles = state.funnelCycles.filter(c => c && c.ts >= cutoff24h);
+
     // Write server-bot meta state
     await writeStateKey(KEY_SRV_BOT, state.toServerPayload());
 
@@ -1030,6 +1078,7 @@ function exposeHealth(state) {
       cycleCount:      state.cycleCount,
       tradeCount:      state.trades.length,
       equity:          state.equity,
+      funnel24h:       computeFunnel24h(state.funnelCycles),
       updatedAt:       Date.now(),
     };
     fs.writeFileSync(healthPath, JSON.stringify(data), 'utf8');
@@ -1124,6 +1173,7 @@ module.exports = {
   checkTimeStop,
   readBotConfig,
   ServerBotState,
+  computeFunnel24h,
   closeTradeRecord,
   relayRequest,
   fetchTickerViaRelay,

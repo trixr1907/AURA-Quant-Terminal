@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v1.9.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v1.10.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -9,7 +9,8 @@ State-Sync-Speicher (/api/state) für alle verbundenen Clients (PC, Smartphone, 
 API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
-  GET  /serving          -> {"ok": true, "version": "1.9.0", "port": 8787, "mode": "quant_research"}
+  GET  /status           -> Human Status Page (HTML)
+  GET  /serving          -> {"ok": true, "version": "1.10.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -20,7 +21,9 @@ API-Vertrag (für das Dashboard):
 from __future__ import annotations
 
 import base64
+from datetime import datetime, timezone
 import faulthandler
+import html
 import json
 import logging
 import math
@@ -37,6 +40,11 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None  # type: ignore[assignment,misc]
 
 # ---------------------------------------------------------------------------
 #  Configuration & Central Shared State
@@ -814,6 +822,19 @@ def daily_digest_transition(
         rej_avg_str = f"{sum(rej_rs)/len(rej_rs):+.2f}R" if rej_rs else "N/A"
         body += f" · Schatten: {total_entries} Setups beobachtet, {total_eval} bewertet, Ø-R {acc_avg_str} vs. {rej_avg_str}"
 
+    funnel_info = _funnel_health()
+    if funnel_info.get("scanned", 0) > 0 or funnel_info.get("reject_reasons"):
+        scanned = funnel_info.get("scanned", 0)
+        candidates = funnel_info.get("radar_passed", 0)
+        selected = funnel_info.get("selected", 0)
+        rejects = funnel_info.get("reject_reasons", {})
+        sorted_rejects = sorted(rejects.items(), key=lambda x: x[1], reverse=True)
+        if sorted_rejects:
+            top_str = ", ".join(f"{k} ({v})" for k, v in sorted_rejects[:3])
+        else:
+            top_str = "keine"
+        body += f" · Funnel 24 h: {scanned} gescannt · {candidates} Kandidaten · {selected} selected · Top-Absagen: {top_str}"
+
     if due:
         digest["last_sent_utc_date"] = date_key
         next_state["digest"] = digest
@@ -1382,6 +1403,453 @@ def _shadow_health() -> dict:
         "evaluated": evaluated,
     }
 
+
+def mask_ntfy_url(url: str | None) -> str:
+    """Mask ntfy URL so topic names are never exposed in plain text.
+    
+    Topic name is masked to at most first 6 characters followed by '…'.
+    E.g. 'https://ntfy.sh/aura-live-signals-test123' -> 'https://ntfy.sh/aura-l…'
+    """
+    if not url or not isinstance(url, str) or not url.strip():
+        return "Nicht konfiguriert"
+    clean = url.strip()
+    parsed = urllib.parse.urlparse(clean)
+    if not parsed.netloc:
+        return (clean[:6] + "…") if len(clean) > 6 else clean
+    topic = parsed.path.lstrip("/")
+    if not topic:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    masked_topic = (topic[:6] + "…") if len(topic) > 6 else (topic[:2] + "…" if len(topic) > 2 else "…")
+    return f"{parsed.scheme}://{parsed.netloc}/{masked_topic}"
+
+
+def _format_berlin_time(dt_utc: datetime) -> str:
+    """Format UTC datetime into Europe/Berlin local time string."""
+    if ZoneInfo is not None:
+        try:
+            return dt_utc.astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S %Z")
+        except Exception:
+            pass
+    return dt_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _funnel_health() -> dict:
+    """Read 24h rolling funnel summary from runner_health.json or shared state."""
+    state_dir = Path(os.environ.get("AURA_STATE_DIR") or STATE_DIR)
+    health_path = state_dir / "runner_health.json"
+    if health_path.exists():
+        try:
+            data = json.loads(health_path.read_text(encoding="utf-8"))
+            f24 = data.get("funnel24h")
+            if isinstance(f24, dict):
+                return {
+                    "scanned": int(f24.get("scanned", 0)),
+                    "radar_passed": int(f24.get("radar_passed", f24.get("radarFiltered", 0))),
+                    "wf_evaluated": int(f24.get("wf_evaluated", f24.get("wfEvaluated", 0))),
+                    "selected": int(f24.get("selected", 0)),
+                    "reject_reasons": dict(f24.get("reject_reasons", f24.get("rejects", {}))),
+                }
+        except Exception:
+            pass
+    return {
+        "scanned": 0,
+        "radar_passed": 0,
+        "wf_evaluated": 0,
+        "selected": 0,
+        "reject_reasons": {},
+    }
+
+
+def render_status_html(
+    *,
+    now: float | None = None,
+    disk_free_mb_override: float | None = None,
+    disk_total_mb_override: float | None = None,
+    state_dir_override: Path | None = None,
+) -> str:
+    """Render the self-contained human-readable status page for GET /status."""
+    current_time = time.time() if now is None else float(now)
+    state_dir = state_dir_override or Path(os.environ.get("AURA_STATE_DIR") or STATE_DIR)
+
+    readiness = market_data_readiness()
+    snapshot = market_data_health_snapshot()
+    runner = _runner_health()
+    shadow = _shadow_health()
+    funnel = _funnel_health()
+    signal_state = _load_signal_state()
+
+    bot_mode = os.environ.get("AURA_BOT_MODE", "").strip().lower()
+    bot_enabled = bot_mode == "server"
+    ntfy_url = os.environ.get("AURA_NTFY_URL", "").strip()
+    masked_ntfy = mask_ntfy_url(ntfy_url)
+    has_ntfy = bool(ntfy_url)
+
+    # Disk usage
+    if disk_free_mb_override is not None:
+        free_mb = float(disk_free_mb_override)
+        total_mb = float(disk_total_mb_override or free_mb)
+    else:
+        try:
+            usage = shutil.disk_usage(state_dir)
+            free_mb = usage.free / (1024 * 1024)
+            total_mb = usage.total / (1024 * 1024)
+        except Exception:
+            free_mb = 1024.0
+            total_mb = 10240.0
+
+    free_gb = free_mb / 1024.0
+    total_gb = total_mb / 1024.0
+
+    state_size_bytes = 0
+    if state_dir.exists():
+        try:
+            state_size_bytes = sum(f.stat().st_size for f in state_dir.glob("**/*") if f.is_file())
+        except Exception:
+            pass
+    state_size_mb = state_size_bytes / (1024 * 1024)
+
+    # Violations / Health logic
+    violations: list[str] = []
+    threshold = runner_stale_threshold()
+
+    if bot_mode == "server":
+        runner_state = runner.get("state", "stopped")
+        if runner_state == "stopped" or not runner.get("running"):
+            violations.append("Server-Bot ist aktiviert (AURA_BOT_MODE=server), aber der Runner läuft nicht (Status: gestoppt).")
+        elif runner.get("paused"):
+            hb_age = runner.get("last_heartbeat_age_sec")
+            if hb_age is None or hb_age > threshold:
+                age_display = f"{hb_age:.1f}s" if hb_age is not None else "unbekannt"
+                violations.append(f"Server-Bot ist pausiert, aber der Heartbeat ist veraltet ({age_display} > Schwelle {threshold:.0f}s).")
+        else:
+            cycle_age = runner.get("last_cycle_age_sec")
+            if cycle_age is None or cycle_age > threshold:
+                age_display = f"{cycle_age:.1f}s" if cycle_age is not None else "unbekannt"
+                violations.append(f"Server-Bot-Runner ist nicht frisch (letzter Scan vor {age_display} > Schwelle {threshold:.0f}s).")
+
+    last_error = snapshot.get("last_error_code")
+    if last_error is not None:
+        violations.append(f"Market-Data-Fehler aktiv: {html.escape(str(last_error))}")
+
+    if free_mb <= 500.0:
+        violations.append(f"Festplattenspeicher knapp: {free_mb:.1f} MB frei (Minimum: 500 MB).")
+
+    is_ok = len(violations) == 0
+    banner_status = "ALLES OK" if is_ok else "HANDLUNGSBEDARF"
+    banner_class = "banner-ok" if is_ok else "banner-error"
+
+    # Uptime & Timestamps
+    uptime_sec = max(0.0, current_time - float(RELAY_START_TIME))
+    hours, remainder = divmod(int(uptime_sec), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    uptime_str = f"{hours} Std. {minutes} Min. {seconds} Sek." if hours > 0 else f"{minutes} Min. {seconds} Sek."
+
+    dt_utc = datetime.fromtimestamp(current_time, timezone.utc)
+    utc_str = dt_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+    berlin_str = _format_berlin_time(dt_utc)
+
+    # Digest timestamp
+    digest_date = signal_state.get("digest", {}).get("last_sent_utc_date", "noch nie")
+    if not digest_date:
+        digest_date = "noch nie"
+
+    restarts_24h = RUNNER_MANAGER.snapshot(now=current_time).get("runner_restart_count", 0)
+
+    # Format violations HTML
+    if violations:
+        violations_html = "<ul class=\"violations-list\">" + "".join(
+            f"<li>{html.escape(v)}</li>" for v in violations
+        ) + "</ul>"
+    else:
+        violations_html = "<div class=\"banner-sub\">Alle Kernkomponenten, Runner-Heartbeats und Speicherprüfungen arbeiten fehlerfrei.</div>"
+
+    # Runner display strings
+    cycle_age = runner.get("last_cycle_age_sec")
+    cycle_age_str = f"{cycle_age:.1f}s" if isinstance(cycle_age, (int, float)) else "—"
+    runner_paused = bool(runner.get("paused", False))
+    runner_paused_by = runner.get("paused_by")
+    paused_display = f"Ja ({html.escape(str(runner_paused_by))})" if runner_paused else "Nein"
+
+    # Mode note
+    if bot_mode != "server":
+        mode_note = "<span class=\"note\">(Bewusst nicht als Server-Bot konfiguriert)</span>"
+    else:
+        mode_note = "<span class=\"note-ok\">(AURA_BOT_MODE=server)</span>"
+
+    return f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA Status — Confluence Terminal</title>
+<style>
+:root {{
+  --bg: #090d16;
+  --panel: #0f172a;
+  --border: #1e293b;
+  --txt: #f8fafc;
+  --mut: #94a3b8;
+  --dim: #64748b;
+  --cyn: #00f5d4;
+  --gn: #10b981;
+  --rd: #ef4444;
+  --yw: #f59e0b;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+}}
+.container {{
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}}
+header {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+}}
+.logo-title {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}}
+.logo {{
+  font-family: var(--mono);
+  font-weight: 900;
+  font-size: 18px;
+  color: var(--cyn);
+  letter-spacing: 0.1em;
+}}
+.badge {{
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0, 245, 212, 0.12);
+  color: var(--cyn);
+  border: 1px solid rgba(0, 245, 212, 0.3);
+  text-transform: uppercase;
+}}
+.header-right {{
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--mut);
+}}
+.banner {{
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}}
+.banner-ok {{
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid var(--gn);
+}}
+.banner-error {{
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--rd);
+}}
+.banner-head {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}}
+.banner-title {{
+  font-family: var(--mono);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.05em;
+}}
+.banner-ok .banner-title {{ color: var(--gn); }}
+.banner-error .banner-title {{ color: var(--rd); }}
+.banner-sub {{
+  color: var(--mut);
+  font-size: 12px;
+}}
+.violations-list {{
+  margin-top: 6px;
+  padding-left: 20px;
+  color: #fca5a5;
+  font-size: 12.5px;
+}}
+.violations-list li {{
+  margin-bottom: 4px;
+}}
+.grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}}
+.card {{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}}
+.card-head {{
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cyn);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}}
+.row {{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 3px 0;
+}}
+.row:last-child {{ border-bottom: 0; }}
+.label {{ color: var(--mut); }}
+.val {{ font-family: var(--mono); font-weight: 600; color: var(--txt); }}
+.val-ok {{ color: var(--gn); }}
+.val-warn {{ color: var(--yw); }}
+.val-err {{ color: var(--rd); }}
+.note {{ font-size: 10.5px; color: var(--dim); display: block; margin-top: 2px; }}
+.note-ok {{ font-size: 10.5px; color: var(--gn); display: block; margin-top: 2px; }}
+footer {{
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--dim);
+}}
+.doctor-hint {{
+  color: var(--mut);
+  font-family: var(--mono);
+}}
+.doctor-cmd {{
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--cyn);
+}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo-title">
+      <span class="logo">AURA</span>
+      <span class="badge">STATUS</span>
+    </div>
+    <div class="header-right">
+      <span>v{html.escape(VERSION)}</span> · <span>quant_research</span>
+    </div>
+  </header>
+
+  <div class="banner {banner_class}">
+    <div class="banner-head">
+      <span class="banner-title">{banner_status}</span>
+    </div>
+    {violations_html}
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">Version &amp; Build</div>
+      <div class="row"><span class="label">Version</span><span class="val">v{html.escape(VERSION)}</span></div>
+      <div class="row"><span class="label">Relay-Port</span><span class="val">{PORT}</span></div>
+      <div class="row"><span class="label">Modus</span><span class="val">quant_research</span></div>
+      <div class="row"><span class="label">Verdict</span><span class="val" style="font-size:10px">SOFTWARE_GO / MODEL_NO_EVIDENCE</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Bot-Modus &amp; Konfiguration</div>
+      <div class="row"><span class="label">Modus</span><span class="val">{html.escape(runner.get("mode", "none"))}</span></div>
+      <div class="row"><span class="label">Bot Aktiv</span><span class="val {'val-ok' if bot_enabled else 'val-warn'}">{'Ja' if bot_enabled else 'Nein'}</span></div>
+      <div class="row"><span class="label">Status</span><span class="val">{html.escape(str(runner.get("state", "not_configured")))}</span></div>
+      {mode_note}
+    </div>
+
+    <div class="card">
+      <div class="card-head">Headless Runner (24/7)</div>
+      <div class="row"><span class="label">Scan-Zyklen</span><span class="val">{runner.get("cycle_count", 0)}</span></div>
+      <div class="row"><span class="label">Letzter Zyklus</span><span class="val">{cycle_age_str}</span></div>
+      <div class="row"><span class="label">Pausiert</span><span class="val">{paused_display}</span></div>
+      <div class="row"><span class="label">Restarts (24h)</span><span class="val">{restarts_24h}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Schatten-Kollektor (OOS)</div>
+      <div class="row"><span class="label">Status</span><span class="val {'val-ok' if shadow.get('enabled') else 'val-warn'}">{'Aktiviert' if shadow.get('enabled') else 'Deaktiviert'}</span></div>
+      <div class="row"><span class="label">Beobachtet</span><span class="val">{shadow.get("entries", 0)} Setups</span></div>
+      <div class="row"><span class="label">Ausstehend</span><span class="val">{shadow.get("pending_outcomes", 0)}</span></div>
+      <div class="row"><span class="label">Evaluiert</span><span class="val">{shadow.get("evaluated", 0)}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Tages-Digest &amp; Benachrichtigung</div>
+      <div class="row"><span class="label">Letzter Digest</span><span class="val">{html.escape(str(digest_date))}</span></div>
+      <div class="row"><span class="label">Sendezeit</span><span class="val">07:00 UTC</span></div>
+      <div class="row"><span class="label">ntfy Push</span><span class="val {'val-ok' if has_ntfy else 'val-warn'}">{'Konfiguriert' if has_ntfy else 'Nicht konfiguriert'}</span></div>
+      <div class="row"><span class="label">ntfy URL</span><span class="val" style="font-size:10.5px">{html.escape(masked_ntfy)}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">State-Verzeichnis &amp; Disk</div>
+      <div class="row"><span class="label">Pfad</span><span class="val" style="font-size:10px">{html.escape(str(state_dir))}</span></div>
+      <div class="row"><span class="label">State-Größe</span><span class="val">{state_size_mb:.2f} MB</span></div>
+      <div class="row"><span class="label">Freier Speicher</span><span class="val {'val-ok' if free_mb > 500 else 'val-err'}">{free_gb:.2f} GB frei ({free_mb:.0f} MB)</span></div>
+      <div class="row"><span class="label">Gesamtspeicher</span><span class="val">{total_gb:.2f} GB</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Uptime &amp; Serverzeit</div>
+      <div class="row"><span class="label">Uptime</span><span class="val">{html.escape(uptime_str)}</span></div>
+      <div class="row"><span class="label">Serverzeit (UTC)</span><span class="val" style="font-size:11px">{html.escape(utc_str)}</span></div>
+      <div class="row"><span class="label">Serverzeit (Berlin)</span><span class="val" style="font-size:11px">{html.escape(berlin_str)}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Funnel (24 h)</div>
+      <div class="row"><span class="label">Gescannt</span><span class="val">{funnel.get("scanned", 0)}</span></div>
+      <div class="row"><span class="label">Radar-Kandidaten</span><span class="val">{funnel.get("radar_passed", 0)}</span></div>
+      <div class="row"><span class="label">WF-Evaluiert</span><span class="val">{funnel.get("wf_evaluated", 0)}</span></div>
+      <div class="row"><span class="label">Ausgewählt (Trades)</span><span class="val">{funnel.get("selected", 0)}</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="doctor-hint">
+      Diagnose-Befehl in der Docker-VM: <span class="doctor-cmd">scripts/ops/aura_doctor.sh</span>
+    </div>
+    <div>
+      AURA v{html.escape(VERSION)} · Confluence Terminal (read-only research) · VERDICT: SOFTWARE_GO / MODEL_NO_EVIDENCE
+    </div>
+  </footer>
+</div>
+</body>
+</html>
+"""
+
 class SingleFlight:
     def __init__(self):
         self._lock = threading.Lock()
@@ -1661,18 +2129,23 @@ class RelayHandler(BaseHTTPRequestHandler):
                 "port": PORT,
                 "mode": "quant_research",
             })
+        elif path == "/status":
+            html_content = render_status_html()
+            self._send_html(html_content.encode("utf-8"))
         elif path == "/ready":
             readiness = market_data_readiness()
             # PF-69: include runner health (last cycle age)
             runner_health = _runner_health()
             bot_enabled = (os.environ.get("AURA_BOT_MODE", "").strip().lower() == "server")
             shadow_health = _shadow_health()
+            funnel_health = _funnel_health()
             self._send_json({
                 **readiness,
                 "bot_enabled": bot_enabled,
                 "mode": "server" if bot_enabled else "none",
                 "runner": runner_health,
                 "shadow": shadow_health,
+                "funnel24h": funnel_health,
             }, 200 if readiness["ok"] else 503)
         elif path == "/api/state":
             if not self._authorize_privileged():
