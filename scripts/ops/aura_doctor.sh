@@ -333,7 +333,45 @@ if command -v df &>/dev/null; then
 fi
 
 # ------------------------------------------------------------------------------
-# Check 5: Container Log Errors (24h)
+# Check 5: Runtime State Schema v2 & migration backup
+# ------------------------------------------------------------------------------
+SHARED_STATE_FILE="$STATE_DIR/aura_shared_state.json"
+SIGNAL_STATE_FILE="$STATE_DIR/aura_signal_center_state.json"
+check_state_schema_and_backup() {
+  local label="$1" state_file="$2"
+  local state_name state_schema latest_backup
+  state_name=$(basename "$state_file")
+  if [[ ! -f "$state_file" ]]; then
+    add_check "${label}_schema" "WARN" "Kein Live-State unter $state_file vorhanden"
+    return
+  fi
+  state_schema=$(python3 - "$state_file" <<'PY' 2>/dev/null || echo "invalid"
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as fh:
+    print(json.load(fh).get("schema_version", 1))
+PY
+)
+  if [[ "$state_schema" = "2" ]]; then
+    add_check "${label}_schema" "PASS" "${state_name} verwendet Schema v2"
+    latest_backup=$(find "$STATE_DIR" -maxdepth 1 -type f -name "${state_name}.v1-backup-*" -printf '%f\n' 2>/dev/null | sort | tail -1)
+    if [[ -n "$latest_backup" ]]; then
+      add_check "${label}_backup" "PASS" "v1-Migrationsbackup vorhanden: $latest_backup"
+    else
+      add_check "${label}_backup" "WARN" "${state_name} ist v2, aber kein .v1-backup-* vorhanden"
+    fi
+  elif [[ "$state_schema" = "1" ]]; then
+    add_check "${label}_schema" "WARN" "${state_name} verwendet Schema v1; Migration steht aus"
+  elif [[ "$state_schema" = "invalid" ]]; then
+    add_check "${label}_schema" "FAIL" "${state_name} ist kein lesbares JSON"
+  else
+    add_check "${label}_schema" "FAIL" "${state_name} Schema v${state_schema} ist neuer/unerwartet (Build erwartet v2)"
+  fi
+}
+check_state_schema_and_backup "shared_state" "$SHARED_STATE_FILE"
+check_state_schema_and_backup "signal_state" "$SIGNAL_STATE_FILE"
+
+# ------------------------------------------------------------------------------
+# Check 6: Container Log Errors (24h)
 # ------------------------------------------------------------------------------
 if [[ "$CONTAINER_RUNNING" = true ]]; then
   ERROR_COUNT=$(docker logs --since 24h "$CONTAINER_NAME" 2>&1 | grep -iE 'ERROR|CRITICAL|FATAL|Exception' | wc -l || echo "0")
