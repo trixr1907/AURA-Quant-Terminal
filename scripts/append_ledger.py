@@ -70,7 +70,7 @@ def _load_entry_fields(path: Path, *, is_prereg: bool = False) -> dict:
         entry_date = data.get("date") or data["frozen_at"][:10]
         return {
             "date": str(entry_date),
-            "version": str(data.get("version", "v1.10.1")),
+            "version": str(data.get("version", "v2.0.0")),
             "type": "Hypothesis-PreReg",
             "hypothesis": str(data["hypothesis"]),
             "change": canonical_change,

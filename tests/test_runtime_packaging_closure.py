@@ -61,6 +61,11 @@ USER aura
             (tmproot / "headless_autobot.js").write_text("const a = require('./module_a.js');", encoding="utf-8")
             (tmproot / "module_a.js").write_text("const b = require('./module_b.js');", encoding="utf-8")
             (tmproot / "module_b.js").write_text("console.log('b');", encoding="utf-8")
+            (tmproot / "scripts" / "ops").mkdir(parents=True)
+            (tmproot / "scripts" / "state_migration.py").write_text("# migration", encoding="utf-8")
+            (tmproot / "scripts" / "ops" / "aura_state_migrate.py").write_text(
+                "from scripts.state_migration import migrate_state_directory\n", encoding="utf-8"
+            )
 
             df_content = """
 COPY bitget_relay.py .
@@ -70,11 +75,14 @@ COPY SYMBIOSE_Tutorial.html .
 COPY headless_autobot.js .
 COPY module_a.js .
 COPY module_b.js .
+COPY scripts/state_migration.py ./scripts/state_migration.py
+COPY scripts/ops/aura_state_migrate.py ./scripts/ops/aura_state_migrate.py
 """
             # Manifest has module_a, but omits transitive module_b
             manifest = [
                 "bitget_relay.py", "start.py", "Symbiose_Dashboard.html",
-                "SYMBIOSE_Tutorial.html", "headless_autobot.js", "module_a.js"
+                "SYMBIOSE_Tutorial.html", "headless_autobot.js", "module_a.js",
+                "scripts/state_migration.py", "scripts/ops/aura_state_migrate.py",
             ]
 
             status, detail_json = rc.check_runtime_packaging_closure(
@@ -111,6 +119,31 @@ COPY module_b.js .
             detail = json.loads(detail_json)
             self.assertEqual(status, "FAIL")
             self.assertIn("ghost.js", detail.get("missing_on_disk", []))
+
+    def test_missing_python_dependency_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmproot = Path(tmpdir)
+            fixtures = {
+                "bitget_relay.py": "from scripts.state_migration import migrate_state_directory\n",
+                "start.py": "# desktop\n",
+                "Symbiose_Dashboard.html": "<!-- dashboard -->\n",
+                "SYMBIOSE_Tutorial.html": "<!-- tutorial -->\n",
+                "headless_autobot.js": "// runner\n",
+                "scripts/state_migration.py": "from scripts.missing_runtime import helper\n",
+                "scripts/ops/aura_state_migrate.py": "from scripts.state_migration import migrate_state_directory\n",
+            }
+            for rel, content in fixtures.items():
+                path = tmproot / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            manifest = list(fixtures)
+            dockerfile = "\n".join(f"COPY {rel} /app/{rel}" for rel in fixtures)
+            status, detail_json = rc.check_runtime_packaging_closure(
+                tmproot, manifest_list=manifest, dockerfile_content=dockerfile
+            )
+            detail = json.loads(detail_json)
+            self.assertEqual(status, "FAIL")
+            self.assertIn("scripts/missing_runtime.py", detail.get("missing_on_disk", []))
 
     def test_extract_js_relative_dependencies(self):
         sample = """
