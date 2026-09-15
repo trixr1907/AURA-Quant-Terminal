@@ -259,9 +259,37 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 .ab-log-time { color: var(--dim); min-width: 55px; }
 .ab-log-txt { flex: 1; color: var(--txt); }
 
+.reload-banner {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  background: linear-gradient(90deg, #0284c7, #06b6d4);
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.reload-banner-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.reload-banner-icon { font-size: 14px; }
+#reload-banner-text { flex: 1; }
 </style>
 </head>
 <body>
+<div id="reload-banner" class="reload-banner" hidden style="display:none" aria-live="polite">
+  <div class="reload-banner-content">
+    <span class="reload-banner-icon">⚡</span>
+    <span id="reload-banner-text">Neue Version verfügbar — bitte Seite neu laden</span>
+    <button id="btn-reload-page" class="cbtn" type="button" title="Seite jetzt neu laden" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.4)">Neu laden</button>
+    <button id="btn-dismiss-reload" class="cbtn" type="button" aria-label="Hinweis schließen" title="Hinweis schließen" style="background:transparent;color:#fff;border-color:transparent;font-size:14px;padding:2px 8px">×</button>
+  </div>
+</div>
 <div class="wrap">
 
   <!-- ================= HEADER ================= -->
@@ -643,6 +671,28 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             </div>
           </div>
         </details>
+
+        <!-- Bot-Funnel (24 h) Glasbox -->
+        <details class="bot-funnel-panel" id="bot-funnel-section" open style="margin-top:10px;padding:10px 12px;background:rgba(15,23,42,.6);border:1px solid var(--line);border-radius:8px">
+          <summary style="font-size:10.5px;font-weight:700;cursor:pointer;color:var(--txt);display:flex;align-items:center;gap:6px">
+            <span>🧭 Bot-Funnel (24 h)</span>
+            <span id="bot-funnel-summary-badge" style="margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--cyn)">0 gescannt · 0 ausgewählt</span>
+          </summary>
+          <div style="margin-top:8px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;margin-bottom:8px">
+              <div class="hkpi-tile"><span>Gescannt (24h)</span><b id="funnel-scanned">0</b></div>
+              <div class="hkpi-tile"><span>Radar-Kandidaten</span><b id="funnel-radar">0</b></div>
+              <div class="hkpi-tile"><span>WF-Evaluiert</span><b id="funnel-wf">0</b></div>
+              <div class="hkpi-tile"><span>Ausgewählt (Trades)</span><b id="funnel-selected">0</b></div>
+            </div>
+            <div id="funnel-rejects-container" style="font-size:10px;color:var(--mut);display:flex;flex-direction:column;gap:3px;margin-bottom:8px">
+              <span id="funnel-rejects-empty" style="color:var(--dim)">Keine Ablehnungen im 24h-Zeitfenster registriert.</span>
+            </div>
+            <div style="font-size:9px;color:var(--dim);border-top:1px solid rgba(148,163,184,.1);padding-top:6px;font-style:italic">
+              Gates arbeiten korrekt — kein Trade ist kein Fehler.
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -843,6 +893,8 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
                 <option value="PARTIAL_TAKE_PROFIT">💰 Teilgewinn</option>
               </select>
               <div style="flex:1"></div>
+              <button class="cbtn" id="btn-export-csv" type="button" title="Alle Trades als CSV exportieren">⬇ CSV</button>
+              <button class="cbtn" id="btn-export-json" type="button" title="Alle Trades als JSON exportieren">⬇ JSON</button>
               <button class="cbtn danger" id="btn-clear-history" type="button" title="Gesamte Historie nach Bestätigung leeren">Historie leeren</button>
             </div>
 
@@ -886,7 +938,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.9.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.10.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -980,7 +1032,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.9.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.10.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -7594,6 +7646,242 @@ function renderTradeHistory() {
   });
 }
 
+// ============================================================================
+//  Trade Export CSV / JSON (Auftrag C)
+// ============================================================================
+const TRADE_EXPORT_COLUMNS = [
+  'id', 'coin', 'dir', 'leverage', 'entry', 'signalPrice', 'markPrice',
+  'initialSl', 'currentSl', 'tp1', 'tp2', 'tp3', 'openedAt', 'closedAt',
+  'result_reason', 'r_result', 'pnl', 'equity_at_close', 'source'
+];
+
+function normalizeTradeResultReason(reason, isClosed = true) {
+  if (!isClosed) return '—';
+  if (!reason || typeof reason !== 'string') return 'MANUAL';
+  const r = reason.trim().toUpperCase();
+  if (r.startsWith('SL') || r === 'HIT_SL' || r.startsWith('BE') || r === 'BREAK_EVEN') return 'SL';
+  if (r.startsWith('TP1') || r === 'TP_HIT' || r === 'HIT_TP1' || r === 'PARTIAL_TAKE_PROFIT' || r === 'PARTIAL_CLOSE') return 'TP1';
+  if (r.startsWith('TP2') || r === 'HIT_TP2') return 'TP2';
+  if (r.startsWith('TP3') || r === 'HIT_TP3') return 'TP3';
+  if (r.startsWith('TIME') || r === 'EXPIRED' || r === 'STAGNATION') return 'TIME_STOP';
+  if (r.startsWith('MANUAL') || r === 'USER_CLOSE' || r === 'USER') return 'MANUAL';
+  return 'MANUAL';
+}
+
+function normalizeTradeForExport(raw, defaultSource = 'MANUAL') {
+  if (!raw || typeof raw !== 'object') return {};
+  const isClosed = raw.closedAt !== undefined && raw.closedAt !== null && raw.closedAt !== '' && (Number.isFinite(+raw.closedAt) || typeof raw.closedAt === 'string');
+  const closedAtVal = isClosed ? (Number.isFinite(+raw.closedAt) ? +raw.closedAt : String(raw.closedAt)) : '';
+  const dir = Number(raw.dir) === -1 ? -1 : 1;
+  const entry = Number.isFinite(+raw.entry) ? +raw.entry : (Number.isFinite(+raw.entryPrice) ? +raw.entryPrice : 0);
+  const markPrice = Number.isFinite(+raw.markPrice) ? +raw.markPrice : (Number.isFinite(+raw.exit) ? +raw.exit : (Number.isFinite(+raw.exitPrice) ? +raw.exitPrice : entry));
+  const initialSl = Number.isFinite(+raw.initialSl) ? +raw.initialSl : (Number.isFinite(+raw.originalSl) ? +raw.originalSl : (Number.isFinite(+raw.sl) ? +raw.sl : 0));
+  const currentSl = Number.isFinite(+raw.currentSl) ? +raw.currentSl : (Number.isFinite(+raw.finalSl) ? +raw.finalSl : (Number.isFinite(+raw.sl) ? +raw.sl : initialSl));
+  const tp1 = Number.isFinite(+raw.tp1) ? +raw.tp1 : (Number.isFinite(+raw.tp) ? +raw.tp : 0);
+  const tp2 = Number.isFinite(+raw.tp2) && +raw.tp2 > 0 ? +raw.tp2 : '';
+  const tp3 = Number.isFinite(+raw.tp3) && +raw.tp3 > 0 ? +raw.tp3 : '';
+  const signalPrice = raw.signalPrice !== undefined && raw.signalPrice !== null && raw.signalPrice !== '' && Number.isFinite(+raw.signalPrice) ? +raw.signalPrice : '';
+  const leverage = Number.isFinite(+raw.leverage) ? +raw.leverage : 10;
+  const rawReason = raw.reason || raw.result_reason || raw.closeReason || '';
+  const result_reason = normalizeTradeResultReason(rawReason, isClosed);
+  const r_result = Number.isFinite(+raw.realizedR) ? +raw.realizedR : (Number.isFinite(+raw.r_result) ? +raw.r_result : (!isClosed && Number.isFinite(+raw.currentR) ? +raw.currentR : ''));
+  const pnl = Number.isFinite(+raw.realizedPnlGross) ? +raw.realizedPnlGross : (Number.isFinite(+raw.realizedPnl) ? +raw.realizedPnl : (Number.isFinite(+raw.pnlGross) ? +raw.pnlGross : (Number.isFinite(+raw.pnl) ? +raw.pnl : 0)));
+  const equity_at_close = Number.isFinite(+raw.equityAtClose) ? +raw.equityAtClose : (Number.isFinite(+raw.equity_at_close) ? +raw.equity_at_close : '');
+  const src = String(raw.source || defaultSource).toUpperCase();
+  const source = (src === 'AUTOBOT' || src === 'SERVER') ? 'AUTOBOT' : 'MANUAL';
+
+  return {
+    id: String(raw.id || raw.tradeId || ''),
+    coin: String(raw.coin || '').toUpperCase(),
+    dir,
+    leverage,
+    entry,
+    signalPrice,
+    markPrice,
+    initialSl,
+    currentSl,
+    tp1,
+    tp2,
+    tp3,
+    openedAt: Number.isFinite(+raw.openedAt) ? +raw.openedAt : (typeof raw.openedAt === 'string' ? raw.openedAt : ''),
+    closedAt: closedAtVal,
+    result_reason,
+    r_result,
+    pnl,
+    equity_at_close,
+    source
+  };
+}
+
+function escapeCsvValue(val) {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function exportTradesToCsvString(trades) {
+  const rows = [TRADE_EXPORT_COLUMNS.join(',')];
+  for (const t of trades || []) {
+    const item = normalizeTradeForExport(t);
+    const row = TRADE_EXPORT_COLUMNS.map(col => escapeCsvValue(item[col]));
+    rows.push(row.join(','));
+  }
+  return '\uFEFF' + rows.join('\r\n');
+}
+
+function exportTradesToJsonString(trades) {
+  const normalized = (trades || []).map(t => normalizeTradeForExport(t));
+  return JSON.stringify(normalized, null, 2);
+}
+
+function collectAllTradesForExport() {
+  const list = [];
+  if (typeof loadTrades === 'function') {
+    for (const t of loadTrades() || []) {
+      if (t) list.push({ ...t, source: 'MANUAL' });
+    }
+  }
+  if (typeof loadTradeHistory === 'function') {
+    for (const t of loadTradeHistory() || []) {
+      if (t) list.push({ ...t, source: 'MANUAL' });
+    }
+  }
+  const abTrades = (typeof Autobot !== 'undefined' && Array.isArray(Autobot.trades)) ? Autobot.trades : [];
+  for (const t of abTrades) {
+    if (t) list.push({ ...t, source: 'AUTOBOT' });
+  }
+  const abHist = (typeof Autobot !== 'undefined' && Array.isArray(Autobot.history)) ? Autobot.history : [];
+  for (const t of abHist) {
+    if (t) list.push({ ...t, source: 'AUTOBOT' });
+  }
+  return list;
+}
+
+function downloadBlobFile(content, filename, mimeType) {
+  if (typeof document === 'undefined' || typeof Blob === 'undefined') return;
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function triggerTradeExportCsv() {
+  const trades = collectAllTradesForExport();
+  const csv = exportTradesToCsvString(trades);
+  const d = new Date();
+  const yyyymmdd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  downloadBlobFile(csv, `aura_trades_${yyyymmdd}.csv`, 'text/csv;charset=utf-8');
+}
+
+function triggerTradeExportJson() {
+  const trades = collectAllTradesForExport();
+  const jsonStr = exportTradesToJsonString(trades);
+  const d = new Date();
+  const yyyymmdd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  downloadBlobFile(jsonStr, `aura_trades_${yyyymmdd}.json`, 'application/json;charset=utf-8');
+}
+
+// ============================================================================
+//  Reload-Banner ↔ /serving Sync (Auftrag D)
+// ============================================================================
+const AURA_CLIENT_VERSION = '1.10.0';
+let _dismissedReloadVersion = null;
+
+async function checkServingVersionForReload() {
+  if (typeof fetch === 'undefined') return;
+  try {
+    const res = await fetch('/serving', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const remoteVer = data && data.version;
+    if (!remoteVer || typeof remoteVer !== 'string') return;
+    const banner = $('reload-banner');
+    if (!banner) return;
+    if (remoteVer !== AURA_CLIENT_VERSION && _dismissedReloadVersion !== remoteVer) {
+      const textEl = $('reload-banner-text');
+      if (textEl) {
+        textEl.textContent = `Neue Version v${remoteVer} verfügbar — bitte Seite neu laden`;
+        textEl.dataset.remoteVersion = remoteVer;
+      }
+      banner.hidden = false;
+      banner.style.display = 'block';
+    } else {
+      banner.hidden = true;
+      banner.style.display = 'none';
+    }
+  } catch (_) {
+    // Fail-silent on network errors
+  }
+}
+
+// ============================================================================
+//  Bot-Funnel (24 h) Glasbox (Auftrag E)
+// ============================================================================
+function renderFunnel24h(funnelData) {
+  const f = funnelData || { scanned: 0, radar_passed: 0, wf_evaluated: 0, selected: 0, reject_reasons: {} };
+  const sEl = $('funnel-scanned'); if (sEl) sEl.textContent = String(f.scanned || 0);
+  const rEl = $('funnel-radar'); if (rEl) rEl.textContent = String(f.radar_passed || f.radarFiltered || 0);
+  const wEl = $('funnel-wf'); if (wEl) wEl.textContent = String(f.wf_evaluated || f.wfEvaluated || 0);
+  const selEl = $('funnel-selected'); if (selEl) selEl.textContent = String(f.selected || 0);
+
+  const badgeEl = $('bot-funnel-summary-badge');
+  if (badgeEl) {
+    badgeEl.textContent = `${f.scanned || 0} gescannt · ${f.selected || 0} ausgewählt`;
+  }
+
+  const rejContainer = $('funnel-rejects-container');
+  if (rejContainer) {
+    while (rejContainer.firstChild) rejContainer.removeChild(rejContainer.firstChild);
+    const rejects = f.reject_reasons || f.rejects || {};
+    const entries = Object.entries(rejects).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) {
+      const span = document.createElement('span');
+      span.style.color = 'var(--dim)';
+      span.textContent = 'Keine Ablehnungen im 24h-Zeitfenster registriert.';
+      rejContainer.appendChild(span);
+    } else {
+      for (const [reason, count] of entries) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '2px 0';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = String(reason);
+        const countSpan = document.createElement('span');
+        countSpan.style.fontFamily = 'var(--mono)';
+        countSpan.style.color = 'var(--txt)';
+        countSpan.textContent = String(count);
+
+        row.appendChild(nameSpan);
+        row.appendChild(countSpan);
+        rejContainer.appendChild(row);
+      }
+    }
+  }
+}
+
+async function fetchReadyFunnel() {
+  if (typeof fetch === 'undefined') return;
+  try {
+    const res = await fetch('/ready', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.funnel24h) {
+      renderFunnel24h(data.funnel24h);
+    }
+  } catch (_) {}
+}
+
 let _liveTradesRaf = null;
 function scheduleLiveTradesRender() {
   if (_liveTradesRaf) return;
@@ -10525,6 +10813,19 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.10.0": {
+    title: "QoL-Suite — Statusseite, Doctor, Trade-Export, Reload-Banner, Funnel-Glasbox & PreReg-Assistent",
+    summary: "Runde 34 (MINOR): Sechs rein diagnostische und lesende Endbenutzer-QoL-Features für maximale Transparenz, reibungslose Ops-Diagnose und komfortables Research.",
+    highlights: [
+      "Statusseite: Neue Menschen-Statusseite GET /status mit ALLES OK / HANDLUNGSBEDARF Großbanner, Systemkarten und maskierten Secrets.",
+      "AURA Doctor: scripts/ops/aura_doctor.sh führt Ein-Befehl-Diagnosen für Container, ENV, Ready, Hardening, Logs und Push in der VM durch.",
+      "Trade-Export: Direkter clientseitiger CSV- (UTF-8 mit BOM) und JSON-Download aller manuellen & Autobot-Trades im Verlauf.",
+      "Reload-Banner: Benachrichtigt sanft oben im Dashboard bei neuen Versionen ohne laufende Chart-Aktivitäten zu unterbrechen.",
+      "Funnel-Glasbox: Rolling 24h-Funnel visualisiert gescannte Coins, Filterstufen und Top-Ablehnungsgründe transparent im Dashboard und Tages-Digest.",
+      "PreReg-Assistent: scripts/prereg_new.py führt interaktiv durch die Erstellung valider Hypothesen-Präregistrierungen vor Tests.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.9.0": {
     title: "Evidenz-Programm, Daten-Fundament, PreReg & Shadow Collector",
     summary: "Runde 33 (MINOR): Vollständiges Evidenz-Programm mit automatisiertem Daten-Audit, PreReg-Hypothesenprüfung, deterministischem Shadow Collector, Lockbox-Governance und Evidenzprotokoll S1–S6.",
@@ -10931,7 +11232,26 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.9.0');
+  showReleaseNotesOnce('1.10.0');
+
+  // Trade Export CSV / JSON (Auftrag C)
+  const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
+  const bExpJson = $('btn-export-json'); if (bExpJson) bExpJson.onclick = triggerTradeExportJson;
+
+  // Reload Banner (Auftrag D)
+  const btnReload = $('btn-reload-page'); if (btnReload) btnReload.onclick = () => { if (typeof location !== 'undefined' && location.reload) location.reload(); };
+  const btnDismiss = $('btn-dismiss-reload'); if (btnDismiss) btnDismiss.onclick = () => {
+    const banner = $('reload-banner');
+    if (banner) { banner.hidden = true; banner.style.display = 'none'; }
+    _dismissedReloadVersion = $('reload-banner-text')?.dataset?.remoteVersion || 'dismissed';
+  };
+  checkServingVersionForReload();
+  setInterval(checkServingVersionForReload, 60000);
+
+  // Funnel-Glasbox Polling (Auftrag E)
+  fetchReadyFunnel();
+  setInterval(fetchReadyFunnel, 15000);
+
   const bCopySetup = $('btn-copy-setup');
   if (bCopySetup) bCopySetup.onclick = () => copySetupToClipboard(null, bCopySetup);
   const bHeroCopy = $('btn-hero-copy');
