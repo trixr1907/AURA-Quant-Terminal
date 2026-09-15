@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# Evidenced legacy path — do not remove; this anchors the immutable proof chain.
 LEGACY_LEDGER = ROOT / "docs" / "research" / "TRIALS_LEDGER_LEGACY_v1.2.8.md"
 CHAIN_LEDGER = ROOT / "docs" / "research" / "trials_ledger_chain.jsonl"
 LEDGER_CHECKPOINT = ROOT / "ledger_checkpoint.json"

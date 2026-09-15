@@ -333,7 +333,37 @@ if command -v df &>/dev/null; then
 fi
 
 # ------------------------------------------------------------------------------
-# Check 5: Container Log Errors (24h)
+# Check 5: Runtime State Schema v2 & migration backup
+# ------------------------------------------------------------------------------
+SHARED_STATE_FILE="$STATE_DIR/aura_shared_state.json"
+if [[ -f "$SHARED_STATE_FILE" ]]; then
+  STATE_SCHEMA=$(python3 - "$SHARED_STATE_FILE" <<'PY' 2>/dev/null || echo "invalid"
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as fh:
+    print(json.load(fh).get("schema_version", 1))
+PY
+)
+  if [[ "$STATE_SCHEMA" = "2" ]]; then
+    add_check "state_schema" "PASS" "Live-State verwendet Schema v2"
+    if compgen -G "$STATE_DIR/aura_shared_state.json.v1-backup-*" >/dev/null; then
+      LATEST_BACKUP=$(find "$STATE_DIR" -maxdepth 1 -type f -name 'aura_shared_state.json.v1-backup-*' -printf '%f\n' | sort | tail -1)
+      add_check "state_backup" "PASS" "v1-Migrationsbackup vorhanden: $LATEST_BACKUP"
+    else
+      add_check "state_backup" "WARN" "State ist v2, aber kein aura_shared_state.json.v1-backup-* vorhanden"
+    fi
+  elif [[ "$STATE_SCHEMA" = "1" ]]; then
+    add_check "state_schema" "WARN" "Live-State verwendet Schema v1; Migration steht aus"
+  elif [[ "$STATE_SCHEMA" = "invalid" ]]; then
+    add_check "state_schema" "FAIL" "Live-State ist kein lesbares JSON"
+  else
+    add_check "state_schema" "FAIL" "Live-State Schema v${STATE_SCHEMA} ist neuer/unerwartet (Build erwartet v2)"
+  fi
+else
+  add_check "state_schema" "WARN" "Kein Live-State unter $SHARED_STATE_FILE vorhanden"
+fi
+
+# ------------------------------------------------------------------------------
+# Check 6: Container Log Errors (24h)
 # ------------------------------------------------------------------------------
 if [[ "$CONTAINER_RUNNING" = true ]]; then
   ERROR_COUNT=$(docker logs --since 24h "$CONTAINER_NAME" 2>&1 | grep -iE 'ERROR|CRITICAL|FATAL|Exception' | wc -l || echo "0")

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] – 2026-09-15
+
+### Added
+- **Datenhaltung v2:** Versionierte Runtime-/Portfolio-States mit Pflichtinvarianten und `record_schema: 2` für Trade-/History-Dokumente; deterministische IDs bleiben unverändert.
+- **Migration und Rollback:** Idempotente v1→v2-Startmigration für Shared- und Signalcenter-State, bytegetreue Zeitstempel-Backups, atomare Writes, Disk-Space-Guard, Dry-Run und bestätigungspflichtiger Rollback.
+- **Fail-closed Zukunftsschutz:** Runtime-State mit Schema >2 blockiert State-Schreiben und Runner-Freigabe.
+- **UI Generation 2:** Zentraler Design-Token-Katalog, gemeinsame Komponentenverträge, 420-px-Mobile-Layer, 44-px-Touchziele, Focus-Ringe und Reduced-Motion-Unterstützung.
+- **Migration-Diagnose:** `/ready`, `/status` und `aura_doctor.sh` zeigen Schema- und Backup-Zustand.
+
+### Deprecated
+- **Single-Key-State-Writes:** Bleiben für bestehende Consumer aktiv und liefern den Response-Header `X-Aura-Deprecation: single-key-writes; removal >= v2.1` plus Warn-Log.
+
+### Scope
+- MAJOR (`2.0.0`) aufgrund der versionierten Laufzeit-Datenform und UI-Generation 2.
+- Keine Änderungen an Signalrichtung, Entries, Exits, Gates, Scoring, Sizing oder Engine-Mathematik.
+- Ledger bleibt auf Schema v1 und `EXP-032`; Lockbox `UNUSED`; Verdict `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+- Schatten-Historie bleibt append-only und strikt deskriptiv.
+
+---
+
 ## [1.10.1] – 2026-09-15
 
 ### Fixed

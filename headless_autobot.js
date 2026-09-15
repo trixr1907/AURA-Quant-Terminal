@@ -42,8 +42,8 @@ const DASHBOARD    = path.resolve(process.env.AURA_DASHBOARD || 'Symbiose_Dashbo
 const EXPECTED_ENGINE_HASH = process.env.AURA_ENGINE_HASH || ''; // optional; skip when empty
 
 // Persistent state keys (same key namespace as browser/relay)
-const KEY_TRADES   = 'aura-quant-terminal-active-trades-v1';
-const KEY_HISTORY  = 'aura-quant-terminal-history-trades-v1';
+const KEY_TRADES   = 'aura-quant-terminal-active-trades-v2';
+const KEY_HISTORY  = 'aura-quant-terminal-history-trades-v2';
 const KEY_STATE    = 'aura-autobot-state-v2';
 const KEY_SRV_CFG  = 'aura-server-bot-config-v1';   // written by Dashboard panel
 const KEY_SRV_BOT  = 'aura-server-bot-state-v1';    // Runner writes here (mode flag, equity, flags)
@@ -942,6 +942,8 @@ async function runScanCycle(engine, state, config, collector = null) {
       });
 
       const newTrade = {
+        record_schema: 2,
+        schemaVersion: 2,
         id:           engine.generateDeterministicOid('sb'),
         source:       'server',
         coin:         c.symbol,
@@ -1045,6 +1047,8 @@ function closeTradeRecord(trade, exitPrice, reason) {
   const r   = initialRisk > 0 ? ((exitPrice - trade.entry) * dir) / initialRisk : 0;
   return {
     ...trade,
+    record_schema: 2,
+    schemaVersion: 2,
     id:         engine_generateHistoryId(trade.id),
     parentId:   trade.id,
     source:     'server',
@@ -1175,6 +1179,7 @@ module.exports = {
   ServerBotState,
   computeFunnel24h,
   closeTradeRecord,
+  schemaV2Keys: { trades: KEY_TRADES, history: KEY_HISTORY },
   relayRequest,
   fetchTickerViaRelay,
   candleDurationMs,

@@ -39,6 +39,8 @@ MANIFEST = [
     "requirements.txt",
     # source
     "bitget_relay.py",
+    "scripts/state_migration.py",
+    "scripts/ops/aura_state_migrate.py",
     "headless_autobot.js",
     "shadow_collector.js",
     "Symbiose_Dashboard.html",
@@ -46,7 +48,10 @@ MANIFEST = [
     # documentation and brand assets
     "LICENSE",
     "README.md",
-    "docs/releases/RELEASE_v1.10.1.md",
+    "docs/design_system.md",
+    "docs/architecture.md",
+    "docs/deployment/DOCKER_GUIDE.md",
+    "docs/releases/RELEASE_v2.0.0.md",
     "docs/releases/RELEASE_v1.10.0.md",
     "docs/releases/RELEASE_v1.9.0.md",
     "SYMBIOSE_Model_Validation.md",

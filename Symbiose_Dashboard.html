@@ -9,14 +9,24 @@
 #risk-warning{display:block;font-size:9px;margin-top:2px;min-height:13px;opacity:0;transition:opacity .15s}
 
 :root{
-  --bg:#06090f;--surface:#0b111b;--surface-2:#101826;--surface-3:#141f30;
+  /* AURA Design System v2 — self-contained, 4px base grid */
+  --color-base:#06090f;--color-surface:#0b111b;--color-surface-raised:#101826;--color-surface-overlay:#141f30;
+  --color-accent:#38bdf8;--color-success:#2dd4bf;--color-warning:#fbbf24;--color-danger:#fb7185;
+  --color-text:#f1f5f9;--color-text-muted:#cbd5e1;--color-text-dim:#94a3b8;
+  --bg:var(--color-base);--surface:var(--color-surface);--surface-2:var(--color-surface-raised);--surface-3:var(--color-surface-overlay);
   --line:rgba(148,163,184,.14);--line-strong:rgba(148,163,184,.24);
-  --txt:#f1f5f9;--mut:#cbd5e1;--dim:#94a3b8;
-  --grn:#2dd4bf;--grn2:#5eead4;--red:#fb7185;--red2:#fda4af;
-  --amb:#fbbf24;--cyn:#38bdf8;--vio:#c084fc;--ylw:#facc15;
-  --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
-  --radius:14px;--shadow:0 18px 50px rgba(0,0,0,.28)
+  --txt:var(--color-text);--mut:var(--color-text-muted);--dim:var(--color-text-dim);
+  --grn:var(--color-success);--grn2:#5eead4;--red:var(--color-danger);--red2:#fda4af;
+  --amb:var(--color-warning);--cyn:var(--color-accent);--vio:#c084fc;--ylw:#facc15;
+  --font-sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --sans:var(--font-sans);--mono:var(--font-mono);
+  --text-xs:9px;--text-sm:10px;--text-md:13px;--text-lg:16px;--text-xl:24px;--text-2xl:34px;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:999px;--radius:var(--radius-lg);
+  --shadow-sm:0 4px 20px rgba(0,0,0,.18);--shadow-md:0 18px 50px rgba(0,0,0,.28);--shadow:var(--shadow-md);
+  --z-content:1;--z-sticky:20;--z-drawer:60;--z-toast:100;--z-critical:9999;
+  --breakpoint-mobile:420px;--breakpoint-tablet:960px;--touch-target:44px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);scroll-behavior:smooth}
@@ -158,7 +168,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 @media(max-width:1280px){.validation-grid{grid-template-columns:1fr}.research-stack{display:grid;grid-template-columns:1fr 1fr}.pricestrip{grid-template-columns:repeat(5,1fr)}.pricestrip>div:nth-child(5n){border-right:0}}
 @media(max-width:960px){body{padding:0 10px 30px}header{align-items:flex-start;padding:12px 0;flex-direction:column}.ctl{margin:0;justify-content:flex-start}.analysis-flow{grid-template-columns:1fr}.hero-inner{grid-template-columns:110px 1fr}.hero-size-col{display:none}.research-stack{grid-template-columns:1fr}.btiles{grid-template-columns:repeat(4,1fr)}#chart{height:440px}.macrobar{grid-template-columns:1fr 1fr}.macro-title{border-bottom:1px solid var(--line)}.macro-cell{border-bottom:1px solid var(--line)}}
 @media(max-width:620px){.statusbar .sb:nth-child(-n+4){display:none}.logo{min-width:0}.logo>div:last-child{min-width:0}.logo h1,.logo small{white-space:normal;overflow-wrap:anywhere}.macrobar{grid-template-columns:1fr}.macro-title,.macro-cell{border-right:0}.hero-inner{grid-template-columns:1fr}.hero-go-col{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center}.hero-main{padding:14px}.hero-levels{grid-template-columns:1fr 1fr}.hero-coin{font-size:28px}.pricestrip{grid-template-columns:1fr 1fr}.pricestrip>div{border-bottom:1px solid var(--line)}.btiles{grid-template-columns:1fr 1fr}.time-stop-optimizer{grid-template-columns:1fr}.time-stop-optimizer #timestop-status{grid-column:auto}.time-stop-optimizer .act{min-height:44px}.radar-launcher{top:auto;right:12px;bottom:12px;min-width:56px;min-height:56px;padding:0 13px;border:1px solid rgba(56,189,248,.5);border-radius:999px;writing-mode:horizontal-tb;letter-spacing:0}.radar-launcher .radar-launcher-label{display:none}.radar-drawer{width:100%;max-width:100vw}#chart{height:var(--chart-height,360px)}.chartfoot>span:last-child{display:none}.ctl{flex-wrap:wrap;gap:8px;width:100%}.tfgrp,.tfgrp button,.cbtn,.radar-tab{min-height:44px}.cbtn,.radar-tab{display:inline-flex;align-items:center;justify-content:center}input[type=range]{min-height:44px}.btbl{max-width:100%;overflow-x:auto}.btbl table{width:max-content;min-width:100%}.tc-btn,.hero-paper-btn,#trade-add,#btn-submit-trade,.preset-chip{min-height:44px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.history-filters-row select,.history-filters-row input{min-height:44px;box-sizing:border-box}.portfolio-kpis-bar,.history-kpis{grid-template-columns:1fr 1fr}.tc-grid,.hc-grid{grid-template-columns:1fr 1fr}.trade-form-grid{grid-template-columns:1fr}}
+@media(max-width:420px){body{padding-inline:8px;overflow-x:hidden}.wrap{max-width:100%}.ctl{overflow-x:auto;padding-bottom:4px}.panel,.trade-card,.history-card{max-width:100%;overflow:hidden}.btbl{overflow:visible}.btbl table,.btbl tbody,.btbl tr,.btbl td{display:block;width:100%}.btbl thead{display:none}.btbl tr{margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface)}.btbl td{white-space:normal;border:0;padding:4px 6px}.reload-banner-content{align-items:flex-start;flex-wrap:wrap}.reload-banner-content button,.ctl button,.ctl select{min-height:var(--touch-target)}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}.radar-drawer,.radar-backdrop{transition:none!important}}
+
+/* Gen-2 shared component contracts */
+.ui-card,.panel{border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+.ui-button,.cbtn,button.act{min-height:34px;border-radius:var(--radius-sm)}
+.ui-badge,.badge{border-radius:var(--radius-pill)}
+:where(button,a,input,select,summary,[tabindex]):focus-visible{outline:2px solid var(--color-accent);outline-offset:2px;box-shadow:0 0 0 4px rgba(56,189,248,.18)}
 
 /* ==========================================================================
    AUTOBOT PRO TRADER STYLES (Beta Autonomous Quant Engine)
@@ -938,7 +955,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.10.1?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.0.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1032,7 +1049,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.10.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v2.0.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -6658,8 +6675,32 @@ const NtfySignals = {
 };
 // ==NTFY_SIGNALS_END==
 
-const TRADE_KEY = 'aura-quant-terminal-active-trades-v1';
-const TRADE_HIST_KEY = 'aura-quant-terminal-history-trades-v1';
+const TRADE_KEY = 'aura-quant-terminal-active-trades-v2';
+const TRADE_HIST_KEY = 'aura-quant-terminal-history-trades-v2';
+const TRADE_KEY_V1 = 'aura-quant-terminal-active-trades-v1';
+const TRADE_HIST_KEY_V1 = 'aura-quant-terminal-history-trades-v1';
+
+// One-release, fail-silent localStorage migration. Preserve original values as
+// *-v1-imported so a downgrade can recover them without semantic conversion.
+function migrateTradeStorageV2() {
+  try {
+    const pairs = [
+      [TRADE_KEY_V1, TRADE_KEY],
+      [TRADE_HIST_KEY_V1, TRADE_HIST_KEY],
+    ];
+    pairs.forEach(([oldKey, newKey]) => {
+      if (localStorage.getItem(newKey) !== null) return;
+      const raw = localStorage.getItem(oldKey);
+      if (raw === null) return;
+      JSON.parse(raw); // Validate only; preserve bytes/value representation.
+      localStorage.setItem(newKey, raw);
+      localStorage.setItem(`${oldKey}-imported`, raw);
+    });
+  } catch (_) {
+    // Format deviations must not crash the dashboard.
+  }
+}
+migrateTradeStorageV2();
 var tradePrices = (typeof globalThis !== 'undefined' && globalThis.tradePrices) ? globalThis.tradePrices : {};
 if (typeof globalThis !== 'undefined') globalThis.tradePrices = tradePrices;
 
@@ -7792,7 +7833,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '1.10.1';
+const AURA_CLIENT_VERSION = '2.0.0';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -10813,6 +10854,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "2.0.0": {
+    title: "Schema Generation 2 & UI Generation 2",
+    summary: "Runde 35 (MAJOR): Versionierter Laufzeit-State mit sicherer v1→v2-Migration und Rollback sowie ein konsistentes, responsives Design-System — ohne Änderung des Trading-Pfads.",
+    highlights: [
+      "Datenhaltung v2: Trade-/History-Dokumente sind explizit versioniert; IDs und numerische Werte bleiben unverändert.",
+      "Sichere Migration: atomare Writes, v1-Backup, Dry-Run, Rollback und fail-closed Schutz vor neueren Schemas.",
+      "UI Gen 2: Design-Tokens, mobile 420-px-Darstellung, 44-px-Touchziele, Fokus-Ringe und Reduced Motion.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 und Shadow-Historie unverändert."
+    ]
+  },
   "1.10.1": {
     title: "Hotfix: Runner-Packaging-Gate & Crash-Fast-Detector",
     summary: "Runde 34.1 (PATCH): Behebt den Runner-Crash-Loop durch fehlendes shadow_collector.js in Paket & Dockerfile. Führt ein fail-closed Packaging-Closure-Gate und schnellen Crash-Loop-Schutz ein.",
@@ -11242,7 +11293,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.10.1');
+  showReleaseNotesOnce('2.0.0');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
