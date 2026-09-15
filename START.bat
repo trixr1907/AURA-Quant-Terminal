@@ -1,11 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title AURA v2.0.0 - Smart Start
+title AURA v2.1.0 - Smart Start
 set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if not exist "%POWERSHELL%" (
     echo ====================================================
-    echo        AURA v2.0.0 - Smart Start
+    echo        AURA v2.1.0 - Smart Start
 echo ========================================================
 echo Pruefe und installiere fehlende Abhaengigkeiten sicher ...
 echo.
