@@ -182,8 +182,8 @@ Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bed
 
 ## Releases & Changelog
 
-- [**Aktuelles Release v1.8.2 (docs/releases/RELEASE_v1.8.2.md)**](docs/releases/RELEASE_v1.8.2.md) — PATCH: ehrliches `/ready`, Anti-Stumm-Bootwarnung, Ops-Checkliste und Signal-/Live-Ausführungspreis-Split.
-- [**Alle Release Notes (docs/releases/)**](docs/releases/) — v1.1.0 bis v1.8.2 (37 Dateien, kanonisch).
+- [**Aktuelles Release v2.0.0 (docs/releases/RELEASE_v2.0.0.md)**](docs/releases/RELEASE_v2.0.0.md) — MAJOR: Runtime-State-Schema v2 mit atomarer Migration, Backup/Rollback, Ops-Diagnose und Packaging-Closure.
+- [**Alle Release Notes (docs/releases/)**](docs/releases/) — kanonische Release-Historie.
 - [**Changelog (CHANGELOG.md)**](CHANGELOG.md) — Lückenlose Release-Historie nach Keep a Changelog.
 
 ## Dokumentation & SOTA Index

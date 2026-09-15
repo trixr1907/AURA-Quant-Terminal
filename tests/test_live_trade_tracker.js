@@ -200,8 +200,8 @@ assert.strictEqual(v2HistFull.realizedRoiPct, 33.34);
 // ============================================================================
 // 2. Contract: Full Close Creates Consistent Event
 // ============================================================================
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([v2Active]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([v2Active]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 ctx.tradePrices = { BTCUSDT: 52000 };
 
 const closeResult = ctx.closeTrade(0, 52000, 'MANUAL');
@@ -229,8 +229,8 @@ assert(typeof ev.holdingMs === 'number' && ev.holdingMs >= 0, 'holdingMs must be
 // ============================================================================
 // 3. Contract: No Close Without Valid Mark Price (No Silent Zero-Trades)
 // ============================================================================
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([v2Active]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([v2Active]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 ctx.tradePrices = {}; // No price available for BTCUSDT
 
 const failClose1 = ctx.closeTrade(0, null, 'MANUAL');
@@ -275,8 +275,8 @@ const tradeForPartial = {
 };
 
 // 4a. 25% Partial Close
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([tradeForPartial]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([tradeForPartial]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 ctx.tradePrices = { ETHUSDT: 3100 };
 
 const part25 = ctx.takePartialProfit(0, 0.25);
@@ -307,13 +307,13 @@ assert.strictEqual(hist25[0].quantityClosed, 250 / 3000);
 assert.strictEqual(Math.round(hist25[0].realizedPnlGross * 100) / 100, 8.33);
 
 // 4b. 50% and 75% options
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([tradeForPartial]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([tradeForPartial]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 assert.strictEqual(ctx.takePartialProfit(0, 0.5), true);
 assert.strictEqual(ctx.loadTrades()[0].remainingMargin, 50);
 
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([tradeForPartial]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([tradeForPartial]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 assert.strictEqual(ctx.takePartialProfit(0, 0.75), true);
 assert.strictEqual(ctx.loadTrades()[0].remainingMargin, 25);
 
@@ -474,7 +474,7 @@ const tradeListEl = element('trade-list');
 const histListEl = element('trade-history-list');
 
 // Inject active trades and verify renderLiveTrades() DOM update
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([
   v2Active,
   {
     schemaVersion: 2,
@@ -515,7 +515,7 @@ assert(tradeListEl.innerHTML.includes('data-action-be'), 'trade card must have B
 assert(tradeListEl.innerHTML.includes('data-close-trade'), 'trade card must have Close button');
 
 // Inject history events and verify renderTradeHistory() DOM update
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify(sampleHistory));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify(sampleHistory));
 ctx.renderTradeHistory();
 
 const hkCount = element('hkpi-count');
@@ -549,8 +549,8 @@ ctx.renderTradeHistory();
 assert.strictEqual(element('hkpi-count').textContent, '4', 'reset filters restores 4 events');
 
 // Test MFE/MAE recorded in partial close history
-storage.set('aura-quant-terminal-active-trades-v1', JSON.stringify([tradeForPartial]));
-storage.set('aura-quant-terminal-history-trades-v1', JSON.stringify([]));
+storage.set('aura-quant-terminal-active-trades-v2', JSON.stringify([tradeForPartial]));
+storage.set('aura-quant-terminal-history-trades-v2', JSON.stringify([]));
 ctx.tradePrices = { ETHUSDT: 3150 };
 ctx.takePartialProfit(0, 0.5);
 const histEvents = ctx.loadTradeHistory();
