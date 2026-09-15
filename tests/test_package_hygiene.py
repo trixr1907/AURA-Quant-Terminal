@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -131,4 +132,20 @@ def test_all_surfaces_version_synchronization():
     }
     for name, content in surfaces.items():
         assert expected in content, f"Surface {name} must contain current version {expected}"
+
+
+def test_extracted_package_contains_runnable_relay_and_dashboard(tmp_path: Path):
+    files = build_package.collect_files()
+    archive_path = tmp_path / "symbiose.zip"
+    build_package.build_archive(files, archive_path)
+
+    extract_dir = tmp_path / "extract"
+    extract_dir.mkdir()
+    with zipfile.ZipFile(archive_path, "r") as z:
+        z.extractall(extract_dir)
+
+    assert (extract_dir / "bitget_relay.py").exists()
+    assert (extract_dir / "Symbiose_Dashboard.html").exists()
+    assert (extract_dir / "VERSION").exists()
+
 

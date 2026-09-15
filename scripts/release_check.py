@@ -239,17 +239,25 @@ def compute_verdict(results: list[dict], model_no_evidence: bool = False) -> str
     statuses = [r.get("status") for r in results]
     if any(s == "FAIL" for s in statuses):
         return "FAIL"
-    if model_no_evidence:
-        return "SOFTWARE_GO / MODEL_NO_EVIDENCE"
     if any(s == "NO-GO" for s in statuses):
         return "NO-GO"
+    if not statuses or any(s not in {"PASS", "WARN", "CONDITIONAL"} for s in statuses):
+        return "FAIL"
+    if model_no_evidence:
+        return "SOFTWARE_GO / MODEL_NO_EVIDENCE"
     if any(s == "CONDITIONAL" for s in statuses):
         return "CONDITIONAL"
     if any(s == "WARN" for s in statuses):
         return "WARN"
-    if not statuses or any(s != "PASS" for s in statuses):
+    if any(s != "PASS" for s in statuses):
         return "FAIL"
     return "GO"
+
+
+def compute_summary_status(results: list[dict]) -> str:
+    """Return the human-readable software status without masking blockers."""
+    verdict = compute_verdict(results)
+    return "SOFTWARE_GO" if verdict == "GO" else verdict
 
 
 def exit_code_for_verdict(verdict: str | None) -> int:
@@ -987,7 +995,7 @@ def main() -> int:
 
     # Aggregate
     verdict = compute_verdict(results, model_no_evidence=model_no_evidence)
-    software_status = "SOFTWARE_GO" if not any(r["status"] == "FAIL" for r in results) else "SOFTWARE_FAIL"
+    software_status = compute_summary_status(results)
     real_status_label = f"MODEL_{real_model_verdict or 'NO_EVIDENCE'} (real)"
     synthetic_label = f"synthetic-gate: {sens_release or 'PAPER_CANDIDATE'}"
     summary_verdict_line = f"VERDICT: {software_status} / {real_status_label} · {synthetic_label} · lockbox-eval: {lb_eval_state}"
@@ -1014,8 +1022,8 @@ def main() -> int:
             flag = {"PASS": "[OK]   ", "FAIL": "[FAIL] ", "NO-GO": "[NOGO] ",
                     "CONDITIONAL": "[WARN] "}.get(r["status"], "[??]   ")
             print(f"{flag}{r['name']:34s} {r['detail'][:110]}", file=sys.stderr)
-        if any(r["status"] == "FAIL" for r in results):
-            print(f"\nVERDICT: FAIL", file=sys.stderr)
+        if verdict == "FAIL":
+            print("\nVERDICT: FAIL", file=sys.stderr)
         else:
             print(f"\n{summary_verdict_line}", file=sys.stderr)
         if info.get("workspace_hygiene") != ["clean"]:
@@ -1027,7 +1035,7 @@ def main() -> int:
             print("External/manual evidence missing — not a false green. "
                   "See RELEASE_CHECKLIST.md.", file=sys.stderr)
 
-    required_fail = any(r["status"] == "FAIL" for r in results)
+    required_fail = verdict == "FAIL"
     return exit_code_for_verdict(verdict) if not required_fail else 2
 
 
