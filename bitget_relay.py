@@ -38,12 +38,21 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from scripts.state_migration import (
+from pathlib import Path
+from typing import Any
+
+_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+if not _VERSION_FILE.exists():
+    raise RuntimeError(
+        f"CRITICAL DEPLOYMENT ERROR: VERSION file missing at {_VERSION_FILE}. "
+        "AURA Relay requires a valid VERSION file to start (fail-closed)."
+    )
+VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip()
+
+from scripts.state_migration import (  # noqa: E402
     TARGET_SCHEMA_VERSION,
     migrate_state_directory,
 )
-from pathlib import Path
-from typing import Any
 
 try:
     from zoneinfo import ZoneInfo
@@ -55,13 +64,6 @@ except ImportError:
 # ---------------------------------------------------------------------------
 HOST = os.environ.get("SYM_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SYM_PORT", 8787))
-_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
-if not _VERSION_FILE.exists():
-    raise RuntimeError(
-        f"CRITICAL DEPLOYMENT ERROR: VERSION file missing at {_VERSION_FILE}. "
-        "AURA Relay requires a valid VERSION file to start (fail-closed)."
-    )
-VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip()
 BITGET_BASE = "https://api.bitget.com"
 
 
@@ -265,16 +267,16 @@ def _normalize_runtime_records(key: str, value: Any) -> Any:
     }
     if not (is_trade or is_history):
         return value
-    values = value if isinstance(value, list) else [value]
+    if not isinstance(value, list):
+        return value
     normalized = []
-    for record in values:
+    for record in value:
         if not isinstance(record, dict):
-            normalized.append(record)
-            continue
+            return value
         stamped = dict(record)
         stamped["record_schema"] = TARGET_SCHEMA_VERSION
         normalized.append(stamped)
-    return normalized if isinstance(value, list) else normalized[0]
+    return normalized
 
 
 def _assert_supported_runtime_schema(state: dict, *, source: str) -> None:
@@ -313,9 +315,11 @@ def _validate_mutations(mutations: Any) -> list[dict] | None:
         if op not in {"upsert", "delete"} or not isinstance(ident, str) or not ident or len(ident) > 256:
             return None
         if op == "upsert":
-            value = _normalize_runtime_records(key, mutation.get("value"))
+            value = mutation.get("value")
             if not isinstance(value, dict) or value.get("id") != ident:
                 return None
+            value = dict(value)
+            value["record_schema"] = TARGET_SCHEMA_VERSION
             try:
                 if len(json.dumps(value, separators=(",", ":")).encode()) > MAX_STATE_VALUE_BYTES:
                     return None
@@ -409,7 +413,7 @@ def _load_shared_state() -> dict:
     """Read shared persistent state; missing file is empty, corruption is fatal."""
     with STATE_LOCK:
         if not STATE_FILE.exists():
-            return {"schema_version": TARGET_SCHEMA_VERSION}
+            return {}
         try:
             state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
         except Exception as exc:
@@ -826,8 +830,14 @@ def daily_digest_transition(
         equity = 10000.0
     if not math.isfinite(equity):
         equity = 10000.0
-    manual_open = shared.get("aura-quant-terminal-active-trades-v1", [])
-    manual_history = shared.get("aura-quant-terminal-history-trades-v1", [])
+    manual_open = shared.get(
+        "aura-quant-terminal-active-trades-v2",
+        shared.get("aura-quant-terminal-active-trades-v1", []),
+    )
+    manual_history = shared.get(
+        "aura-quant-terminal-history-trades-v2",
+        shared.get("aura-quant-terminal-history-trades-v1", []),
+    )
     autobot_open = autobot.get("trades", []) if isinstance(autobot, dict) else []
     autobot_history = autobot.get("history", []) if isinstance(autobot, dict) else []
     open_count = (len(manual_open) if isinstance(manual_open, list) else 0) + (len(autobot_open) if isinstance(autobot_open, list) else 0)

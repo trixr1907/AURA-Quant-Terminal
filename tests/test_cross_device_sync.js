@@ -129,8 +129,8 @@ async function runAll() {
 
   await test('SyncEngine.pull: Sendable pending mutation reports synchronizing', async () => {
     const { ctx, store, elements, setFetchHandler } = createSyncContext();
-    store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'trade1', coin: 'BTCUSDT' }]);
-    ctx.SyncEngine.pending = [{ blocked: false, mutations: [{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'pending', value: { id: 'pending' } }] }];
+    store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'trade1', coin: 'BTCUSDT' }]);
+    ctx.SyncEngine.pending = [{ blocked: false, mutations: [{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'pending', value: { id: 'pending' } }] }];
     ctx.SyncEngine.bootstrapped = true;
 
     let renderCalled = false;
@@ -145,7 +145,7 @@ async function runAll() {
             ok: true,
             data: {
               _rev: 5,
-              'aura-quant-terminal-active-trades-v1': []
+              'aura-quant-terminal-active-trades-v2': []
             }
           })
         };
@@ -153,7 +153,7 @@ async function runAll() {
     });
 
     await ctx.SyncEngine.pull();
-    assert.strictEqual(store['aura-quant-terminal-active-trades-v1'], JSON.stringify([{ id: 'trade1', coin: 'BTCUSDT' }]));
+    assert.strictEqual(store['aura-quant-terminal-active-trades-v2'], JSON.stringify([{ id: 'trade1', coin: 'BTCUSDT' }]));
     assert.strictEqual(renderCalled, false);
     assert.strictEqual(ctx.SyncEngine.status, 'bootstrap');
     assert.strictEqual(elements['st-sync-t'].textContent, 'synchronisiere');
@@ -161,7 +161,7 @@ async function runAll() {
 
   await test('SyncEngine.bootstrapIfNeeded: Bootstraps local non-empty trades if remote key is undefined', async () => {
     const { ctx, store, fetchCalls, setFetchHandler } = createSyncContext();
-    store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'bootstrap_trade' }]);
+    store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'bootstrap_trade' }]);
 
     setFetchHandler(async (url, opts) => {
       if (opts && opts.method === 'POST') {
@@ -189,7 +189,7 @@ async function runAll() {
 
   await test('SyncEngine.bootstrapIfNeeded: requeues every legacy value after a 409 with fresh revision', async () => {
     const { ctx, store, fetchCalls, setFetchHandler } = createSyncContext();
-    store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'legacy_trade' }]);
+    store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'legacy_trade' }]);
     ctx.SyncEngine.bootstrapped = false;
     let posts = 0;
     setFetchHandler(async (url, opts) => {
@@ -277,8 +277,8 @@ async function runAll() {
       }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 0 } }) };
     });
-    const first = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'q1', value: { id: 'q1' } }]);
-    const second = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'q2', value: { id: 'q2' } }]);
+    const first = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'q1', value: { id: 'q1' } }]);
+    const second = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'q2', value: { id: 'q2' } }]);
     await Promise.all([first, second]);
     assert.strictEqual(requests.length, 2);
     assert.strictEqual(requests[1].expected_rev, requests[0].expected_rev + 1);
@@ -293,12 +293,12 @@ async function runAll() {
     setFetchHandler(async (url, opts) => {
       if (opts.method === 'POST') {
         posts++;
-        if (posts === 1) return { ok: false, status: 409, json: async () => ({ code: 'ERR_STATE_CONFLICT', rev: 4, state: { _rev: 4, 'aura-quant-terminal-active-trades-v1': [] } }) };
+        if (posts === 1) return { ok: false, status: 409, json: async () => ({ code: 'ERR_STATE_CONFLICT', rev: 4, state: { _rev: 4, 'aura-quant-terminal-active-trades-v2': [] } }) };
         return { ok: true, status: 200, json: async () => ({ ok: true, rev: 5, state: { _rev: 5 } }) };
       }
-      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 4, 'aura-quant-terminal-active-trades-v1': [] } }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 4, 'aura-quant-terminal-active-trades-v2': [] } }) };
     });
-    await ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'retry', value: { id: 'retry' } }]);
+    await ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'retry', value: { id: 'retry' } }]);
     assert.strictEqual(posts, 2);
     assert.strictEqual(ctx.SyncEngine.pending.length, 0);
     assert.strictEqual(ctx.SyncEngine.rev, 5);
@@ -307,11 +307,11 @@ async function runAll() {
   await test('SyncEngine pull: pending local mutation prevents remote overwrite', async () => {
     const { ctx, store, setFetchHandler } = createSyncContext();
     ctx.SyncEngine.bootstrapped = true;
-    store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'local-pending' }]);
-    ctx.SyncEngine.pending.push({ mutations: [{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'local-pending', value: { id: 'local-pending' } }] });
-    setFetchHandler(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 8, 'aura-quant-terminal-active-trades-v1': [{ id: 'remote-old' }] } }) }));
+    store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'local-pending' }]);
+    ctx.SyncEngine.pending.push({ mutations: [{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'local-pending', value: { id: 'local-pending' } }] });
+    setFetchHandler(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 8, 'aura-quant-terminal-active-trades-v2': [{ id: 'remote-old' }] } }) }));
     await ctx.SyncEngine.pull();
-    assert.strictEqual(store['aura-quant-terminal-active-trades-v1'], JSON.stringify([{ id: 'local-pending' }]));
+    assert.strictEqual(store['aura-quant-terminal-active-trades-v2'], JSON.stringify([{ id: 'local-pending' }]));
   });
 
 
@@ -327,7 +327,7 @@ async function runAll() {
         remote = [{ id: 'history-a' }];
         return { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2, [body.key]: remote } }) };
       }
-      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-history-trades-v1': remote } }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-history-trades-v2': remote } }) };
     });
     await ctx.SyncEngine.pull();
     ctx.saveTradeHistory([{ id: 'history-a' }]);
@@ -335,12 +335,12 @@ async function runAll() {
     assert.ok(posts.some(body => body.mutations.some(m => m.op === 'delete' && m.id === 'history-b')));
     remote = [{ id: 'history-a' }];
     await ctx.SyncEngine.pull();
-    assert.strictEqual(store['aura-quant-terminal-history-trades-v1'], JSON.stringify(remote));
+    assert.strictEqual(store['aura-quant-terminal-history-trades-v2'], JSON.stringify(remote));
   });
 
   await test('SyncEngine.enqueueList: emits delete before initial pull from previous local list', async () => {
     const { ctx, store, setFetchHandler } = createSyncContext();
-    store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'local-trade' }]);
+    store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'local-trade' }]);
     ctx.SyncEngine.bootstrapped = false;
     let posted;
     setFetchHandler(async (url, opts) => {
@@ -357,7 +357,7 @@ async function runAll() {
 
   await test('SyncEngine.saveTradeHistory: emits all local history deletes before initial pull', async () => {
     const { ctx, store, setFetchHandler } = createSyncContext();
-    store['aura-quant-terminal-history-trades-v1'] = JSON.stringify([{ id: 'h1' }, { id: 'h2' }]);
+    store['aura-quant-terminal-history-trades-v2'] = JSON.stringify([{ id: 'h1' }, { id: 'h2' }]);
     ctx.SyncEngine.bootstrapped = false;
     let posted;
     setFetchHandler(async (url, opts) => {
@@ -374,8 +374,8 @@ async function runAll() {
   await test('SyncEngine.pull: keeps a pending mutation visibly unsynchronized', async () => {
     const { ctx, setFetchHandler } = createSyncContext();
     ctx.SyncEngine.bootstrapped = true;
-    ctx.SyncEngine.pending.push({ mutations: [{ key: 'aura-quant-terminal-history-trades-v1', op: 'upsert', id: 'pending', value: { id: 'pending' } }] });
-    setFetchHandler(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 2, 'aura-quant-terminal-history-trades-v1': [] } }) }));
+    ctx.SyncEngine.pending.push({ mutations: [{ key: 'aura-quant-terminal-history-trades-v2', op: 'upsert', id: 'pending', value: { id: 'pending' } }] });
+    setFetchHandler(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 2, 'aura-quant-terminal-history-trades-v2': [] } }) }));
     await ctx.SyncEngine.pull();
     assert.notStrictEqual(ctx.SyncEngine.status, 'synced');
   });
@@ -391,7 +391,7 @@ async function runAll() {
       }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: posts } }) };
     });
-    const pendingPromise = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-history-trades-v1', op: 'upsert', id: 'blocked', value: { id: 'blocked' } }]).catch(() => false);
+    const pendingPromise = ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-history-trades-v2', op: 'upsert', id: 'blocked', value: { id: 'blocked' } }]).catch(() => false);
     await pendingPromise;
     assert.strictEqual(posts, ctx.SyncEngine.maxRetries);
     assert.strictEqual(ctx.SyncEngine.pending.length, 1);
@@ -435,11 +435,11 @@ async function runAll() {
   await test('durable queue: offline delete survives browser reload and remote pull', async () => {
     const shared = {};
     const first = createSyncContext(shared);
-    first.store['aura-quant-terminal-active-trades-v1'] = JSON.stringify([{ id: 'offline-delete' }]);
+    first.store['aura-quant-terminal-active-trades-v2'] = JSON.stringify([{ id: 'offline-delete' }]);
     first.ctx.SyncEngine.bootstrapped = true;
     first.setFetchHandler(async (_url, opts) => {
       if (opts && opts.method === 'POST') throw new Error('offline');
-      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v1': [{ id: 'offline-delete' }] } }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v2': [{ id: 'offline-delete' }] } }) };
     });
     first.ctx.saveTrades([]);
     await new Promise(resolve => setImmediate(resolve));
@@ -450,30 +450,30 @@ async function runAll() {
     second.ctx.SyncEngine.restoreQueue();
     assert.ok(second.ctx.SyncEngine.pending.length >= 1);
     second.setFetchHandler(async (_url, opts) => {
-      if (opts && opts.method === 'POST') return { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2, 'aura-quant-terminal-active-trades-v1': [] } }) };
-      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v1': [{ id: 'offline-delete' }] } }) };
+      if (opts && opts.method === 'POST') return { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2, 'aura-quant-terminal-active-trades-v2': [] } }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v2': [{ id: 'offline-delete' }] } }) };
     });
     await second.ctx.SyncEngine.init();
-    assert.strictEqual(second.store['aura-quant-terminal-active-trades-v1'], '[]', 'pending delete must not resurrect on reload');
+    assert.strictEqual(second.store['aura-quant-terminal-active-trades-v2'], '[]', 'pending delete must not resurrect on reload');
     assert.ok(!second.store['aura-sync-pending-v1'], 'queue clears only after ACK');
   });
 
   await test('durable queue: offline upsert survives reload and ACK', async () => {
-    const shared = { 'aura-quant-terminal-active-trades-v1': '[]' };
+    const shared = { 'aura-quant-terminal-active-trades-v2': '[]' };
     const first = createSyncContext(shared);
     first.ctx.SyncEngine.bootstrapped = true;
     first.setFetchHandler(async (_url, opts) => {
       if (opts && opts.method === 'POST') throw new Error('offline');
-      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v1': [] } }) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v2': [] } }) };
     });
-    await first.ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'offline-upsert', value: { id: 'offline-upsert' } }]).catch(() => false);
+    await first.ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'offline-upsert', value: { id: 'offline-upsert' } }]).catch(() => false);
     assert.ok(shared['aura-sync-pending-v1']);
     const second = createSyncContext(shared);
     second.ctx.SyncEngine.restoreQueue();
     assert.ok(second.ctx.SyncEngine.pending.some(item => item.mutations.some(m => m.id === 'offline-upsert')));
     second.setFetchHandler(async (_url, opts) => opts && opts.method === 'POST'
       ? { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2 } }) }
-      : { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v1': [] } }) });
+      : { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v2': [] } }) });
     await second.ctx.SyncEngine.init();
     assert.ok(!shared['aura-sync-pending-v1']);
   });
@@ -484,8 +484,8 @@ async function runAll() {
     first.ctx.SyncEngine.bootstrapped = true;
     first.setFetchHandler(async () => { throw new Error('offline'); });
     const batch = [
-      { key: 'aura-quant-terminal-active-trades-v1', op: 'delete', id: 'close-active' },
-      { key: 'aura-quant-terminal-history-trades-v1', op: 'upsert', id: 'close-history', value: { id: 'close-history' } }
+      { key: 'aura-quant-terminal-active-trades-v2', op: 'delete', id: 'close-active' },
+      { key: 'aura-quant-terminal-history-trades-v2', op: 'upsert', id: 'close-history', value: { id: 'close-history' } }
     ];
     await first.ctx.SyncEngine.enqueueMutations(batch).catch(() => false);
     const second = createSyncContext(shared);
@@ -518,7 +518,7 @@ async function runAll() {
       if (opts && opts.method === 'POST') { posts++; return { ok: false, status: 409, json: async () => ({ rev: posts, state: { _rev: posts } }) }; }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 0 } }) };
     });
-    await ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-history-trades-v1', op: 'upsert', id: 'blocked-reload', value: { id: 'blocked-reload' } }]).catch(() => false);
+    await ctx.SyncEngine.enqueueMutations([{ key: 'aura-quant-terminal-history-trades-v2', op: 'upsert', id: 'blocked-reload', value: { id: 'blocked-reload' } }]).catch(() => false);
     const before = shared['aura-sync-pending-v1'];
     assert.strictEqual(posts, ctx.SyncEngine.maxRetries);
     assert.strictEqual(before, shared['aura-sync-pending-v1']);
@@ -527,8 +527,8 @@ async function runAll() {
 
   await test('durable queue: queue persistence failure rejects projection and preserves existing pending work', async () => {
     const shared = {
-      'aura-quant-terminal-active-trades-v1': JSON.stringify([{ id: 'must-survive' }]),
-      'aura-sync-pending-v1': JSON.stringify([{ kind: 'mutations', mutations: [{ key: 'aura-quant-terminal-active-trades-v1', op: 'upsert', id: 'already-pending', value: { id: 'already-pending' } }] }])
+      'aura-quant-terminal-active-trades-v2': JSON.stringify([{ id: 'must-survive' }]),
+      'aura-sync-pending-v1': JSON.stringify([{ kind: 'mutations', mutations: [{ key: 'aura-quant-terminal-active-trades-v2', op: 'upsert', id: 'already-pending', value: { id: 'already-pending' } }] }])
     };
     const { ctx, setFetchHandler } = createSyncContext(shared);
     const originalSetItem = ctx.localStorage.setItem;
@@ -540,13 +540,13 @@ async function runAll() {
     ctx.SyncEngine.restoreQueue();
     ctx.saveTrades([]);
     await new Promise(resolve => setImmediate(resolve));
-    assert.strictEqual(shared['aura-quant-terminal-active-trades-v1'], JSON.stringify([{ id: 'must-survive' }]));
+    assert.strictEqual(shared['aura-quant-terminal-active-trades-v2'], JSON.stringify([{ id: 'must-survive' }]));
     assert.strictEqual(ctx.SyncEngine.pending.length, 1);
     assert.strictEqual(ctx.SyncEngine.status, 'offline');
   });
 
   await test('durable queue: restore overflow blocks sending and preserves raw queue', async () => {
-    const items = Array.from({ length: 1001 }, (_, i) => ({ kind: 'mutations', mutations: [{ key: 'aura-quant-terminal-history-trades-v1', op: 'upsert', id: `overflow-${i}`, value: { id: `overflow-${i}` } }] }));
+    const items = Array.from({ length: 1001 }, (_, i) => ({ kind: 'mutations', mutations: [{ key: 'aura-quant-terminal-history-trades-v2', op: 'upsert', id: `overflow-${i}`, value: { id: `overflow-${i}` } }] }));
     const raw = JSON.stringify(items);
     const shared = { 'aura-sync-pending-v1': raw };
     const { ctx, fetchCalls } = createSyncContext(shared);
@@ -566,17 +566,17 @@ async function runAll() {
     let resolvePull;
     setFetchHandler(async (url, opts) => {
       if (opts && opts.method === 'POST') {
-        return { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2, 'aura-quant-terminal-active-trades-v1': [{ id: 'confirmed' }] } }) };
+        return { ok: true, status: 200, json: async () => ({ ok: true, rev: 2, state: { _rev: 2, 'aura-quant-terminal-active-trades-v2': [{ id: 'confirmed' }] } }) };
       }
-      return new Promise(resolve => { resolvePull = () => resolve({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v1': [{ id: 'stale' }] } }) }); });
+      return new Promise(resolve => { resolvePull = () => resolve({ ok: true, status: 200, json: async () => ({ ok: true, data: { _rev: 1, 'aura-quant-terminal-active-trades-v2': [{ id: 'stale' }] } }) }); });
     });
     const pull = ctx.SyncEngine.pull();
     await ctx.SyncEngine.pushDirect('aura-autobot-state-v2', { enabled: true }, 1);
     resolvePull();
     await pull;
     assert.strictEqual(ctx.SyncEngine.rev, 2);
-    assert.strictEqual(store['aura-quant-terminal-active-trades-v1'], JSON.stringify([{ id: 'confirmed' }]));
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.SyncEngine.shadow['aura-quant-terminal-active-trades-v1'])), [{ id: 'confirmed' }]);
+    assert.strictEqual(store['aura-quant-terminal-active-trades-v2'], JSON.stringify([{ id: 'confirmed' }]));
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.SyncEngine.shadow['aura-quant-terminal-active-trades-v2'])), [{ id: 'confirmed' }]);
   });
 
   console.log(`\n============================================================`);

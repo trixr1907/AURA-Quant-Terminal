@@ -1,4 +1,4 @@
-# AURA v2.0.0 — Schema Generation 2 & UI Generation 2
+# AURA v2.0.0 — Schema Generation 2, Ops & Packaging
 
 **Release-Typ:** MAJOR (`2.0.0`)  
 **Tag-Botschaft:** `AURA v2.0.0 — Confluence Terminal (read-only research)`  
@@ -6,7 +6,7 @@
 
 ## Warum MAJOR?
 
-v2.0.0 führt ein versioniertes, migrationsfähiges Format für Laufzeit-/Portfolio-State sowie die zweite Generation des Dashboard-Design-Systems ein. Das ist eine absichtlich inkompatible Datenform-Grenze. Signalberechnung, Entries, Exits, Gates, Scoring, Sizing und Engine-Mathematik bleiben unverändert.
+v2.0.0 führt ein versioniertes, migrationsfähiges Format für Laufzeit-/Portfolio-State ein. Das ist eine absichtlich inkompatible Datenform-Grenze und begründet den MAJOR-Sprung. Signalberechnung, Entries, Exits, Gates, Scoring, Sizing und Engine-Mathematik bleiben unverändert.
 
 ## Schema Generation 2
 
@@ -19,13 +19,11 @@ v2.0.0 führt ein versioniertes, migrationsfähiges Format für Laufzeit-/Portfo
 - `/ready` und `/status` zeigen die aktive Laufzeit-Schema-Version rein lesend.
 - `shadow_log.jsonl` und `shadow_stats.json` werden weder migriert noch umgeschrieben.
 
-## UI Generation 2
+## R35b-Backlog: UI Generation 2 (v2.1.0)
 
-- Zentraler CSS-Token-Katalog für Farben, Typografie, 4-px-Abstände, Radien, Schatten und Z-Layer.
-- Gemeinsame Verträge für Panels, Karten, Buttons und Badges bei unveränderter DOM-/JS-Funktion.
-- 420-px-Mobile-Layer mit 44-px-Touchzielen und zeilenbasierter Tabellendarstellung.
-- Globale `:focus-visible`-Ringe und `prefers-reduced-motion`.
-- Weiterhin vollständig self-contained, ohne externe Runtime-Ressourcen.
+Die vollständige UI-Generation 2 wurde bewusst auf R35b verschoben. Der bereits vorhandene, funktionsgleiche CSS-Slice (Tokens, 420-px-Regeln, Fokus- und Reduced-Motion-Regeln) bleibt enthalten, weil DOM-Kanon (`innerHTML`: 63), dynamische JS-Suite und Self-contained-Vertrag unverändert grün sind. Er wird in v2.0.0 nicht als abgeschlossenes Design-System beansprucht.
+
+Verbindlicher Ausgangspunkt für R35b ist `docs/design_system.md`. Noch offen sind insbesondere vollständige WCAG-AA-Kontrastmessungen, visuelle Desktop-Abnahme sowie 390-/420-px-Viewport-Abnahmen und die abschließende Konsolidierung der Komponentenklassen.
 
 ## Deprecated-Cleanup
 
