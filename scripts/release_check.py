@@ -325,6 +325,16 @@ def extract_js_relative_dependencies(content: str) -> list[str]:
     return sorted(set(refs))
 
 
+def extract_python_relative_dependencies(content: str) -> list[str]:
+    """Find in-repository Python imports used by packaged runtime modules."""
+    refs: set[str] = set()
+    for module in re.findall(r"^from\s+(scripts(?:\.[A-Za-z_][\w]*)+)\s+import\s+", content, re.MULTILINE):
+        refs.add(module.replace(".", "/") + ".py")
+    for module in re.findall(r"^import\s+(scripts(?:\.[A-Za-z_][\w]*))\b", content, re.MULTILINE):
+        refs.add(module.replace(".", "/") + ".py")
+    return sorted(refs)
+
+
 def check_runtime_packaging_closure(
     root: Path | None = None,
     manifest_list: list[str] | None = None,
@@ -360,6 +370,8 @@ def check_runtime_packaging_closure(
     # Canonical runtime entry points
     container_entrypoints = [
         "bitget_relay.py",
+        "scripts/state_migration.py",
+        "scripts/ops/aura_state_migrate.py",
         "headless_autobot.js",
         "Symbiose_Dashboard.html",
         "SYMBIOSE_Tutorial.html",
@@ -400,6 +412,16 @@ def check_runtime_packaging_closure(
                     if norm_dep.startswith("./"):
                         norm_dep = norm_dep[2:]
                     norm_dep = norm_dep.lstrip("/")
+                    if norm_dep not in container_visited:
+                        container_visited.add(norm_dep)
+                        container_required.add(norm_dep)
+                        container_queue.append(norm_dep)
+            except OSError:
+                pass
+        elif c_rel.endswith(".py") and c_path.exists():
+            try:
+                c_content = c_path.read_text(encoding="utf-8")
+                for norm_dep in extract_python_relative_dependencies(c_content):
                     if norm_dep not in container_visited:
                         container_visited.add(norm_dep)
                         container_required.add(norm_dep)
@@ -456,6 +478,17 @@ def check_runtime_packaging_closure(
                 if norm_dep not in visited:
                     visited.add(norm_dep)
                     queue.append(norm_dep)
+        elif current_rel.endswith(".py"):
+            try:
+                content = current_path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            for norm_dep in extract_python_relative_dependencies(content):
+                if norm_dep not in visited:
+                    visited.add(norm_dep)
+                    queue.append(norm_dep)
+                    if current_rel in container_required:
+                        container_required.add(norm_dep)
 
     if missing_on_disk or missing_in_manifest or missing_in_dockerfile:
         return "FAIL", json.dumps({

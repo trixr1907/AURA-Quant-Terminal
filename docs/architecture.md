@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 1.10.1 (Release)
+**Version:** 2.0.0 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
@@ -155,3 +155,27 @@ Vorteile:
 - **CSV- & Fixture-Import:** Externe CSV-Exporte mit Zeitstempeln in Sekunden (`< 10_000_000_000`) werden ausnahmslos über `normalizeTimestamp(value)` automatisch in Millisekunden ($s \times 1000$) skaliert:
   $$\text{timestamp}_{\text{ms}} = (n < 10^{10}) \;?\; n \times 1000 : n$$
 - **Harness-Pflicht:** Jeder Test-Harness, Parser oder Reader (JavaScript oder Python), der Fixtures oder historische Daten einliest, MUSS diese Normalisierung anwenden. Dies stellt sicher, dass datumsbasierte Gruppierungen wie `Math.floor(ms / 86400000)` über alle Test- und Produktivumgebungen exakt identische Tagesgrenzen berechnen.
+
+---
+
+## 7. Datenhaltung v2 (Migration/Rollback)
+
+Schema v2 gilt ausschließlich für Laufzeit-/Portfolio-State. Die Evidenzkette behält dauerhaft Ledger-Schema v1; `LEGACY_LEDGER` und `LEGACY_SHA256` sind nachgewiesene Evidenzpfade und dürfen nicht bereinigt werden.
+
+Beim Relay-Start migriert `scripts/state_migration.py` vor Runner-Freigabe beide Laufzeitdateien:
+
+- `aura_shared_state.json`: Pflichtfelder `schema_version`, `rev`, `equity`, `trades`, `history`, `funnel24h`, `lastHeartbeatAt`, `last_digest_date`.
+- `aura_signal_center_state.json`: explizite `schema_version: 2`.
+- Trade-/History-Dokumente erhalten `record_schema: 2`; `id`, `parentId` und alle Zahlenwerte bleiben unverändert.
+- Vor dem ersten v2-Schreiben wird ein bytegetreues `.v1-backup-<UTC-Zeitstempel>` angelegt.
+- Backup und v2-Datei werden nie in-place überschrieben: Migration nutzt `.tmp` und atomaren Rename.
+- Schema >2 ist fail-closed. Der Relay beendet sich vor Runner-Start und schreibt nicht.
+- `shadow_log.jsonl` und `shadow_stats.json` sind ausdrücklich ausgenommen; die Schattenhistorie bleibt append-only.
+
+Betrieb:
+
+- Vorschau: `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --dry-run`
+- Migration: `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura`
+- Rollback-Vorschau: `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --rollback`
+- Bestätigter Rollback: `python3 scripts/ops/aura_state_migrate.py --state-dir /var/lib/aura --rollback --yes`
+
