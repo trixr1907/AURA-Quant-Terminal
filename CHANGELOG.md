@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.10.0] – 2026-09-15
+
+### Added
+- **Auftrag A — Menschen-Statusseite `GET /status` (`bitget_relay.py`):** Schlanke, eigenständige HTML-Statusseite (self-contained, nur Inline-CSS) mit großem `ALLES OK` / `HANDLUNGSBEDARF` Banner, Ampel-Gesundheitslogik, Systemkarten (Version, Bot-Modus, Runner, Schatten, ntfy, Disk/State, Uptime, UTC & Europe/Berlin Zeiten) und strikter Secret-Maskierung.
+- **Auftrag B — Ein-Befehl-Diagnose `scripts/ops/aura_doctor.sh`:** Umfassendes Host-/VM-Diagnosetool zur Verifikation von Container-Status, Image-Tag, `/ready`, kanonischen ENV-Variablen, Härtungs-Flags, Dateirechten, Disk-Space, 24h-Error-Logs und systemd-Diensten. Enthält `--push` für echte Live-Push-Tests mit ID-Rückmeldung und `--json` für maschinelle Auswertung.
+- **Auftrag C — Trade-Export CSV/JSON (`Symbiose_Dashboard.html`):** Client-seitiger Sofort-Export (`aura_trades_YYYYMMDD.{csv|json}`) für alle manuellen, Autobot- und historischen Trades mit standardisiertem 19-Spalten-Schema, UTF-8 mit BOM (`\uFEFF`) und sicherem Escaping.
+- **Auftrag D — Reload-Banner (`Symbiose_Dashboard.html` ↔ `/serving`):** Sanfter, dismissible Top-Banner im Dashboard bei Verfügbarkeit neuer Versionen; 60-Sekunden-Sync ohne Unterbrechung laufender Benutzeraktionen und fail-silent bei Verbindungsabbrüchen.
+- **Auftrag E — Funnel-Glasbox („Warum handelt der Bot (nicht)?"):** Rollierende 24-Stunden-Zusammenfassung (`scanned, radar_passed, wf_evaluated, selected, reject_reasons`) im Server-Runner, `/ready`-Block `funnel24h`, Tages-Digest-Zusammenfassung und kompaktes Dashboard-Panel mit Leitspruch *„Gates arbeiten korrekt — kein Trade ist kein Fehler."*.
+- **Auftrag F — PreReg-Assistent `scripts/prereg_new.py`:** Interaktiver Generator und CLI-Tool zur Erstellung valider `Hypothesis-PreReg`-Einträge mit deterministischer `setup_id`, SHA-256 Parameter-Hashing und Two-Step-Preregistration-Design.
+
+### Scope
+- MINOR (`1.10.0`, QoL-Suite A–F).
+- Rein lesende und diagnostische Features — keine Änderungen an Signalgenerierung, Handelsverhalten, Gates, Lockbox oder Evidenzprotokoll.
+- Trials-Ledger unverändert auf `EXP-032`; Verdict bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [1.9.0] – 2026-09-14
 
 ### Added
