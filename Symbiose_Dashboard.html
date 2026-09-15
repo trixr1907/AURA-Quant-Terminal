@@ -938,7 +938,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.10.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v1.10.1?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1032,7 +1032,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v1.10.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v1.10.1</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -7792,7 +7792,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '1.10.0';
+const AURA_CLIENT_VERSION = '1.10.1';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -10813,6 +10813,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "1.10.1": {
+    title: "Hotfix: Runner-Packaging-Gate & Crash-Fast-Detector",
+    summary: "Runde 34.1 (PATCH): Behebt den Runner-Crash-Loop durch fehlendes shadow_collector.js in Paket & Dockerfile. Führt ein fail-closed Packaging-Closure-Gate und schnellen Crash-Loop-Schutz ein.",
+    highlights: [
+      "Packaging-Fix: shadow_collector.js ins Release-Paket (build_package.py) und Dockerfile aufgenommen.",
+      "Packaging-Closure-Gate: Automatisierte Transitive-Closure-Prüfung in release_check.py verhindert fehlende Laufzeit-Module zuverlässig.",
+      "Crash-Fast-Detector: Sofortiger Neustart und Crash-Loop-Erkennung bei Abstürzen unter 10s nach Start.",
+      "Verdict unverändert SOFTWARE_GO / MODEL_NO_EVIDENCE. Ledger EXP-032 unverändert."
+    ]
+  },
   "1.10.0": {
     title: "QoL-Suite — Statusseite, Doctor, Trade-Export, Reload-Banner, Funnel-Glasbox & PreReg-Assistent",
     summary: "Runde 34 (MINOR): Sechs rein diagnostische und lesende Endbenutzer-QoL-Features für maximale Transparenz, reibungslose Ops-Diagnose und komfortables Research.",
@@ -11232,7 +11242,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('1.10.0');
+  showReleaseNotesOnce('1.10.1');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
