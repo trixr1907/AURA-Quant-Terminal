@@ -317,6 +317,161 @@ def check_version_consistency(
         return "FAIL", json.dumps({"versions": versions, "error": "mismatched versions", "stale_changelog_markers": stale_changelog}, ensure_ascii=False)
     return "PASS", json.dumps({"versions": versions, "stale_changelog_markers": stale_changelog}, ensure_ascii=False)
 
+def extract_js_relative_dependencies(content: str) -> list[str]:
+    """Find all relative requires and imports in a JS file content."""
+    req_pattern = r'''require\s*\(\s*['"](\.[^'"]+)['"]\s*\)'''
+    imp_pattern = r'''(?:import|export)\s+.*?from\s+['"](\.[^'"]+)['"]'''
+    refs = re.findall(req_pattern, content) + re.findall(imp_pattern, content)
+    return sorted(set(refs))
+
+
+def check_runtime_packaging_closure(
+    root: Path | None = None,
+    manifest_list: list[str] | None = None,
+    dockerfile_content: str | None = None,
+) -> tuple[str, str]:
+    """Verify that all runtime files and their transitive dependencies are packaged and in Dockerfile."""
+    base = Path(root or ROOT)
+    if dockerfile_content is None:
+        df_path = base / "Dockerfile"
+        if not df_path.exists():
+            return "FAIL", json.dumps({"error": "Dockerfile not found"})
+        dockerfile_content = df_path.read_text(encoding="utf-8")
+
+    if manifest_list is None:
+        try:
+            build_pkg_src = (base / "scripts" / "build_package.py").read_text(encoding="utf-8")
+            m = re.search(r"MANIFEST\s*=\s*\[(.*?)\]", build_pkg_src, re.DOTALL)
+            if not m:
+                return "FAIL", json.dumps({"error": "MANIFEST not found in build_package.py"})
+            manifest_items = re.findall(r'["\']([^"\']+)["\']', m.group(1))
+            manifest_list = manifest_items
+        except Exception as exc:
+            return "FAIL", json.dumps({"error": f"Failed to read MANIFEST: {exc}"})
+
+    df_copies: list[str] = []
+    for line in dockerfile_content.splitlines():
+        line = line.strip()
+        if line.startswith("COPY "):
+            tokens = [t for t in line[5:].split() if not t.startswith("--")]
+            if len(tokens) >= 2:
+                df_copies.extend(tokens[:-1])
+
+    # Canonical runtime entry points
+    container_entrypoints = [
+        "bitget_relay.py",
+        "headless_autobot.js",
+        "Symbiose_Dashboard.html",
+        "SYMBIOSE_Tutorial.html",
+    ]
+    desktop_entrypoints = [
+        "start.py",
+    ]
+    all_entrypoints = container_entrypoints + desktop_entrypoints
+
+    missing_in_manifest: list[str] = []
+    missing_in_dockerfile: list[str] = []
+    missing_on_disk: list[str] = []
+    checked_deps: list[str] = []
+
+    queue = list(all_entrypoints)
+    visited = set(all_entrypoints)
+
+    # Track which dependencies are required for container runtime
+    container_required: set[str] = set(container_entrypoints)
+    container_queue = list(container_entrypoints)
+    container_visited = set(container_entrypoints)
+
+    # Resolve container-required closure
+    while container_queue:
+        c_rel = container_queue.pop(0)
+        c_path = base / c_rel
+        if c_rel.endswith(".js") and c_path.exists():
+            try:
+                c_content = c_path.read_text(encoding="utf-8")
+                for dep in extract_js_relative_dependencies(c_content):
+                    p_dir = Path(c_rel).parent
+                    norm_dep = (p_dir / dep).as_posix()
+                    if not any(norm_dep.endswith(ext) for ext in [".js", ".json", ".node"]):
+                        if (base / f"{norm_dep}.js").exists():
+                            norm_dep = f"{norm_dep}.js"
+                        elif (base / f"{norm_dep}.json").exists():
+                            norm_dep = f"{norm_dep}.json"
+                    if norm_dep.startswith("./"):
+                        norm_dep = norm_dep[2:]
+                    norm_dep = norm_dep.lstrip("/")
+                    if norm_dep not in container_visited:
+                        container_visited.add(norm_dep)
+                        container_required.add(norm_dep)
+                        container_queue.append(norm_dep)
+            except OSError:
+                pass
+
+    while queue:
+        current_rel = queue.pop(0)
+        checked_deps.append(current_rel)
+        current_path = base / current_rel
+        if not current_path.exists():
+            missing_on_disk.append(current_rel)
+            continue
+
+        in_manifest = any(
+            m == current_rel
+            or (m.endswith("/") and current_rel.startswith(m))
+            or (m == str(Path(current_rel).parent))
+            for m in manifest_list
+        )
+        if not in_manifest:
+            missing_in_manifest.append(current_rel)
+
+        if current_rel in container_required:
+            in_docker = any(
+                c == current_rel
+                or (c.endswith("/") and current_rel.startswith(c))
+                or (c == str(Path(current_rel).parent))
+                or (c == str(Path(current_rel).parent) + "/")
+                for c in df_copies
+            )
+            if not in_docker:
+                missing_in_dockerfile.append(current_rel)
+
+        if current_rel.endswith(".js"):
+            try:
+                content = current_path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            deps = extract_js_relative_dependencies(content)
+            for dep in deps:
+                parent_dir = Path(current_rel).parent
+                norm_dep = (parent_dir / dep).as_posix()
+                if not any(norm_dep.endswith(ext) for ext in [".js", ".json", ".node"]):
+                    if (base / f"{norm_dep}.js").exists():
+                        norm_dep = f"{norm_dep}.js"
+                    elif (base / f"{norm_dep}.json").exists():
+                        norm_dep = f"{norm_dep}.json"
+                if norm_dep.startswith("./"):
+                    norm_dep = norm_dep[2:]
+                norm_dep = norm_dep.lstrip("/")
+
+                if norm_dep not in visited:
+                    visited.add(norm_dep)
+                    queue.append(norm_dep)
+
+    if missing_on_disk or missing_in_manifest or missing_in_dockerfile:
+        return "FAIL", json.dumps({
+            "missing_on_disk": missing_on_disk,
+            "missing_in_manifest": missing_in_manifest,
+            "missing_in_dockerfile": missing_in_dockerfile,
+            "checked_dependencies": checked_deps,
+        })
+
+    return "PASS", json.dumps({
+        "checked_dependencies": checked_deps,
+        "manifest_coverage": "100%",
+        "dockerfile_coverage": "100%",
+    })
+
+
 def is_self_comparison_csv(content_or_path: str | Path) -> tuple[bool, str]:
     """Check if a Golden Master CSV matches the known local self-comparison generator pattern.
 
@@ -756,6 +911,10 @@ def main() -> int:
         })
         progression_detail = json.dumps(parsed_progression)
     add(check("version progression", progression_status, progression_detail))
+
+    # 9c. Runtime packaging closure gate (fail-closed)
+    pkg_status, pkg_detail = check_runtime_packaging_closure(ROOT)
+    add(check("runtime packaging closure (zip & dockerfile)", pkg_status, pkg_detail))
 
     # 10. Secret-pattern and generated-file scan
     hits = []
