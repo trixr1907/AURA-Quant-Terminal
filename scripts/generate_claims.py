@@ -210,12 +210,12 @@ CLAIMS = [
     {
         "ID": "CLM-19",
         "Quelle": "VERSION:1, README.md:9, Symbiose_Dashboard.html, SYMBIOSE_Tutorial.html, bitget_relay.py",
-        "Wortlaut": "Version 2.4.0 einheitlich in allen Systemkomponenten",
+        "Wortlaut": "Version 2.5.0 einheitlich in allen Systemkomponenten",
         "Typ": "Zahl",
         "Ebene_Querschnitt": "Ebene 3",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle aktuellen Versionsflächen matchen exakt '2.4.0'.",
+        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle aktuellen Versionsflächen matchen exakt '2.5.0'.",
         "Empfehlung_Fix": "Keine Änderung nötig. Versionierung ist strikt konsistent."
     },
     {

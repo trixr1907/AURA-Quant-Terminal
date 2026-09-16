@@ -641,6 +641,9 @@ console.log('PASS all Live Trade Tracker & BTC Trend contracts validated');
   vm.runInContext(scanSource + '\nthis.__Autobot = Autobot;\nthis.__App = App;', scanCtx);
 
   const bot = scanCtx.__Autobot;
+  // Isolate fresh-WF scanner evidence; production stays Server-Only Live.
+  scanCtx.__App.serverBotActive = false;
+  bot.serverBotActive = false;
   const candles = Array.from({ length: 50 }, (_, i) => ({ t: i, o: 100, h: 101, l: 99, c: 100, v: 1 }));
   const freshA = {
     n: 50, last: { score: 80, dir: 1, adx: 25, atr: 1 },
