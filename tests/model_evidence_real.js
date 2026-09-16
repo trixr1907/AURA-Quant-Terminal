@@ -4,7 +4,7 @@
  *
  * Runs the purged walk-forward engine on the 5 real TradingView golden master
  * exports (BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, DOGEUSDT) using standard baseline
- * parameters (makerFee: 0.0002, takerFee: 0.0006, slippage: 0.0005, timeStopBars: 15)
+ * parameters (makerFee: 0.001, takerFee: 0.001, slippage: 0.001, timeStopBars: 15)
  * on the last 1500 bars of each fixture.
  *
  * Outputs JSON with fail-closed verdict: 'NO_EVIDENCE' unless all symbols achieve
@@ -126,9 +126,9 @@ for (const f of GOLDEN_FILES) {
   }
   const A = analyze(candles);
   const wf = runWalkForwardBacktest(candles, A, {
-    makerFee: 0.0002,
-    takerFee: 0.0006,
-    slippage: 0.0005,
+    makerFee: 0.001,
+    takerFee: 0.001,
+    slippage: 0.001,
     timeStopBars: 15,
   });
 

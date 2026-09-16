@@ -116,9 +116,9 @@ assert.strictEqual(radarSqz.tradeable, false, 'Squeeze setup must not be tradeab
 
 // Stage D1: Anchored Walk-Forward fail-closed on short series (<778 bars)
 const wfShort = runWalkForwardBacktest(candles, A, {
-  makerFee: 0.0002,
-  takerFee: 0.0006,
-  slippage: 0.0005,
+  makerFee: 0.001,
+  takerFee: 0.001,
+  slippage: 0.001,
   timeStopBars: 15,
   tfMinutes: 60
 });
@@ -139,9 +139,9 @@ for (let i = 0; i < 900; i++) {
 }
 const fullA = analyze(fullCandles);
 const wf = runWalkForwardBacktest(fullCandles, fullA, {
-  makerFee: 0.0002,
-  takerFee: 0.0006,
-  slippage: 0.0005,
+  makerFee: 0.001,
+  takerFee: 0.001,
+  slippage: 0.001,
   timeStopBars: 15,
   tfMinutes: 60
 });

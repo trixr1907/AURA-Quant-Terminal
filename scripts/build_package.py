@@ -51,7 +51,7 @@ MANIFEST = [
     "docs/design_system.md",
     "docs/architecture.md",
     "docs/deployment/DOCKER_GUIDE.md",
-    "docs/releases/RELEASE_v2.2.0.md",
+    "docs/releases/RELEASE_v2.3.0.md",
     "SYMBIOSE_Model_Validation.md",
     "SYMBIOSE_Tutorial.html",
     "assets/",

@@ -50,8 +50,8 @@ const A = analyze(candles);
 // Small fixed neighborhood — we do NOT re-pick the best after seeing OOS.
 const grid = [];
 for (const timeStopBars of [12, 15, 18]) {
-  for (const slippage of [0, 0.0002, 0.0005]) {
-    grid.push({ timeStopBars, slippage, makerFee: 0.0002, takerFee: 0.0006 });
+  for (const slippage of [0.0005, 0.001, 0.002]) {
+    grid.push({ timeStopBars, slippage, makerFee: 0.001, takerFee: 0.001 });
   }
 }
 
@@ -77,7 +77,7 @@ const std = (a) => {
 };
 
 // Confidence interval on OOS expectancy from the CENTER run's realized returns.
-const center = grid.find((g) => g.timeStopBars === 15 && g.slippage === 0.0002);
+const center = grid.find((g) => g.timeStopBars === 15 && g.slippage === 0.001);
 const centerWF = runWalkForwardBacktest(candles, A, center);
 const rets = centerWF.stats.returns;
 const n = rets.length;

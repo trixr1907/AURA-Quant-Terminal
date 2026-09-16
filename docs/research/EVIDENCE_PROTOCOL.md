@@ -1,6 +1,6 @@
 # AURA Evidenz-Protokoll & Forschungs-Governance (S1–S6)
 
-**Stand:** 2026-09-14 / Version 1.9.0  
+**Stand:** 2026-09-16 / Version 2.3.0  
 **Geltungsbereich:** Quantitative Forschung, Hypothesen-Präregistrierung, Evidenz-Status, Lockbox-Governance & Handelsfreigabe  
 
 ---
@@ -55,6 +55,11 @@ Um Data-Mining-Artefakte, Overfitting, Look-Ahead-Bias und P-Hacking mathematisc
   - Aktuelle Suche: `totalTrials = max(currentSearchTrials, DSR_TRIALS)`.
   - Die unabhängige Python-Referenz nutzt denselben konservativen Floor; der S3-Harness verwendet mindestens `max(18, total_model_experiments)` und zusätzlich den Produkt-Floor.
 - `total_model_experiments` stammt aus der durch `scripts/verify_ledger.py` verifizierten Kette. Ein ungültiger Ledger blockiert die Produkt-Auslieferung; wachsende Historie darf DSR nie erhöhen.
+
+**DSR-Schwellenwert und Neutralpunkt (Klarstellung):**
+- Der **theoretische Neutralpunkt** der Deflated Sharpe Ratio liegt bei `DSR = 0.5`. Dieser Wert bedeutet: Das Signal ist statistisch nicht von einem zufälligen Ergebnis zu unterscheiden — weder positiv noch negativ.
+- Die **Passschwelle** für S3/S5 ist `DSR >= 0.5` in Verbindung mit positiver Netto-Expectancy (`edge >= edge_min`) und ausreichender Trade-Anzahl (`n >= n_min`). Alle drei Kriterien müssen gleichzeitig erfüllt sein — DSR >= 0.5 allein ist kein hinreichendes Kriterium.
+- Ein Modell mit `DSR = 0.5` bei negativer Edge oder `n < n_min` besteht das Gate nicht.
 
 ### Stufe S4: Single-Shot Lockbox Holdout
 - Prüfung auf einem vorab kryptographisch und zeitlich gesperrten Forward-Holdout-Datensatz (`LOCKED`).
@@ -128,3 +133,47 @@ Das System arbeitet somit als Software-Terminal auf Enterprise-Niveau, täuscht 
   `Lockbox-Spanne ab heute für N Tage sperren? Das kann nicht rückgängig gemacht werden.`
 - Nach Bestätigung (`ja`/`yes`) wird der Holdout mit Status `LOCKED` versehen.
 - Jede Auswertung eines Lockbox-Datensatzes wird unveränderlich im Ledger als konsumierter Single-Shot-Versuch protokolliert.
+
+---
+
+## 7. S6-Implementierung (v2.3.0) — Code-Referenz und Fail-Closed-Regeln
+
+Die S6-Elevation-Gate-Logik ist ab v2.3.0 vollständig in `scripts/hypothesis_check.py` implementiert.
+
+### Implementierte Funktionen
+
+**`evaluate_lockbox_pass(lockbox_data)`** (S4-Gate)
+- Prüft ob `lockbox.status == "LOCKED"` (nicht CONSUMED, nicht fehlendes lockbox).
+- Prüft ob ein positiver Holdout-Nachweis (`holdout_pass: true`) im lockbox-Eintrag registriert ist.
+- Rückgabe: `{"pass": True/False, "reason": "..."}`.
+- Fail-closed: Fehlendes, ungültiges oder bereits konsumiertes lockbox → `pass: False`.
+
+**`evaluate_forward_window(shadow_log_path, n_min, edge_min, dsr_min, window_days=90)`** (S5-Gate)
+- Liest `shadow_log.jsonl`, filtert streng auf die letzten 90 UTC-Tage (ab `datetime.now(UTC) - timedelta(days=window_days)`).
+- Aggregiert alle Trades im Fenster: Netto-Expectancy, Trade-Anzahl, DSR via `calc_dsr(returns, DSR_TRIALS=max(45, ledger_n))`.
+- Prüft: `n >= n_min` UND `edge >= edge_min` UND `dsr >= dsr_min`.
+- Rückgabe: `{"pass": True/False, "n": ..., "edge": ..., "dsr": ..., "window_days": 90}`.
+- Fail-closed: Fehlendes Shadow-Log, korruptes JSON, leeres Fenster → `pass: False`.
+
+**`evaluate_decay(shadow_log_path, n_min, edge_min, window_days=90)`** (Evidence Decay)
+- Falls die letzten 90 Tage keine positive Expectancy liefern oder `n < n_min`:
+  → `model_verdict_lifted: false` + `decay_warning: True` + Degradierungshinweis.
+- Fail-closed identisch zu `evaluate_forward_window`.
+
+**`check_hypothesis(...)`** (Haupt-Entscheidungsfunktion)
+- Gibt `model_verdict_lifted: true` NUR zurück wenn:
+  1. S4: `evaluate_lockbox_pass()` → `pass: True`
+  2. S5: `evaluate_forward_window()` → `pass: True` (n >= n_min, edge >= edge_min, dsr >= dsr_min über 90-Tage-Fenster)
+- Andernfalls immer `model_verdict_lifted: false`, `model_verdict: MODEL_NO_EVIDENCE`.
+
+### Heutiger Status (v2.3.0, korrekt fail-closed)
+
+- Shadow-Collector läuft seit < 90 Tage → `evaluate_forward_window` liefert `pass: False` (n < n_min).
+- Lockbox `UNUSED` (kein `holdout_pass: true`) → `evaluate_lockbox_pass` liefert `pass: False`.
+- Ergebnis: `model_verdict_lifted: false`, `verdict: SOFTWARE_GO / MODEL_NO_EVIDENCE` — **korrekt und erwartet**.
+
+### Tests
+
+- `tests/test_hypothesis_s6_gate.py`: 4 Fälle — (a) kein Lockbox-Pass, (b) Lockbox-Pass aber Shadow < n_min, (c) synthetisches 90-Tage-Fixture (100 Trades, Edge +0.2, DSR > 0.5) → true, (d) Decay-Szenario → false + Degradierung.
+- `tests/test_shadow_90d_window.py`: UTC-Filter exakt 90 Tage, DSR mit Ledger-N.
+- `tests/test_lockbox_enforcement.py`: Single-Shot-Erzwingung, LOCKBOX_ALREADY_CONSUMED fail-closed.
