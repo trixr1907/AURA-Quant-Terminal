@@ -963,7 +963,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.2.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.3.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1057,7 +1057,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v2.2.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v2.3.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1926,8 +1926,8 @@ function simulateRange(candles, A, startIdx, endIdx, params, foldId = null, maxE
   const sigs = [];
   let lastSig = -999;
   let nextEntryIdx = startIdx;
-  const entryFee = params.makerFee != null ? params.makerFee : (params.takerFee != null ? params.takerFee : 0.0006);
-  const exitFee = params.takerFee != null ? params.takerFee : 0.0006;
+  const entryFee = params.makerFee != null ? params.makerFee : (params.takerFee != null ? params.takerFee : 0.001);
+  const exitFee = params.takerFee != null ? params.takerFee : 0.001;
   const slip = params.slippage || 0;
   const longTh = params.longTh || 75;
   const shortTh = params.shortTh || 25;
@@ -2099,7 +2099,7 @@ function selectionObjective(exp, total, minTrainTrades = 2) {
 }
 
 function resolveSlippage(value) {
-  return Number.isFinite(+value) && +value > 0 ? +value : 0.0005;
+  return Number.isFinite(+value) && +value > 0 ? +value : 0.001;
 }
 
 function runWalkForwardBacktest(candles, A, options = {}) {
@@ -2520,7 +2520,7 @@ const App = {
   radarPaused: false, radarPauseWaiters: [],
   focusRequestEpoch: 0, focusSettledEpoch: 0, focusWaiters: [],
   spec: null, specSym: null,                 // Bitget-Kontrakt-Specs (gecacht)
-  fees: { taker: null, maker: null }, slippage: 0.0005,
+  fees: { taker: null, maker: null }, slippage: 0.001,
   data: { chart: null, mtf: {}, ticker: null, fng: null, cg: null, crypto: null, wf: null, bt: [], probMap: null, live: null },
   tradingView: { market: 'bitget_perp', layout: '' }, // TradingView Basic: one preferred market and optional saved layout
   universe: null,                              // dynamische Top-Coins aus Bitget-Tickern (Sort nach 24h-Volumen)
@@ -2627,9 +2627,9 @@ async function loadChartData(attempt = 0) {
       App.spec = spec;
       App.specSym = App.symbol;
       App.fees.taker = spec.takerFee; App.fees.maker = spec.makerFee;
-      App.slippage = spec.slippage || 0.0005;
+      App.slippage = spec.slippage || 0.001;
     }
-  } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; App.slippage = 0.0005; }
+  } catch (e) { App.spec = null; App.fees.taker = null; App.fees.maker = null; App.slippage = 0.001; }
   // Anchored t1-safe Walk-Forward mit K=4 Folds und DSR
   App.data.wf = runWalkForwardBacktest(r.candles, App.data.chart, { makerFee: App.fees.maker, takerFee: App.fees.taker, slippage: resolveSlippage(App.slippage), timeStopBars: App.timeStopBars, tfMinutes: tfToMinutes(App.chartTF) });
   App.data.bt = App.data.wf.oosTrades;
@@ -7858,7 +7858,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '2.2.0';
+const AURA_CLIENT_VERSION = '2.3.0';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -9190,9 +9190,9 @@ function optimizeTimeStopForAsset(candles, A, options = {}) {
     const maxBars = Math.min(requestedMaxBars, historyMaxBars, hoursMaxBars);
     const results = [];
 
-    const makerFee = options.makerFee ?? (typeof App !== 'undefined' ? App.fees?.maker : 0.0002) ?? 0.0002;
-    const takerFee = options.takerFee ?? (typeof App !== 'undefined' ? App.fees?.taker : 0.0006) ?? 0.0006;
-    const slippage = resolveSlippage(options.slippage ?? (typeof App !== 'undefined' ? App.slippage : 0.0005));
+    const makerFee = options.makerFee ?? (typeof App !== 'undefined' ? App.fees?.maker : 0.001) ?? 0.001;
+    const takerFee = options.takerFee ?? (typeof App !== 'undefined' ? App.fees?.taker : 0.001) ?? 0.001;
+    const slippage = resolveSlippage(options.slippage ?? (typeof App !== 'undefined' ? App.slippage : 0.001));
 
     const trialMultiplier = maxBars - minBars + 1;
     for (let b = minBars; b <= maxBars; b++) {
@@ -10879,6 +10879,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "2.3.0": {
+    title: "Evidence Infra Completion",
+    summary: "Runde 37 (MINOR): S6-Elevation-Gate, 90-Tage-Rollfenster, Evidence-Decay, Kostenmodell-Vereinheitlichung (0,1%/0,1%/0,1%) aller 5 Evidenzpfade und Lockbox-Single-Shot-Erzwingung — ohne Änderungen an Signal-, Entry-, Exit-, Scoring- oder Sizing-Logik.",
+    highlights: [
+      "S6-Elevation-Gate: hypothesis_check.py implementiert evaluate_lockbox_pass() (S4), evaluate_forward_window() (90-Tage-UTC-Rollfenster, S5), evaluate_decay() — fail-closed bei fehlendem Shadow-Log, Lockbox oder Ledger.",
+      "Kostenmodell-Vereinheitlichung: Alle 5 Evidenzpfade nutzen kanonisch 0,1%/0,1%/0,1% (maker/taker/slippage). Vorher: Dashboard S3 war 0,02/0,06/0,05% — ETH-Netto-R wechselt Vorzeichen (+0,208 → −0,039 R), BTC Faktor ~800 Kostendrag.",
+      "Lockbox-Erzwingung: lockbox_guard.py blockiert zweite Auswertung (LOCKBOX_ALREADY_CONSUMED) und macht Single-Shot-Guarantie technisch durchsetzbar.",
+      "Evidenz unverändert: EXP-032, Lockbox UNUSED, SOFTWARE_GO / MODEL_NO_EVIDENCE (Shadow < 90 Tage → S6-Gate korrekt fail-closed)."
+    ]
+  },
   "2.2.0": {
     title: "Evidence Infrastructure Hardening",
     summary: "Runde 36 (MINOR): Slippage-Kosten, Verdict-Priorität und ledger-gebundene DSR-Trial-Zählung wurden fail-closed gehärtet — ohne Änderungen an Signal-, Entry-, Exit-, Scoring- oder Sizing-Logik.",
@@ -11339,7 +11349,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('2.2.0');
+  showReleaseNotesOnce('2.3.0');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
