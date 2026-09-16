@@ -815,6 +815,8 @@ async function runScanCycle(engine, state, config, collector = null) {
         regime: freshRegime.reg, isSqz: freshRegime.isSqz,
         adx: A.last.adx,
         atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0,
+        longTh: cfg.minScore,
+        shortTh: 100 - cfg.minScore,
       });
       const freshCandidate = engine.evaluateAutobotCandidate({
         executable: freshGate.tradeable,

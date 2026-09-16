@@ -27,9 +27,9 @@ Status: Phase 1 vollständig implementiert und testgetrieben verifiziert
    - Die Engine berechnet parallel:
      - `setupDsr`: DSR bezogen auf das 18er-Grid des einzelnen Setups ($T=18$).
      - `universeDsr`: DSR bezogen auf die gesamte Scan-Familie ($T_{\text{eff}} = 18 \times \text{scanned}$).
-   - **Option B (Standard):** Entry-Gate `evaluateAutobotEdge` schaltet auf Basis von `setupDsr \ge 0.5` frei, zeigt aber im UI und Log beide Werte transparent an.
+   - **Option B (Standard):** Entry-Gate `evaluateAutobotEdge` schaltet profilabhängig auf Basis von `setupDsr \ge 0.10` (balanced), `\ge 0.05` (aggressive) oder `\ge 0.30` (strict) frei. Der Funktions-Default `0.5` greift nur, wenn kein `opts.minDsr` übergeben wurde. Bei `minOosSamples` 6–12 ist die DSR-Hürde bewusst schwach; der operative Schutz verlangt zusätzlich `edge > 0` und nicht-konstante OOS-Returns. UI und Log zeigen Setup- und Universe-DSR transparent an.
      *(Hinweis zur Methodik: Setup-Gate: T=18 (Grid); v1.0.8 gatete mit T=18×Kandidaten; Universum-Adjustierung ist ab jetzt explizit sichtbar statt implizit im Gate.)*
-   - **Option A (Strikt):** Konfigurierbarer Schalter `strictUniverseGate` (UI Checkbox `#ab-cfg-strict-universe-gate`), bei dem das Gate `universeDsr \ge 0.5` erzwingt.
+   - **Option A (Strikt):** Konfigurierbarer Schalter `strictUniverseGate` (UI Checkbox `#ab-cfg-strict-universe-gate`), bei dem das Gate `universeDsr \ge 0.5` für Evidenz-Disziplin erzwingt.
 
 4. **Kumulatives Trials-Ledger (`TRIALS_LEDGER.md`):**
    - Vollständiger Backfill aller historischen Tuning-Entscheidungen (v1.0.7 &rarr; v1.0.8 PWF-Audit, v1.0.9 Hygiene).
@@ -69,7 +69,7 @@ Status: Phase 1 vollständig implementiert und testgetrieben verifiziert
 
 ### 1. Dashboard Autobot Funnel Bar:
 ```
-Funnel: 480 Hypothesen (120 Märkte × 4 TFs) → 6 Radar-Kandidaten → Multiplier 480 (Grid 18 → T_eff 8640) · [Option B: Standard (Setup-DSR ≥ 0.5)]
+Funnel: 480 Hypothesen (120 Märkte × 4 TFs) → 6 Radar-Kandidaten → Multiplier 480 (Grid 18 → T_eff 8640) · [Option B: Standard (Setup-DSR ≥ 0.10)]
 ```
 
 ### 2. Trade-Eröffnungslog:
