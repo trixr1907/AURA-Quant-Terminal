@@ -1,61 +1,18 @@
 'use strict';
 
-const assert = require('node:assert');
-const fs = require('node:fs');
-const vm = require('node:vm');
+const { assert, loadFunctions } = require('./r38_vm_helpers');
 
-const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
-
-function extractFunction(name) {
-  const start = html.indexOf(`function ${name}(`);
-  if (start < 0) throw new Error(`${name}() source not found`);
-  const openParen = html.indexOf('(', start);
-  let parenDepth = 0;
-  let bodyStart = -1;
-  for (let i = openParen; i < html.length; i += 1) {
-    if (html[i] === '(') parenDepth += 1;
-    if (html[i] === ')' && --parenDepth === 0) {
-      bodyStart = html.indexOf('{', i);
-      break;
-    }
-  }
-  if (bodyStart < 0) throw new Error(`${name}() body not found`);
-  let depth = 0;
-  let quote = null;
-  let escaped = false;
-  for (let i = bodyStart; i < html.length; i += 1) {
-    const ch = html[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
-    if (ch === '{') depth += 1;
-    if (ch === '}' && --depth === 0) return html.slice(start, i + 1);
-  }
-  throw new Error(`${name}() closing brace not found`);
-}
-
-const context = {
-  Number,
-  Math,
-  isFinite,
-  SYM: { longTh: 75, shortTh: 25 },
-  clamp: (x, a, b) => Math.max(a, Math.min(b, x)),
-  squeezeAt: () => false,
-};
-vm.createContext(context);
-vm.runInContext( // NOSONAR: executes only extracted, checked-in repository source.
-  [
-  extractFunction('regimeOf'),
-  extractFunction('classifyRadarTf'),
-  extractFunction('evaluateAutobotEdge'),
-  'this.regimeOf=regimeOf;',
-  'this.classifyRadarTf=classifyRadarTf;',
-  'this.evaluateAutobotEdge=evaluateAutobotEdge;',
-].join('\n'), context);
+const context = loadFunctions(
+  ['regimeOf', 'classifyRadarTf', 'evaluateAutobotEdge'],
+  {
+    Number,
+    Math,
+    isFinite,
+    SYM: { longTh: 75, shortTh: 25 },
+    clamp: (x, a, b) => Math.max(a, Math.min(b, x)),
+    squeezeAt: () => false,
+  },
+);
 
 // Q-2: A neutral DSR caused by zero variance is not statistical evidence.
 for (const count of [6, 12]) {
