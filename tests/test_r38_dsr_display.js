@@ -1,8 +1,8 @@
 'use strict';
 
-const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const vm = require('node:vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
@@ -64,7 +64,8 @@ function render(strictUniverseGate) {
     console,
   };
   vm.createContext(context);
-  vm.runInContext(`${extractFunction('renderBacktest')}\nthis.renderBacktest=renderBacktest;`, context);
+  vm.runInContext( // NOSONAR: executes only extracted, checked-in repository source.
+  `${extractFunction('renderBacktest')}\nthis.renderBacktest=renderBacktest;`, context);
   context.renderBacktest(true);
   return elements['bt-dsr'];
 }
