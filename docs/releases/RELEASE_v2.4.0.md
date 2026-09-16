@@ -47,4 +47,4 @@ Das Audit fand in einzelnen älteren Suites einen hohen Anteil statischer `sourc
 | DSR-Default T=18 mutationsempfindlich | PASS | `tests/test_dsr_default_trials.js` |
 | Score-Clamp negative Inputs → 0 | PASS | `tests/test_score_clamp_negative.js` |
 | Vollständige Suites / Release-Gate / Ledger | PASS | pytest: 504 passed + 69 subtests; 97 JS-Suites; release_check: 120/120 PASS, Exit 0, SOFTWARE_GO / MODEL_NO_EVIDENCE; verify_ledger Exit 0 |
-| PR/CI/Merge/Tag/Release/Asset/Deploy | PENDING | Wird nach Veröffentlichung ergänzt |
+| PR/CI/Merge/Tag/Release/Asset/Deploy | PASS | PR #51 merged (`a4d5da0f764287c766ddb4ad8bcd3e1c6cf3d456`), Tag `v2.4.0` gepusht, GitHub Release v2.4.0 publiziert, Asset SHA `67b6ca32...`, Webhook Delivery `0151d200-b177-11f1-8cd7-633d4c50e357` HTTP 202 |
