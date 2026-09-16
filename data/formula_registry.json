@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "canonical_package": "aura.core",
+  "generated_at": "2026-09-17T02:30:00Z",
+  "formulas": [
+    {
+      "id": "F01",
+      "name": "Exponential Moving Average (EMA)",
+      "category": "indicators",
+      "function": "aura.core.indicators.ema_series",
+      "inputs": ["series: list[float]", "period: int"],
+      "outputs": ["list[float]"],
+      "warmup_bars": 1,
+      "test_ids": ["test_ema_series_hand_calculated", "test_ema_empty_and_single"]
+    },
+    {
+      "id": "F02",
+      "name": "Simple Moving Average (SMA)",
+      "category": "indicators",
+      "function": "aura.core.indicators.sma_series",
+      "inputs": ["series: list[float]", "period: int"],
+      "outputs": ["list[float]"],
+      "warmup_bars": "period",
+      "test_ids": ["test_sma_series_hand_calculated"]
+    },
+    {
+      "id": "F03",
+      "name": "Relative Strength Index (RSI)",
+      "category": "indicators",
+      "function": "aura.core.indicators.rsi_series",
+      "inputs": ["closes: list[float]", "period: int = 14"],
+      "outputs": ["list[float]"],
+      "warmup_bars": 14,
+      "test_ids": ["test_rsi_constant_prices_returns_neutral", "test_rsi_strictly_increasing_returns_100", "test_rsi_strictly_decreasing_returns_0"]
+    },
+    {
+      "id": "F04",
+      "name": "Average True Range (ATR)",
+      "category": "indicators",
+      "function": "aura.core.indicators.atr_series",
+      "inputs": ["highs: list[float]", "lows: list[float]", "closes: list[float]", "period: int = 14"],
+      "outputs": ["list[float]"],
+      "warmup_bars": 14,
+      "test_ids": ["test_atr_flatline_returns_zero", "test_atr_hand_calculated"]
+    },
+    {
+      "id": "F05",
+      "name": "Average Directional Index (ADX)",
+      "category": "indicators",
+      "function": "aura.core.indicators.adx_series",
+      "inputs": ["highs: list[float]", "lows: list[float]", "closes: list[float]", "period: int = 14"],
+      "outputs": ["AdxResult(adx, di_plus, di_minus)"],
+      "warmup_bars": 28,
+      "test_ids": ["test_adx_flatline_handles_zero_division"]
+    },
+    {
+      "id": "F08",
+      "name": "SuperTrend",
+      "category": "indicators",
+      "function": "aura.core.indicators.supertrend_series",
+      "inputs": ["highs: list[float]", "lows: list[float]", "closes: list[float]", "period: int = 10", "multiplier: float = 3.0"],
+      "outputs": ["SuperTrendResult(line, direction)"],
+      "warmup_bars": 10,
+      "test_ids": ["test_supertrend_invariant_direction"]
+    },
+    {
+      "id": "F09",
+      "name": "On-Balance Volume (OBV)",
+      "category": "indicators",
+      "function": "aura.core.indicators.obv_series",
+      "inputs": ["closes: list[float]", "volumes: list[float]"],
+      "outputs": ["list[float]"],
+      "warmup_bars": 1,
+      "test_ids": ["test_obv_hand_calculated"]
+    },
+    {
+      "id": "F10",
+      "name": "Volume Weighted Average Price (VWAP)",
+      "category": "indicators",
+      "function": "aura.core.indicators.vwap_series",
+      "inputs": ["timestamps_ms: list[int]", "highs: list[float]", "lows: list[float]", "closes: list[float]", "volumes: list[float]"],
+      "outputs": ["list[float]"],
+      "warmup_bars": 1,
+      "test_ids": ["test_vwap_utc_midnight_reset", "test_vwap_seconds_timestamp_normalization"]
+    },
+    {
+      "id": "F11",
+      "name": "Cumulative Volume Delta (CVD Proxy)",
+      "category": "indicators",
+      "function": "aura.core.indicators.cvd_series",
+      "inputs": ["volumes: list[float]", "highs: list[float]", "lows: list[float]", "closes: list[float]"],
+      "outputs": ["CvdResult(cvd, delta, is_proxy=True)"],
+      "warmup_bars": 1,
+      "test_ids": ["test_cvd_proxy_labeling_and_range_formula", "test_cvd_flat_bar_returns_zero_delta"]
+    },
+    {
+      "id": "F14",
+      "name": "Squeeze Metrics",
+      "category": "indicators",
+      "function": "aura.core.indicators.squeeze_metrics_at",
+      "inputs": ["closes: list[float]", "atrs: list[float]", "idx: int = -1", "period: int = 20"],
+      "outputs": ["SqueezeMetrics(active, compression, upper_bb, lower_bb, upper_kc, lower_kc)"],
+      "warmup_bars": 20,
+      "test_ids": ["test_squeeze_compression_calculation"]
+    },
+    {
+      "id": "F15",
+      "name": "Aggregate Confluence Score",
+      "category": "scoring",
+      "function": "aura.core.scoring.aggregate_confluence_score",
+      "inputs": ["trend: float", "mom: float", "vol: float", "struct: float"],
+      "outputs": ["float [0..100]"],
+      "weights": {"trend": 0.30, "mom": 0.25, "vol": 0.25, "struct": 0.20},
+      "test_ids": ["test_weights_sum_to_100_percent", "test_aggregate_score_hand_calculated", "test_aggregate_score_clamps_0_to_100"]
+    },
+    {
+      "id": "F20",
+      "name": "Funding Bias & Z-Score",
+      "category": "scoring",
+      "function": "aura.core.scoring.calc_funding_bias",
+      "inputs": ["raw_rates: Sequence[float | dict]"],
+      "outputs": ["FundingBias(rate, z, pos_streak, neg_streak, bias, txt)"],
+      "test_ids": ["test_funding_bias_contrarian"]
+    },
+    {
+      "id": "F21",
+      "name": "Open Interest Bias",
+      "category": "scoring",
+      "function": "aura.core.scoring.calc_oi_bias",
+      "inputs": ["oi_hist: Sequence[dict]", "current_price: float", "price_4h_ago: float"],
+      "outputs": ["OpenInterestBias(latest, chg_4h, chg_24h, quadrant, bias)"],
+      "test_ids": ["test_oi_bias_accumulation"]
+    },
+    {
+      "id": "F22",
+      "name": "Spot-Perp-Basis Bias",
+      "category": "scoring",
+      "function": "aura.core.scoring.calc_basis_bias",
+      "inputs": ["mark_price: float", "index_price: float", "threshold: float = 0.0005"],
+      "outputs": ["BasisBias(val, bias, txt)"],
+      "test_ids": ["test_basis_bias_contango_backwardation"]
+    },
+    {
+      "id": "F23",
+      "name": "Macro Adjustment",
+      "category": "scoring",
+      "function": "aura.core.scoring.macro_adjust",
+      "inputs": ["core: float", "fg: float", "fund_bias: float", "funding_z: float", "oi_bias: float", "oi_spike: bool", "basis_bias: float", "mtf_bonus: float"],
+      "outputs": ["MacroAdjustment(total, fg_adj, fund_adj, oi_adj, basis_adj, macro_adj, funding_extreme, oi_spike, veto)"],
+      "hard_cap": 15.0,
+      "test_ids": ["test_macro_adjust_hard_cap_15"]
+    },
+    {
+      "id": "F26",
+      "name": "Deflated Sharpe Ratio (DSR)",
+      "category": "stats",
+      "function": "aura.core.stats.calc_dsr",
+      "inputs": ["returns: Sequence[float]", "num_trials: int = 18"],
+      "outputs": ["DsrResult(dsr, sharpe, sr_star, skew, kurt)"],
+      "test_ids": ["test_dsr_fallback_on_insufficient_sample", "test_dsr_fallback_on_zero_variance", "test_dsr_trials_deflation_property", "test_dsr_parity_with_reference"]
+    },
+    {
+      "id": "F27",
+      "name": "PAVA Isotonic Probability Calibration",
+      "category": "stats",
+      "function": "aura.core.stats.calibrate_probabilities",
+      "inputs": ["oos_trades: Sequence[dict]"],
+      "outputs": ["Callable[[float], float]"],
+      "test_ids": ["test_pava_monotonicity_invariant", "test_pava_empty_sample_uses_bayesian_prior", "test_pava_parity_with_reference"]
+    },
+    {
+      "id": "F28",
+      "name": "Fractional Kelly Sizing",
+      "category": "risk",
+      "function": "aura.core.risk.calc_kelly",
+      "inputs": ["prob_win: float", "avg_win_r: float", "avg_loss_r: float", "risk_pct: float", "equity: float", "total_trades: int = None"],
+      "outputs": ["KellyResult(edge_pct, f_star, half_kelly, final_frac, risk_amt, has_edge, b)"],
+      "test_ids": ["test_kelly_positive_edge_hand_calculated", "test_kelly_negative_edge_returns_zero", "test_kelly_sample_shrinkage", "test_kelly_invalid_inputs_fail_closed"]
+    },
+    {
+      "id": "F29",
+      "name": "Position Sizing with Truncation & ULP Protection",
+      "category": "risk",
+      "function": "aura.core.risk.size_position",
+      "inputs": ["risk_amt: float", "entry: float", "stop_distance: float", "leverage: int = 1", "spec: dict = None"],
+      "outputs": ["PositionSize(qty, contracts, notional, margin, actual_risk_amt)"],
+      "test_ids": ["test_size_position_hand_calculated", "test_size_position_never_exceeds_risk_budget", "test_size_position_below_minimum_returns_zero"]
+    },
+    {
+      "id": "F30",
+      "name": "Leverage Recommendation",
+      "category": "risk",
+      "function": "aura.core.risk.recommend_leverage",
+      "inputs": ["entry: float", "sl: float", "notional: float", "equity: float", "max_leverage: int = 50"],
+      "outputs": ["LeverageRecommendation(leverage, stop_pct, liquidation_buffer_pct, margin, margin_budget, safe_max, warning)"],
+      "test_ids": ["test_recommend_leverage_invariant", "test_leverage_does_not_change_stop_loss_distance"]
+    },
+    {
+      "id": "F31",
+      "name": "Selection Objective",
+      "category": "stats",
+      "function": "aura.core.stats.selection_objective",
+      "inputs": ["exp_r: float", "total_trades: int", "min_trades: int = 2"],
+      "outputs": ["float"],
+      "test_ids": ["test_selection_objective", "test_selection_objective_parity"]
+    },
+    {
+      "id": "F32",
+      "name": "Walk-Forward Folds (t1-safe)",
+      "category": "stats",
+      "function": "aura.core.stats.walk_forward_folds",
+      "inputs": ["num_bars: int", "warmup: int = 235", "k: int = 4"],
+      "outputs": ["list[FoldGeometry]"],
+      "test_ids": ["test_walk_forward_folds_no_overlap", "test_walk_forward_folds_parity"]
+    },
+    {
+      "id": "F34_F59",
+      "name": "Accounting Reconciliation (Conservation Law)",
+      "category": "stats",
+      "function": "aura.core.stats.reconcile_accounting",
+      "inputs": ["starting_equity: float", "trades: Sequence[dict]", "risk_per_r: float = 100.0"],
+      "outputs": ["AccountingReconciliation(starting_equity, ending_equity, realized_pnl, unrealized_pnl, fees, expected_equity, discrepancy, is_reconciled)"],
+      "test_ids": ["test_reconcile_accounting_closed_and_open_trades", "test_accounting_reconciliation_parity"]
+    },
+    {
+      "id": "F58",
+      "name": "Trade Evaluation (R-Multiples)",
+      "category": "stats",
+      "function": "aura.core.stats.evaluate_trades",
+      "inputs": ["trades: Sequence[dict]"],
+      "outputs": ["TradeEvaluation(total, wins, losses, win_rate, profit_factor, expectancy_r, max_drawdown_r, avg_win_r, avg_loss_r, returns)"],
+      "test_ids": ["test_evaluate_trades_hand_calculated", "test_trade_evaluation_parity"]
+    }
+  ]
+}
