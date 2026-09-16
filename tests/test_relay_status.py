@@ -107,6 +107,9 @@ class TestRenderStatusHtml(unittest.TestCase):
                     )
                     self.assertIn("ALLES OK", html)
                     self.assertIn("banner-ok", html)
+                    self.assertIn("Server-Only Live seit v2.5.0 — kein Pause mehr, Dashboard ist Viewer+Config", html)
+                    self.assertIn("Nein (Server-Only Live seit v2.5.0)", html)
+                    self.assertIn("Bot Aktiv</span><span class=\"val val-ok\">Ja", html)
                     # Secret topic must be masked
                     self.assertNotIn("secret-topic-12345", html)
                     self.assertIn("https://ntfy.sh/secret…", html)
@@ -191,6 +194,16 @@ class TestRenderStatusHtml(unittest.TestCase):
         self.assertNotIn("<link rel=\"stylesheet\"", html)
         self.assertIn("<!DOCTYPE html>", html)
         self.assertIn("<meta charset=\"utf-8\">", html)
+
+
+    def test_server_mode_ignores_legacy_paused_health_flag(self):
+        payload = '{"running":true,"lastCycleAt":99000,"lastHeartbeatAt":99000,"paused":true,"pausedBy":"browser","cycleCount":5,"tradeCount":0,"equity":10000}'
+        with patch.object(bitget_relay.Path, "read_text", return_value=payload), \
+             patch.object(bitget_relay.time, "time", return_value=100.0):
+            health = bitget_relay._runner_health(mode="server")
+        self.assertFalse(health["paused"])
+        self.assertIsNone(health["paused_by"])
+        self.assertEqual(health["state"], "running")
 
 
 class TestStatusHttpEndpoint(unittest.TestCase):

@@ -67,6 +67,8 @@ const freshA = {
 };
 
 function resetBot() {
+  ctx.__App.serverBotActive = false;
+  bot.serverBotActive = false;
   ctx.__App.data.radar = [readyCandidate];
   ctx.__App.universe = [{ symbol: readyCandidate.symbol, vol: 10000000, liquidityVerified: true }];
   ctx.__App.data.btcScore = null;

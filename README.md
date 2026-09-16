@@ -6,10 +6,10 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v2.4.0 — Confluence Terminal
+# AURA v2.5.0 — Confluence Terminal
 
 <div align="center">
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.4.0-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 2.4.0"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.5.0-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 2.5.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-00F2FE?style=for-the-badge&labelColor=080B11" alt="MIT License"></a>
   <a href="https://www.tradingview.com/pine-script-docs/"><img src="https://img.shields.io/badge/Pine%20Script-v6-B026FF?style=for-the-badge&labelColor=080B11" alt="Pine Script v6"></a>
   <img src="https://img.shields.io/badge/market-Bitget%20USDT--M-F23645?style=for-the-badge&labelColor=080B11" alt="Bitget USDT-M">
@@ -182,7 +182,8 @@ Ein technisch grünes Release kann weiterhin `MODEL_NO_EVIDENCE` melden. Das bed
 
 ## Releases & Changelog
 
-- [**Aktuelles Release v2.4.0 (docs/releases/RELEASE_v2.4.0.md)**](docs/releases/RELEASE_v2.4.0.md) — MINOR: Triple-Forensik Fix — wirksame Score-Profile 58/65/75, Nullvarianz-Guard, Regime-Epsilon, klare DSR/Kelly/Score-Erklärungen; globale Wahrheit bleibt MODEL_NO_EVIDENCE.
+- [**Aktuelles Release v2.5.0 (docs/releases/RELEASE_v2.5.0.md)**](docs/releases/RELEASE_v2.5.0.md) — MINOR: Server-Only Live — Docker-Runner ohne Pause, Dashboard als Viewer + Config, keine Browser-Trades; globale Wahrheit bleibt MODEL_NO_EVIDENCE.
+- [Release v2.4.0 (docs/releases/RELEASE_v2.4.0.md)](docs/releases/RELEASE_v2.4.0.md) — Triple-Forensik Fix — wirksame Score-Profile 58/65/75, Nullvarianz-Guard und Regime-Epsilon.
 - [Release v2.3.0 (docs/releases/RELEASE_v2.3.0.md)](docs/releases/RELEASE_v2.3.0.md) — Evidence Infra Completion — S6-Elevation-Gate, 90-Tage-Rollfenster, Evidence-Decay, Kostenmodell-Vereinheitlichung und Lockbox-Erzwingung.
 - [**Release v2.2.0 (docs/releases/RELEASE_v2.2.0.md)**](docs/releases/RELEASE_v2.2.0.md) — MINOR: Evidence-Infrastruktur-Härtung für Slippage-Kosten, Verdict-Priorität und ledger-gebundene DSR-Trials.
 - [**Alle Release Notes (docs/releases/)**](docs/releases/) — kanonische Release-Historie.

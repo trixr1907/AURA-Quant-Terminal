@@ -533,15 +533,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <!-- AUTOBOT PRO TRADER SECTION (Autonomous Quant Engine) -->
     <section class="panel autobot-panel" id="autobot-section">
       <div class="panel-head">
-        <h2>⚡ Paper Autobot (Beta · lokale Paper-Simulation)</h2>
-        <span class="autobot-status-badge" id="ab-status-badge">● INAKTIV</span>
-        <button class="ab-toggle-btn" id="btn-toggle-autobot" type="button">▶ Paper Autobot starten</button>
-        <button class="tc-btn" id="btn-config-autobot" type="button" style="margin-left:4px;padding:4px 9px;font-size:9.5px;color:#c084fc;border-color:rgba(168,85,247,.4)" title="Paper-Autobot-Parameter & Strategie konfigurieren">⚙ Parameter</button>
-        <button class="tc-btn" id="btn-reset-autobot" type="button" style="margin-left:4px;padding:4px 8px;font-size:9.5px;color:var(--dim)" title="Paper-Autobot-Kapital & Historie zurücksetzen">↺ Reset</button>
+        <h2>⚡ Server Autobot (Docker · Viewer + Config)</h2>
+        <span class="autobot-status-badge" id="ab-status-badge">● SERVER LIVE</span>
+        <button class="ab-toggle-btn" id="btn-toggle-autobot" type="button">▶ Server-Bot Config aktivieren</button>
+        <button class="tc-btn" id="btn-config-autobot" type="button" style="margin-left:4px;padding:4px 9px;font-size:9.5px;color:#c084fc;border-color:rgba(168,85,247,.4)" title="Server-Bot-Parameter und Strategie konfigurieren">⚙ Parameter</button>
+        <button class="tc-btn" id="btn-reset-autobot" type="button" style="margin-left:4px;padding:4px 8px;font-size:9.5px;color:var(--dim)" title="Lokales Browser-Archiv löschen; Server-Trades bleiben erhalten">↺ Archiv</button>
       </div>
       <div class="panel-body">
         <div class="autobot-kpis">
-          <div class="ab-kpi"><span>Paper-Kapital (Simulation)</span><b id="ab-equity">10,000.00 USDT</b></div>
+          <div class="ab-kpi"><span>Server-Paper-Equity</span><b id="ab-equity">10,000.00 USDT</b></div>
           <div class="ab-kpi"><span>Gesamt-ROI %</span><b id="ab-roi">+0.00%</b></div>
           <div class="ab-kpi"><span>PnL gesamt (offen + realisiert)</span><b id="ab-pnl">0.00 USDT</b></div>
           <div class="ab-kpi"><span>Win-Rate (realisiert) / Trades</span><b id="ab-wr">0.0% (0)</b></div>
@@ -553,7 +553,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);font-size:10px;color:var(--txt);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
             <div id="ab-strategy-summary"><b>Strategie:</b> Einstellbares Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">65</span>, MTF &ge; <span id="cfg-disp-mtf">2/4</span>, positive OOS-Evidenz, Dynamic Scale-Out &amp; Trailing-SL).</div>
-            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Paper-Simulation · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.10 · OOS &ge; 8 Trades</div>
+            <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Server-Only Live · Dashboard ist Viewer + Config · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.10 · OOS &ge; 8 Trades</div>
           </div>
           <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">5.0%</b> · Max Hebel: <b id="cfg-disp-lev">10x</b> · Max Slots: <b id="cfg-disp-max">5</b></div>
         </div>
@@ -562,8 +562,8 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <div id="ab-config-box" class="hidden" style="margin-bottom:12px;padding:14px;background:rgba(15,23,42,.95);border:1px solid rgba(168,85,247,.4);border-radius:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(148,163,184,.15)">
             <div>
-              <b style="font-size:12px;color:#c084fc">⚙ Paper-Autobot Parameter &amp; Risikosteuerung</b>
-              <div style="font-size:10px;color:var(--txt3);margin-top:2px">Konfiguriere Simulationskapital, Filter-Schwellen und Schutzmechanismen. Änderungen werden sofort aktiv.</div>
+              <b style="font-size:12px;color:#c084fc">⚙ Server-Bot Parameter &amp; Risikosteuerung</b>
+              <div style="font-size:10px;color:var(--txt3);margin-top:2px">Änderungen werden zentral gespeichert und im nächsten Docker-Zyklus (max. 15 Sekunden) aktiv. Der Browser eröffnet keine Trades.</div>
             </div>
             <button id="btn-save-ab-config" type="button" class="act" style="height:28px;padding:0 12px;font-size:10px;font-weight:700">✓ Speichern &amp; Anwenden</button>
           </div>
@@ -685,14 +685,14 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         </div>
 
         <div id="ab-trades-container" style="margin-bottom:12px">
-          <span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Paper-Autobot-Positionen. Die lokale Paper-Simulation scannt im Hintergrund das Universum nach Setups.</span>
+          <span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist seit v2.5.0 inaktiv.</span>
         </div>
 
         <details style="margin-top:8px">
-          <summary style="font-size:9.5px;color:var(--mut);cursor:pointer;font-weight:700">Paper-Autobot Decision Log &amp; Historie (<span id="ab-hist-count">0</span>)</summary>
+          <summary style="font-size:9.5px;color:var(--mut);cursor:pointer;font-weight:700">Server-Bot Decision Log &amp; Historie (<span id="ab-hist-count">0</span>)</summary>
           <div style="margin-top:6px">
             <div class="ab-live-log" id="ab-live-log">
-              <div class="ab-log-entry"><span class="ab-log-time">System</span><span class="ab-log-txt">Paper Autobot initialisiert mit 10,000.00 USDT Simulationskapital. Bereit zum Start.</span></div>
+              <div class="ab-log-entry"><span class="ab-log-time">System</span><span class="ab-log-txt">Server-Bot läuft im Docker. Dashboard ist Viewer + Config; Browser-Simulation ist inaktiv.</span></div>
             </div>
           </div>
         </details>
@@ -963,7 +963,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.4.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.5.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1057,7 +1057,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v2.4.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v2.5.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -2528,6 +2528,7 @@ async function fetchCryptoFeatures(symbol, currentPrice, price4hAgo) {
 // ============================================================================
 const App = {
   symbol: 'BTCUSDT', chartTF: '1h', equity: 1000, riskPct: 5.0, visible: 260,
+  serverBotActive: true, // Fail closed until /ready proves server mode is unavailable.
   timeStopBars: SYM.timeStopBars,
   sourceMode: 'bitget', leverage: 1,
   radarPaused: false, radarPauseWaiters: [],
@@ -7882,7 +7883,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '2.4.0';
+const AURA_CLIENT_VERSION = '2.5.0';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -7966,6 +7967,11 @@ async function fetchReadyFunnel() {
     const res = await fetch('/ready', { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
+    App.serverBotActive = Boolean(data && (data.mode === 'server' || data.bot_enabled === true));
+    if (typeof Autobot !== 'undefined') {
+      Autobot.serverBotActive = App.serverBotActive;
+      Autobot.render();
+    }
     if (data && data.funnel24h) {
       renderFunnel24h(data.funnel24h);
     }
@@ -9670,10 +9676,24 @@ const SyncEngine = {
     }
     if (remote[AUTOBOT_KEY] !== undefined && !skip(AUTOBOT_KEY)) {
       const localAutobot = typeof Autobot !== 'undefined' ? Autobot : null;
+      const serverRuntime = remote['aura-server-bot-state-v1'];
+      const remoteAutobot = { ...remote[AUTOBOT_KEY] };
+      if (serverRuntime && typeof serverRuntime === 'object') {
+        remoteAutobot.mode = 'server';
+        remoteAutobot.serverBotActive = true;
+        remoteAutobot.equity = serverRuntime.equity;
+        remoteAutobot.initialEquity = serverRuntime.initialEquity;
+      }
+      if (serverRuntime || remote[TRADE_KEY] !== undefined) {
+        remoteAutobot.trades = (Array.isArray(remote[TRADE_KEY]) ? remote[TRADE_KEY] : []).filter(trade => trade && trade.source === 'server');
+      }
+      if (serverRuntime || remote[TRADE_HIST_KEY] !== undefined) {
+        remoteAutobot.history = (Array.isArray(remote[TRADE_HIST_KEY]) ? remote[TRADE_HIST_KEY] : []).filter(trade => trade && trade.source === 'server');
+      }
       const localState = localAutobot && Array.isArray(localAutobot.trades)
         ? { trades: localAutobot.trades }
         : JSON.parse(localStorage.getItem(AUTOBOT_KEY) || '{}');
-      const reconciled = reconcileAutobotServerState(localState, remote[AUTOBOT_KEY], options.authoritativeAutobot === true);
+      const reconciled = reconcileAutobotServerState(localState, remoteAutobot, true);
       localStorage.setItem(AUTOBOT_KEY, JSON.stringify(reconciled));
       if (localAutobot && typeof localAutobot.loadFromObject === 'function') {
         localAutobot.loadFromObject(reconciled);
@@ -9730,15 +9750,15 @@ const SyncEngine = {
 };
 
 // ============================================================================
-//  AUTOBOT PRO TRADER (Beta Autonomous Quant Engine)
-//  Paper-Autobot: lokale Multi-Timeframe-Paper-Simulation mit separatem Kapital
+//  AUTOBOT SERVER CONTROL PLANE (Viewer + Config)
+//  Server-Only Live: browser renders server trades and edits relay config only.
 // ============================================================================
 const AUTOBOT_KEY = 'aura-autobot-state-v2';
 
 function reconcileAutobotServerState(localState, remoteState, authoritative = false) {
   const remote = remoteState && typeof remoteState === 'object' ? remoteState : {};
-  const localTrades = Array.isArray(localState?.trades) ? localState.trades : [];
-  const remoteTrades = Array.isArray(remote.trades) ? remote.trades : null;
+  const localTrades = Array.isArray(localState?.trades) ? localState.trades.filter(trade => trade && trade.source === 'server') : [];
+  const remoteTrades = Array.isArray(remote.trades) ? remote.trades.filter(trade => trade && trade.source === 'server') : null;
   if (authoritative || remoteTrades === null) return { ...remote };
   const remoteIds = new Set(remoteTrades.map(trade => trade && trade.id).filter(Boolean));
   const retainedLocalTrades = localTrades.filter(trade => trade && trade.id && !remoteIds.has(trade.id));
@@ -9995,8 +10015,8 @@ const Autobot = {
         if (Number.isFinite(stored.minOosSamples)) this.minOosSamples = stored.minOosSamples;
         if (Number.isFinite(stored.minSetupDsr)) this.minSetupDsr = stored.minSetupDsr;
         if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
-        if (Array.isArray(stored.trades)) this.trades = stored.trades;
-        if (Array.isArray(stored.history)) this.history = stored.history;
+        if (Array.isArray(stored.trades)) this.trades = stored.trades.filter(t => t && t.source === 'server');
+        if (Array.isArray(stored.history)) this.history = stored.history.filter(t => t && t.source === 'server');
         if (Array.isArray(stored.logs)) this.logs = stored.logs;
       }
     } catch (_) {}
@@ -10026,8 +10046,8 @@ const Autobot = {
     if (Number.isFinite(stored.minOosSamples)) this.minOosSamples = stored.minOosSamples;
     if (Number.isFinite(stored.minSetupDsr)) this.minSetupDsr = stored.minSetupDsr;
     if (Number.isFinite(stored.stagnationHours)) this.stagnationHours = stored.stagnationHours;
-    if (Array.isArray(stored.trades)) this.trades = stored.trades;
-    if (Array.isArray(stored.history)) this.history = stored.history;
+    if (Array.isArray(stored.trades)) this.trades = stored.trades.filter(t => t && t.source === 'server');
+    if (Array.isArray(stored.history)) this.history = stored.history.filter(t => t && t.source === 'server');
     if (Array.isArray(stored.logs)) this.logs = stored.logs;
   },
 
@@ -10052,8 +10072,8 @@ const Autobot = {
       minOosSamples: this.minOosSamples,
       minSetupDsr: this.minSetupDsr,
       stagnationHours: this.stagnationHours,
-      trades: this.trades,
-      history: this.history,
+      mode: 'server',
+      serverBotActive: App.serverBotActive === true,
       logs: this.logs.slice(-60)
     };
     try {
@@ -10062,6 +10082,34 @@ const Autobot = {
     if (typeof SyncEngine !== 'undefined' && typeof SyncEngine.push === 'function') {
       SyncEngine.push(AUTOBOT_KEY, payload);
     }
+  },
+
+  pushServerConfig() {
+    if (typeof fetch === 'undefined') return Promise.resolve(null);
+    const serverConfig = {
+      enabled: this.enabled,
+      profile: this.profile,
+      minScore: this.minScore,
+      mtfNeed: this.mtfNeed,
+      minOosSamples: this.minOosSamples,
+      minSetupDsr: this.minSetupDsr,
+      minDsr: this.minSetupDsr,
+      strictUniverseGate: this.strictUniverseGate,
+      min24hVol: this.min24hVol,
+      initialEquity: this.initialEquity,
+      equity: this.initialEquity,
+      maxOpenTrades: this.maxOpenTrades,
+      riskPerTradePct: this.riskPerTradePct,
+      maxLeverage: this.maxLeverage,
+      stagnationHours: this.stagnationHours,
+      timeStopBars: this.stagnationHours,
+      btcFilter: this.btcFilter,
+    };
+    return fetch('/api/bot-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(serverConfig),
+    }).catch(() => null);
   },
 
   log(msg) {
@@ -10077,13 +10125,10 @@ const Autobot = {
     if (btnToggle) {
       btnToggle.onclick = () => {
         this.enabled = !this.enabled;
-        this.log(this.enabled ? `🟢 Paper Autobot gestartet: lokale Paper-Simulation scannt ${universeSymbols().length} Assets mit Top-Edge Parametern (Score ≥ ${this.minScore}, MTF ≥ ${this.mtfNeed}/4).` : '⏸ Paper Autobot pausiert.');
+        this.log(this.enabled ? `🟢 Server-Bot Config aktiviert: Profil ${this.profile}, Score ≥ ${this.minScore}, MTF ≥ ${this.mtfNeed}/4.` : '⏸ Server-Bot Config deaktiviert; der Server-Runner bleibt im Modus Server-Only Live aktiv.');
         this.save();
+        this.pushServerConfig();
         this.render();
-        if (this.enabled) {
-          this.lastScanAt = Date.now();
-          this.scanAndExecuteOpportunities();
-        }
       };
     }
 
@@ -10159,35 +10204,19 @@ const Autobot = {
         this.save();
         this.render();
 
-        // PF-67: Write config to server-state so server-bot picks it up next cycle
-        if (typeof fetch !== 'undefined') {
-          const srvCfg = {
-            profile: this.profile, minScore: this.minScore, mtfNeed: this.mtfNeed,
-            minOosSamples: this.minOosSamples, minSetupDsr: this.minSetupDsr, minDsr: this.minSetupDsr,
-            strictUniverseGate: this.strictUniverseGate, min24hVol: this.min24hVol,
-            maxOpenTrades: this.maxOpenTrades, riskPerTradePct: this.riskPerTradePct,
-            maxLeverage: this.maxLeverage, stagnationHours: this.stagnationHours,
-            btcFilter: this.btcFilter,
-          };
-          fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'aura-server-bot-config-v1', value: srvCfg }),
-          }).catch(() => {});
-        }
+        // Persist the executable server config so it is effective next cycle.
+        this.pushServerConfig();
       };
     }
 
     const btnReset = $('btn-reset-autobot');
     if (btnReset) {
       btnReset.onclick = () => {
-        if (confirm('Paper Autobot wirklich zurücksetzen? (10.000 USDT Simulationskapital, alle Paper-Trades & Logs werden gelöscht)')) {
-          this.initialEquity = 10000;
-          this.equity = 10000;
-          this.trades = [];
-          this.history = [];
+        if (confirm('Lokales Browser-Archiv wirklich löschen? Server-Trades und Server-Historie bleiben unverändert.')) {
+          this.trades = this.trades.filter(t => t && t.source === 'server');
+          this.history = this.history.filter(t => t && t.source === 'server');
           this.logs = [];
-          this.log('↺ Paper Autobot auf 10,000 USDT Simulationskapital zurückgesetzt.');
+          this.log('↺ Lokales Browser-Archiv gelöscht; Server-Daten bleiben Quelle der Anzeige.');
           this.save();
           this.render();
         }
@@ -10196,18 +10225,13 @@ const Autobot = {
   },
 
   async tick() {
-    // 1. Update mark prices & perform local Paper-Simulation reactions
-    await this.updateActiveTrades();
-
-    // 2. Scan market for high-edge opportunities if active & slots open
-    if (this.enabled && !this._scanInProgress && this.trades.length < this.maxOpenTrades) {
-      const now = Date.now();
-      if (now - this.lastScanAt > this.scanIntervalMs) {
-        this.lastScanAt = now;
-        await this.scanAndExecuteOpportunities();
-      }
+    if (App.serverBotActive === true) {
+      this.serverBotActive = true;
+      this.render();
+      return null;
     }
     this.render();
+    return null;
   },
 
   async updateActiveTrades() {
@@ -10379,9 +10403,8 @@ const Autobot = {
 
   async scanAndExecuteOpportunities() {
     if (this._scanInProgress) return null;
-    // PF-67: Mode-switch protection — if server-bot is active, pause browser scan
-    if (this.serverBotActive) {
-      console.log('[Autobot] Server-Bot ist aktiv — Browser-Scan pausiert (Doppel-Handel-Schutz)');
+    if (App.serverBotActive === true || this.serverBotActive === true) {
+      console.log('[Autobot] Server-Bot aktiv — Browser-Simulation inaktiv (Server-Only Live)');
       return null;
     }
     if (this.trades.length >= this.maxOpenTrades) return null;
@@ -10691,16 +10714,10 @@ const Autobot = {
     }
     const btn = $('btn-toggle-autobot');
     if (btn) {
-      if (this.serverBotActive) {
-        btn.textContent = '🌐 Server-Bot läuft (24/7)';
-        btn.disabled = true;
-        btn.title = 'Server-Bot läuft im Homelab-Container. Konfiguration über das Parameter-Panel.';
-      } else {
-        btn.textContent = this.enabled ? '⏸ Paper Autobot pausieren' : '▶ Paper Autobot starten';
-        btn.className = 'ab-toggle-btn ' + (this.enabled ? 'running' : '');
-        btn.disabled = false;
-        btn.title = '';
-      }
+      btn.textContent = this.enabled ? '⏸ Server-Bot Config deaktivieren' : '▶ Server-Bot Config aktivieren';
+      btn.className = 'ab-toggle-btn ' + (this.enabled ? 'running' : '');
+      btn.disabled = false;
+      btn.title = 'Ändert ausschließlich die zentrale Server-Konfiguration; der Docker-Runner läuft immer weiter.';
     }
 
     // Config display values in summary bar
@@ -10794,7 +10811,7 @@ const Autobot = {
     // 3. Active Positions Cards
     const container = $('ab-trades-container');
     if (container) {
-      const emptyHtml = '<span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Paper-Autobot-Positionen. Die lokale Paper-Simulation analysiert im Hintergrund das Universum.</span>';
+      const emptyHtml = '<span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist seit v2.5.0 inaktiv.</span>';
       const cardItems = this.trades.map((t, idx) => {
         const px = t.markPrice || tradePrices[t.coin] || t.entry;
         // PF-37: use calculateTradeMetrics for live price/PnL/R metrics,
@@ -10912,6 +10929,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "2.5.0": {
+    title: "Server-Only Live",
+    summary: "Runde 39 (MINOR): Der Docker-Runner bleibt im Server-Modus durchgehend aktiv; das Dashboard ist ausschließlich Viewer und Control Plane für die Server-Konfiguration.",
+    highlights: [
+      "Kein Pause-Konzept mehr: Ein altes Browser-enabled-Flag kann den Server-Runner nicht mehr anhalten; Runner-State und Health melden paused=false.",
+      "Kein Browser-Trading mehr: Dashboard-Tick und Scan öffnen keine lokalen Trades und emittieren keine Browser-Trade-Pushes.",
+      "Config im nächsten Zyklus: Profil, Equity, Risk, Slots, Score, MTF, Volumen, OOS, DSR und Time-Stop gehen über /api/bot-config an den Docker-Runner.",
+      "Research-Wahrheit unverändert: SOFTWARE_GO / MODEL_NO_EVIDENCE, keine Echtgeld-Orderausführung, keine Anlageberatung."
+    ]
+  },
   "2.4.0": {
     title: "Triple-Forensik Fix",
     summary: "Runde 38 (MINOR): Score-Profile wirken nun im Fresh-Gate; Nullvarianz-DSR wird fail-closed blockiert; Quant-, UX- und Dokumentationswarnungen aus dem Triple-Persona-Audit sind behoben. Die globale Evidenz bleibt MODEL_NO_EVIDENCE.",
@@ -11392,7 +11419,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('2.4.0');
+  showReleaseNotesOnce('2.5.0');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;

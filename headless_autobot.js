@@ -1,13 +1,13 @@
 'use strict';
 /**
- * AURA v1.8.2 — Headless Paper Autobot (Server Mode)
+ * AURA v2.5.0 — Headless Paper Autobot (Server-Only Live)
  * ====================================================
  * PF-66: Runs the full Autobot cycle server-side inside the Docker container.
  *        Loads the Engine block directly from Symbiose_Dashboard.html
  *        (same extraction pattern as existing Node tests — zero divergence risk).
  *
  * PF-67: Reads config and writes trades/history via /api/state (relay server state).
- *        Mode-switch flag prevents concurrent Browser+Server bot execution.
+ *        Browser state is control-plane input only and never pauses this runner.
  *
  * PF-68: Emits trade events through relay's _ntfy_notify path via /api/signals
  *        (relay-side endpoint) with server-side claim/dedup via _signal_claims.
@@ -415,8 +415,9 @@ class ServerBotState {
       if (Number.isFinite(srv.startedAt)) this.startedAt = srv.startedAt;
       if (Number.isFinite(srv.lastCycleAt) && srv.lastCycleAt >= 0) this.lastCycleAt = srv.lastCycleAt;
       if (Number.isFinite(srv.lastHeartbeatAt) && srv.lastHeartbeatAt >= 0) this.lastHeartbeatAt = srv.lastHeartbeatAt;
-      if (typeof srv.paused === 'boolean') this.paused = srv.paused;
-      if (typeof srv.pausedBy === 'string' || srv.pausedBy === null) this.pausedBy = srv.pausedBy;
+      // Server-Only Live: never restore legacy pause state from server — runner is always live.
+      // if (typeof srv.paused === 'boolean') this.paused = srv.paused;
+      // if (typeof srv.pausedBy === 'string' || srv.pausedBy === null) this.pausedBy = srv.pausedBy;
       if (Number.isInteger(srv.cycleCount) && srv.cycleCount >= 0) this.cycleCount = srv.cycleCount;
       if (Array.isArray(srv.funnelCycles)) this.funnelCycles = srv.funnelCycles;
     }
@@ -440,8 +441,8 @@ class ServerBotState {
       startedAt: this.startedAt,
       lastCycleAt: this.lastCycleAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
-      paused: this.paused === true,
-      pausedBy: this.paused ? (this.pausedBy || 'browser') : null,
+      paused: false,
+      pausedBy: null,
       cycleCount: this.cycleCount,
       tradeCount: this.trades.length,
       funnel24h: computeFunnel24h(this.funnelCycles),
@@ -470,8 +471,9 @@ function readBotConfig(serverState) {
       maxLeverage:       Number.isFinite(+cfg.maxLeverage)     ? +cfg.maxLeverage     : 10,
       stagnationHours:   Number.isFinite(+cfg.stagnationHours) ? +cfg.stagnationHours : 24,
       btcFilter:         cfg.btcFilter !== false,
+      initialEquity:     Number.isFinite(+cfg.initialEquity) ? +cfg.initialEquity : 10000,
       makerFee:          0.001, takerFee: 0.001, slippage: 0.001,
-      timeStopBars:      12,
+      timeStopBars:      Number.isFinite(+cfg.timeStopBars) ? +cfg.timeStopBars : 12,
     };
   }
   // Defaults (balanced profile)
@@ -479,7 +481,7 @@ function readBotConfig(serverState) {
     profile: 'balanced', minScore: 65, mtfNeed: 2, minOosSamples: 8,
     minSetupDsr: 0.10, minDsr: 0.10, strictUniverseGate: false,
     min24hVol: 500000, maxOpenTrades: 3, riskPerTradePct: 1.0,
-    maxLeverage: 10, stagnationHours: 24, btcFilter: true,
+    maxLeverage: 10, stagnationHours: 24, btcFilter: true, initialEquity: 10000,
     makerFee: 0.001, takerFee: 0.001, slippage: 0.001, timeStopBars: 12,
   };
 }
@@ -524,15 +526,8 @@ async function runScanCycle(engine, state, config, collector = null) {
 
     state.rev = serverState._rev;
 
-    // --- 2. Mode-switch check: if browser bot is active, pause server bot ---
+    // --- 2. Server-Only Live: browser state can configure but never pause the runner ---
     const autobotState = serverState[KEY_STATE];
-    if (autobotState && autobotState.enabled === true && autobotState.mode !== 'server') {
-      console.log('[Runner] Browser bot is active — server bot paused this cycle');
-      state.paused = true;
-      state.pausedBy = 'browser';
-      state.lastHeartbeatAt = Date.now();
-      return null;
-    }
     state.paused = false;
     state.pausedBy = null;
     state.lastHeartbeatAt = Date.now();
@@ -553,6 +548,11 @@ async function runScanCycle(engine, state, config, collector = null) {
 
     // --- 4. Re-read config (Dashboard panel may have changed it) ---
     const cfg = readBotConfig(serverState);
+    funnel.configMinScore = cfg.minScore;
+    if (state.cycleCount === 0 && !state.trades.length && Number.isFinite(cfg.initialEquity) && cfg.initialEquity > 0) {
+      state.initialEquity = cfg.initialEquity;
+      state.equity = cfg.initialEquity;
+    }
 
     // --- 5. Fetch Universe ---
     const universe = config.universe || await fetchUniverseViaRelay();
@@ -1095,8 +1095,8 @@ function exposeHealth(state) {
       running:         true,
       lastCycleAt:     state.lastCycleAt,
       lastHeartbeatAt: state.lastHeartbeatAt || state.lastCycleAt || Date.now(),
-      paused:          state.paused === true,
-      pausedBy:        state.paused ? (state.pausedBy || 'browser') : null,
+      paused:          false,
+      pausedBy:        null,
       cycleCount:      state.cycleCount,
       tradeCount:      state.trades.length,
       equity:          state.equity,
@@ -1116,7 +1116,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[Runner] AURA Headless Paper Autobot starting (v1.8.2)`);
+  console.log(`[Runner] AURA Headless Paper Autobot starting (v2.5.0 Server-Only Live)`);
   console.log(`[Runner] Dashboard: ${DASHBOARD}`);
   console.log(`[Runner] Relay:     ${RELAY_URL}`);
   console.log(`[Runner] Interval:  ${SCAN_SEC}s`);

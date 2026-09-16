@@ -66,15 +66,15 @@ function createContext() {
 
 (async () => {
   const { ctx, store } = createContext();
-  const trade = { id: 'stable-open-trade', coin: 'BTCUSDT', entry: 100, dir: 1, margin: 10, initialMargin: 10, notional: 100, leverage: 10, initialSl: 90, currentSl: 90 };
+  const trade = { id: 'stable-open-trade', coin: 'BTCUSDT', source: 'server', entry: 100, dir: 1, margin: 10, initialMargin: 10, notional: 100, leverage: 10, initialSl: 90, currentSl: 90 };
   const frames = [];
   ctx.Autobot.trades = [trade];
   ctx.Autobot.render = () => frames.push(ctx.Autobot.trades.map(item => item.id));
-  store[ctx.AUTOBOT_KEY] = JSON.stringify({ trades: [trade] });
+  store[ctx.AUTOBOT_KEY] = JSON.stringify({ trades: [trade], history: [] });
   ctx.SyncEngine.bootstrapped = true;
   ctx.fetch = async () => ({
     ok: true,
-    json: async () => ({ ok: true, data: { _rev: 2, [ctx.AUTOBOT_KEY]: { trades: [] } } }),
+    json: async () => ({ ok: true, data: { _rev: 2, 'aura-quant-terminal-active-trades-v2': [] } }),
   });
 
   await ctx.SyncEngine.pull();
@@ -83,8 +83,9 @@ function createContext() {
   assert.deepStrictEqual(Array.from(ctx.Autobot.trades, item => item.id), [trade.id], 'normal pull must retain an unacknowledged active trade absent from an empty snapshot');
   assert(frames.every(ids => ids.length > 0), 'render must never observe an empty active-position frame during a transient pull');
 
-  ctx.SyncEngine.applyServerState({ _rev: 3, [ctx.AUTOBOT_KEY]: { trades: [] } }, false, { authoritativeAutobot: true });
-  assert.strictEqual(ctx.Autobot.trades.length, 0, 'an authoritative ACK/delete must still remove the active trade');
+  ctx.SyncEngine.applyServerState({ _rev: 3, 'aura-quant-terminal-active-trades-v2': [] }, false, { authoritativeAutobot: true });
+  assert.strictEqual(ctx.Autobot.trades.length, 1,
+    'legacy authoritative browser deletes must not remove a server-owned trade in Viewer mode');
 
   assert(!/container\.innerHTML\s*=/.test(html.slice(html.indexOf('render() {', html.indexOf('const Autobot')), html.indexOf('renderLogs() {', html.indexOf('const Autobot')))), 'Autobot cards must not use innerHTML replacement');
   assert(/createDocumentFragment\(\)/.test(html) && /replaceChildren\(/.test(html), 'Autobot cards must be replaced atomically with a DocumentFragment');

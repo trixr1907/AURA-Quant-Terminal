@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.0] – 2026-09-16
+
+### Changed
+- Server-Bot läuft bei `AURA_BOT_MODE=server` ohne Browser-Pause durchgehend; Runner-Payload und Health melden immer `paused:false`.
+- Dashboard ist Viewer + Control Plane und eröffnet keine lokalen Browser-Trades mehr.
+- Server-Konfiguration wird über `/api/bot-config` gespeichert und im nächsten 15-Sekunden-Zyklus gelesen.
+- Statusseite und Tutorial erklären den Server-Only-Live-Betrieb und die Migration des alten `enabled`-Flags.
+
+### Compatibility
+- Gewollter Verhaltensbruch der alten Doppel-Bot-Ownership; API- und State-Schemas bleiben kompatibel.
+- Globale Release-Wahrheit bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`; Ledger EXP-032 und Lockbox bleiben unverändert.
+
+---
+
 ## [2.4.0] – 2026-09-16
 
 ### Added
