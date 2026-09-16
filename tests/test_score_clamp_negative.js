@@ -1,8 +1,8 @@
 'use strict';
 
-const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const vm = require('node:vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
@@ -33,7 +33,8 @@ const context = {
   clamp: (x, a, b) => Math.max(a, Math.min(b, x)),
 };
 vm.createContext(context);
-vm.runInContext(`${extractFunction('aggregateConfluenceScore')}\nthis.aggregateConfluenceScore=aggregateConfluenceScore;`, context);
+vm.runInContext( // NOSONAR: executes only extracted, checked-in repository source.
+  `${extractFunction('aggregateConfluenceScore')}\nthis.aggregateConfluenceScore=aggregateConfluenceScore;`, context);
 
 assert.strictEqual(
   context.aggregateConfluenceScore(-20, -20, -20, -20),

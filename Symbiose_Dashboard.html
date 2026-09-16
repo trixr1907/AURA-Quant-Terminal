@@ -4393,8 +4393,10 @@ function renderLiq(force = false) {
 function renderBacktest(force = false) {
   const A = App.data.chart, wf = App.data.wf, sigs = App.data.bt || [];
   const stats = wf ? wf.stats : btStats(sigs);
-  const strictDsrGate = Boolean(typeof Autobot !== 'undefined' && Autobot.strictUniverseGate);
-  const dsr = wf ? (strictDsrGate ? (wf.universeDsr || wf.dsr) : (wf.setupDsr || wf.dsr)) : { dsr: 0, sharpe: 0 };
+  const autobotAvailable = typeof Autobot !== 'undefined'; // NOSONAR: browser global is intentionally optional.
+  const strictDsrGate = Boolean(autobotAvailable && Autobot.strictUniverseGate);
+  let dsr = { dsr: 0, sharpe: 0 };
+  if (wf) dsr = strictDsrGate ? (wf.universeDsr || wf.dsr) : (wf.setupDsr || wf.dsr);
   const dsrLabel = strictDsrGate ? 'Uni-DSR' : 'Setup-DSR';
   const stateKey = [App.symbol, App.chartTF, App.timeStopBars, A?.n, wf?.folds?.length, stats.total, stats.wr, stats.pf, stats.exp, dsr.dsr, dsr.sharpe, dsrLabel, stats.maxDd, wf?.evidenceStatus];
   if (!force && !RenderCache.isDirty('backtest', stateKey)) return;
@@ -4413,12 +4415,15 @@ function renderBacktest(force = false) {
 
   const elDsr = $('bt-dsr');
   if (elDsr) {
-    const minDsrGate = (typeof Autobot !== 'undefined' && Number.isFinite(+Autobot.minSetupDsr))
-      ? (strictDsrGate ? Math.max(0.5, +Autobot.minSetupDsr) : +Autobot.minSetupDsr)
-      : (strictDsrGate ? 0.5 : 0.10);
+    let minDsrGate = strictDsrGate ? 0.5 : 0.10;
+    if (autobotAvailable && Number.isFinite(+Autobot.minSetupDsr)) {
+      minDsrGate = strictDsrGate ? Math.max(0.5, +Autobot.minSetupDsr) : +Autobot.minSetupDsr;
+    }
     elDsr.textContent = `${dsrLabel} ${(dsr.dsr * 100).toFixed(1)}% (SR ${dsr.sharpe.toFixed(2)})`;
     elDsr.title = `${dsrLabel}: Farbcode ≥0.80 grün belastbar, ≥tatsächlich geprüftem Profil-Gate (${minDsrGate.toFixed(2)}) amber akzeptiert, darunter rot.`;
-    elDsr.style.color = dsr.dsr >= 0.8 ? 'var(--grn2)' : dsr.dsr >= minDsrGate ? 'var(--amb)' : 'var(--red2)';
+    if (dsr.dsr >= 0.8) elDsr.style.color = 'var(--grn2)';
+    else if (dsr.dsr >= minDsrGate) elDsr.style.color = 'var(--amb)';
+    else elDsr.style.color = 'var(--red2)';
   }
 
   const elDd = $('bt-dd');
