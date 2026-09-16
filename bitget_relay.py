@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v2.4.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v2.5.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -10,7 +10,7 @@ API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
   GET  /status           -> Human Status Page (HTML)
-  GET  /serving          -> {"ok": true, "version": "2.4.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "2.5.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
@@ -1354,6 +1354,11 @@ def market_data_health_snapshot() -> dict:
             "inflight": MARKET_DATA_HEALTH.inflight,
         }
 
+def save_server_bot_config(payload: dict) -> tuple:
+    """Persist dashboard control-plane config for the next runner cycle."""
+    return _save_shared_state("aura-server-bot-config-v1", payload)
+
+
 def market_data_readiness() -> dict:
     snapshot = market_data_health_snapshot()
     age = snapshot["last_success_age_seconds"]
@@ -1390,10 +1395,10 @@ def _runner_health(*, mode: str | None = None) -> dict:
         heartbeat_age_sec: float | None = None
         if isinstance(last_heartbeat, (int, float)) and last_heartbeat > 0:
             heartbeat_age_sec = round((time.time() * 1000 - last_heartbeat) / 1000, 1)
-        paused = bool(data.get("paused", False))
-        paused_by = data.get("pausedBy", data.get("paused_by", None)) if paused else None
+        paused = False
+        paused_by = None
         running = bool(data.get("running", False))
-        state_str = "paused" if paused else ("running" if running else "stopped")
+        state_str = "running" if running else "stopped"
         return {
             "mode": "server",
             "bot_enabled": True,
@@ -1673,7 +1678,10 @@ def render_status_html(
     cycle_age_str = f"{cycle_age:.1f}s" if isinstance(cycle_age, (int, float)) else "—"
     runner_paused = bool(runner.get("paused", False))
     runner_paused_by = runner.get("paused_by")
-    paused_display = f"Ja ({html.escape(str(runner_paused_by))})" if runner_paused else "Nein"
+    if bot_mode == "server":
+        paused_display = "Nein (Server-Only Live seit v2.5.0)"
+    else:
+        paused_display = f"Ja ({html.escape(str(runner_paused_by))})" if runner_paused else "Nein"
 
     # Mode note
     if bot_mode != "server":
@@ -1877,6 +1885,12 @@ footer {{
     {violations_html}
   </div>
 
+  <div class="banner banner-ok">
+    <div class="banner-head">
+      <span class="banner-title">Server-Only Live seit v2.5.0 — kein Pause mehr, Dashboard ist Viewer+Config</span>
+    </div>
+  </div>
+
   <div class="grid">
     <div class="card">
       <div class="card-head">Version &amp; Build</div>
@@ -2058,7 +2072,7 @@ def _public_request_cached(method: str, path: str, params: dict) -> tuple[dict, 
 # ---------------------------------------------------------------------------
 
 class RelayHandler(BaseHTTPRequestHandler):
-    _PRIVILEGED_PATHS = {"/api/state", "/api/open-tradingview"}
+    _PRIVILEGED_PATHS = {"/api/state", "/api/bot-config", "/api/open-tradingview"}
     _ALLOWED_HOSTS = ALLOWED_HOSTS
 
     def log_message(self, format, *args):  # suppress default server log  # noqa: A002
@@ -2307,6 +2321,21 @@ class RelayHandler(BaseHTTPRequestHandler):
                 self._send_json({"code": "ERR_TRADINGVIEW_DESKTOP"}, 503, cors_headers=self._privileged_cors_headers())
                 return
             self._send_json({"ok": True, "target": "desktop_association"}, cors_headers=self._privileged_cors_headers())
+            return
+
+        if path == "/api/bot-config":
+            try:
+                serialized_size = len(json.dumps(payload).encode())
+            except (TypeError, ValueError):
+                serialized_size = 0
+            if serialized_size > MAX_STATE_VALUE_BYTES:
+                self._send_json({"code": "ERR_STATE_TOO_LARGE", "msg": f"value exceeds {MAX_STATE_VALUE_BYTES} bytes"}, 413)
+                return
+            saved, rev, persist_error = save_server_bot_config(payload)
+            if persist_error is not None:
+                self._send_json({"code": "ERR_STATE_PERSIST", "msg": "bot config could not be persisted"}, 500, cors_headers=self._privileged_cors_headers())
+                return
+            self._send_json({"ok": True, "rev": rev, "config": saved.get("aura-server-bot-config-v1", {})}, cors_headers=self._privileged_cors_headers())
             return
 
         if path == "/api/state":
