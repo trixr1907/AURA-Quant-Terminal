@@ -325,17 +325,20 @@ test('ServerBotState.loadFromServerState: restores valid runner cycle metadata',
   assert.strictEqual(s.lastCycleAt, 1234567890, 'invalid lastCycleAt must not replace restored metadata');
 });
 
-test('mode flag: KEY_STATE with mode=browser → server bot should pause', () => {
-  // This mimics the check in runScanCycle: autobotState.enabled=true and mode!='server'
-  const autobotState = { enabled: true, mode: 'browser' };
-  const shouldPause = autobotState.enabled === true && autobotState.mode !== 'server';
-  assert.strictEqual(shouldPause, true, 'Server bot must pause when browser bot is active');
+test('mode flag: KEY_STATE with mode=browser never pauses Server-Only Live', () => {
+  const state = new autobot.ServerBotState();
+  state.paused = true;
+  state.pausedBy = 'browser';
+  const payload = state.toServerPayload();
+  assert.strictEqual(payload.paused, false, 'Legacy browser-enabled state must not pause the server runner');
+  assert.strictEqual(payload.pausedBy, null, 'Legacy browser pause ownership must be cleared');
 });
 
-test('mode flag: KEY_STATE with mode=server → server bot should not pause', () => {
-  const autobotState = { enabled: true, mode: 'server' };
-  const shouldPause = autobotState.enabled === true && autobotState.mode !== 'server';
-  assert.strictEqual(shouldPause, false, 'Server bot must not pause in server mode');
+test('mode flag: KEY_STATE with mode=server remains unpaused', () => {
+  const state = new autobot.ServerBotState();
+  const payload = state.toServerPayload();
+  assert.strictEqual(payload.paused, false, 'Server bot must remain live in server mode');
+  assert.strictEqual(payload.pausedBy, null);
 });
 
 // ---------------------------------------------------------------------------

@@ -142,6 +142,9 @@ console.log('--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---');
   vm.runInContext(scanSource + '\nthis.__Autobot = Autobot;\nthis.__App = App;', scanCtx);
 
   const bot = scanCtx.__Autobot;
+  // Isolate historical scanner accounting; production stays Server-Only Live.
+  scanCtx.__App.serverBotActive = false;
+  bot.serverBotActive = false;
   scanCtx.__App.data.radar = radar120;
   scanCtx.__App.universe = radar120.map(r => ({ symbol: r.symbol, vol: 10000000, liquidityVerified: true }));
   scanCtx.__App.data.btcScore = null;
