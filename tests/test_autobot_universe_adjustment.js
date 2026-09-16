@@ -236,7 +236,13 @@ console.log('--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---');
   console.log('--- Testing Acceptance Criteria 4: Option B (Default) vs Option A (Strict) ---');
   const candidateWf = {
     evidenceStatus: 'OOS',
-    stats: { total: 18, wr: 0.6, avgWinR: 2.0, avgLossR: 1.0 },
+    stats: {
+      total: 18,
+      wr: 0.6,
+      avgWinR: 2.0,
+      avgLossR: 1.0,
+      returns: [2, -1, 2, -1, 2, -1, 2, -1, 2, -1, 2, -1, 2, -1, 2, 2, 2, 2]
+    },
     dsr: { dsr: 0.31 },
     setupDsr: { dsr: 0.92 },
     universeDsr: { dsr: 0.31 },

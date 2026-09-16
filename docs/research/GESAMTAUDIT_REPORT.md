@@ -9,6 +9,14 @@
 
 ---
 
+## R38-Nachtrag: bekannte Test-Qualitätslücken (R39-Backlog)
+
+Das Triple-Persona-Audit vom 16. September 2026 fand in einzelnen neueren Suites einen hohen Anteil statischer `source.includes()`-/`indexOf()`-Assertions (bis 73%). Diese Prüfungen belegen Quelltextanwesenheit, aber nicht zuverlässig das Laufzeitverhalten bei invertierten Bedingungen oder fehlender Skalierung. Zusätzlich mutiert `scripts/audit_rev2_mutations.py` derzeit weder DSR noch `headless_autobot.js` oder Python-Module.
+
+R38 schließt die zwei konkret überlebenden Mutationen (DSR-Default T=18 und Score-Clamp [0,100]) mit verhaltensbasierten VM-Tests. Die breitere Umstellung der statischen Assertions und die Erweiterung des Mutations-Harness bleiben gemäß Owner-Entscheidung R39-Backlog.
+
+---
+
 ## 1. Executive Summary & Audit-Ergebnis
 
 Das AURA Quant Terminal wurde einem vollständigen, mathematisch-statistischen und implementierungsseitigen Korrekturaudit unterzogen. Gemäß dem obersten Grundsatz **„Wahrheit vor Schönheit"** wurde jede Zahl, jede mathematische Herleitung, jedes Signal-Gate und jede Dokumentationsaussage auf den vier formalen Prüfebenen und den vier Querschnitten verifiziert.

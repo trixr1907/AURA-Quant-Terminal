@@ -448,7 +448,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div class="hero-top-row">
             <div class="hero-coin" id="hero-coin">—<small id="hero-coin-sub">Radar wird initialisiert</small></div>
             <span class="hero-dir-badge none" id="hero-dir-badge">—</span>
-            <span class="hero-score-chip" id="hero-score-chip">Score —</span>
+            <span class="hero-score-chip" id="hero-score-chip" title="Technischer Confluence-Index von 0–100 Punkten, keine Gewinnwahrscheinlichkeit. Die OOS-Win-Rate steht separat im Backtest-Panel.">Score —</span>
             <span class="hero-when-chip none" id="hero-when-chip">—</span>
           </div>
           <div class="hero-levels" id="hero-levels">
@@ -469,7 +469,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div class="hero-size-label">Research Exposure</div>
           <div class="hero-size-val" id="hero-contracts">—</div>
           <div class="hero-size-sub" id="hero-notional">— USDT Notional</div>
-          <div class="hero-size-risk"><span class="k">Modellrisiko</span><span class="v" id="hero-risk">—</span><span class="k">Kelly-Edge</span><span class="hero-kelly-chip" id="hero-kelly">—</span></div>
+          <div class="hero-size-risk"><span class="k">Modellrisiko</span><span class="v" id="hero-risk">—</span><span class="k" title="Erwarteter Edge über die OOS-Stichprobe, nicht der Gewinn dieses Einzeltrades. Das Einzeltrade-Risiko bleibt durch das Modellrisiko begrenzt.">Statistischer Vorteil (Ø über viele Trades)</span><span class="hero-kelly-chip" id="hero-kelly">—</span></div>
         </div>
       </div>
       <div class="hero-source" id="hero-source"><span class="source-label">Radar-Kontext</span><span id="hero-source-tfs"></span><span id="hero-source-aligned"></span><span id="hero-btc-block" style="color:var(--amb);font-weight:700;display:none">BTC-Regime-Block</span><span class="hero-radar-link" id="hero-radar-link" role="button" tabindex="0" aria-controls="radarcard" aria-expanded="false">Radar öffnen →</span></div>
@@ -572,9 +572,9 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <div style="background:rgba(2,6,23,.4);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.05)">
               <label style="display:block;font-size:9.5px;font-weight:700;color:#c084fc;text-transform:uppercase;margin-bottom:4px">🎯 Scan-Profil</label>
               <select id="ab-cfg-profile" style="width:100%;padding:6px 8px;font:700 11px var(--mono);background:rgba(6,9,15,.8);border:1px solid var(--line);border-radius:5px;color:var(--txt)">
-                <option value="balanced" selected>Ausgewogen (Score 65 · 2/4 MTF · 500k Vol)</option>
-                <option value="aggressive">Aktiv (Score 58 · 1/4 MTF · 250k Vol)</option>
-                <option value="strict">Strikt (Score 75 · 3/4 MTF · 1M Vol)</option>
+                <option value="balanced" selected>Ausgewogen (Fresh-Gate 65 · 2/4 MTF · 500k Vol)</option>
+                <option value="aggressive">Aktiv (Fresh-Gate 58 · 1/4 MTF · 250k Vol · kann mehr Paper-Einstiege zulassen)</option>
+                <option value="strict">Strikt (Fresh-Gate 75 · 3/4 MTF · 1M Vol)</option>
                 <option value="custom">Benutzerdefiniert</option>
               </select>
               <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.25">Schnellwahl: Passt Schwellenwerte automatisch an dein Risikoprofil an.</div>
@@ -675,7 +675,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
                 <b style="color:#38bdf8">🧪 OOS-Trades (Historientest):</b> Das System testet jedes Setup an den echten Kursbewegungen der Vorwochen. Mindestens 8 historische Trades beweisen, dass die Strategie nicht nur ein Einzeltreffer ist.
               </div>
               <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
-                <b style="color:#c084fc">🎲 Setup-DSR (Zufallsschutz):</b> Die <i>Deflated Sharpe Ratio</i> nach Prof. Marcos López de Prado prüft, ob Backtest-Ergebnisse echtes Können oder Zufall waren. Ein Wert ab 0.10 schützt vor Überanpassung (Overfitting).
+                <b style="color:#c084fc">🎲 Setup-DSR (Zufallsschutz):</b> Die <i>Deflated Sharpe Ratio</i> nach López de Prado schätzt auf einer Skala von 0–1, wie belastbar der Edge nach Multiple-Testing-Korrektur ist. Profil-Gates: 0.10 ausgewogen, 0.05 aktiv, 0.30 strikt; ≥0.50 gilt als statistisch belastbarer. Bei kleinen OOS-Stichproben ist die Evidenz unsicher; deshalb verlangt das Gate zusätzlich Edge &gt; 0 und nicht-konstante Returns.
               </div>
               <div style="background:rgba(15,23,42,.6);padding:6px 8px;border-radius:4px">
                 <b style="color:var(--amb)">⌛ Time-Stop &amp; Volumen:</b> Steht ein Trade 12 Stunden lang auf der Stelle, wird er automatisch geschlossen, um Kapital freizumachen. Das 500k-Mindestvolumen schützt vor illiquiden Spreads.
@@ -963,7 +963,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.3.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.4.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1057,7 +1057,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v2.3.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Confluence Terminal v2.4.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -1073,6 +1073,15 @@ const SYM = {
   runnerScore: 85, basisThr: 0.0005
 };
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/** Aggregate weighted sub-scores and keep the public score contract in [0, 100]. */
+function aggregateConfluenceScore(trend, momentum, volume, structure) {
+  return clamp(
+    SYM.wTrend * trend + SYM.wMom * momentum + SYM.wVol * volume + SYM.wStr * structure,
+    0,
+    100
+  );
+}
 
 function emaArr(src, p) {
   const n = src.length, out = new Float64Array(n);
@@ -1377,7 +1386,7 @@ function analyze(candles) {
       const vsc = clamp(50 + (obv[i] > eobv[i] ? 15 : -15) + (isAboveVwap ? 10 : -10) + (clamp((v[i] / vref - 1) * 20, -10, 10) * (c[i] > o[i] ? 1 : -1)) + (cvd[i] > ecvd[i] ? 10 : -10), 0, 100);
       const ssc = clamp(50 + (bosBull <= 6 ? 15 : bosBear <= 6 ? -15 : 0) + (chBull <= 6 ? 10 : chBear <= 6 ? -10 : 0) + (fvgAct && fvgDir === 1 && c[i] > fvgTop ? 10 : fvgAct && fvgDir === -1 && c[i] < fvgBot ? -10 : 0) + (!isNaN(eqhLvl) ? 7 : !isNaN(eqlLvl) ? -7 : 0) + (structTrend === 1 ? 8 : -8), 0, 100);
       trendS[i] = ts_; momS[i] = msz; volS[i] = vsc; strS[i] = ssc;
-      score[i] = clamp(SYM.wTrend * ts_ + SYM.wMom * msz + SYM.wVol * vsc + SYM.wStr * ssc, 0, 100);
+      score[i] = aggregateConfluenceScore(ts_, msz, vsc, ssc);
       dirS[i] = score[i] > 55 ? 1 : score[i] < 45 ? -1 : 0;
     }
     lastPHa[i] = lastPHv; lastPLa[i] = lastPLv; structA[i] = structTrend;
@@ -1674,7 +1683,9 @@ function calcBasisBias(markPrice, indexPrice, threshold = 0.0005) {
 function regimeOf(A, idx = null) {
   const i = idx != null ? idx : A.n - 1;
   const c = A.c[i], e50 = A.e50[i], e200 = A.e200[i], adx = A.adx ? A.adx[i] : (A.last ? A.last.adx : 20);
-  const bull = c > e200 && e50 > e200, bear = c < e200 && e50 < e200;
+  const eps = Math.max(1e-12, Math.abs(e200) * 1e-12);
+  const bull = c > e200 + eps && e50 > e200 + eps;
+  const bear = c < e200 - eps && e50 < e200 - eps;
   const isSqz = squeezeAt(A, i);
   if (isSqz) return { reg: 0, txt: 'SIDEWAYS·SQZ', c: 'var(--amb)', isSqz: true };
   if (bull && adx >= 20) return { reg: 1, txt: 'BULL', c: 'var(--grn2)', isSqz: false };
@@ -1714,9 +1725,11 @@ function squeezeMetricsAt(A, idx = null) {
 }
 
 /** Classify one radar timeframe with the same technical gates as the live engine. */
-function classifyRadarTf({ score, dir, regime, isSqz, adx, atrPct }) {
-  const longCandidate = dir === 1 && score >= SYM.longTh;
-  const shortCandidate = dir === -1 && score <= SYM.shortTh;
+function classifyRadarTf({ score, dir, regime, isSqz, adx, atrPct, longTh = 75, shortTh = 25 }) {
+  const lt = Number.isFinite(longTh) ? longTh : SYM.longTh;
+  const st = Number.isFinite(shortTh) ? shortTh : SYM.shortTh;
+  const longCandidate = dir === 1 && score >= lt;
+  const shortCandidate = dir === -1 && score <= st;
   const candidate = longCandidate || shortCandidate;
   const regimeMatch = longCandidate ? regime === 1 : shortCandidate ? regime === -1 : false;
   const trendStrong = isFinite(adx) && adx >= 20;
@@ -1725,7 +1738,7 @@ function classifyRadarTf({ score, dir, regime, isSqz, adx, atrPct }) {
   else if (candidate && !regimeMatch) status = 'blocked_regime';
   else if (candidate && !trendStrong) status = 'blocked_weak_trend';
   else if (candidate) status = 'ready';
-  else if ((dir === 1 && score >= SYM.longTh - 8) || (dir === -1 && score <= SYM.shortTh + 8)) status = 'watch';
+  else if ((dir === 1 && score >= lt - 8) || (dir === -1 && score <= st + 8)) status = 'watch';
 
   const directionalStrength = dir === 1 ? clamp((score - 50) * 2, 0, 100)
     : dir === -1 ? clamp((50 - score) * 2, 0, 100) : 0;
@@ -4380,8 +4393,12 @@ function renderLiq(force = false) {
 function renderBacktest(force = false) {
   const A = App.data.chart, wf = App.data.wf, sigs = App.data.bt || [];
   const stats = wf ? wf.stats : btStats(sigs);
-  const dsr = wf ? wf.dsr : { dsr: 0, sharpe: 0 };
-  const stateKey = [App.symbol, App.chartTF, App.timeStopBars, A?.n, wf?.folds?.length, stats.total, stats.wr, stats.pf, stats.exp, dsr.dsr, dsr.sharpe, stats.maxDd, wf?.evidenceStatus];
+  const autobotAvailable = typeof Autobot !== 'undefined'; // NOSONAR: browser global is intentionally optional.
+  const strictDsrGate = Boolean(autobotAvailable && Autobot.strictUniverseGate);
+  let dsr = { dsr: 0, sharpe: 0 };
+  if (wf) dsr = strictDsrGate ? (wf.universeDsr || wf.dsr) : (wf.setupDsr || wf.dsr);
+  const dsrLabel = strictDsrGate ? 'Uni-DSR' : 'Setup-DSR';
+  const stateKey = [App.symbol, App.chartTF, App.timeStopBars, A?.n, wf?.folds?.length, stats.total, stats.wr, stats.pf, stats.exp, dsr.dsr, dsr.sharpe, dsrLabel, stats.maxDd, wf?.evidenceStatus];
   if (!force && !RenderCache.isDirty('backtest', stateKey)) return;
 
   const elTs = $('bt-ts'); if (elTs) elTs.textContent = App.timeStopBars;
@@ -4398,8 +4415,15 @@ function renderBacktest(force = false) {
 
   const elDsr = $('bt-dsr');
   if (elDsr) {
-    elDsr.textContent = (dsr.dsr * 100).toFixed(1) + '% (SR ' + dsr.sharpe.toFixed(2) + ')';
-    elDsr.style.color = dsr.dsr >= 0.8 ? 'var(--grn2)' : dsr.dsr >= 0.5 ? 'var(--amb)' : 'var(--red2)';
+    let minDsrGate = strictDsrGate ? 0.5 : 0.10;
+    if (autobotAvailable && Number.isFinite(+Autobot.minSetupDsr)) {
+      minDsrGate = strictDsrGate ? Math.max(0.5, +Autobot.minSetupDsr) : +Autobot.minSetupDsr;
+    }
+    elDsr.textContent = `${dsrLabel} ${(dsr.dsr * 100).toFixed(1)}% (SR ${dsr.sharpe.toFixed(2)})`;
+    elDsr.title = `${dsrLabel}: Farbcode ≥0.80 grün belastbar, ≥tatsächlich geprüftem Profil-Gate (${minDsrGate.toFixed(2)}) amber akzeptiert, darunter rot.`;
+    if (dsr.dsr >= 0.8) elDsr.style.color = 'var(--grn2)';
+    else if (dsr.dsr >= minDsrGate) elDsr.style.color = 'var(--amb)';
+    else elDsr.style.color = 'var(--red2)';
   }
 
   const elDd = $('bt-dd');
@@ -5493,7 +5517,7 @@ function renderHero(force = false) {
     }
     $('hero-risk').textContent   = L.riskAmt.toFixed(2) + ' USDT (' + (L.kelly.finalFrac * 100).toFixed(2) + '%)';
     const levHint = (L.levRec && L.levRec.leverage > 0) ? ' · Hebel ' + L.levRec.leverage + 'x' : '';
-    $('hero-kelly').textContent  = '+' + L.kelly.edge.toFixed(1) + '% Edge · Half-Kelly' + levHint;
+    $('hero-kelly').textContent  = '+' + L.kelly.edge.toFixed(1) + '% statistischer Edge · Half-Kelly' + levHint;
   } else if (hasLiveSig && !hasLiveEdge) {
     // Signal but no edge — make this extremely clear
     $('hero-contracts').textContent = '0 — KEIN TRADE';
@@ -7858,7 +7882,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '2.3.0';
+const AURA_CLIENT_VERSION = '2.4.0';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -9882,13 +9906,20 @@ function evaluateAutobotEdge(wf, minSamples = 15, options = null) {
   const universeDsr = Number.isFinite(+universeDsrObj?.dsr) ? +universeDsrObj.dsr : setupDsr;
 
   const strictApplied = Boolean(opts.strictUniverseGate);
+  const strictMinDsrGate = strictApplied ? Math.max(0.5, minDsr) : minDsr;
   const testDsr = strictApplied ? universeDsr : setupDsr;
 
   if (!Number.isFinite(total) || total < minSamples || !Number.isFinite(+stats.wr) ||
       !Number.isFinite(+stats.avgWinR) || !Number.isFinite(+stats.avgLossR) ||
       !Number.isFinite(testDsr) || !effectiveTrials || +stats.avgWinR <= 0 || +stats.avgLossR <= 0) return rejected;
+  const returns = stats.returns;
+  if (!Array.isArray(returns) || returns.length < 3 || returns.some(r => !Number.isFinite(r))) return rejected;
+  const meanReturn = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const returnVariance = returns.reduce((sum, value) => sum + (value - meanReturn) ** 2, 0) / (returns.length - 1);
+  if (!Number.isFinite(returnVariance) || returnVariance < 1e-12) return rejected;
+
   const edge = (+stats.wr * +stats.avgWinR) - ((1 - +stats.wr) * +stats.avgLossR);
-  if (!Number.isFinite(edge) || edge <= 0 || testDsr < minDsr) {
+  if (!Number.isFinite(edge) || edge <= 0 || testDsr < strictMinDsrGate) {
     return {
       accepted: false,
       edge: Number.isFinite(edge) ? edge : 0,
@@ -10464,7 +10495,9 @@ const Autobot = {
             regime: freshRegime.reg,
             isSqz: freshRegime.isSqz,
             adx: A.last.adx,
-            atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0
+            atrPct: signalPrice > 0 ? (A.last.atr / signalPrice * 100) : 0,
+            longTh: this.minScore,
+            shortTh: 100 - this.minScore
           });
           const freshCandidate = evaluateAutobotCandidate({
             executable: freshGate.tradeable,
@@ -10685,7 +10718,7 @@ const Autobot = {
       if (this.lastScanFunnel) {
         const f = this.lastScanFunnel;
         const tEff = 18 * f.wfEvaluated;
-        const mode = this.strictUniverseGate ? `<span style="color:var(--amb)">[Strikt: Uni-DSR &ge; ${this.minSetupDsr.toFixed(2)}]</span>` : `<span style="color:#c084fc">[Setup-DSR &ge; ${this.minSetupDsr.toFixed(2)} · OOS &ge; ${this.minOosSamples}]</span>`;
+        const mode = this.strictUniverseGate ? `<span style="color:var(--amb)">[Strikt: Uni-DSR &ge; ${Math.max(0.5, this.minSetupDsr).toFixed(2)}]</span>` : `<span style="color:#c084fc">[Setup-DSR &ge; ${this.minSetupDsr.toFixed(2)} · OOS &ge; ${this.minOosSamples}]</span>`;
         const numMarkets = Math.round(f.scanned / 4) || f.scanned;
         const rejectDetails = autobotRejectDetails(f);
         funnelEl.innerHTML = `<b>${scanAgeText}</b> &middot; Funnel: <b>${f.scanned}</b> Hypothesen (${numMarkets} Märkte &times; 4 TFs) &rarr; <b>${f.radarFiltered}</b> qualifiziert &rarr; Multiplier <b>${f.wfEvaluated}</b> (Grid 18 &rarr; <i>T</i><sub>eff</sub> <b>${tEff}</b>) &middot; ${mode}`;
@@ -10879,6 +10912,16 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "2.4.0": {
+    title: "Triple-Forensik Fix",
+    summary: "Runde 38 (MINOR): Score-Profile wirken nun im Fresh-Gate; Nullvarianz-DSR wird fail-closed blockiert; Quant-, UX- und Dokumentationswarnungen aus dem Triple-Persona-Audit sind behoben. Die globale Evidenz bleibt MODEL_NO_EVIDENCE.",
+    highlights: [
+      "Wirksame Profile: Aktiv/Ausgewogen/Strikt nutzen im Autobot-Fresh-Gate tatsächlich Score 58/65/75; der Discovery-Radar bleibt unverändert bei 75/25.",
+      "Fail-closed Statistik: fehlende, nicht-finite oder konstante OOS-Returns blockieren das Entry-Gate; flache EMA-Reihen bleiben per Epsilon SIDEWAYS.",
+      "Klare Begriffe: Score ist keine Gewinnwahrscheinlichkeit, Kelly-Edge kein Einzeltrade-Gewinn, DSR 0–1 mit profilabhängiger Ampel und erklärtem Gate.",
+      "Research-Wahrheit unverändert: SOFTWARE_GO / MODEL_NO_EVIDENCE, keine Live-Orders, keine Anlageberatung."
+    ]
+  },
   "2.3.0": {
     title: "Evidence Infra Completion",
     summary: "Runde 37 (MINOR): S6-Elevation-Gate, 90-Tage-Rollfenster, Evidence-Decay, Kostenmodell-Vereinheitlichung (0,1%/0,1%/0,1%) aller 5 Evidenzpfade und Lockbox-Single-Shot-Erzwingung — ohne Änderungen an Signal-, Entry-, Exit-, Scoring- oder Sizing-Logik.",
@@ -11349,7 +11392,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('2.3.0');
+  showReleaseNotesOnce('2.4.0');
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
