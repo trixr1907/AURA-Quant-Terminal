@@ -245,15 +245,18 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   margin-top: 2px;
 }
 .ab-toggle-btn {
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 6px;
-  font: 800 10px var(--mono);
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font: 800 12px var(--mono);
   cursor: pointer;
   border: 1px solid rgba(168, 85, 247, 0.4);
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.3));
   color: #d8b4fe;
   transition: .15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .ab-toggle-btn:hover {
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(147, 51, 234, 0.45));
@@ -264,6 +267,12 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   border-color: rgba(251, 113, 133, 0.4);
   background: linear-gradient(135deg, rgba(251, 113, 133, 0.2), rgba(244, 63, 94, 0.3));
   color: #fda4af;
+}
+@media (max-width: 768px) {
+  .ab-toggle-btn, .tc-btn {
+    min-height: 44px;
+    font-size: 12px !important;
+  }
 }
 .ab-live-log {
   max-height: 140px;
@@ -541,12 +550,12 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       </div>
       <div class="panel-body">
         <div class="autobot-kpis">
-          <div class="ab-kpi"><span>Server-Paper-Equity</span><b id="ab-equity">10,000.00 USDT</b></div>
-          <div class="ab-kpi"><span>Gesamt-ROI %</span><b id="ab-roi">+0.00%</b></div>
-          <div class="ab-kpi"><span>PnL gesamt (offen + realisiert)</span><b id="ab-pnl">0.00 USDT</b></div>
-          <div class="ab-kpi"><span>Win-Rate (realisiert) / Trades</span><b id="ab-wr">0.0% (0)</b></div>
+          <div class="ab-kpi"><span>Server-Paper-Equity</span><b id="ab-equity">— USDT</b></div>
+          <div class="ab-kpi"><span>Gesamt-ROI %</span><b id="ab-roi">—%</b></div>
+          <div class="ab-kpi"><span>PnL gesamt (offen + realisiert)</span><b id="ab-pnl">— USDT</b></div>
+          <div class="ab-kpi"><span>Win-Rate (realisiert) / Trades</span><b id="ab-wr">— (0)</b></div>
           <div class="ab-kpi"><span>Profit-Faktor</span><b id="ab-pf">—</b></div>
-          <div class="ab-kpi"><span>Aktive Positionen</span><b id="ab-open-count">0 / 3 Max</b></div>
+          <div class="ab-kpi"><span>Aktive Positionen</span><b id="ab-open-count">0 / —</b></div>
         </div>
 
         <!-- Strategy Summary & Status Bar -->
