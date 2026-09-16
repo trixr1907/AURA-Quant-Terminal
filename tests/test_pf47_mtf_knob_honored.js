@@ -91,6 +91,9 @@ vm.runInContext(scriptMatch[1] + '\nthis.__Autobot = Autobot; this.__App = App;'
 
 (async () => {
   const bot = scanContext.__Autobot;
+  // Isolate the MTF scanner contract; production stays Server-Only Live.
+  scanContext.__App.serverBotActive = false;
+  bot.serverBotActive = false;
   scanContext.__App.data.radar = [alignedOne];
   scanContext.__App.universe = [{ symbol: alignedOne.symbol, vol: 10000000, liquidityVerified: false }];
   bot.trades = [];

@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 2.4.0 (Release)
+**Version:** 2.5.0 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
@@ -8,7 +8,7 @@
 
 ## 1. Systemübersicht & Datenpfad-Diagramm
 
-Das AURA Quant Terminal ist ein **Client-First High-Performance Quantitative Trading & Analytics Terminal**. Es kombiniert einen Single-File Frontend-Client (`Symbiose_Dashboard.html`) mit einem leichtgewichtigen Python-Relay (`bitget_relay.py`) für API-Proxying, Caching, Rate-Limiting und Cross-Device State-Synchronisation.
+Das AURA Quant Terminal kombiniert einen Single-File Frontend-Client (`Symbiose_Dashboard.html`) mit einem Python-Relay (`bitget_relay.py`) und dem dauerhaft laufenden Headless-Runner (`headless_autobot.js`). Seit v2.5.0 ist der Browser ausschließlich Research-UI, Viewer und Control Plane; nur der Docker-Runner eröffnet und verwaltet Paper-Trades.
 
 ```mermaid
 flowchart TD
@@ -24,6 +24,7 @@ flowchart TD
     subgraph Python Relay [Local / Docker Relay - bitget_relay.py]
         Proxy[RelayHandler: CORS & Security Proxy]
         Watcher[Signal Center: BTC 5m, Digest, Feed-Fehler]
+        Runner[Headless Autobot: Server-Only Live]
         TB[Token Bucket Rate Limiter: 10 req/s, Burst 20]
         Cache[In-Memory TTL Cache: Klines 60s, Tickers 5s, Other 10s]
         StateStore[Shared State Store: Optimistic Revision Concurrency]
@@ -39,9 +40,11 @@ flowchart TD
     %% Data flows
     WS_Client <==>|Direct Ticks / AggTrades (4s Throttled Analysis)| Bitget_WS
     HTTP_Client -->|REST Proxy Request /api/public| Proxy
-    HTTP_Client <-->|State Get/Post /api/state| StateStore
-    SignalHub -->|Trade Claim /api/state| StateStore
-    SignalHub -->|Trade Push, Browser CORS| Ntfy[ntfy]
+    HTTP_Client <-->|Viewer-State Get/Post /api/state| StateStore
+    HTTP_Client -->|Server-Konfiguration /api/bot-config| StateStore
+    Runner <-->|Config lesen; Server-Trades schreiben| StateStore
+    Runner -->|Server-Trade-Push| Ntfy[ntfy]
+    SignalHub -->|Manuelle Trade-Claims /api/state| StateStore
     Watcher -->|BTC 1h alle 5 min| Proxy
     Watcher -->|Regime/Digest/Fehler| Ntfy
 
@@ -66,7 +69,7 @@ flowchart TD
 | **P1: Direct WebSocket** | Bitget / Binance &rarr; Client | WSS (`wss://...`) | JSON Stream | < 50 ms (4 s Signal-Throttle) | Live-Ticker, letzte Preise, Orderbuch-Ticks, Trade-Aggregates für Live-Regime. |
 | **P2: REST via Relay (Public)** | Client &rarr; Relay &rarr; Bitget | HTTP POST `/api/public` | JSON RPC Passthrough | **Ticker: 5 s TTL**<br>**Klines: 60 s TTL**<br>**Other: 10 s TTL** | Historische Klines, Markt-Ticker, Funding-Rates, Open Interest ohne Auth-Keys. |
 | **P3: Token-Bucket Uplink** | Relay &rarr; Bitget REST | HTTPS Uplink | JSON REST | **10 req/s (Burst 20)**<br>Overflow &rarr; `429 (Retry-After: 1)` | Schutz vor Exchange-IP-Bans bei simultanen 120-Märkte-Scans. |
-| **P4: Cross-Device State Sync** | Client &rarr; Relay `/api/state` | HTTP GET / POST | JSON (Revisioned) | `no-store` (Echtzeit)<br>Optimistic Concurrency | Speichert Autobot-State, aktive Trades, UI-Konfiguration zwischen Desktop/Mobile. |
+| **P4: Server-Only State & Config** | Dashboard ↔ Relay ↔ Runner | HTTP `/api/state`, POST `/api/bot-config` | JSON (Revisioned) | Config spätestens im nächsten 15-s-Zyklus | Dashboard liest Server-Trades und schreibt Control-Plane-Config; nur der Runner schreibt Trades mit `source="server"`. |
 | **P5: Fallback-Kette** | Client &rarr; Ext. APIs | HTTPS GET | JSON REST | Bei Relay-Ausfall / API-Down | 1. Bitget REST &rarr; 2. Binance Public &rarr; 3. CoinGecko &rarr; 4. Prebuilt 120-Asset Static Universe. |
 | **P6: Reactive UI Render** | Quant Engine &rarr; DOM | In-Memory (`RenderCache`) | Hash-Vergleich | < 1 ms | Berechnet State-Hashes je Panel; baut **nur geänderte DOM-Elemente** neu auf. |
 
@@ -204,6 +207,14 @@ Beim Relay-Start migriert `scripts/state_migration.py` vor Runner-Freigabe beide
 - Backup und v2-Datei werden nie in-place überschrieben: Migration nutzt `.tmp` und atomaren Rename.
 - Schema >2 ist fail-closed. Der Relay beendet sich vor Runner-Start und schreibt nicht.
 - `shadow_log.jsonl` und `shadow_stats.json` sind ausdrücklich ausgenommen; die Schattenhistorie bleibt append-only.
+
+### 8.1 Bot-Modus v2.5.0: Server-Only Live
+
+- `AURA_BOT_MODE=server` aktiviert genau einen ausführenden Pfad: `headless_autobot.js` im Docker-Container.
+- Browser-State (`aura-autobot-state-v2`, auch mit altem `enabled=true, mode="browser"`) pausiert den Runner nicht. Runner-Payload und `runner_health.json` melden im Server-Modus immer `paused:false` und `pausedBy:null`.
+- Das Dashboard ist Viewer + Control Plane. `Autobot.tick()` und `scanAndExecuteOpportunities()` eröffnen keine Browser-Trades; aktive Karten und Historie werden auf `source="server"` begrenzt.
+- Der Save-Dialog schreibt UI-State nach `aura-autobot-state-v2` und die ausführbare Konfiguration über `POST /api/bot-config` nach `aura-server-bot-config-v1`. Der Runner liest diesen Key in jedem 15-Sekunden-Zyklus neu.
+- Das alte Pause-Konzept und Browser-Trade-Pushes sind entfernt. Tages-Digest, Equity sowie offene/geschlossene Trades stammen aus dem Server-State.
 
 Betrieb:
 
