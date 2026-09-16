@@ -210,23 +210,23 @@ CLAIMS = [
     {
         "ID": "CLM-19",
         "Quelle": "VERSION:1, README.md:9, Symbiose_Dashboard.html, SYMBIOSE_Tutorial.html, bitget_relay.py",
-        "Wortlaut": "Version 2.2.0 einheitlich in allen Systemkomponenten",
+        "Wortlaut": "Version 2.4.0 einheitlich in allen Systemkomponenten",
         "Typ": "Zahl",
         "Ebene_Querschnitt": "Ebene 3",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle aktuellen Versionsflächen matchen exakt '2.2.0'.",
+        "Beleg_Repro": "scripts/release_check.py Gate 'version consistency' PASS; alle aktuellen Versionsflächen matchen exakt '2.4.0'.",
         "Empfehlung_Fix": "Keine Änderung nötig. Versionierung ist strikt konsistent."
     },
     {
         "ID": "CLM-20",
-        "Quelle": "Symbiose_Dashboard.html:6731",
-        "Wortlaut": "Autobot-Evidenz ist fail-closed: OOS-Status, >=15 geschlossene Trades, positive Expectancy, DSR >= 0.5; keine Trading-Garantie",
+        "Quelle": "Symbiose_Dashboard.html:evaluateAutobotEdge",
+        "Wortlaut": "Autobot-Evidenz ist fail-closed: OOS-Status, profilabhängige Mindestzahl geschlossener Trades, positive Expectancy, nicht-konstante Returns und profilabhängige DSR-Schwelle; keine Trading-Garantie",
         "Typ": "Verhalten",
         "Ebene_Querschnitt": "Ebene 3",
         "Status": "WAHR",
         "Schweregrad": "INFO",
-        "Beleg_Repro": "Symbiose_Dashboard.html:6731-6760, tests/test_autobot_statistical_edge.js, tests/test_autobot_entry_gate.js.",
+        "Beleg_Repro": "Symbiose_Dashboard.html:evaluateAutobotEdge, tests/test_autobot_statistical_edge.js, tests/test_r38_quant_guards.js.",
         "Empfehlung_Fix": "Keine Änderung nötig. Autobot verweigert Ausführung bei fehlender OOS-Evidenz."
     },
     {

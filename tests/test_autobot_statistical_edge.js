@@ -32,7 +32,13 @@ vm.runInContext(`${extractFunction('evaluateAutobotEdge')}\nthis.evaluateAutobot
 
 const acceptedWf = {
   evidenceStatus: 'OOS',
-  stats: { total: 15, wr: 0.6, avgWinR: 1.8, avgLossR: 1.0 },
+  stats: {
+    total: 15,
+    wr: 0.6,
+    avgWinR: 1.8,
+    avgLossR: 1.0,
+    returns: [1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, 1.8, 1.8],
+  },
   dsr: { dsr: 0.5 },
   totalTrials: 18,
 };
@@ -43,7 +49,13 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(context.evaluateAutobotEdge(acc
 // Option B vs Option A verification (Dual-DSR behavior)
 const dualDsrWf = {
   evidenceStatus: 'OOS',
-  stats: { total: 15, wr: 0.6, avgWinR: 1.8, avgLossR: 1.0 },
+  stats: {
+    total: 15,
+    wr: 0.6,
+    avgWinR: 1.8,
+    avgLossR: 1.0,
+    returns: [1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, -1, 1.8, 1.8, 1.8],
+  },
   dsr: { dsr: 0.32 }, // Universe-adjusted DSR (over 8640 trials)
   setupDsr: { dsr: 0.65 }, // Setup DSR (over 18 trials)
   universeDsr: { dsr: 0.32 },

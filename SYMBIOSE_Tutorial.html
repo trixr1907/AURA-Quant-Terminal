@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AURA v2.3.0 — Quant-Research-Tutorial</title>
+<title>AURA v2.4.0 — Quant-Research-Tutorial</title>
 <style>
   :root {
     --bg: #0b1220; --surface: #0f172a; --card: #1e293b;
@@ -181,7 +181,7 @@
 <body>
 
 <nav>
-  <span class="nav-logo">AURA v2.3.0</span>
+  <span class="nav-logo">AURA v2.4.0</span>
   <a href="#workflow">Workflow</a>
   <a href="#score">Score</a>
   <a href="#gates">Gates</a>
@@ -194,8 +194,9 @@
 </nav>
 
 <div class="hero">
-  <h1>AURA v2.3.0 — Quant-Research-Tutorial</h1>
+  <h1>AURA v2.4.0 — Quant-Research-Tutorial</h1>
   <p>Quantitative Edge · Visual Precision · Pure Execution — Wie das System Setups entdeckt, Scores und Gates erklärt und Research-Hypothesen reproduzierbar validiert.</p>
+  <div style="margin:12px auto 0;max-width:900px;padding:10px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);color:var(--amb);font:700 11px var(--mono)">⚠ RESEARCH-ONLY — Keine Anlageberatung. Globale Release-Wahrheit: MODEL_NO_EVIDENCE. Keine Live-Orders. Paper-Simulation.</div>
 </div>
 
 <main>
@@ -271,6 +272,7 @@
   <p>
     Der Dashboard zeigt immer zwei Zahlen: <code>Core / Total</code>.
     Core ist rein technisch. Total beinhaltet Makro-Adjustments, MTF-Bonus und Fear&amp;Greed.
+    Beide Werte sind technische Confluence-Indizes von 0–100 Punkten — keine prozentuale Gewinnwahrscheinlichkeit. Die realisierte OOS-Win-Rate steht separat im Backtest-Panel.
   </p>
 
   <table>
@@ -490,7 +492,7 @@
 
 <!-- ===== 5. EXIT ===== -->
 <section id="exit">
-  <h2><span class="num">5</span> Exit-Logik — wie AURA v2.3.0 Trades beendet</h2>
+  <h2><span class="num">5</span> Exit-Logik — wie AURA v2.4.0 Trades beendet</h2>
 
   <p>
     Das System arbeitet mit einem <b>50/50-Tranchen-Modell</b>. Kein binäres All-or-Nothing mehr.
@@ -509,8 +511,8 @@
 <span class="c-mut">Entry</span>  <span class="c-c1">─────── 100.00</span>
 
        Nach TP1-Hit:
-       <span class="c-grn">TP1 (dyn)</span> <span class="c-grn">███</span> <span class="c-mut">z.B. 114.00 (1.0.0R, Opposing Bear FVG)</span>
-         → Tranche A schließt hier (+1.0.0R netto nach Fee)
+       <span class="c-grn">TP1 (dyn)</span> <span class="c-grn">███</span> <span class="c-mut">z.B. 114.00 (1.0R, Opposing Bear FVG)</span>
+         → Tranche A schließt hier (+1.0R netto nach Fee)
          → SL der Tranche B springt auf Breakeven (Entry)
 
        Runner (Tranche B) läuft bis SuperTrend flippt:
@@ -543,7 +545,7 @@
     <div class="callout-icon">✅</div>
     <div class="callout-body">
       <b>Im Dashboard erkennbar an</b>
-      <p>Die TP1-Zeile zeigt z.B. <code>TP1 dynamisch (Opposing FVG · 1.0.0R)</code> oder <code>TP1 dynamisch (EQH · 1.8R)</code> statt fix "1:2".</p>
+      <p>Die TP1-Zeile zeigt z.B. <code>TP1 dynamisch (Opposing FVG · 1.0R)</code> oder <code>TP1 dynamisch (EQH · 1.8R)</code> statt fix "1:2".</p>
     </div>
   </div>
 
@@ -586,7 +588,7 @@
   <h2><span class="num">6</span> Makro-Kontext — Funding, OI und Fear&amp;Greed nutzen</h2>
 
   <p>
-    Die Makro-Daten sind in v2.2.0 keine bloße Score-Addition mehr — sie können
+    Die Makro-Daten sind in v2.4.0 keine bloße Score-Addition mehr — sie können
     ein Signal <b>physisch blockieren</b> (Veto) oder bis zu 25 Punkte abziehen.
   </p>
 
@@ -709,7 +711,7 @@
     </li>
     <li>
       <span class="icon">🟢</span>
-      <div><b>MTF-Alignment?</b> Sub-Zeile zeigt ≥ 3/4. Idealerweise 4/4. Bei 3/4 auf das abweichende TF schauen — wenn es der Daily ist, vorsichtiger sein.</div>
+      <div><b>MTF-Alignment?</b> Für die manuelle Radar-Triage zeigt die Sub-Zeile idealerweise ≥ 3/4. Der Paper-Autobot hat getrennte, profilabhängige Fresh-Gates: Aktiv 1/4, Ausgewogen 2/4, Strikt 3/4.</div>
     </li>
     <li>
       <span class="icon">🟢</span>
@@ -753,8 +755,8 @@
   <div class="callout callout-red">
     <div class="callout-icon">❌</div>
     <div class="callout-body">
-      <b>"Score ist 78, ich trade trotzdem ohne MTF-Alignment"</b>
-      <p>MTF-Alignment ist kein optionaler Bonus — es ist ein Hard-Gate. Ein Score von 78 mit nur 2/4 MTF ist kein Trade. Das Gate existiert weil Einzelzeitfenster-Signale historisch schlechtere Out-of-Sample-Ergebnisse liefern.</p>
+      <b>"Score ist 78, ich ignoriere das gewählte Profil-Gate"</b>
+      <p>Discovery-Radar und Paper-Autobot sind getrennt: Der Radar bleibt bei 75/25. Der Autobot revalidiert unmittelbar vor einem simulierten Einstieg mit dem gewählten Fresh-Gate: Aktiv 58/42 und 1/4 MTF, Ausgewogen 65/35 und 2/4, Strikt 75/25 und 3/4. Kein Profil umgeht Regime, ADX, Squeeze, Liquidität oder OOS-Evidenz.</p>
     </div>
   </div>
 
@@ -821,8 +823,8 @@
 </main>
 
 <footer>
-  AURA v2.3.0 Tutorial · Generiert für das lokale System unter
-  <code>/home/ivo/projects/openhands-demo/symbiose/</code> ·
+  AURA v2.4.0 Tutorial · Für die lokale AURA-Installation ·
+  <div style="margin:12px auto;max-width:900px;padding:10px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);color:var(--amb);font:700 11px var(--mono)">⚠ RESEARCH-ONLY — Keine Anlageberatung. Globale Release-Wahrheit: MODEL_NO_EVIDENCE. Keine Live-Orders. Paper-Simulation.</div>
   Kein Finanzratschlag. Das Terminal analysiert historische und öffentliche Marktdaten und besitzt keinen Ausführungspfad.
 </footer>
 
