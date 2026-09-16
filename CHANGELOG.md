@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] – 2026-09-16
+
+### Added
+- Autobot-Fresh-Gate respektiert profilabhängige Score-Schwellen 58/65/75, während der Discovery-Radar unverändert bei 75/25 bleibt.
+- Neue Verhaltens-Tests pinnen DSR-Default T=18, Score-Clamp [0,100], Nullvarianz-Reject, Regime-Epsilon und wirksame Profil-Schwellen.
+
+### Fixed
+- OOS-Returns müssen vorhanden, endlich und nicht konstant sein; neutrale DSR=0.5 aus Nullvarianz kann kein Entry-Gate mehr passieren.
+- Flache EMA-Reihen bleiben durch Epsilon-Vergleich SIDEWAYS statt per ULP-Drift BULL/BEAR zu werden.
+- DSR-Ampel nutzt das operative Profil-Gate; Score, DSR und Kelly-Edge werden im UI eindeutig erklärt.
+- Tutorial enthält Research-only-Disclaimer in Header und Footer sowie korrigierte Version und R-Multiples.
+
+### Scope
+- MINOR (`2.4.0`): rückwärtskompatible parametrisierbare Score-Profile.
+- Ledger EXP-032, Lockbox und Modellparameter bleiben unverändert.
+- Globale Release-Wahrheit bleibt `SOFTWARE_GO / MODEL_NO_EVIDENCE`.
+
+---
+
 ## [2.3.0] – 2026-09-16
 
 ### Added
