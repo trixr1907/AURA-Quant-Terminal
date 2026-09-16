@@ -1,14 +1,15 @@
 # ==============================================================================
-# AURA Quant Terminal - Docker Compose Config (Local & Homelab / Self-Hosted)
+# AURA Quant Terminal v3 — Docker Compose (Proxmox Linux-VM / Homelab)
 # ==============================================================================
 
 services:
-  aura-terminal:
+  # 1. API & Web Dashboard Server
+  aura-api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: aura-quant-terminal:latest
-    container_name: aura-terminal
+    image: aura-quant-terminal:3.0.0
+    container_name: aura-api
     restart: unless-stopped
     read_only: true
     security_opt:
@@ -16,33 +17,54 @@ services:
     cap_drop:
       - ALL
     ports:
-      - "${AURA_HOST:-127.0.0.1}:${AURA_PORT:-8787}:8787"
+      - "${AURA_HOST:-127.0.0.1}:${AURA_PORT:-8000}:8000"
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
     environment:
-      - SYM_PORT=8787
-      - SYM_HOST=0.0.0.0   # bind all interfaces inside the container; Docker controls external access
-      - AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}
-      - AURA_STATE_DIR=/var/lib/aura
-      - AURA_NTFY_URL
-      - AURA_NTFY_BTC=${AURA_NTFY_BTC:-1}
-      - AURA_NTFY_BTC_COOLDOWN_MIN=${AURA_NTFY_BTC_COOLDOWN_MIN:-30}
-      - AURA_NTFY_DIGEST=${AURA_NTFY_DIGEST:-1}
-      - AURA_NTFY_DIGEST_UTC=${AURA_NTFY_DIGEST_UTC:-7}
-      - AURA_NTFY_ERRORS=${AURA_NTFY_ERRORS:-1}
-      # PF-66/PF-69: Headless Paper-Autobot (Server-Modus)
-      - AURA_BOT_MODE=${AURA_BOT_MODE:-}
-      - AURA_BOT_SCAN_SEC=${AURA_BOT_SCAN_SEC:-60}
-      - AURA_BOT_EQUITY=${AURA_BOT_EQUITY:-10000}
+      - AURA_DB_PATH=/data/aura_state.db
+      - AURA_RELAY_TOKEN=${AURA_RELAY_TOKEN}
     volumes:
-      - aura-state:/var/lib/aura
+      - aura_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4)\" || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v3/health', timeout=4)\" || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 90s
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # 2. Autonomer 24/7 Hintergrund-Worker (Scanner, Runner, ntfy)
+  aura-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aura-quant-terminal:3.0.0
+    container_name: aura-worker
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      - AURA_DB_PATH=/data/aura_state.db
+      - AURA_NTFY_URL=${AURA_NTFY_URL}
+      - AURA_RELAY_TOKEN=${AURA_RELAY_TOKEN}
+    volumes:
+      - aura_data:/data
+    command: ["python3", "-m", "aura.runner.worker"]
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
 
 volumes:
-  aura-state:
-    name: aura-state
+  aura_data:
+    name: aura_v3_data

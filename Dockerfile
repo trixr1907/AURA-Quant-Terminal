@@ -1,54 +1,48 @@
 # ==============================================================================
-# AURA Quant Terminal - Multi-Stage Lightweight Production Dockerfile
+# AURA Quant Terminal v3 — Production Dockerfile
 # ==============================================================================
+# Pinned Debian-slim Base Image (reproducible build, no alpine musl quirks)
+FROM python:3.12.3-slim-bookworm AS base
 
-FROM python:3.12-alpine
-
-# Set build & runtime metadata
+# Build & Runtime Metadata
 LABEL maintainer="AURA Quant Team"
-LABEL description="AURA Quant Terminal - Autonomous Quant Engine & Action Radar"
-LABEL version="2.5.0"
+LABEL description="AURA Quant Terminal v3 — Evidenzbasierte Quant-Engine & Paper-Runner"
+LABEL version="3.0.0"
 
-# Set non-interactive & python optimization flags
+# Python Flags fuer Produktion
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    SYM_HOST=0.0.0.0 \
-    SYM_PORT=8787 \
-    AURA_STATE_DIR=/var/lib/aura
-
-# Install Node.js for PF-66 Headless Paper-Autobot
-RUN apk add --no-cache nodejs
-
-# Create non-root user for maximum security (Best Practice)
-RUN addgroup -S aura && adduser -S aura -G aura
-
-# Prepare the persistent state mount before switching to the non-root user.
-RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
+    PYTHONPATH=/app \
+    AURA_DB_PATH=/data/aura_state.db
 
 WORKDIR /app
 
-# Copy application files
-COPY --chown=aura:aura bitget_relay.py .
-COPY --chown=aura:aura scripts/state_migration.py ./scripts/state_migration.py
-COPY --chown=aura:aura scripts/ops/aura_state_migrate.py ./scripts/ops/aura_state_migrate.py
-COPY --chown=aura:aura headless_autobot.js .
-COPY --chown=aura:aura shadow_collector.js .
-COPY --chown=aura:aura VERSION .
-COPY --chown=aura:aura Symbiose_Dashboard.html .
-COPY --chown=aura:aura SYMBIOSE_Tutorial.html .
-COPY --chown=aura:aura data/ ./data/
+# Erstelle unprivilegierten Benutzer (UID 1000) und Datenverzeichnis
+RUN groupadd -g 1000 aura && \
+    useradd -u 1000 -g aura -m -s /bin/bash aura && \
+    mkdir -p /data && chown -R aura:aura /data /app
 
-# Switch to unprivileged user
+# Installiere Python-Abhaengigkeiten
+COPY pyproject.toml requirements.txt* /app/
+RUN pip install --no-cache-dir fastapi uvicorn pydantic
+
+# Kopiere Quellcode und statische Assets
+COPY --chown=aura:aura aura/ /app/aura/
+COPY --chown=aura:aura data/ /app/data/
+COPY --chown=aura:aura scripts/ /app/scripts/
+COPY --chown=aura:aura Symbiose_Dashboard.html /app/Symbiose_Dashboard.html
+COPY --chown=aura:aura VERSION /app/VERSION
+
+# Wechsle zum unprivilegierten Benutzer
 USER aura
 
-# Expose Web & Relay Port
-EXPOSE 8787
+# Volume fuer persistente SQLite WAL-Datenbank
+VOLUME ["/data"]
 
-# Native lightweight Python Healthcheck
-# /ready requires a recent successful public-market uplink; the start period
-# permits the first dashboard/public probe without a premature unhealthy state.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4)" || exit 1
+# Standardmaessig API-Server starten
+EXPOSE 8000
 
-# Start the AURA Quant Relay & Web Server
-ENTRYPOINT ["python3", "bitget_relay.py"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v3/health', timeout=4)" || exit 1
+
+CMD ["uvicorn", "aura.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
