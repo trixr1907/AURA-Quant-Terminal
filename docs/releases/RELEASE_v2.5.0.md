@@ -41,13 +41,20 @@ Die alte Doppel-Bot-Logik ist beendet: Der Browser-Autobot tradet nicht mehr und
 
 ## Abnahme-Evidenz
 
-Die finalen lokalen und Remote-Evidenzen werden vor Veröffentlichung ergänzt:
+| Kriterium | Status | Beleg |
+|---|---|---|
+| Pause-Block entfernt, kein `Browser bot is active` im Code | PASS | `grep -F "Browser bot is active" headless_autobot.js` → kein Match |
+| `runner_health.json` immer `paused:false` im Server-Modus | PASS | `exposeHealth()` und `toServerPayload()` forcieren `false/null` |
+| Dashboard öffnet keine Trades wenn Server aktiv | PASS | `Autobot.tick()` early-return + `scanAndExecuteOpportunities()` loggt statt zu traden |
+| Dashboard Config-Änderungen wirken per `/api/bot-config` | PASS | `pushServerConfig()` + `save_server_bot_config()` + Runner liest `KEY_SRV_CFG` |
+| `test_server_only_live.js` | PASS | Browser-enabled blockiert Server nicht; configMinScore 77 korrekt |
+| `test_r39_release.py` | PASS | 2 passed |
+| `test_pf66_headless_runner.js` | PASS | 35/35 (mode-flag-Tests auf Server-Only umgestellt) |
+| `test_relay_status.py` | PASS | Banner + `Nein (Server-Only Live)` + `bot_active=Ja` verifiziert |
+| `test_relay_full.py` | PASS | `/api/bot-config` Endpoint-Test neu + bestehende |
+| Vollständige Suites / Release-Gate / Ledger | PASS | pytest: **508 passed, 69 subtests**; release_check: **SOFTWARE_GO / MODEL_NO_EVIDENCE** Exit 0; verify_ledger: EXP-032 `ac6132270659130165f84c6ca1b7a04b04fc4af6fbed0dbb0b63ba13adfb116b` |
+| `innerHTML` | PASS | **63** (unverändert); Banner in `bitget_relay.py` Python-String, kein neuer JS-innerHTML-Sink |
+| PR / Merge-Commit / Tag / Release / Asset | PASS | PR #53 merged, Commit `22396e1` (2 Parents: `bf6119b` + `a45b921`), Tag `v2.5.0` gepusht (`9a6968c8...`), Publish workflow run `35141290694` → success, Asset SHA-256 `9fc9cf1ae7ea0e094605ee4048b5fbd3b211e64c1c6b8063b444c6fe802194d7` (322 691 Bytes) |
+| CI grün (main) | PASS | Run `35141266167` → `Test Suite & Quality Gates`: success |
+| Auto-Deploy und ntfy-Server-ID | PENDING — VMs sind nicht lokal erreichbar; Webhook-Delivery-ID und ntfy-Push-ID werden nach realem Auto-Deploy vom Betreiber nachgetragen |
 
-- Pytest: ausstehend
-- JavaScript-Subtests: ausstehend
-- Release-Check: ausstehend
-- Ledger-Verifikation: ausstehend
-- `innerHTML`: ausstehend
-- PR / Merge-Commit / Tag: ausstehend
-- Release-Asset SHA-256: ausstehend
-- Auto-Deploy und ntfy-Server-ID: ausstehend
