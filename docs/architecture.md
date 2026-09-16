@@ -1,6 +1,6 @@
 # AURA Quant Terminal — System & Datenpfad-Architektur
 
-**Version:** 2.2.0 (Release)
+**Version:** 2.3.0 (Release)
 **Dokumenttyp:** Technische Architektur- & Datenpfadspezifikation  
 **Status:** Aktiv  
 
@@ -120,16 +120,25 @@ renderAll(force = false)
 
 ## 5. Evidenzkosten und DSR-Trial-Zählung
 
-### 5.1 Kostenmodelle
+### 5.1 Kostenmodelle (v2.3.0 — vereinheitlicht)
 
-Die Kostenparameter bleiben für Runde 36 bewusst nach Evidenzpfad getrennt:
+Ab v2.3.0 gilt ein einheitliches kanonisches Kostenmodell über alle 5 Evidenzpfade:
 
 | Pfad | Maker | Taker | Slippage |
 |---|---:|---:|---:|
-| Dashboard / S3 Walk-Forward | 0,02 % | 0,06 % | 0,05 % (`0.0005`) |
-| Shadow Collector / Headless Runner | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+| Dashboard / S3 Walk-Forward | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+| Shadow Collector | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+| Headless Runner | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+| model_evidence_real.js | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
+| reference_backtest.py | 0,10 % | 0,10 % | 0,10 % (`0.001`) |
 
-Das Dashboard lädt verfügbare Contract-Fees vor dem Walk-Forward. Fehlt eine valide positive Slippage-Spec oder liefert sie `0`, gilt `0.0005`. Runde 36 korrigiert damit den früheren 0-%-Fehler; sie vereinheitlicht die konservativeren Shadow-/Runner-Kosten bewusst nicht. Deshalb bleiben S3 und S5 bis zur geplanten R37-Neuevaluation nur innerhalb ihres jeweiligen Kostenpfads vergleichbar.
+**Begründung:** Das alte Dashboard-Modell (0,02/0,06/0,05%) war signifikant günstiger als das Shadow/Runner-Modell (0,10/0,10/0,10%). Diese Abweichung führte zu einem Vorzeichenwechsel der Netto-Expectancy (ETH 1h: +0,208 R vorher vs. −0,039 R nachher) sowie einem Faktor-800-Unterschied bei BTC (Kostendrag 0,006 R vs. 0,480 R). Der S3- und S5-Vergleich war ohne Vereinheitlichung nicht aussagekräftig.
+
+**Auswirkung:** Die Netto-Expectancy sinkt mit dem einheitlichen Modell erwartungsgemäß. Das `MODEL_NO_EVIDENCE`-Verdict bleibt robust: DSR liegt bei 0,013, weit unter der Passschwelle von 0,5. Die Vereinheitlichung ist reine Kostenharmonisierung — kein Edge-Tuning, keine Signal-Änderung.
+
+**Fallback-Reihenfolge im Dashboard:**
+1. Bitget Contract-Spec (`spec.takerFee`, `spec.makerFee`, `spec.slippage`) wenn positiv
+2. Sonst: Kanonische Defaults `0.001 / 0.001 / 0.001`
 
 ### 5.2 DSR-Trials
 

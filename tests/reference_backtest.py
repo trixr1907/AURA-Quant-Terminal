@@ -33,6 +33,10 @@ LEDGER_CHECKPOINT = ROOT / "ledger_checkpoint.json"
 LEDGER_TRIALS_FALLBACK = 10
 LEGACY_DSR_TRIALS = 45
 
+DEFAULT_MAKER_FEE = 0.001
+DEFAULT_TAKER_FEE = 0.001
+DEFAULT_SLIPPAGE = 0.001
+
 EPS = 1e-6          # tolerance for statistical functions (published approx. agree ~1e-7)
 EPS_ACCT = 1e-9     # tolerance for exact accounting
 

@@ -7,7 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.2.0] – 2026-09-15
+## [2.3.0] – 2026-09-16
+
+### Added
+- **F2 S6-Elevation-Gate:** `scripts/hypothesis_check.py` implementiert vollständige S6-Logik: `evaluate_lockbox_pass()` (S4), `evaluate_forward_window()` (S5 / 90-Tage-UTC-Rollfenster), `evaluate_decay()` (Evidence-Decay), integriert in `check_hypothesis()`. Fail-closed bei fehlendem Shadow-Log, Lockbox oder Ledger.
+- **Tests F2:** `tests/test_hypothesis_s6_gate.py` (4 Fälle: kein Lockbox-Pass, Shadow < n_min, synthetisches 90-Tage-Fixture → true, Decay → false), `tests/test_shadow_90d_window.py` (UTC-Filter exakt 90 Tage, DSR mit Ledger-N).
+- **F6 Lockbox-Erzwingung:** `scripts/lockbox_guard.py` erzwingt Single-Shot-Evaluation: zweite Auswertung eines CONSUMED Lockbox → `LOCKBOX_ALREADY_CONSUMED` (Exception), `test_lockbox_enforcement.py` grün.
+- **Tests F3:** `tests/test_cost_model_unified.py` (5 Pfade: Dashboard WF, model_evidence_real, reference_backtest, shadow_collector, headless_autobot alle auf `0.001/0.001/0.001`).
+
+### Fixed
+- **F3 Kostenmodell-Vereinheitlichung:** Alle 5 Evidenzpfade nutzen jetzt kanonisch `makerFee: 0.001, takerFee: 0.001, slippage: 0.001` (0,1%/0,1%/0,1%):
+  - `tests/model_evidence_real.js` war `0.0002/0.0006/0.0005`, jetzt `0.001/0.001/0.001`
+  - `tests/engine_oracle_export.js` war `0.0002/0.0006/0`, jetzt `0.001/0.001/0.001`
+  - `tests/sensitivity_release_gates.js` Grid-Center war `0.0002`, jetzt `0.001`
+  - `tests/reference_backtest.py` DEFAULT_MAKER/TAKER/SLIPPAGE_FEE auf `0.001`
+  - Dashboard: `App.slippage` initial `0.001`, `resolveSlippage` Fallback `0.001`, `evaluateTimeStopOptions` Defaults `0.001`, `simulateRange` Fallbacks `0.001`
+- **F6 TRIALS_LEDGER.md:** Kettenkopf auf `ac6132270659130165f84c6ca1b7a04b04fc4af6fbed0dbb0b63ba13adfb116b`, EXP-031/032 in Markdown-Tabelle ergänzt, Bilanz `22` Prozess-/Infrastruktur-Einträge.
+- **F6 claims.csv:** Zeiger per `generate_claims.py` neu generiert (29 Einträge, CLM-17/18/28 behoben).
+- **F6 DSR-Neutralwert:** `EVIDENCE_PROTOCOL.md` klärt: DSR=0.5 ist theoretischer Nullpunkt, nicht alleinige Passschwelle; Passschwelle = DSR≥0.5 + positive Edge + n≥n_min (alle drei kumulativ).
+
+### Documentation
+- `docs/research/EVIDENCE_PROTOCOL.md` v2.3.0: Abschnitt S3 DSR-Klarstellung, neuer Abschnitt 7 „S6-Implementierung" mit Code-Referenz, Fail-Closed-Regeln, heutigem Status.
+- `docs/architecture.md` Abschnitt 5.1: Einheitliches Kostenmodell aller Pfade, Begründung, Auswirkung (ETH Vorzeichenwechsel, BTC Faktor 800).
+- `docs/releases/RELEASE_v2.3.0.md`: Vollständiger Release-Bericht mit Abnahmeprotokoll.
+
+### Scope
+- MINOR (`2.3.0`): Evidence-Infrastruktur-Vervollständigung.
+- Keine Änderung an Signal-Logik (Score/Regime/ADX/Squeeze/TP/SL/Sizing).
+- Ledger: EXP-032 unverändert, Chain-Head `ac613227…`, `total_model_experiments: 10`.
+- Lockbox: `UNUSED` (kein Single-Shot-Eval durchgeführt).
+- Verdict: `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Shadow < 90 Tage, Lockbox UNUSED → S6-Gate fail-closed korrekt).
+- pytest: 500 passed (486 + 14 neue Tests F2/F3/F6).
+
+---
+
+
 
 ### Fixed
 - **F4 Slippage-Kosten:** Dashboard-Walk-Forward nutzt `0.0005` als nicht-null Default, lädt Contract-Specs vor der kostenabhängigen Auswertung und behandelt `0` als ungültige Slippage. Netto-R enthält dadurch wieder Gebühren und Slippage.
