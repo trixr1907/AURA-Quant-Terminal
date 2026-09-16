@@ -23,8 +23,8 @@
 | Phase | Inhalt | Status |
 |---|---|---|
 | 0 | Baseline einfrieren, Mandatsfragen | ✅ DONE (2026-09-17) |
-| 1 | Subaudits (Quant / Integrity / Dataflow / UX), Befundliste, Funktionsinventar, Datenflusskarte | 🔄 RUNNING (4 Read-only-Subaudits) |
-| 2 | Zielarchitektur + ADRs + Migrationsfolge + priorisierter Plan | ⬜ |
+| 1 | Subaudits (Quant / Integrity / Dataflow / UX), Befundliste, Funktionsinventar, Datenflusskarte | ✅ DONE (2026-09-17) → `docs/AUDIT.md` + `docs/research/audit_r40/` |
+| 2 | Zielarchitektur + ADRs + Migrationsfolge + priorisierter Plan | ✅ DONE (2026-09-17) → `docs/ARCHITECTURE.md` + `docs/adr/ADR-0001..0005` |
 | 3 | Vertikale Implementierung (serverseitiger Kern zuerst) | ⬜ |
 | 4 | Formelregister + Golden-Fixtures + Parität | ⬜ |
 | 5 | Web-UI (responsive) + Control Plane + Auth | ⬜ |
@@ -34,6 +34,9 @@
 ## Entscheidungen (laufend)
 
 - 2026-09-17: Arbeit erfolgt im frischen Clone `AURA_v2`; Alt-Checkout bleibt unangetastet (Nutzer-WIP `test_bot_config_security.py` → wird als Requirement übernommen: serverseitige Config-Validierung + Relay-Token).
+- 2026-09-17: Subaudit-Kritikalitäten vom Lead verifiziert: Q-01 (Equity ohne PnL, `headless_autobot.js:644/981/1075`), Q-02 (kein TP-Exit, `:624-632`), Q-03 (Time-Stop als sl_close, `:642`) bestätigt; Q-04 (SL-Maske `:332`) bestätigt, aber HIGH→MEDIUM herabgestuft (aktuelle Auswirkung begrenzt, da `currentSl=entry<tp1`; bricht bei künftigem Trailing über TP1).
+- 2026-09-17: Zielarchitektur festgelegt (ADRs): Python 3.12 + FastAPI, SQLite WAL, 2 Container (worker/app) aus einem Image, Session+CSRF+Bearer (Argon2id), SemVer-Images ohne `latest`. Bestands-State-Migration ist Pflichtbestandteil (M-0..M-4).
+- 2026-09-17: Runner-Fixes Q-01..Q-04 werden NICHT im Alt-Code geflickt, sondern in `aura.runner` neu implementiert (Ledger-Klassifikation: Prozess-Fix, kein Modellexperiment — Ausführungskorrektheit, keine Signaländerung).
 
 ## Ausgeführte Kernbefehle (Phase 0)
 
@@ -51,10 +54,11 @@ python3 tests/pine_static_check.py        # OK, exit 0
 ## Blocker / Offenes
 
 - Lokales `docker compose`-Plugin fehlt → Compose-Smoke auf Ziel-VM (Deployment bleibt NOT_RUN bis dahin).
-- Subaudit-Ergebnisse (Quant/Integrity/Dataflow/UX) ausstehend → Phase-1-Abschluss.
+- Backup-Ziel: Vorschlag offen (in `docs/DEPLOYMENT_PROXMOX.md`, Phase P7).
+- Alt-State der Produktiv-VM muss für M-0/M-1 gesichert werden (Zugriff auf VM nötig; bis dahin Entwicklung gegen synthetische Alt-State-Fixtures).
 
 ## Nächste Schritte
 
-1. Subaudit-Artefakte konsolidieren → `docs/AUDIT.md` (Befundliste mit Schweregrad, Beleg, Reproduktionsweg).
-2. Funktionsinventar (Beibehalten/Ersetzen/Entfernen) + Datenflusskarte finalisieren.
-3. Zielarchitektur + ADRs + Migrationsplan (State aus Bestandsinstallation!) + Implementierungsreihenfolge.
+1. P1: Paket-Gerüst `aura/`, SQLite-Schema + Migrations-Runner, Legacy-Importer mit Dry-Run + Vollständigkeitsreport (gegen synthetische v2-State-Fixtures).
+2. P2: `aura.core` Indikatoren + Scoring mit Golden-Parität gegen JS-Engine (Orakel-Einfrierung zuerst).
+3. CI erweitern: neue Python-Suite in Gate-Discovery aufnehmen.
