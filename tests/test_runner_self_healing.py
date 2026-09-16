@@ -339,14 +339,14 @@ class TestRunnerPauseAwareness(unittest.TestCase):
         self.assertFalse(result["restarted"])
         self.assertIsNone(result["notification"])
 
-    def test_ready_health_parsing_paused_fields(self):
-        """Auftrag A.2: _runner_health exposes paused, paused_by, and last_heartbeat_age_sec."""
+    def test_ready_health_parsing_ignores_legacy_paused_fields_in_server_mode(self):
+        """R39: server mode exposes heartbeat age but never reports browser pause ownership."""
         payload = '{"running":true,"lastCycleAt":1000,"lastHeartbeatAt":99000,"paused":true,"pausedBy":"browser","cycleCount":5,"tradeCount":0,"equity":10000}'
         with patch.object(relay.Path, "read_text", return_value=payload), \
              patch.object(relay.time, "time", return_value=100.0):
             health = relay._runner_health(mode="server")
-            self.assertTrue(health["paused"])
-            self.assertEqual(health["paused_by"], "browser")
+            self.assertFalse(health["paused"])
+            self.assertIsNone(health["paused_by"])
             self.assertEqual(health["last_cycle_age_sec"], 99.0)
             self.assertEqual(health["last_heartbeat_age_sec"], 1.0)
 

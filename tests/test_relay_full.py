@@ -335,6 +335,29 @@ class TestHTTPServer(unittest.TestCase):
             self.assertIn("text/plain", resp.headers.get("Content-Type", ""))
             self.assertIn("Pine Script", body)
 
+    def test_post_bot_config_persists_server_control_plane_values(self):
+        payload = {
+            "profile": "strict",
+            "initialEquity": 12500,
+            "riskPerTradePct": 0.75,
+            "maxOpenTrades": 2,
+            "minScore": 75,
+            "mtfNeed": 3,
+            "min24hVol": 2000000,
+            "minOosSamples": 12,
+            "minSetupDsr": 0.3,
+            "stagnationHours": 8,
+        }
+        with tempfile.TemporaryDirectory() as tmpdir, \
+             patch.object(bitget_relay, "STATE_FILE", Path(tmpdir) / "aura_shared_state.json"), \
+             patch.object(bitget_relay, "STATE_DIR", Path(tmpdir)):
+            status, body = self._post("/api/bot-config", payload)
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
+            self.assertEqual(body["config"]["minScore"], 75)
+            state = bitget_relay._load_shared_state()
+            self.assertEqual(state["aura-server-bot-config-v1"], payload)
+
     def test_state_route_rejects_foreign_origin(self):
         status, body = self._get_status("/api/state", {"Origin": "https://evil.example"})
         self.assertEqual(status, 403)

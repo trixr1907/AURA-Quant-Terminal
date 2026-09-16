@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AURA v2.4.0 — Quant-Research-Tutorial</title>
+<title>AURA v2.5.0 — Quant-Research-Tutorial</title>
 <style>
   :root {
     --bg: #0b1220; --surface: #0f172a; --card: #1e293b;
@@ -181,7 +181,7 @@
 <body>
 
 <nav>
-  <span class="nav-logo">AURA v2.4.0</span>
+  <span class="nav-logo">AURA v2.5.0</span>
   <a href="#workflow">Workflow</a>
   <a href="#score">Score</a>
   <a href="#gates">Gates</a>
@@ -194,7 +194,7 @@
 </nav>
 
 <div class="hero">
-  <h1>AURA v2.4.0 — Quant-Research-Tutorial</h1>
+  <h1>AURA v2.5.0 — Quant-Research-Tutorial</h1>
   <p>Quantitative Edge · Visual Precision · Pure Execution — Wie das System Setups entdeckt, Scores und Gates erklärt und Research-Hypothesen reproduzierbar validiert.</p>
   <div style="margin:12px auto 0;max-width:900px;padding:10px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);color:var(--amb);font:700 11px var(--mono)">⚠ RESEARCH-ONLY — Keine Anlageberatung. Globale Release-Wahrheit: MODEL_NO_EVIDENCE. Keine Live-Orders. Paper-Simulation.</div>
 </div>
@@ -492,7 +492,7 @@
 
 <!-- ===== 5. EXIT ===== -->
 <section id="exit">
-  <h2><span class="num">5</span> Exit-Logik — wie AURA v2.4.0 Trades beendet</h2>
+  <h2><span class="num">5</span> Exit-Logik — wie AURA v2.5.0 Trades beendet</h2>
 
   <p>
     Das System arbeitet mit einem <b>50/50-Tranchen-Modell</b>. Kein binäres All-or-Nothing mehr.
@@ -588,7 +588,7 @@
   <h2><span class="num">6</span> Makro-Kontext — Funding, OI und Fear&amp;Greed nutzen</h2>
 
   <p>
-    Die Makro-Daten sind in v2.4.0 keine bloße Score-Addition mehr — sie können
+    Die Makro-Daten sind in v2.5.0 keine bloße Score-Addition mehr — sie können
     ein Signal <b>physisch blockieren</b> (Veto) oder bis zu 25 Punkte abziehen.
   </p>
 
@@ -698,9 +698,25 @@
   </div>
 </section>
 
-<!-- ===== 9. CHECKLISTE ===== -->
+<section id="server-autobot">
+  <h2><span class="num">9</span> Server-Bot — immer im Docker, Dashboard nur Viewer + Config</h2>
+  <div class="callout callout-blu">
+    <div class="callout-icon">🌐</div>
+    <div class="callout-body">
+      <b>Server-Only Live seit v2.5.0</b>
+      <p>Wenn <code>AURA_BOT_MODE=server</code> gesetzt ist, läuft der Headless-Autobot im Docker ohne Browser-Abhängigkeit und ohne Pause-Konzept. Ein offener, geschlossener oder veralteter Dashboard-Tab kann den Runner nicht anhalten.</p>
+    </div>
+  </div>
+  <div class="card">
+    <p><b>Das Dashboard ist die Control Plane:</b> Profil, Equity, Risiko, maximale Trades, MinScore, MTF, Mindestvolumen, OOS-Samples, DSR und Time-Stop werden zentral gespeichert und spätestens im nächsten 15-Sekunden-Runner-Zyklus übernommen.</p>
+    <p><b>Das Dashboard tradet nicht:</b> Es eröffnet, verwaltet und schließt keine Browser-Positionen mehr. Angezeigt werden ausschließlich Server-Trades mit <code>source="server"</code>; alte lokale Simulationen gelten als inaktives Archiv.</p>
+    <p><b>Migration:</b> Das alte Browser-enabled-Flag darf einmal über „Server-Bot Config deaktivieren“ gelöscht werden. Der Docker-Runner läuft trotzdem durchgehend weiter.</p>
+  </div>
+</section>
+
+<!-- ===== 10. CHECKLISTE ===== -->
 <section id="checkliste">
-  <h2><span class="num">9</span> Research-Checkliste — vor jeder Bewertung</h2>
+  <h2><span class="num">10</span> Research-Checkliste — vor jeder Bewertung</h2>
 
   <p>Prüfe diese Punkte, bevor ein Radar-Kandidat als belastbare Hypothese dokumentiert wird.</p>
 
@@ -711,7 +727,7 @@
     </li>
     <li>
       <span class="icon">🟢</span>
-      <div><b>MTF-Alignment?</b> Für die manuelle Radar-Triage zeigt die Sub-Zeile idealerweise ≥ 3/4. Der Paper-Autobot hat getrennte, profilabhängige Fresh-Gates: Aktiv 1/4, Ausgewogen 2/4, Strikt 3/4.</div>
+      <div><b>MTF-Alignment?</b> Für die manuelle Radar-Triage zeigt die Sub-Zeile idealerweise ≥ 3/4. Der Server-Autobot im Docker hat getrennte, profilabhängige Fresh-Gates: Aktiv 1/4, Ausgewogen 2/4, Strikt 3/4.</div>
     </li>
     <li>
       <span class="icon">🟢</span>
@@ -748,15 +764,15 @@
   </ul>
 </section>
 
-<!-- ===== 10. HÄUFIGE FEHLER ===== -->
+<!-- ===== 11. HÄUFIGE FEHLER ===== -->
 <section id="fehler">
-  <h2><span class="num">10</span> Häufige Fehler — was das System nicht kann</h2>
+  <h2><span class="num">11</span> Häufige Fehler — was das System nicht kann</h2>
 
   <div class="callout callout-red">
     <div class="callout-icon">❌</div>
     <div class="callout-body">
       <b>"Score ist 78, ich ignoriere das gewählte Profil-Gate"</b>
-      <p>Discovery-Radar und Paper-Autobot sind getrennt: Der Radar bleibt bei 75/25. Der Autobot revalidiert unmittelbar vor einem simulierten Einstieg mit dem gewählten Fresh-Gate: Aktiv 58/42 und 1/4 MTF, Ausgewogen 65/35 und 2/4, Strikt 75/25 und 3/4. Kein Profil umgeht Regime, ADX, Squeeze, Liquidität oder OOS-Evidenz.</p>
+      <p>Discovery-Radar und Server-Autobot sind getrennt: Der Radar bleibt bei 75/25. Der Docker-Runner revalidiert unmittelbar vor einem simulierten Einstieg mit dem gewählten Fresh-Gate: Aktiv 58/42 und 1/4 MTF, Ausgewogen 65/35 und 2/4, Strikt 75/25 und 3/4. Kein Profil umgeht Regime, ADX, Squeeze, Liquidität oder OOS-Evidenz.</p>
     </div>
   </div>
 
@@ -823,7 +839,7 @@
 </main>
 
 <footer>
-  AURA v2.4.0 Tutorial · Für die lokale AURA-Installation ·
+  AURA v2.5.0 Tutorial · Für die lokale AURA-Installation ·
   <div style="margin:12px auto;max-width:900px;padding:10px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);color:var(--amb);font:700 11px var(--mono)">⚠ RESEARCH-ONLY — Keine Anlageberatung. Globale Release-Wahrheit: MODEL_NO_EVIDENCE. Keine Live-Orders. Paper-Simulation.</div>
   Kein Finanzratschlag. Das Terminal analysiert historische und öffentliche Marktdaten und besitzt keinen Ausführungspfad.
 </footer>
