@@ -1,8 +1,8 @@
 'use strict';
 
-const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const vm = require('node:vm');
 
 const html = fs.readFileSync('Symbiose_Dashboard.html', 'utf8');
 
@@ -35,7 +35,8 @@ const context = {
   normCdf: z => 1 / (1 + Math.exp(-z)),
 };
 vm.createContext(context);
-vm.runInContext(`${extractFunction('calcDSR')}\nthis.calcDSR=calcDSR;`, context);
+vm.runInContext( // NOSONAR: executes only extracted, checked-in repository source.
+  `${extractFunction('calcDSR')}\nthis.calcDSR=calcDSR;`, context);
 
 const returns = [0.8, -0.4, 1.3, -0.2, 0.7, 0.1, -0.5, 1.1];
 const implicit = context.calcDSR(returns);
