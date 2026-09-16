@@ -1,5 +1,5 @@
 """
-bitget_relay.py — AURA v2.3.0 local CORS proxy, web server & state sync
+bitget_relay.py — AURA v2.4.0 local CORS proxy, web server & state sync
 ======================================================================
 Startet einen lokalen HTTP-Server auf Port 8787.
 Fungiert als Webserver für das Dashboard, als transparenter CORS-Proxy
@@ -10,7 +10,7 @@ API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
   GET  /status           -> Human Status Page (HTML)
-  GET  /serving          -> {"ok": true, "version": "2.3.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "2.4.0", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)
