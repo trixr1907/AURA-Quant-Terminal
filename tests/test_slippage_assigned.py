@@ -7,7 +7,7 @@ DASHBOARD = (ROOT / "Symbiose_Dashboard.html").read_text(encoding="utf-8")
 
 
 def test_dashboard_has_nonzero_slippage_default_and_spec_assignment():
-    assert re.search(r"fees:\s*\{\s*taker:\s*null,\s*maker:\s*null\s*\},\s*slippage:\s*0\.0005\b", DASHBOARD)
+    assert re.search(r"fees:\s*\{\s*taker:\s*null,\s*maker:\s*null\s*\},\s*slippage:\s*0\.001\b", DASHBOARD)
     assert re.search(r"App\.slippage\s*=\s*[^;]+", DASHBOARD)
 
 
@@ -16,7 +16,7 @@ def test_contract_spec_slippage_falls_back_when_missing_or_zero():
     assert assignment is not None
     expression = assignment.group(1)
     assert "spec.slippage" in expression
-    assert "0.0005" in expression
+    assert "0.001" in expression
     assert "||" in expression, "zero must be treated as an invalid slippage spec"
 
 

@@ -34,12 +34,12 @@ for (let i = 0; i < 900; i++) {
 }
 const wfAnalysis = sandbox.__slippageTest.analyze(wfCandles);
 const wf = sandbox.__slippageTest.runWalkForwardBacktest(wfCandles, wfAnalysis, {
-  makerFee: 0.0002,
-  takerFee: 0.0006,
+  makerFee: 0.001,
+  takerFee: 0.001,
 });
 assert.ok(wf.folds.length > 0, 'fixture must produce walk-forward folds');
 assert.ok(
-  wf.folds.every(fold => fold.params.slippage === 0.0005),
+  wf.folds.every(fold => fold.params.slippage === 0.001),
   'walk-forward must normalize missing slippage to the non-zero dashboard default'
 );
 
@@ -88,7 +88,7 @@ const withDefaultCosts = sandbox.__slippageTest.simulateRange(
   analysis,
   0,
   0,
-  { ...base, makerFee: 0.0002, takerFee: 0.0006, slippage: 0.0005 }
+  { ...base, makerFee: 0.001, takerFee: 0.001, slippage: 0.001 }
 );
 
 assert.strictEqual(withoutCosts.length, 1, 'fixture must produce one gross trade');

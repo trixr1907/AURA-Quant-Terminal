@@ -3,7 +3,9 @@
 
 Enforces that any fixture bar with close time >= lockbox.cutoff_time is
 strictly quarantined and excluded from model optimization and tuning.
-Provides an evaluation mechanism to inspect or verify holdout data.
+Provides single-shot evaluation enforcement: if a LOCKED holdout has
+already been evaluated / consumed, any second evaluation is blocked fail-closed
+with LOCKBOX_ALREADY_CONSUMED.
 """
 
 from __future__ import annotations
@@ -12,12 +14,21 @@ import csv
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = ROOT / "tests" / "fixtures" / "golden"
 PROVENANCE_FILE = GOLDEN_DIR / "provenance.json"
+
+
+class LockboxGuardError(Exception):
+    """Base exception for lockbox guard failures."""
+
+
+class LockboxAlreadyConsumedError(LockboxGuardError):
+    """Raised when attempting to evaluate a lockbox holdout that was already consumed."""
 
 
 def parse_timestamp_ms(val: str | int | float) -> int:
@@ -58,6 +69,16 @@ def inspect_lockbox_fixtures(golden_dir: Path | None = None) -> dict:
     locked_span = lockbox.get("locked_span_days")
     status = lockbox.get("status")
     mode = lockbox.get("mode")
+
+    if status == "CONSUMED":
+        return {
+            "status": "FAIL",
+            "lockbox_status": "CONSUMED",
+            "evaluation_state": "LOCKBOX_ALREADY_CONSUMED",
+            "error": "Lockbox holdout has already been evaluated and consumed. Second evaluation is prohibited.",
+            "consumed_at": lockbox.get("consumed_at"),
+            "evaluation_id": lockbox.get("evaluation_id"),
+        }
 
     if not cutoff_iso or not locked_span or status != "LOCKED" or mode != "forward_holdout":
         return {
@@ -123,12 +144,74 @@ def inspect_lockbox_fixtures(golden_dir: Path | None = None) -> dict:
     }
 
 
+def record_lockbox_evaluation(
+    evaluation_id: str,
+    evaluation_summary: dict,
+    golden_dir: Path | None = None,
+) -> dict:
+    """Record a single-shot lockbox evaluation and mark the lockbox as CONSUMED.
+
+    Fail-closed: refuses if already CONSUMED.
+    """
+    g_dir = golden_dir or GOLDEN_DIR
+    prov_path = g_dir / "provenance.json"
+    if not prov_path.exists():
+        raise LockboxGuardError(f"provenance file not found: {prov_path}")
+
+    prov = json.loads(prov_path.read_text(encoding="utf-8"))
+    lockbox = prov.get("lockbox", {})
+
+    if lockbox.get("status") == "CONSUMED":
+        raise LockboxAlreadyConsumedError(
+            f"LOCKBOX_ALREADY_CONSUMED: Lockbox was already evaluated on {lockbox.get('consumed_at')} "
+            f"(eval ID: {lockbox.get('evaluation_id')}). Second evaluation is strictly prohibited."
+        )
+
+    if lockbox.get("status") != "LOCKED":
+        raise LockboxGuardError(f"Cannot consume lockbox with status {lockbox.get('status')!r} (must be LOCKED)")
+
+    consumed_at = datetime.now(timezone.utc).isoformat()
+    new_lockbox = {
+        **lockbox,
+        "status": "CONSUMED",
+        "consumed_at": consumed_at,
+        "evaluation_id": str(evaluation_id),
+        "evaluation_summary": evaluation_summary,
+    }
+
+    new_prov = {
+        **prov,
+        "lockbox": new_lockbox,
+    }
+
+    # Atomic write
+    temp_file = prov_path.with_name(f".{prov_path.name}.tmp.{os.getpid()}")
+    try:
+        temp_file.write_text(json.dumps(new_prov, indent=2) + "\n", encoding="utf-8")
+        temp_file.replace(prov_path)
+    finally:
+        if temp_file.exists():
+            try:
+                temp_file.unlink()
+            except OSError:
+                pass
+
+    return {
+        "ok": True,
+        "status": "CONSUMED",
+        "consumed_at": consumed_at,
+        "evaluation_id": str(evaluation_id),
+    }
+
+
 def evaluate_lockbox_evaluation(golden_dir: Path | None = None) -> tuple[str, str, str]:
     """Evaluate lockbox status for release checks.
 
     Returns (check_status, detail_message, eval_state_label).
     """
     res = inspect_lockbox_fixtures(golden_dir)
+    if res.get("evaluation_state") == "LOCKBOX_ALREADY_CONSUMED":
+        return "FAIL", f"lockbox-eval: LOCKBOX_ALREADY_CONSUMED ({res.get('error')})", "CONSUMED"
     if res.get("status") != "PASS":
         return "FAIL", res.get("error", "unknown error"), "ERROR"
     total_locked = res.get("total_locked_bars", 0)

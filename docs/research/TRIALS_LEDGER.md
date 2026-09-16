@@ -62,8 +62,8 @@ aufsteigend und lückenlos sein; `total_model_experiments` muss dem vorherigen T
 plus `delta` entsprechen. Der Verifier behandelt fehlende, gelöschte, umsortierte,
 manipulierte oder formal ungültige Einträge fail-closed.
 
-Aktueller Kettenkopf nach den Präregistrierungen EXP-026 bis EXP-030:
-`7a00e09a535da4327ab92ab1f69bb13814910d8128601812ab7f39d265f6a209`
+Aktueller Kettenkopf nach EXP-032:
+`ac6132270659130165f84c6ca1b7a04b04fc4af6fbed0dbb0b63ba13adfb116b`
 
 ---
 
@@ -103,13 +103,15 @@ Schema: `ID | Datum | Version | Typ | Hypothese (prä-registriert) | Änderung (
 | **EXP-028** | 2026-09-12 | v1.2.9 | Diagnose | CVD-Akkumulationsdrift wird auf allen fünf Golden-Master-Fixtures über mindestens 5.000 Bars gemessen. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND9_M1_M3.md`; Präreg-Commit: `11d46cd`. | geplant: reproduzierbarer CVD-Paritätsmesser | Absolute/relative Drift und Vergleichskipps je Fixture; bei Kipp oder unbeschränktem Wachstum keine Akzeptanz | Präregistriert vor Messlauf | 0 | 10 | PREREGISTERED |
 | **EXP-029** | 2026-09-12 | v1.2.10 | Prozess-Fix | Ein separat produktpflichtig verankerter Checkpoint bindet letzte ID, Eintragszahl und Kettenkopf. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND10_M1_M2.md`; Präreg-Commit: `f56a2e94`. | geplant: `ledger_checkpoint.json`; `scripts/verify_ledger.py`; `scripts/append_ledger.py` | Gültiger Zustand PASS; Tail-Löschung, direkter Append und Checkpoint-Manipulation FAIL; atomarer Skript-Append PASS | Präregistriert vor Implementierung; Tamper-Evidenz, nicht Prävention | 0 | 10 | PREREGISTERED |
 | **EXP-030** | 2026-09-12 | v1.2.10 | Diagnose | Eine unabhängige Python-Referenz misst die Pine-CVD-/EMA-CVD-Spezifikation gegen den Dashboard-Analyzer auf fünf Golden-Master-Fixtures. Präregistrierung: `docs/research/preregistrations/AUDIT_ROUND10_M1_M2.md`; Präreg-Commit: `f56a2e94`. | geplant: `scripts/cvd_reference.py`; Node-Harness; Vergleich | Fix bei einem Kipp oder relativer Drift > 1e-10; sonst AKZEPTIERT mit symbolweisen Zahlen | Präregistriert vor Messlauf; Diagnose ohne Modelländerung | 0 | 10 | PREREGISTERED |
+| **EXP-031** | 2026-09-13 | v1.3.1 | Prozess-Fix | CVD-Berechnung auf Pine-paritätsgeprüfte Range-Approximation vereinheitlicht; eliminiert Feed-Dual-Semantiken; feed-unabhängige, identische CVD-Werte mit und ohne tbv. Präreg-Commit: `b70c446`. | `Symbiose_Dashboard.html`: cvdSeries vereinheitlicht; `tests/test_cvd_feed_independence.js` | Golden-Master-CVD-Gate grün (0 Flips, Drift ≤ 1e-10); Node-Test bestätigt feed-Unabhängigkeit | CVD feed-unabhängig, 1:1 Pine-Parität; alle 5 Golden-Master grün | 0 | 10 | COMPLETED |
+| **EXP-032** | 2026-09-13 | v1.3.2 | Prozess-Fix | Bitget-Ticker-Kanal (~200ms) aktiviert; Chart-State-Key von Reanalyse-Debounce entkoppelt; adaptive Preisformatierung und Log-Hygiene bereinigen Sub-Cent-Anzeigen. Präreg-Commit: `9aa3b98`. | `Symbiose_Dashboard.html`: Ticker-Subskription, throttled Chart-Redraw, fmtPx/fmtDsr/formatAutobotEntryLog; Unit-Tests | CVD-Golden-Master unverändert grün; 57/57 JS-Suiten PASS; Ticker-Liveness und Log-Hygiene Tests grün | Chart-Liveness für alle Marktbedingungen wiederhergestellt; Sub-Cent-Logs mit voller Präzision | 0 | 10 | COMPLETED |
 
 ---
 
 ## 6. Bilanzierte Kennzahlen
 
 - **Kumulative Modell-Experimente (`total_model_experiments`):** **`10`** (EXP-001 bis EXP-006, EXP-008, EXP-009, EXP-022, EXP-024)
-- **Prozess- / Infrastruktur- / Mess- & Diagnose-Einträge:** **`20`** (EXP-007, EXP-010 bis EXP-021, EXP-023, EXP-025 bis EXP-030)
+- **Prozess- / Infrastruktur- / Mess- & Diagnose-Einträge:** **`22`** (EXP-007, EXP-010 bis EXP-021, EXP-023, EXP-025 bis EXP-032)
 - **Modell-Trials im Autobot-Scan (Default Universe: 120 Symbole × 4 TFs):**
   - Universums-Hypothesen: `480`
   - Internes Parameter-Grid: `18` (bzw. `9` bei rein gated)
