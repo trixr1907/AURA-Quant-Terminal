@@ -383,7 +383,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
     <h2 class="section-title">Konto </h2>
     <div class="grid cols-4" id="accountKpis">
       <div class="card"><h3>Equity</h3><div class="kpi" id="ovEquity">—</div><div class="sub" id="ovEquitySub">—</div></div>
-      <div class="card"><h3>Gesamtergebnis (netto)</h3><div class="kpi" id="ovPnl">—</div><div class="sub">realisiert + unrealisiert, nach Gebühren</div></div>
+      <div class="card"><h3>Realisiertes Ergebnis (netto)</h3><div class="kpi" id="ovPnl">—</div><div class="sub">nach geschlossenen Trades & Gesamtkosten</div></div>
       <div class="card"><h3>Offene Positionen</h3><div class="kpi" id="ovOpenCount">—</div><div class="sub" id="ovOpenLimitSub">—</div></div>
       <div class="card"><h3>Anonymes Szenario</h3><div class="kpi na" id="ovAnonNote" style="display:none">Kontodaten ausgeblendet</div><div class="kpi na" id="ovFeesTeaser">Details unten</div><div class="sub">Details unter „Paper-Trading"</div></div>
     </div>
@@ -819,12 +819,13 @@ function renderTopStatus(){
   const pFeed = document.getElementById('pill-feed');
   const pFeedTxt = document.getElementById('pill-feed-txt');
   pFeed.className = "pill " + (s.feed==="fresh" ? "ok" : "warn");
-  pFeedTxt.textContent = s.feed==="fresh" ? "frisch (12s)" : "veraltet (>180s)";
+  pFeedTxt.textContent = s.feedText || (s.feed==="fresh" ? "frisch" : "veraltet");
 
   const pWorker = document.getElementById('pill-worker');
   const pWorkerTxt = document.getElementById('pill-worker-txt');
   if (s.worker === "halted"){ pWorker.className = "pill bad"; pWorkerTxt.textContent = "HALTED"; }
-  else { pWorker.className = "pill unknown"; pWorkerTxt.textContent = "UNBEKANNT"; }
+  else if (s.worker === "RUNNING"){ pWorker.className = "pill ok"; pWorkerTxt.textContent = "RUNNING"; }
+  else { pWorker.className = "pill unknown"; pWorkerTxt.textContent = s.worker || "UNBEKANNT"; }
 
   // Not-Halt-Banner nur bei tatsaechlichem HALTED zeigen; bei "unknown" separater, vorsichtiger Text (siehe renderOverview)
   const haltBanner = document.getElementById('haltBanner');
@@ -855,7 +856,7 @@ function renderOverview(){
     document.getElementById('ovEquitySub').textContent = "Start: " + fmtMoney(KPIS.starting_equity,false) + " USDT · Demodaten";
 
     const pnl = document.getElementById('ovPnl');
-    const totalNet = KPIS.realizedNet + KPIS.unrealizedNet;
+    const totalNet = KPIS.realizedNet;
     pnl.textContent = fmtMoney(totalNet, true) + " USDT";
     pnl.className = "kpi " + (totalNet >= 0 ? "pos" : "neg");
 
@@ -981,14 +982,20 @@ async function renderMarket() {
   let cList = [];
   if (r && r.data && Array.isArray(r.data)) {
       cList = r.data.map(c => ({
-          ts: parseInt(c[0], 10), open: parseFloat(c[1]), high: parseFloat(c[2]), low: parseFloat(c[3]), close: parseFloat(c[4])
-      })).filter(c => !isNaN(c.ts) && !isNaN(c.open) && !isNaN(c.high) && !isNaN(c.low) && !isNaN(c.close));
+          ts: Number(c[0]), open: Number(c[1]), high: Number(c[2]), low: Number(c[3]), close: Number(c[4])
+      })).filter(c => {
+          if (!Number.isFinite(c.ts) || !Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) return false;
+          if (c.ts < 0 || c.open < 0 || c.high < 0 || c.low < 0 || c.close < 0) return false;
+          if (c.high < Math.max(c.open, c.close) || c.low > Math.min(c.open, c.close)) return false;
+          return true;
+      });
       cList.sort((a,b) => a.ts - b.ts);
-      let dedup = []; let seen = new Set();
+      let dedupMap = new Map();
       for (const c of cList) {
-          if (!seen.has(c.ts)) { seen.add(c.ts); dedup.push(c); }
+          dedupMap.set(c.ts, c); // Ersetzt ggf. aeltere Duplikate derselben Zeit
       }
-      cList = dedup;
+      cList = Array.from(dedupMap.values());
+      cList.sort((a,b) => a.ts - b.ts);
   }
   
   if (cList.length === 0) {
@@ -1001,7 +1008,7 @@ async function renderMarket() {
       document.getElementById('priceTag').textContent = fmtMoney(last.close, false) + " " + meta.unit;
       const datum = new Date(last.ts).toLocaleTimeString("de-DE");
       document.getElementById('chartCaption').textContent = "Bitget:" + apiSymbol + " · " + bitgetTf + " (Prod)";
-      document.getElementById('chartAgeTag').textContent = "Zuletzt generiert: " + datum + " (Proxy)";
+      document.getElementById('chartAgeTag').textContent = "Letzte Kerzenzeit: " + datum + " (Proxy)";
   }
   requestAnimationFrame(drawMockChart);
 
@@ -1144,7 +1151,7 @@ function renderPaper(){
     <div class="card"><h3>Win-Rate</h3><div class="kpi">${winRateTxt}</div><div class="sub">${KPIS.winsCount} Gewinne / ${KPIS.decided} entschiedene Trades (Breakeven-Trades: ${KPIS.tiesCount}, nicht mitgezählt)</div></div>
     <div class="card"><h3>Profit-Faktor ${KPIS.smallSample?'<span class="warn-tag" style="font-size:9.5px">kleine Stichprobe</span>':''}</h3><div class="kpi ${KPIS.profitFactor===null?'na':''}">${pfTxt}</div><div class="sub">Summe Netto-Gewinne ÷ |Summe Netto-Verluste| — rechnerisch gültig ab dem ersten Verlust-Trade, unabhängig von Stichprobengröße</div></div>
     <div class="card"><h3>Ø R-Multiple (netto)</h3><div class="kpi ${KPIS.avgR===null?'na':''}">${avgRTxt}</div><div class="sub">${KPIS.avgRValidCount} von ${KPIS.closedCount} Trades mit gültigem Ausgangsrisiko einbezogen${KPIS.avgRExcludedCount>0?' · '+KPIS.avgRExcludedCount+' ohne gültiges Ausgangsrisiko (SL==Entry) ausgeschlossen, nicht als 0 gezählt':''}</div></div>
-    <div class="card"><h3>Gesamt-Gebühren</h3><div class="kpi">${fmtMoney(KPIS.totalFeesToDate,false)} USDT</div><div class="sub">${fmtMoney(KPIS.totalFeesClosed,false)} geschlossen + ${fmtMoney(KPIS.totalFeesOpenIncurred,false)} offen (Entry-Gebühr)</div></div>
+    <div class="card"><h3>Gesamt-Gebühren</h3><div class="kpi">${fmtMoney(KPIS.totalFeesToDate,false)} USDT</div><div class="sub">${fmtMoney(KPIS.totalFeesClosed,false)} geschlossen + ${fmtMoney(KPIS.totalFeesOpenIncurred,false)} offen (bisher angefallen)</div></div>
   `;
 
   document.getElementById('calcNote').innerHTML = `
