@@ -27,7 +27,7 @@
 | 2 | Zielarchitektur + ADRs + Migrationsfolge + priorisierter Plan | ✅ DONE (2026-09-17) → `docs/ARCHITECTURE.md` + `docs/adr/ADR-0001..0005` |
 | 3 | Vertikale Implementierung (serverseitiger Kern zuerst) | ⬜ |
 | 4 | Formelregister + Golden-Fixtures + Parität | ⬜ |
-| 5 | Web-UI (responsive) + Control Plane + Auth | ⬜ |
+| 5 | Web-UI (responsive) + Control Plane + Auth (Arbeitspaket 1) | ✅ DONE (2026-09-17) → `docs/V3_UI_INTEGRATION_ACCEPTANCE.md` (`UI_INTEGRATION: PASS`) |
 | 6 | Docker/Compose-Härtung, Backup/Restore, Runbook | ⬜ |
 | 7 | Evidenz: Acceptance-Matrix, Release-Evidence, Soak (oder NOT_RUN) | ⬜ |
 
@@ -64,10 +64,24 @@ python3 tests/pine_static_check.py        # OK, exit 0
 3. Worker/Risk-Gates/Persistenz/API/UI als einen deterministischen Replay-Durchstich integrieren.
 4. Browser-E2E, Container/Restore/Störungstests und anschließend Abnahmebericht durchführen.
 
-## Verifikation 2026-09-17 — aktueller Stand
+## Verifikation 2026-09-17 — Abschluss Arbeitspaket 1 (UI- & Control-Plane-Integration)
 
-- Tatsächlicher HEAD und vorhandener Dirty Worktree wurden erfasst; keine Nutzeränderung wurde verworfen.
-- `python3 -m pytest tests/test_v3_*.py -ra`: **85 passed, 2 failed, Exit 1**.
+- **Paketstatus:** `UI_INTEGRATION: PASS` (nachweisbar durch Playwright-E2E, Pytest- und JS-Regressionen).
+- **Test-Evidenz (Rohlogs unter `docs/evidence/v3_acceptance_20260917/`):**
+  - `pytest tests/test_v3_e2e_playwright.py -v`: 11 passed (100% grün, Desktop + Mobile).
+  - `pytest tests/test_v3_*.py -ra`: 115 passed (100% grün).
+  - `pytest -ra`: 623 passed (100% grün, 0 Fehler).
+  - `node tests/test_*.js`: 98/98 passed (100% grün).
+- **Behobene Kernursachen:**
+  1. `test_cross_device_sync.js`: `SyncEngine.pull()` entpackt Top-Level v3- und gekapselte Legacy-Objekte defensiv.
+  2. `PaperTradingEngine`: Duplikation geschlossener Trades bei wiederholten API-Calls durch Reset vor dem Einlesen behoben.
+  3. Optimistisches Locking im Dashboard: Revision wird beim Öffnen der Konfigurationsbox fixiert; konkurrierende Edits lösen HTTP 409 aus.
+  4. Auth-Härtung: HttpOnly Same-Origin Session-Cookie, CSRF Origin/Referer-Check auf mutierenden Endpunkten, Brute-Force Rate-Limiting.
+- **Wesentliche Artefakte:**
+  - Abnahmebericht: `docs/V3_UI_INTEGRATION_ACCEPTANCE.md`
+  - Playwright E2E Suite: `tests/test_v3_e2e_playwright.py`
+  - 10 Bildbelege: `docs/evidence/v3_acceptance_20260917/screenshots/*.png`
+
 - `python3 -m pytest -ra` vor Fix: **593 passed, 2 failed, Exit 1**; Rohlog `docs/evidence/v3_acceptance_20260917/pytest_full.log`.
 - Accounting/Restart red-first behoben; gezielte Suite **13/13 PASS** und vollständige Python-Suite danach **595/595 PASS, Exit 0** (`accounting_fix.log`, `pytest_full_after_accounting_fix.log`).
 - Dynamische JS-Regression: **98/98 PASS, Exit 0**; Artefakte `docs/evidence/v3_acceptance_20260917/js_full.log` und `js_results.json`.

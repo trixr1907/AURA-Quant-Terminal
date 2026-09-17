@@ -25,6 +25,24 @@ from aura.runner.state_machine import RunnerStateMachine, SystemState
 from aura.runner.worker import AuraWorkerService
 from aura.store.db import connect, migrate
 
+_TEST_TOKEN = "test-vertical-integration-token"
+
+
+def _make_authenticated_client(app) -> TestClient:
+    """Erstellt einen TestClient mit dem aktuell konfigurierten AURA_RELAY_TOKEN."""
+    import os
+    token = os.environ.get("AURA_RELAY_TOKEN", _TEST_TOKEN)
+    client = TestClient(app)
+    # Auth-Header auf Client-Ebene setzen (TestClient teilt keine Cookies zwischen Requests)
+    client.headers.update({"X-AURA-TOKEN": token})
+    return client
+
+
+@pytest.fixture(autouse=True)
+def _set_test_token_env(monkeypatch):
+    """Setzt den Test-Token fuer alle Vertikal-Integration-Tests."""
+    monkeypatch.setenv("AURA_RELAY_TOKEN", _TEST_TOKEN)
+
 
 def generate_synthetic_bullish_trend(num_bars: int = 60, start_price: float = 60000.0) -> list[Candle]:
     """Generiert eine synthetische, deterministische bullische Kerzenfolge."""
@@ -158,7 +176,7 @@ class TestVerticalIntegration:
 
             # 5. Pruefe REST Control Plane / API State
             app = create_app(db_path=db_path)
-            client = TestClient(app)
+            client = _make_authenticated_client(app)
             resp = client.get("/api/v3/state")
             assert resp.status_code == 200
             data = resp.json()
@@ -175,7 +193,7 @@ class TestVerticalIntegration:
             state_machine=RunnerStateMachine(SystemState.RUNNING),
             paper_engine=PaperTradingEngine(conn=api_conn),
         )
-        client = TestClient(app)
+        client = _make_authenticated_client(app)
         assert client.get("/api/v3/state").json()["open_positions"] == []
 
         worker = AuraWorkerService(db_path=str(db_path), symbols=["BTCUSDT"])
@@ -281,7 +299,7 @@ class TestCrossProcessControlPlane:
             state_machine=RunnerStateMachine(SystemState.RUNNING),
             paper_engine=PaperTradingEngine(conn=api_conn),
         )
-        client = TestClient(app)
+        client = _make_authenticated_client(app)
 
         worker = AuraWorkerService(db_path=str(db_path), symbols=["BTCUSDT"])
         worker.sm.transition_to(SystemState.WARMING_UP, "test")
@@ -328,7 +346,7 @@ class TestCrossProcessControlPlane:
             state_machine=RunnerStateMachine(SystemState.RUNNING),
             paper_engine=PaperTradingEngine(conn=api_conn),
         )
-        client = TestClient(app)
+        client = _make_authenticated_client(app)
         worker = AuraWorkerService(db_path=str(db_path), symbols=["BTCUSDT"])
 
         payload = {

@@ -1,0 +1,21 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 11 items
+
+tests/test_v3_e2e_playwright.py::test_scenario_a_unauthenticated_access_denied PASSED [  9%]
+tests/test_v3_e2e_playwright.py::test_scenario_b_login_and_load_authoritative_state PASSED [ 18%]
+tests/test_v3_e2e_playwright.py::test_scenario_c_config_request_and_worker_ack PASSED [ 27%]
+tests/test_v3_e2e_playwright.py::test_scenario_d_concurrent_config_conflict_409 PASSED [ 36%]
+tests/test_v3_e2e_playwright.py::test_scenario_e_halt_and_prevent_new_entries PASSED [ 45%]
+tests/test_v3_e2e_playwright.py::test_scenario_f_position_monitored_during_halt PASSED [ 54%]
+tests/test_v3_e2e_playwright.py::test_scenario_g_resume_and_resumption PASSED [ 63%]
+tests/test_v3_e2e_playwright.py::test_scenario_h_browser_close_and_reopen_persists_state PASSED [ 72%]
+tests/test_v3_e2e_playwright.py::test_scenario_i_worker_stale_detection_and_recovery PASSED [ 81%]
+tests/test_v3_e2e_playwright.py::test_scenario_j_mobile_viewport_and_trade_rendering PASSED [ 90%]
+tests/test_v3_e2e_playwright.py::test_scenario_k_deterministic_paper_trade_production_lifecycle_in_ui PASSED [100%]
+
+============================= 11 passed in 34.27s ==============================

@@ -20,6 +20,16 @@ class HealthResponse(BaseModel):
     timestamp_ms: int
 
 
+class LoginRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=256, description="Authentifizierungs-Token / Passwort")
+
+
+class AuthStatusResponse(BaseModel):
+    ok: bool = True
+    authenticated: bool
+    role: str = "anonymous"
+
+
 class BotConfigUpdate(BaseModel):
     risk_per_trade_pct: float = Field(ge=0.1, le=5.0, description="Risiko pro Trade in %")
     max_open_positions: int = Field(ge=1, le=20, description="Maximal gleichzeitig offene Trades")
@@ -29,6 +39,7 @@ class BotConfigUpdate(BaseModel):
     macro_cap: float = Field(ge=0.0, le=25.0, description="Maximaler Makro-Score-Einfluss")
     dry_run: bool = Field(default=True, description="Paper-Trading Modus aktiv")
     ntfy_enabled: bool = Field(default=True, description="Push-Benachrichtigungen aktiv")
+    expected_rev: int | None = Field(default=None, description="Erwartete aktive/letzte Revision fuer Optimistic Locking")
 
 
 class HaltRequest(BaseModel):

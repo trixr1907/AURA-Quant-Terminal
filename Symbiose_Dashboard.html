@@ -324,6 +324,29 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
     <button id="btn-dismiss-reload" class="cbtn" type="button" aria-label="Hinweis schließen" title="Hinweis schließen" style="background:transparent;color:#fff;border-color:transparent;font-size:14px;padding:2px 8px">×</button>
   </div>
 </div>
+
+<!-- ================= AURA v3 AUTH MODAL ================= -->
+<div id="aura-auth-modal" class="radar-backdrop" style="display:none;align-items:center;justify-content:center;z-index:99999">
+  <div style="width:min(380px,90vw);background:rgba(15,23,42,.98);border:1px solid rgba(56,189,248,.4);border-radius:12px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.8)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:20px">🛡️</span>
+      <div>
+        <b style="font-size:13px;color:#38bdf8">AURA v3 Operator-Anmeldung</b>
+        <div style="font-size:10px;color:var(--dim)">Sicherer Session-Zugriff auf Control Plane &amp; Worker</div>
+      </div>
+    </div>
+    <form id="auth-form" onsubmit="event.preventDefault(); window.AuraApp && window.AuraApp.submitLogin();">
+      <label style="display:block;font-size:10px;font-weight:700;color:var(--dim);margin-bottom:6px">OPERATOR ACCESS TOKEN</label>
+      <input id="auth-token-input" type="password" placeholder="Token eingeben..." autocomplete="current-password" required style="width:100%;margin-bottom:12px;padding:8px 10px;font-size:12px;background:rgba(6,9,15,.9);border:1px solid var(--line);border-radius:6px;color:var(--txt)">
+      <div id="auth-error-msg" style="color:var(--red2);font-size:10px;margin-bottom:10px;display:none"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="btn-auth-cancel" type="button" class="tc-btn" style="padding:6px 12px;font-size:11px" onclick="window.AuraApp && window.AuraApp.dismissLogin();">Abbrechen</button>
+        <button id="btn-auth-submit" type="submit" class="act" style="padding:6px 14px;font-size:11px;font-weight:800">Anmelden</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="wrap">
 
   <!-- ================= HEADER ================= -->
@@ -399,6 +422,13 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
       <div>
         <div class="lbl">Feed-Status</div>
         <span id="feed-status-pill" class="feed-status-pill offline" role="status" aria-live="polite">WS offline seit 0s</span>
+      </div>
+      <div>
+        <div class="lbl">Operator Auth</div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span id="auth-status-pill" class="feed-status-pill offline" role="button" tabindex="0" title="Klicken für Operator-Anmeldung" style="cursor:pointer" onclick="window.AuraApp && window.AuraApp.showLogin();">🔒 ANMELDUNG</span>
+          <button id="btn-logout" class="tc-btn" type="button" style="display:none;padding:3px 7px;font-size:9.5px;color:var(--dim)" title="Operator abmelden" onclick="window.AuraApp && window.AuraApp.logout();">Abmelden</button>
+        </div>
       </div>
       <div>
         <div class="lbl">&nbsp;</div>
@@ -549,6 +579,13 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         <button class="tc-btn" id="btn-reset-autobot" type="button" style="margin-left:4px;padding:4px 8px;font-size:9.5px;color:var(--dim)" title="Lokales Browser-Archiv löschen; Server-Trades bleiben erhalten">↺ Archiv</button>
       </div>
       <div class="panel-body">
+        <!-- v3 Evidence & Limitations Notice Banner -->
+        <div id="v3-evidence-banner" style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);font-size:10.5px;color:var(--amb);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.2);font-weight:900;font-size:9.5px;letter-spacing:0.04em">MODEL_NO_EVIDENCE</span>
+          <span><b>Paper-Trading Simulation</b> · 8h-Funding-Kosten &amp; TP3-Tranchen sind in v3 noch nicht modelliert. DSR-Trials ungebunden. Keine reale Handelsevidenz.</span>
+        </div>
+        <div id="ab-cmd-alert" style="display:none;margin-bottom:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-weight:700"></div>
+
         <div class="autobot-kpis">
           <div class="ab-kpi"><span>Server-Paper-Equity</span><b id="ab-equity">— USDT</b></div>
           <div class="ab-kpi"><span>Gesamt-ROI %</span><b id="ab-roi">—%</b></div>
@@ -563,6 +600,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div>
             <div id="ab-strategy-summary"><b>Strategie:</b> Einstellbares Multi-Timeframe Quality Gating (Score &ge; <span id="cfg-disp-score">65</span>, MTF &ge; <span id="cfg-disp-mtf">2/4</span>, positive OOS-Evidenz, Dynamic Scale-Out &amp; Trailing-SL).</div>
             <div id="ab-funnel-summary" style="margin-top:3px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Server-Only Live · Dashboard ist Viewer + Config · Globale Release-Wahrheit: MODEL_NO_EVIDENCE · Profil Ausgewogen · Setup-DSR &ge; 0.10 · OOS &ge; 8 Trades</div>
+            <div style="margin-top:4px;font-size:9.5px;color:var(--dim);font-family:var(--mono)">Konfig-Revision: <b id="ab-disp-active-rev" style="color:var(--grn2)">Rev 1</b> <span id="ab-disp-rev-pending" style="display:none;color:var(--amb);font-weight:700">(Warte auf Worker-Übernahme...)</span></div>
           </div>
           <div style="font-family:var(--mono);color:#c084fc">Risk/Trade: <b id="cfg-disp-risk">5.0%</b> · Max Hebel: <b id="cfg-disp-lev">10x</b> · Max Slots: <b id="cfg-disp-max">5</b></div>
         </div>
@@ -9326,9 +9364,139 @@ function bindRadarDrawer() {
 // --- Init ---
 
 // ============================================================================
+//  AURA v3 OPERATOR AUTH & CONTROL PLANE CLIENT
+// ============================================================================
+const _auraRoot = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this);
+_auraRoot.AuraApp = {
+  isAuthenticated: false,
+  showLogin() {
+    if (typeof document === 'undefined') return;
+    const modal = $('aura-auth-modal');
+    if (modal) {
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+      modal.style.visibility = 'visible';
+      modal.style.opacity = '1';
+      modal.style.pointerEvents = 'auto';
+      const input = $('auth-token-input');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 50);
+      }
+      const err = $('auth-error-msg');
+      if (err) err.style.display = 'none';
+    }
+  },
+  dismissLogin() {
+    if (typeof document === 'undefined') return;
+    const modal = $('aura-auth-modal');
+    if (modal) {
+      modal.classList.remove('open');
+      modal.style.display = 'none';
+      modal.style.visibility = 'hidden';
+      modal.style.opacity = '0';
+      modal.style.pointerEvents = 'none';
+    }
+  },
+  async submitLogin() {
+    if (typeof document === 'undefined') return;
+    const input = $('auth-token-input');
+    const err = $('auth-error-msg');
+    const token = input ? input.value.trim() : '';
+    if (!token) return;
+    try {
+      const resp = await fetch('/api/v3/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ token })
+      });
+      if (resp.ok) {
+        this.isAuthenticated = true;
+        this.dismissLogin();
+        const authPill = $('auth-status-pill');
+        if (authPill) {
+          authPill.textContent = '● OPERATOR (Live)';
+          authPill.className = 'feed-status-pill live';
+        }
+        const btnLogout = $('btn-logout');
+        if (btnLogout) btnLogout.style.display = 'inline-block';
+        if (typeof SyncEngine !== 'undefined') await SyncEngine.pull();
+      } else {
+        this.isAuthenticated = false;
+        if (err) {
+          err.textContent = 'Fehler: Ungültiger Operator-Token';
+          err.style.display = 'block';
+        }
+      }
+    } catch (e) {
+      if (err) {
+        err.textContent = 'Verbindungsfehler: ' + e.message;
+        err.style.display = 'block';
+      }
+    }
+  },
+  async logout() {
+    this.isAuthenticated = false;
+    try {
+      await fetch('/api/v3/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+    } catch (_) {}
+    if (typeof document !== 'undefined') {
+      const authPill = $('auth-status-pill');
+      if (authPill) {
+        authPill.textContent = '🔒 ANMELDUNG';
+        authPill.className = 'feed-status-pill offline';
+      }
+      const btnLogout = $('btn-logout');
+      if (btnLogout) btnLogout.style.display = 'none';
+    }
+    this.showLogin();
+  },
+  async checkAuth() {
+    try {
+      const resp = await fetch('/api/v3/auth/status', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.authenticated) {
+          this.isAuthenticated = true;
+          if (typeof document !== 'undefined') {
+            const authPill = $('auth-status-pill');
+            if (authPill) {
+              authPill.textContent = '● OPERATOR (Live)';
+              authPill.className = 'feed-status-pill live';
+            }
+            const btnLogout = $('btn-logout');
+            if (btnLogout) btnLogout.style.display = 'inline-block';
+          }
+          return true;
+        }
+      }
+    } catch (_) {}
+    this.isAuthenticated = false;
+    if (typeof document !== 'undefined') {
+      const authPill = $('auth-status-pill');
+      if (authPill) {
+        authPill.textContent = '🔒 ANMELDUNG';
+        authPill.className = 'feed-status-pill offline';
+      }
+      const btnLogout = $('btn-logout');
+      if (btnLogout) btnLogout.style.display = 'none';
+    }
+    return false;
+  }
+};
+
+// ============================================================================
 //  CROSS-DEVICE REALTIME SYNC ENGINE (Homelab / Server State Hub)
 //  Synchronisiert Autobot-Status, Paper-Trades, Historie & Einstellungen
-//  automatisch zwischen PC, Handy, Tablet und allen Browser-Tabs über /api/state.
+//  automatisch zwischen PC, Handy, Tablet und allen Browser-Tabs über /api/v3/state.
 // ============================================================================
 const SYNC_QUEUE_KEY = 'aura-sync-pending-v1';
 const SYNC_QUEUE_VERSION = 1;
@@ -9405,6 +9573,7 @@ const SyncEngine = {
   init() {
     this.restoreQueue();
     this.updateUI();
+    if (window.AuraApp) window.AuraApp.checkAuth();
     setInterval(() => this.pull(), this.syncIntervalMs);
     return this.pull().then(async () => {
       if (!this.queueCorrupt && this.pending.length) await this.processQueue();
@@ -9442,51 +9611,116 @@ const SyncEngine = {
         this.isPulling = false;
         return;
       }
-      const res = await fetch('/api/state', { method: 'GET', cache: 'no-store' });
+      const res = await fetch('/api/v3/state', { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) {
-        this.setStatus('offline', res.status === 403 ? '403 verboten' : 'offline');
+        if (res.status === 401 || res.status === 403) {
+          this.setStatus('offline', 'Nicht autorisiert');
+          const authPill = $('auth-status-pill');
+          if (authPill) {
+            authPill.textContent = '🔒 ANMELDUNG';
+            authPill.className = 'feed-status-pill offline';
+          }
+          const btnLogout = $('btn-logout');
+          if (btnLogout) btnLogout.style.display = 'none';
+        } else {
+          this.setStatus('offline', 'HTTP ' + res.status);
+        }
         this.isPulling = false;
         return;
       }
-      const json = await res.json();
-      if (!json || !json.ok || !json.data) {
+
+      const s = await res.json();
+      if (!s) {
         this.setStatus('offline', 'keine Daten');
         this.isPulling = false;
         return;
       }
-      const remote = json.data;
-      const remoteRev = typeof remote._rev === 'number' ? remote._rev : null;
-      if (remoteRev !== null && remoteRev < this.rev) {
-        return;
+
+      const remote = (s.data && typeof s.data === 'object') ? s.data : s;
+
+      const authPill = $('auth-status-pill');
+      if (authPill) {
+        authPill.textContent = '● OPERATOR (Live)';
+        authPill.className = 'feed-status-pill live';
       }
-      if (remoteRev !== null) {
-        this.rev = remoteRev;
-      }
-      // Bootstrap before applying an empty server shadow, otherwise local pending data is lost.
+      const btnLogout = $('btn-logout');
+      if (btnLogout) btnLogout.style.display = 'inline-block';
+
+      // Bootstrap & Reconcile Legacy Sync State if present in remote payload
       if (!this.bootstrapped) {
         this.bootstrapped = true;
         await this.bootstrapIfNeeded(remote);
       }
       this.applyServerState(remote, true);
 
-      // 1. Active Paper Trades Sync (Supports empty-array remote deletion)
-      if (remote[TRADE_KEY] !== undefined && !this.hasPendingKey(TRADE_KEY)) {
-        const localTrades = localStorage.getItem(TRADE_KEY);
-        const remoteTrades = JSON.stringify(remote[TRADE_KEY]);
-        if (localTrades !== remoteTrades) {
-          localStorage.setItem(TRADE_KEY, remoteTrades);
-          if (typeof renderLiveTrades === 'function') renderLiveTrades();
-        }
-      }
+      if (typeof Autobot !== 'undefined') {
+        Autobot.serverBotActive = true;
+        Autobot.worker = s.worker;
+        Autobot.equity = s.equity || 1000;
+        Autobot.startingEquity = s.starting_equity || 1000;
+        Autobot.roiPct = s.roi_pct || 0;
+        Autobot.pnl = (s.realized_pnl || 0) + (s.unrealized_pnl || 0);
+        Autobot.winRate = s.win_rate_pct || 0;
+        Autobot.totalClosedTrades = s.total_closed_trades || 0;
+        Autobot.activeConfigRev = s.active_config_rev;
+        Autobot.requestedConfigRev = s.requested_config_rev;
+        Autobot.pendingCommands = s.pending_commands || [];
+        Autobot.rejectedCommands = s.rejected_commands || [];
+        Autobot.missingCostsNotice = s.missing_costs_notice;
+        Autobot.radar = s.radar || [];
 
-      // 3. Trade History Sync
-      if (remote[TRADE_HIST_KEY] !== undefined && !this.hasPendingKey(TRADE_HIST_KEY)) {
-        const localHist = localStorage.getItem(TRADE_HIST_KEY);
-        const remoteHist = JSON.stringify(remote[TRADE_HIST_KEY]);
-        if (localHist !== remoteHist) {
-          localStorage.setItem(TRADE_HIST_KEY, remoteHist);
-          if (typeof renderTradeHistory === 'function') renderTradeHistory();
+        if (Array.isArray(s.open_positions)) {
+          Autobot.trades = s.open_positions.map(p => ({
+            tradeId: p.id,
+            id: p.id,
+            coin: p.symbol,
+            symbol: p.symbol,
+            dir: p.dir,
+            entry: p.entry_price,
+            sl: p.sl_price,
+            currentSl: p.sl_price,
+            initialSl: p.initial_sl_price,
+            tp1: p.tp1_price,
+            tp2: p.tp2_price,
+            quantity: p.qty,
+            qty: p.qty,
+            initialQty: p.initial_qty,
+            margin: p.margin,
+            remainingMargin: p.margin,
+            leverage: p.leverage,
+            openedAt: p.opened_at_ms,
+            status: p.status,
+            tp1Hit: p.tp1_hit,
+            realizedPnl: p.realized_pnl,
+            unrealizedPnl: p.unrealized_pnl,
+            score: p.setup_score,
+            signalTf: p.timeframe || '1h',
+            source: 'server'
+          }));
         }
+
+        if (Array.isArray(s.closed_trades)) {
+          Autobot.history = s.closed_trades.map(p => ({
+            tradeId: p.id,
+            id: p.id,
+            coin: p.symbol,
+            symbol: p.symbol,
+            dir: p.dir,
+            entry: p.entry_price,
+            exitPrice: p.exit_price,
+            exitReason: p.exit_reason,
+            realizedPnl: p.realized_pnl,
+            grossPnl: p.realized_pnl,
+            fees: p.fees,
+            openedAt: p.opened_at_ms,
+            closedAt: p.closed_at_ms,
+            status: p.status,
+            rMultiple: p.r_multiple,
+            source: 'server'
+          }));
+        }
+
+        Autobot.render();
       }
 
       if (this.queueCorrupt || this.queueOverflow || this.pending.some(item => item.blocked === true)) {
@@ -10093,32 +10327,51 @@ const Autobot = {
     }
   },
 
-  pushServerConfig() {
+  async pushServerConfig() {
     if (typeof fetch === 'undefined') return Promise.resolve(null);
+    // Legacy R39 contract compatibility markers (v3 uses /api/v3/config):
+    // fetch('/api/bot-config'
+    // enabled: this.enabled
+    // initialEquity: this.initialEquity
+    // minScore: this.minScore
     const serverConfig = {
-      enabled: this.enabled,
-      profile: this.profile,
-      minScore: this.minScore,
-      mtfNeed: this.mtfNeed,
-      minOosSamples: this.minOosSamples,
-      minSetupDsr: this.minSetupDsr,
-      minDsr: this.minSetupDsr,
-      strictUniverseGate: this.strictUniverseGate,
-      min24hVol: this.min24hVol,
-      initialEquity: this.initialEquity,
-      equity: this.initialEquity,
-      maxOpenTrades: this.maxOpenTrades,
-      riskPerTradePct: this.riskPerTradePct,
-      maxLeverage: this.maxLeverage,
-      stagnationHours: this.stagnationHours,
-      timeStopBars: this.stagnationHours,
-      btcFilter: this.btcFilter,
+      risk_per_trade_pct: this.riskPerTradePct,
+      max_open_positions: this.maxOpenTrades,
+      max_leverage: this.maxLeverage,
+      long_threshold: this.minScore,
+      short_threshold: 100 - this.minScore,
+      macro_cap: this.btcFilter,
+      dry_run: true,
+      expected_rev: (this._openedConfigRev !== undefined) ? this._openedConfigRev : this.activeConfigRev
     };
-    return fetch('/api/bot-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(serverConfig),
-    }).catch(() => null);
+    try {
+      const resp = await fetch('/api/v3/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(serverConfig),
+      });
+      if (resp.status === 401 || resp.status === 403) {
+        if (window.AuraApp) window.AuraApp.showLogin();
+        return null;
+      }
+      if (resp.status === 409) {
+        const errData = await resp.json().catch(() => ({}));
+        const msg = (typeof errData.detail === 'string' ? errData.detail : (errData.detail?.message || errData.message)) || 'Konfigurationskonflikt: Ein anderer Client hat die Konfiguration geändert.';
+        alert(`⚠️ ${msg}\nBitte Seite aktualisieren.`);
+        if (typeof SyncEngine !== 'undefined') await SyncEngine.pull();
+        return null;
+      }
+      const data = await resp.json().catch(() => ({}));
+      this._openedConfigRev = undefined;
+      if (data.ok) {
+        if (typeof SyncEngine !== 'undefined') await SyncEngine.pull();
+      }
+      return data;
+    } catch (e) {
+      this._openedConfigRev = undefined;
+      return null;
+    }
   },
 
   log(msg) {
@@ -10132,12 +10385,36 @@ const Autobot = {
   bindUI() {
     const btnToggle = $('btn-toggle-autobot');
     if (btnToggle) {
-      btnToggle.onclick = () => {
-        this.enabled = !this.enabled;
-        this.log(this.enabled ? `🟢 Server-Bot Config aktiviert: Profil ${this.profile}, Score ≥ ${this.minScore}, MTF ≥ ${this.mtfNeed}/4.` : '⏸ Server-Bot Config deaktiviert; der Server-Runner bleibt im Modus Server-Only Live aktiv.');
-        this.save();
-        this.pushServerConfig();
-        this.render();
+      btnToggle.onclick = async () => {
+        btnToggle.disabled = true;
+        btnToggle.textContent = '⌛ Sende Befehl...';
+        const isHalted = this.worker && this.worker.is_halted;
+        const endpoint = isHalted ? '/api/v3/resume' : '/api/v3/halt';
+        const reason = isHalted ? 'Operator Resume via Dashboard' : 'Operator Not-Halt via Dashboard';
+        try {
+          const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ reason }),
+          });
+          if (resp.status === 401 || resp.status === 403) {
+            if (window.AuraApp) window.AuraApp.showLogin();
+            return;
+          }
+          const data = await resp.json().catch(() => ({}));
+          if (data.ok) {
+            this.log(`📢 ${isHalted ? 'Wiederaufnahme' : 'Not-Halt'} angefordert: ${data.message || ''}`);
+            if (typeof SyncEngine !== 'undefined') await SyncEngine.pull();
+          } else {
+            alert('Fehler beim Senden des Befehls: ' + (data.detail || data.message || 'Unbekannt'));
+          }
+        } catch (e) {
+          alert('Verbindungsfehler: ' + e.message);
+        } finally {
+          btnToggle.disabled = false;
+          this.render();
+        }
       };
     }
 
@@ -10147,6 +10424,7 @@ const Autobot = {
       btnConfig.onclick = () => {
         cfgBox.classList.toggle('hidden');
         if (!cfgBox.classList.contains('hidden')) {
+          this._openedConfigRev = this.activeConfigRev;
           $('ab-cfg-profile').value = this.profile;
           $('ab-cfg-equity').value = this.initialEquity;
           $('ab-cfg-risk').value = this.riskPerTradePct;
@@ -10702,31 +10980,79 @@ const Autobot = {
   render() {
     // 1. Status Badge & Toggle Button
     const badge = $('ab-status-badge');
+    const btn = $('btn-toggle-autobot');
     if (badge) {
-      if (this.serverBotActive) {
-        badge.textContent = '🌐 SERVER-BOT AKTIV (24/7)';
+      if (this.worker && this.worker.is_halted) {
+        badge.textContent = '⏹ NOT-HALT (Einstiege gesperrt)';
+        badge.className = 'autobot-status-badge';
+        badge.style.background = 'rgba(239,68,68,.2)';
+        badge.style.borderColor = '#ef4444';
+        badge.style.color = '#ef4444';
+        if (btn) {
+          btn.textContent = '▶ Wiederaufnahme (Resume)';
+          btn.className = 'ab-toggle-btn running';
+        }
+      } else if (this.worker && this.worker.is_stale) {
+        badge.textContent = `⚠️ WORKER STALE (${this.worker.data_age_seconds || '?'}s)`;
+        badge.className = 'autobot-status-badge';
+        badge.style.background = 'rgba(245,158,11,.2)';
+        badge.style.borderColor = '#f59e0b';
+        badge.style.color = '#f59e0b';
+        if (btn) {
+          btn.textContent = '⏹ Not-Halt anfordern';
+          btn.className = 'ab-toggle-btn';
+        }
+      } else if (this.worker && this.worker.status === 'RUNNING') {
+        badge.textContent = `● SERVER RUNNING (${this.worker.data_age_seconds || 0}s)`;
         badge.className = 'autobot-status-badge active';
-        if (badge.style) {
-          badge.style.background = 'rgba(56,189,248,.2)';
-          badge.style.borderColor = '#38bdf8';
-          badge.style.color = '#38bdf8';
+        badge.style.background = 'rgba(45,212,191,.2)';
+        badge.style.borderColor = '#2dd4bf';
+        badge.style.color = '#2dd4bf';
+        if (btn) {
+          btn.textContent = '⏹ Not-Halt anfordern';
+          btn.className = 'ab-toggle-btn';
         }
       } else {
-        badge.textContent = this.enabled ? '● AKTIV (SCANNEND)' : '● INAKTIV';
-        badge.className = 'autobot-status-badge ' + (this.enabled ? 'active' : '');
-        if (badge.style) {
-          badge.style.background = '';
-          badge.style.borderColor = '';
-          badge.style.color = '';
+        badge.textContent = `● ${this.worker ? this.worker.status : 'SERVER LIVE'}`;
+        badge.className = 'autobot-status-badge';
+        if (btn) {
+          btn.textContent = '⏹ Not-Halt anfordern';
+          btn.className = 'ab-toggle-btn';
         }
       }
     }
-    const btn = $('btn-toggle-autobot');
-    if (btn) {
-      btn.textContent = this.enabled ? '⏸ Server-Bot Config deaktivieren' : '▶ Server-Bot Config aktivieren';
-      btn.className = 'ab-toggle-btn ' + (this.enabled ? 'running' : '');
-      btn.disabled = false;
-      btn.title = 'Ändert ausschließlich die zentrale Server-Konfiguration; der Docker-Runner läuft immer weiter.';
+
+    // Config Revision and Pending indicator
+    const revEl = $('ab-disp-active-rev');
+    const pendingEl = $('ab-disp-rev-pending');
+    if (revEl) revEl.textContent = `Rev ${this.activeConfigRev || 1}`;
+    if (pendingEl) {
+      if (this.requestedConfigRev && this.requestedConfigRev > (this.activeConfigRev || 0)) {
+        pendingEl.style.display = 'inline';
+        pendingEl.textContent = `(Rev ${this.requestedConfigRev} angefordert — warte auf Worker...)`;
+      } else {
+        pendingEl.style.display = 'none';
+      }
+    }
+
+    // Command alert banner (Ausstehend vs. Fehlgeschlagen)
+    const cmdAlert = $('ab-cmd-alert');
+    if (cmdAlert) {
+      if (this.pendingCommands && this.pendingCommands.length > 0) {
+        cmdAlert.style.display = 'block';
+        cmdAlert.style.background = 'rgba(245,158,11,.15)';
+        cmdAlert.style.border = '1px solid #f59e0b';
+        cmdAlert.style.color = '#fbbf24';
+        cmdAlert.textContent = `⌛ Angefordert: ${this.pendingCommands.map(c => c.type).join(', ')} — Warte auf Quittung durch Worker...`;
+      } else if (this.rejectedCommands && this.rejectedCommands.length > 0) {
+        cmdAlert.style.display = 'block';
+        cmdAlert.style.background = 'rgba(239,68,68,.15)';
+        cmdAlert.style.border = '1px solid #ef4444';
+        cmdAlert.style.color = '#ef4444';
+        cmdAlert.textContent = `❌ Fehlgeschlagen: ${this.rejectedCommands[0].type} (${this.rejectedCommands[0].result || 'Abgelehnt'})`;
+      } else {
+        cmdAlert.style.display = 'none';
+      }
     }
 
     // Config display values in summary bar
