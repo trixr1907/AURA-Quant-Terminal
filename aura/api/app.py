@@ -476,6 +476,14 @@ def create_app(
             return HTMLResponse(content=dash_path.read_text(encoding="utf-8"))
         return HTMLResponse(content="<h1>AURA v3 Running</h1>")
 
+    @app.get("/preview", response_class=HTMLResponse)
+    def serve_preview():
+        """Liefert den neuen AURA UX-Entwurf (Read-Only Vorschau) aus."""
+        preview_path = Path(__file__).parent.parent.parent / "aura_ux_preview.html"
+        if preview_path.exists():
+            return HTMLResponse(content=preview_path.read_text(encoding="utf-8"))
+        return HTMLResponse(content="<h1>aura_ux_preview.html nicht gefunden</h1>", status_code=404)
+
     return app
 
 
