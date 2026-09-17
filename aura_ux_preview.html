@@ -700,13 +700,17 @@ async function refreshData() {
     const workerRes = await apiCall("/status/worker");
     if(myGen !== fetchGen) return;
     if(!workerRes._error){
-        state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
+        if (workerRes.worker_known === false) {
+            state.scenario.worker = "UNBEKANNT";
+        } else if (workerRes.stale === true) {
+            const rawPhase = workerRes.is_halted ? "HALTED" : (workerRes.fsm_state || "UNBEKANNT");
+            state.scenario.worker = "VERALTET (" + rawPhase + ")";
+        } else {
+            state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
+        }
         KPIS.dataAgeSec = workerRes.data_age_seconds;
     }
-    // R1: Ein veralteter RUNNING-Datensatz darf nicht als bestaetigt laufend angezeigt werden
-    if (state.scenario.feed === "stale" && state.scenario.worker === "RUNNING") {
-        state.scenario.worker = "UNBEKANNT (Feed veraltet)";
-    }
+
 
     const stateRes = await apiCall("/api/v3/state");
     if(myGen !== fetchGen) return;
@@ -874,8 +878,11 @@ function renderOverview(){
   if (s.worker === "halted"){
     wEl.innerHTML = "⛔ Angehalten — Einstiege gesperrt";
     wSub.textContent = "Bewusster Sicherheitszustand. Prozess kann dabei technisch gesund laufen (kein Absturz).";
+  } else if (s.worker === "RUNNING") {
+    wEl.innerHTML = "✅ RUNNING — Einstiege zulässig";
+    wSub.textContent = "Worker läuft aktiv und ist bestätigbar.";
   } else {
-    wEl.innerHTML = "❔ Zustand unbekannt";
+    wEl.innerHTML = "❔ Zustand nicht bestätigt (" + (s.worker || "unbekannt") + ")";
     wSub.textContent = "Einstiegsfähigkeit kann nicht bestätigt werden — wird nicht als freigegeben angezeigt (fail-closed).";
   }
 
@@ -883,21 +890,21 @@ function renderOverview(){
   const cSub = document.getElementById('ovConnSub');
   if (s.conn === "connected" && s.feed === "fresh"){
     cEl.innerHTML = "✅ Verbunden, Daten aktuell";
-    cSub.textContent = "API erreichbar, auf echten Markttick basierend.";
+    cSub.textContent = "API erreichbar, " + (s.feedText || "auf echten Markttick basierend.");
   } else if (s.conn !== "connected"){
     cEl.innerHTML = "🔴 Verbindung unterbrochen";
     cSub.textContent = "Keine Anzeige scheinbar gültiger Werte — Anzeigen werden als nicht verfügbar markiert.";
   } else {
-    cEl.innerHTML = "🟡 Verbunden, Daten veraltet";
-    cSub.textContent = "Letzter Tick älter als die Frische-Schwelle (Demo: 180s).";
+    cEl.innerHTML = "🟡 Verbunden, Datenzustand: " + (s.feedText || "veraltet");
+    cSub.textContent = "Siehe Marktdaten-Status/Alter.";
   }
 
   // Handlungsbedarf
   const items = [];
   if (s.worker === "halted"){
     items.push({cls:"crit", ico:"⛔", title:"Not-Halt aktiv", txt:"Entries gesperrt. Prüfen, ob Wiederaufnahme angemessen ist (siehe Betrieb-Tab).", details:"Code: OPERATOR_OR_SYSTEM_HALT · interner Freitext wird nicht öffentlich angezeigt."});
-  } else {
-    items.push({cls:"warn", ico:"❔", title:"Worker-Zustand unbekannt", txt:"Keine verlässliche Aussage zur Einstiegsfähigkeit möglich. Als gesperrt behandeln, bis Zustand bestätigt ist.", details:"Fail-closed-Prinzip: unbekannt ≠ freigegeben."});
+  } else if (s.worker !== "RUNNING"){
+    items.push({cls:"warn", ico:"❔", title:"Worker-Zustand: " + (s.worker || "unbekannt"), txt:"Keine verlässliche Aussage zur Einstiegsfähigkeit möglich. Als gesperrt behandeln, bis Zustand bestätigt ist.", details:"Fail-closed-Prinzip: unbekannt ≠ freigegeben."});
   }
   if (s.conn !== "connected"){
     items.push({cls:"crit", ico:"🔌", title:"API-Verbindung unterbrochen", txt:"Live-Daten und Steuerbefehle sind aktuell nicht verlässlich verfügbar.", details:"Betrifft Feed, Status und Operator-Aktionen gleichermaßen."});

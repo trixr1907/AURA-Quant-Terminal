@@ -140,6 +140,66 @@ async def run_tests():
             is_no_overflow = await page.evaluate("document.documentElement.scrollWidth <= 390")
             assert is_no_overflow, f"Overflow (scrollWidth > 390) detected auf Tab {tab}!"
         
+        
+        # --- R1 Matrix Tests ---
+        await page.locator("#tab-overview-m").click()
+
+        async def test_matrix(w_halt, w_fsm, w_known, w_stale, feed_stat,
+                              exp_w_pill, exp_f_pill, exp_w_ov, exp_f_ov):
+            async def m_w(route):
+                await route.fulfill(json={
+                    "is_halted": w_halt, "fsm_state": w_fsm,
+                    "worker_known": w_known, "stale": w_stale, "data_age_seconds": 10
+                })
+            async def m_s(route):
+                await route.fulfill(json={
+                    "market_data": {"status": feed_stat, "symbols": []}
+                })
+            await page.route("**/status/worker", m_w)
+            await page.route("**/api/v3/state**", m_s)
+            
+            await page.evaluate("refreshData(); undefined;")
+            await page.wait_for_timeout(300)
+            
+            pill_w = await page.locator("#pill-worker-txt").inner_text()
+            pill_f = await page.locator("#pill-feed-txt").inner_text()
+            assert exp_w_pill in pill_w, f"Pill Worker exp '{exp_w_pill}' but was '{pill_w}'"
+            assert exp_f_pill in pill_f, f"Pill Feed exp '{exp_f_pill}' but was '{pill_f}'"
+
+            # Use textContent or innerText of the parent container for Overview
+            ov_w_el = page.locator("#ovWorkerState")
+            ov_w = await ov_w_el.inner_text()
+            ov_f_el = page.locator("#ovConnState")
+            ov_f = await ov_f_el.inner_text()
+            
+            assert exp_w_ov in ov_w.replace("\n", " "), f"Overview Worker exp '{exp_w_ov}' but was '{ov_w}'"
+            assert exp_f_ov in ov_f.replace("\n", " "), f"Overview Feed exp '{exp_f_ov}' but was '{ov_f}'"
+            
+            await page.unroute("**/status/worker")
+            await page.unroute("**/api/v3/state**")
+
+        # CASE 1: RUNNING + frischer Worker + valide Marktdaten
+        await test_matrix(False, "RUNNING", True, False, "fresh",
+                          "RUNNING", "frisch", "RUNNING — Einstiege", "Verbunden, Daten aktuell")
+                          
+        # CASE 2: RUNNING + frischer Worker + source_failed-Marktdaten
+        # RUNNING worker must STAY RUNNING! ONLY market feed is source_failed.
+        await test_matrix(False, "RUNNING", True, False, "source_failed",
+                          "RUNNING", "source_failed", "RUNNING — Einstiege", "Verbunden, Datenzustand: veraltet")
+
+        # CASE 3: RUNNING + veralteter Worker + valide Marktdaten
+        await test_matrix(False, "RUNNING", True, True, "fresh",
+                          "VERALTET", "frisch", "nicht bestätigt", "Verbunden, Daten aktuell")
+
+        # CASE 4: frischer HALTED-Worker + valide Marktdaten
+        await test_matrix(True, "RUNNING", True, False, "fresh",
+                          "HALTED", "frisch", "Angehalten", "Verbunden, Daten aktuell")
+
+        # CASE 5: fehlender/unbekannter Worker + valide Marktdaten
+        await test_matrix(False, "UNKNOWN", False, False, "fresh",
+                          "UNBEKANNT", "frisch", "nicht bestätigt", "Verbunden, Daten aktuell")
+                          
+
         await context.close()
         await browser.close()
         
