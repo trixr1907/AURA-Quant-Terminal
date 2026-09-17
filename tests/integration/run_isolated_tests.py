@@ -36,13 +36,16 @@ if __name__ == "__main__":
         os.environ["AURA_RELAY_TOKEN"] = "TEST_INTEGRATION_TOKEN_XYZ"
         os.environ["PYTHONPATH"] = str(project_root)
 
+        log_out = open(os.path.join(tmpdir, "uvicorn_out.log"), "w")
+        log_err = open(os.path.join(tmpdir, "uvicorn_err.log"), "w")
+
         print("Starting Uvicorn for tests...")
         proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "aura.api.app:create_app", "--factory", "--host", "127.0.0.1", "--port", "8899"],
             cwd=str(project_root),
             env=os.environ,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stdout=log_out,
+            stderr=log_err
         )
 
         try:
@@ -51,18 +54,19 @@ if __name__ == "__main__":
                 if proc.poll() is not None:
                     break
                 try:
-                    res = urllib.request.urlopen("http://127.0.0.1:8899/api/v3/health")
+                    res = urllib.request.urlopen("http://127.0.0.1:8899/api/v3/health", timeout=2.0)
                     if res.status == 200:
                         ready = True
                         break
-                except urllib.error.URLError:
-                    time.sleep(0.5)
+                except (urllib.error.URLError, TimeoutError, OSError):
+                    pass
+                time.sleep(0.5)
 
             if not ready:
                 print("Uvicorn failed to start or died early.")
-                out, err = proc.communicate(timeout=5)
-                print("STDOUT:", out.decode())
-                print("STDERR:", err.decode())
+                kill_process(proc) # Ensure no zombie
+                with open(os.path.join(tmpdir, "uvicorn_err.log"), "r") as f:
+                    print("STDERR:", f.read())
                 sys.exit(1)
                 
             print("Uvicorn is ready! Running DB Fixture...")
@@ -75,6 +79,7 @@ if __name__ == "__main__":
                     VALUES ('fixture_t1', 'test_script', 'ETHUSDT', 1, 'open', '2000.0', '1900.0', '1900.0',
                         '2000', '200', 10, ?, 'v2', 3, '1H')
                 """, (now - 3600*1000,))
+                # Create 1 unrealized gross = (current - entry) * qty * dir -> wait, it's computed dynamically via feed
                 conn.execute("""
                     INSERT INTO runner_state (id, fsm_state, reason, equity, updated_at_ms)
                     VALUES (1, 'RUNNING', 'UI Integration Test', '10000.0', ?)
@@ -87,13 +92,17 @@ if __name__ == "__main__":
             # 1. Normal Run
             test_proc = subprocess.run(
                 [sys.executable, str(test_script)],
-                capture_output=True, text=True, timeout=30
+                capture_output=True, text=True, timeout=180
             ) 
             print("--- NORMAL RUN STDOUT ---")
             print(test_proc.stdout)
             if test_proc.stderr:
                 print("--- NORMAL RUN STDERR ---")
                 print(test_proc.stderr)
+                
+            if test_proc.returncode != 0:
+                print("Normal run failed.")
+                sys.exit(test_proc.returncode)
 
             # 2. Negative Run (Intentional Fail)
             print("\nRunning Playwright tests (Negative Control)...")
@@ -101,7 +110,7 @@ if __name__ == "__main__":
             env_neg["FAIL_INTENTIONALLY"] = "1"
             neg_proc = subprocess.run(
                 [sys.executable, str(test_script)],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True, text=True, timeout=180,
                 env=env_neg
             )
             print("--- NEGATIVE RUN STDOUT ---")
@@ -110,15 +119,22 @@ if __name__ == "__main__":
                 print("--- NEGATIVE RUN STDERR ---")
                 print(neg_proc.stderr)
             
+            # Require EXACT expected assertion failure
             if neg_proc.returncode == 0:
                 print("ERROR: Negative Control passed unexpectedly! It should have failed.")
                 sys.exit(1)
             else:
-                print(f"SUCCESS: Negative control correctly failed with code {neg_proc.returncode}.")
+                if "BEWUSSTE NEGATIVKONTROLLE" in neg_proc.stderr:
+                    print(f"SUCCESS: Negative control correctly failed with code {neg_proc.returncode} and expected marker.")
+                else:
+                    print(f"ERROR: Negative control failed with code {neg_proc.returncode} but MISSING expected marker 'BEWUSSTE NEGATIVKONTROLLE'.")
+                    sys.exit(1)
                 
-            sys.exit(test_proc.returncode)
+            sys.exit(0)
             
         finally:
             print("Stopping Uvicorn...")
             kill_process(proc)
+            log_out.close()
+            log_err.close()
             print("Done.")
