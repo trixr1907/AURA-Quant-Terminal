@@ -30,7 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from typing import Any
+from typing import Any, Callable, TextIO
 
 # -----------------------------------------------------------------------------
 # Absolute Pfade & Projektverzeichnis
@@ -199,74 +199,218 @@ def cleanup_run_resources(
     sentinel_vol: str | None = None,
     sentinel_net: str | None = None,
     vars_override: dict[str, str] | None = None,
+    container_api: str | None = None,
+    container_worker: str | None = None,
+    volume_data: str | None = None,
+    volume_state: str | None = None,
 ) -> list[str]:
-    """H1: Zentraler Cleanup nur fuer nachweislich eigene Run-Ressourcen.
-    
-    Wird bei Erfolg, Assertions, Timeouts, Exceptions und KeyboardInterrupt ausgefuehrt.
-    Erfasst Fehler, benennt bei nicht erreichbarem Daemon verbliebene Ressourcen.
-    """
+    """Raeumt nachweislich eigene Run-Ressourcen auf und sammelt alle Fehler."""
     errors: list[str] = []
+    resource_names = (
+        f"Projekt: {project_name}; Run: {run_id}; "
+        f"Container: {container_api}, {container_worker}; "
+        f"Volumes: {volume_data}, {volume_state}; "
+        f"Image: {image_tag}; Sentinel-Volume: {sentinel_vol}; "
+        f"Sentinel-Network: {sentinel_net}"
+    )
 
-    # 1. Pruefen ob Docker ueberhaupt erreichbar ist
-    code, _, _ = run_cmd(["docker", "info", "--format", "{{.ServerVersion}}"], check=False, timeout=5)
-    if code != 0:
-        unreachable_msg = (
-            f"WARNUNG: Docker-Daemon nicht erreichbar waehrend Cleanup! "
-            f"Folgende Ressourcen von Projekt '{project_name}' (Run '{run_id}') konnten nicht bereinigt werden:\n"
-            f"  - Projekt-Container/Volumes: {project_name}\n"
-            f"  - Image: {image_tag}\n"
-            f"  - Sentinel Volume: {sentinel_vol}\n"
-            f"  - Sentinel Network: {sentinel_net}"
+    # Auch Timeout/OSError der initialen Erreichbarkeitspruefung werden zum
+    # Cleanup-Fehler; sie duerfen niemals den primaeren Testfehler ersetzen.
+    try:
+        code, _, err = run_cmd(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            check=False,
+            timeout=5,
         )
-        print(unreachable_msg, file=sys.stderr)
-        errors.append(unreachable_msg)
+    except (OSError, RuntimeError, KeyboardInterrupt) as ex:
+        errors.append(
+            "Docker-Daemon nicht erreichbar waehrend Cleanup: "
+            f"{ex}. Moeglicherweise verbliebene Ressourcen: {resource_names}"
+        )
         return errors
 
-    # 2. Compose-Projekt gezielt stoppen und Volumes entfernen
-    try:
-        compose_cmd(["down", "-v", "--remove-orphans"], check=False, timeout=45, project_override=project_name, vars_override=vars_override)
-    except Exception as ex:
-        errors.append(f"Compose down failed: {ex}")
+    if code != 0:
+        errors.append(
+            "Docker-Daemon nicht erreichbar waehrend Cleanup "
+            f"(exit code {code}: {err}). Moeglicherweise verbliebene Ressourcen: "
+            f"{resource_names}"
+        )
+        return errors
 
-    # 3. Sicherheits-Check: Falls noch Container mit passendem Projekt-Label laufen, stoppen
+    # Compose kennt die Run-Ressourcen anhand des Projekt-Labels. Der
+    # Returncode wird trotz check=False zwingend ausgewertet.
     try:
-        code_c, out_c, _ = run_cmd([
-            "docker", "ps", "-a",
-            "--filter", f"label=com.docker.compose.project={project_name}",
-            "--format", "{{.ID}} {{.Names}}"
-        ], check=False, timeout=8)
-        if code_c == 0 and out_c.strip():
+        down_code, down_out, down_err = compose_cmd(
+            ["down", "-v", "--remove-orphans"],
+            check=False,
+            timeout=45,
+            project_override=project_name,
+            vars_override=vars_override,
+        )
+        if down_code != 0:
+            details = down_err or down_out or "keine Diagnose"
+            errors.append(
+                f"Compose down failed with exit code {down_code}: {details}. "
+                f"Betroffene Run-Ressourcen: {resource_names}"
+            )
+    except (OSError, RuntimeError) as ex:
+        errors.append(f"Compose down failed: {ex}. Betroffene Run-Ressourcen: {resource_names}")
+
+    # Falls Compose teilweise scheiterte, duerfen nur Container mit dem
+    # exakten Compose-Projektlabel als eigene Run-Ressourcen entfernt werden.
+    try:
+        code_c, out_c, err_c = run_cmd(
+            [
+                "docker", "ps", "-a",
+                "--filter", f"label=com.docker.compose.project={project_name}",
+                "--format", "{{.ID}} {{.Names}}",
+            ],
+            check=False,
+            timeout=8,
+        )
+        if code_c != 0:
+            errors.append(f"Container discovery failed with exit code {code_c}: {err_c}")
+        elif out_c.strip():
             for line in out_c.splitlines():
                 cid = line.split()[0]
-                run_cmd(["docker", "rm", "-f", cid], check=False, timeout=8)
-    except Exception as ex:
-        errors.append(f"Container force-removal failed: {ex}")
+                rm_code, rm_out, rm_err = run_cmd(
+                    ["docker", "rm", "-f", cid],
+                    check=False,
+                    timeout=8,
+                )
+                if rm_code != 0:
+                    errors.append(
+                        f"Container removal failed for {cid} with exit code {rm_code}: "
+                        f"{rm_err or rm_out}"
+                    )
+    except (OSError, RuntimeError) as ex:
+        errors.append(f"Container cleanup failed: {ex}")
 
-    # 4. Eigene Sentinels nur mit passendem Ownership-Label entfernen
+    # Sentinel-Fixtures sind fuer die geprüften Compose-Projekte fremd, aber
+    # gehoeren dem uebergeordneten Harness-Run. Nur dessen exaktes Owner-Label
+    # erlaubt den abschliessenden Abbau; fremde Owner bleiben unangetastet.
     if sentinel_vol:
         try:
-            code_v, owner_v, _ = run_cmd(["docker", "volume", "inspect", "--format", "{{index .Labels \"aura.test.owner\"}}", sentinel_vol], check=False, timeout=6)
-            if code_v == 0 and owner_v == f"fremd_{run_id}":
-                run_cmd(["docker", "volume", "rm", "-f", sentinel_vol], check=False, timeout=8)
-        except Exception as ex:
+            code_v, owner_v, err_v = run_cmd(
+                [
+                    "docker", "volume", "inspect", "--format",
+                    "{{index .Labels \"aura.test.owner\"}}", sentinel_vol,
+                ],
+                check=False,
+                timeout=6,
+            )
+            if code_v == 0 and owner_v == run_id:
+                rm_code, rm_out, rm_err = run_cmd(
+                    ["docker", "volume", "rm", "-f", sentinel_vol],
+                    check=False,
+                    timeout=8,
+                )
+                if rm_code != 0:
+                    errors.append(
+                        f"Sentinel volume removal failed with exit code {rm_code}: "
+                        f"{rm_err or rm_out}"
+                    )
+            elif code_v != 0 and "no such volume" not in err_v.lower():
+                errors.append(
+                    f"Sentinel volume ownership check failed with exit code {code_v}: {err_v}"
+                )
+        except (OSError, RuntimeError) as ex:
             errors.append(f"Sentinel volume cleanup failed: {ex}")
 
     if sentinel_net:
         try:
-            code_n, owner_n, _ = run_cmd(["docker", "network", "inspect", "--format", "{{index .Labels \"aura.test.owner\"}}", sentinel_net], check=False, timeout=6)
-            if code_n == 0 and owner_n == f"fremd_{run_id}":
-                run_cmd(["docker", "network", "rm", sentinel_net], check=False, timeout=8)
-        except Exception as ex:
+            code_n, owner_n, err_n = run_cmd(
+                [
+                    "docker", "network", "inspect", "--format",
+                    "{{index .Labels \"aura.test.owner\"}}", sentinel_net,
+                ],
+                check=False,
+                timeout=6,
+            )
+            if code_n == 0 and owner_n == run_id:
+                rm_code, rm_out, rm_err = run_cmd(
+                    ["docker", "network", "rm", sentinel_net],
+                    check=False,
+                    timeout=8,
+                )
+                if rm_code != 0:
+                    errors.append(
+                        f"Sentinel network removal failed with exit code {rm_code}: "
+                        f"{rm_err or rm_out}"
+                    )
+            elif code_n != 0 and "no such network" not in err_n.lower():
+                errors.append(
+                    f"Sentinel network ownership check failed with exit code {code_n}: {err_n}"
+                )
+        except (OSError, RuntimeError) as ex:
             errors.append(f"Sentinel network cleanup failed: {ex}")
 
-    # 5. Eigenes Test-Image entfernen
     if image_tag:
         try:
-            run_cmd(["docker", "rmi", "-f", image_tag], check=False, timeout=10)
-        except Exception as ex:
+            image_code, image_out, image_err = run_cmd(
+                ["docker", "rmi", "-f", image_tag],
+                check=False,
+                timeout=10,
+            )
+            if image_code != 0 and "no such image" not in image_err.lower():
+                errors.append(
+                    f"Image removal failed with exit code {image_code}: "
+                    f"{image_err or image_out}"
+                )
+        except (OSError, RuntimeError) as ex:
             errors.append(f"Image removal failed: {ex}")
 
     return errors
+
+
+def run_lifecycle_with_cleanup(
+    lifecycle: Callable[[], None],
+    *,
+    project_name: str,
+    run_id: str,
+    stderr_stream: TextIO | None = None,
+    **cleanup_kwargs: Any,
+) -> None:
+    """Fuehrt Lifecycle und genau einen zentralen Cleanup im finally aus.
+
+    Ein primaerer Fehler bleibt unveraendert. Cleanup-Fehler werden zusaetzlich
+    gemeldet. War der Lifecycle erfolgreich, machen Cleanup-Fehler den Lauf
+    explizit fehlerhaft statt einen uneingeschraenkten PASS zuzulassen.
+    """
+    primary_error: BaseException | None = None
+    primary_traceback = None
+    cleanup_errors: list[str] = []
+    error_stream = stderr_stream or sys.stderr
+
+    try:
+        lifecycle()
+    except (Exception, KeyboardInterrupt) as ex:
+        primary_error = ex
+        primary_traceback = ex.__traceback__
+    finally:
+        try:
+            cleanup_errors = cleanup_run_resources(
+                project_name,
+                run_id,
+                **cleanup_kwargs,
+            )
+        except (Exception, KeyboardInterrupt) as ex:
+            # Die Cleanup-Funktion soll selbst nicht werfen; dieser letzte Guard
+            # schuetzt den primaeren Fehler auch bei unerwarteten Implementierungsfehlern.
+            cleanup_errors = [f"Unerwarteter Cleanup-Fehler: {ex}"]
+
+    if cleanup_errors:
+        prefix = "[ZUSATZ-CLEANUP-FEHLER]" if primary_error else "[CLEANUP-FEHLER]"
+        print(f"{prefix}: {'; '.join(cleanup_errors)}", file=error_stream)
+
+    if primary_error is not None:
+        raise primary_error.with_traceback(primary_traceback)
+
+    if cleanup_errors:
+        raise RuntimeError(
+            "Ablauf abgeschlossen, aber Cleanup fehlgeschlagen: "
+            + "; ".join(cleanup_errors)
+        )
 
 
 def check_resource_collision(candidates: list[tuple[str, str]]) -> None:
@@ -352,11 +496,96 @@ def wait_for_healthy(container_name: str, timeout_sec: int = 45) -> dict:
     raise AssertionError(f"Container '{container_name}' erreichte innerhalb {timeout_sec}s nicht 'healthy' (letzter Status: {last_status}, data: {last_health_json})")
 
 
-def test_h1_failure_cleanup_after_up(shared_image_tag: str) -> None:
-    """H1-Negativtest 1: Absichtlicher Fehler unmittelbar nach Stackstart (vor Healthy).
-    
-    Beweist, dass der eigene Stack gestoppt wird und fremde Sentinels erhalten bleiben.
-    """
+def assert_h1_cleanup_result(
+    *,
+    label: str,
+    container_api: str,
+    container_worker: str,
+    volume_data: str,
+    volume_state: str,
+    project_network: str,
+    sentinel_volume: str,
+    sentinel_network: str,
+    sentinel_owner: str,
+) -> None:
+    """Prueft vollstaendig entfernte Run-Ressourcen und unveraenderten Sentinel."""
+    _, containers, _ = run_cmd(
+        ["docker", "ps", "-a", "--format", "{{.Names}}"],
+        timeout=8,
+    )
+    remaining_containers = {container_api, container_worker}.intersection(containers.split())
+    if remaining_containers:
+        raise AssertionError(
+            f"{label} FEHLGESCHLAGEN: Container nach Cleanup vorhanden: "
+            f"{sorted(remaining_containers)}"
+        )
+
+    _, volumes, _ = run_cmd(
+        ["docker", "volume", "ls", "--format", "{{.Name}}"],
+        timeout=8,
+    )
+    remaining_volumes = {volume_data, volume_state}.intersection(volumes.split())
+    if remaining_volumes:
+        raise AssertionError(
+            f"{label} FEHLGESCHLAGEN: Volumes nach Cleanup vorhanden: "
+            f"{sorted(remaining_volumes)}"
+        )
+
+    _, networks, _ = run_cmd(
+        ["docker", "network", "ls", "--format", "{{.Name}}"],
+        timeout=8,
+    )
+    if project_network in networks.split():
+        raise AssertionError(
+            f"{label} FEHLGESCHLAGEN: Netzwerk '{project_network}' nach Cleanup vorhanden!"
+        )
+
+    code_s, owner_s, err_s = run_cmd(
+        [
+            "docker", "volume", "inspect", "--format",
+            "{{index .Labels \"aura.test.owner\"}}", sentinel_volume,
+        ],
+        check=False,
+        timeout=8,
+    )
+    if code_s != 0:
+        raise AssertionError(
+            f"{label} ISOLATIONS-VERLETZUNG: Fremder Sentinel "
+            f"'{sentinel_volume}' fehlt: {err_s}"
+        )
+    if owner_s != sentinel_owner:
+        raise AssertionError(
+            f"{label} ISOLATIONS-VERLETZUNG: Owner des fremden Sentinel-Volumes "
+            f"wurde veraendert ({owner_s!r} != {sentinel_owner!r})!"
+        )
+
+    code_n, owner_n, err_n = run_cmd(
+        [
+            "docker", "network", "inspect", "--format",
+            "{{index .Labels \"aura.test.owner\"}}", sentinel_network,
+        ],
+        check=False,
+        timeout=8,
+    )
+    if code_n != 0:
+        raise AssertionError(
+            f"{label} ISOLATIONS-VERLETZUNG: Fremdes Sentinel-Network "
+            f"'{sentinel_network}' fehlt: {err_n}"
+        )
+    if owner_n != sentinel_owner:
+        raise AssertionError(
+            f"{label} ISOLATIONS-VERLETZUNG: Owner des fremden Sentinel-Networks "
+            f"wurde veraendert ({owner_n!r} != {sentinel_owner!r})!"
+        )
+
+
+def test_h1_failure_cleanup_after_up(
+    shared_image_tag: str,
+    sentinel_volume: str,
+    sentinel_network: str,
+    sentinel_owner: str,
+) -> None:
+    """H1a: Fehler nach Stackstart raeumt den kompletten eigenen Stack auf."""
     h1_id = f"h1up_{uuid.uuid4().hex[:6]}"
     h1_proj = f"aura_h1up_{h1_id}"
     h1_port = find_free_port()
@@ -364,7 +593,7 @@ def test_h1_failure_cleanup_after_up(shared_image_tag: str) -> None:
     h1_worker = f"aura-worker-{h1_id}"
     h1_data = f"aura_data_{h1_id}"
     h1_state = f"aura_state_{h1_id}"
-    h1_sentinel = f"aura_sentinel_h1up_{h1_id}"
+    h1_network = f"{h1_proj}_default"
 
     h1_vars = {
         "AURA_IMAGE_TAG": shared_image_tag,
@@ -383,49 +612,60 @@ def test_h1_failure_cleanup_after_up(shared_image_tag: str) -> None:
         "AURA_NTFY_URL": "http://127.0.0.1:9/disabled",
     }
 
-    # Fremden Sentinel vorab anlegen
-    run_cmd(["docker", "volume", "create", "--label", f"aura.test.owner=fremd_sentinel_{h1_id}", h1_sentinel])
+    def lifecycle() -> None:
+        compose_cmd(
+            ["up", "-d"],
+            project_override=h1_proj,
+            vars_override=h1_vars,
+            timeout=60,
+        )
+        raise AssertionError("SIMULIERTER TESTFEHLER NACH STACKSTART (H1a)")
 
-    test_failed_caught = False
+    with_error = False
     try:
-        try:
-            # Stack starten
-            compose_cmd(["up", "-d"], project_override=h1_proj, vars_override=h1_vars, timeout=60)
-            # Simuliere harten Assertion-Fehler nach Start
-            raise AssertionError("SIMULIERTER TESTFEHLER NACH STACKSTART (H1a)")
-        except BaseException as orig_err:
-            test_failed_caught = True
-            cl_errs = cleanup_run_resources(h1_proj, h1_id, vars_override=h1_vars)
-            if cl_errs:
-                print(f"Cleanup-Fehler bei H1a: {cl_errs}", file=sys.stderr)
-            raise orig_err
+        run_lifecycle_with_cleanup(
+            lifecycle,
+            project_name=h1_proj,
+            run_id=h1_id,
+            vars_override=h1_vars,
+            container_api=h1_api,
+            container_worker=h1_worker,
+            volume_data=h1_data,
+            volume_state=h1_state,
+        )
     except AssertionError as ex:
         if "SIMULIERTER TESTFEHLER NACH STACKSTART" not in str(ex):
             raise
+        with_error = True
 
-    if not test_failed_caught:
+    if not with_error:
         raise AssertionError("H1a: Simulierter Fehler wurde nicht ausgeloest!")
 
-    # Pruefen, dass Container gestoppt und entfernt sind
-    code, ps_out, _ = run_cmd(["docker", "ps", "-a", "--filter", f"name={h1_api}", "--format", "{{.Names}}"])
-    if h1_api in ps_out.split():
-        raise AssertionError(f"H1a FEHLGESCHLAGEN: Container '{h1_api}' laeuft nach Fehler-Cleanup weiter!")
+    assert_h1_cleanup_result(
+        label="H1a",
+        container_api=h1_api,
+        container_worker=h1_worker,
+        volume_data=h1_data,
+        volume_state=h1_state,
+        project_network=h1_network,
+        sentinel_volume=sentinel_volume,
+        sentinel_network=sentinel_network,
+        sentinel_owner=sentinel_owner,
+    )
 
-    # Pruefen, dass fremder Sentinel unversehrt erhalten blieb
-    code_s, vols_out, _ = run_cmd(["docker", "volume", "ls", "--format", "{{.Name}}"])
-    if h1_sentinel not in vols_out.split():
-        raise AssertionError(f"H1a ISOLATIONS-VERLETZUNG: Fremder Sentinel '{h1_sentinel}' wurde geloescht!")
-
-    # Fremden Sentinel aufraeumen
-    run_cmd(["docker", "volume", "rm", "-f", h1_sentinel], check=False)
-    print("  -> H1a-Negativtest ERFOLGREICH: Fehler nach Stackstart loeste sauberen Cleanup aus; Sentinel unversehrt.")
+    print(
+        "  -> H1a-Negativtest ERFOLGREICH: API/Worker, Volumes und Netzwerk "
+        "entfernt; fremder Sentinel unveraendert."
+    )
 
 
-def test_h1_failure_cleanup_after_healthy(shared_image_tag: str) -> None:
-    """H1-Negativtest 2: Absichtlicher Fehler nach Erreichen des 'healthy'-Zustands.
-    
-    Beweist, dass der laufende Stack gestoppt wird und fremde Sentinels erhalten bleiben.
-    """
+def test_h1_failure_cleanup_after_healthy(
+    shared_image_tag: str,
+    sentinel_volume: str,
+    sentinel_network: str,
+    sentinel_owner: str,
+) -> None:
+    """H1b: Fehler nach Healthy raeumt den kompletten eigenen Stack auf."""
     h1_id = f"h1hb_{uuid.uuid4().hex[:6]}"
     h1_proj = f"aura_h1hb_{h1_id}"
     h1_port = find_free_port()
@@ -433,7 +673,7 @@ def test_h1_failure_cleanup_after_healthy(shared_image_tag: str) -> None:
     h1_worker = f"aura-worker-{h1_id}"
     h1_data = f"aura_data_{h1_id}"
     h1_state = f"aura_state_{h1_id}"
-    h1_sentinel = f"aura_sentinel_h1hb_{h1_id}"
+    h1_network = f"{h1_proj}_default"
 
     h1_vars = {
         "AURA_IMAGE_TAG": shared_image_tag,
@@ -452,39 +692,53 @@ def test_h1_failure_cleanup_after_healthy(shared_image_tag: str) -> None:
         "AURA_NTFY_URL": "http://127.0.0.1:9/disabled",
     }
 
-    run_cmd(["docker", "volume", "create", "--label", f"aura.test.owner=fremd_sentinel_{h1_id}", h1_sentinel])
+    def lifecycle() -> None:
+        compose_cmd(
+            ["up", "-d"],
+            project_override=h1_proj,
+            vars_override=h1_vars,
+            timeout=60,
+        )
+        wait_for_healthy(h1_api, timeout_sec=45)
+        wait_for_healthy(h1_worker, timeout_sec=45)
+        raise AssertionError("SIMULIERTER TESTFEHLER NACH HEALTHY (H1b)")
 
-    test_failed_caught = False
+    with_error = False
     try:
-        try:
-            compose_cmd(["up", "-d"], project_override=h1_proj, vars_override=h1_vars, timeout=60)
-            wait_for_healthy(h1_api, timeout_sec=45)
-            wait_for_healthy(h1_worker, timeout_sec=45)
-            # Simuliere Fehler im laufenden Healthy-Betrieb
-            raise AssertionError("SIMULIERTER TESTFEHLER NACH HEALTHY (H1b)")
-        except BaseException as orig_err:
-            test_failed_caught = True
-            cl_errs = cleanup_run_resources(h1_proj, h1_id, vars_override=h1_vars)
-            if cl_errs:
-                print(f"Cleanup-Fehler bei H1b: {cl_errs}", file=sys.stderr)
-            raise orig_err
+        run_lifecycle_with_cleanup(
+            lifecycle,
+            project_name=h1_proj,
+            run_id=h1_id,
+            vars_override=h1_vars,
+            container_api=h1_api,
+            container_worker=h1_worker,
+            volume_data=h1_data,
+            volume_state=h1_state,
+        )
     except AssertionError as ex:
         if "SIMULIERTER TESTFEHLER NACH HEALTHY" not in str(ex):
             raise
+        with_error = True
 
-    if not test_failed_caught:
+    if not with_error:
         raise AssertionError("H1b: Simulierter Fehler wurde nicht ausgeloest!")
 
-    code, ps_out, _ = run_cmd(["docker", "ps", "-a", "--filter", f"name={h1_api}", "--format", "{{.Names}}"])
-    if h1_api in ps_out.split():
-        raise AssertionError(f"H1b FEHLGESCHLAGEN: Container '{h1_api}' laeuft nach Fehler-Cleanup weiter!")
+    assert_h1_cleanup_result(
+        label="H1b",
+        container_api=h1_api,
+        container_worker=h1_worker,
+        volume_data=h1_data,
+        volume_state=h1_state,
+        project_network=h1_network,
+        sentinel_volume=sentinel_volume,
+        sentinel_network=sentinel_network,
+        sentinel_owner=sentinel_owner,
+    )
 
-    code_s, vols_out, _ = run_cmd(["docker", "volume", "ls", "--format", "{{.Name}}"])
-    if h1_sentinel not in vols_out.split():
-        raise AssertionError(f"H1b ISOLATIONS-VERLETZUNG: Fremder Sentinel '{h1_sentinel}' wurde geloescht!")
-
-    run_cmd(["docker", "volume", "rm", "-f", h1_sentinel], check=False)
-    print("  -> H1b-Negativtest ERFOLGREICH: Fehler nach Healthy loeste sauberen Cleanup aus; Sentinel unversehrt.")
+    print(
+        "  -> H1b-Negativtest ERFOLGREICH: API/Worker, Volumes und Netzwerk "
+        "entfernt; fremder Sentinel unveraendert."
+    )
 
 
 def main() -> None:
@@ -574,11 +828,13 @@ def main() -> None:
         ("volume", VOLUME_STATE),
     ])
 
-    # Fremde Sentinels anlegen
-    run_cmd(["docker", "volume", "create", "--label", f"aura.test.owner=fremd_{RUN_ID}", SENTINEL_VOL])
-    run_cmd(["docker", "network", "create", "--label", f"aura.test.owner=fremd_{RUN_ID}", SENTINEL_NET])
+    # Der mutierende Hauptlauf wird als eine Einheit ausgefuehrt. Sein Cleanup
+    # findet genau einmal im zentralen finally von run_lifecycle_with_cleanup statt.
+    def lifecycle_body() -> None:
+        # Fremde Sentinels fuer den Hauptlauf anlegen.
+        run_cmd(["docker", "volume", "create", "--label", f"aura.test.owner={RUN_ID}", SENTINEL_VOL])
+        run_cmd(["docker", "network", "create", "--label", f"aura.test.owner={RUN_ID}", SENTINEL_NET])
 
-    try:
         # ---------------------------------------------------------------------
         # D4: Negativ-Test fuer fehlschlagenden Healthcheck
         # ---------------------------------------------------------------------
@@ -621,10 +877,20 @@ def main() -> None:
         # H1-Negativtests: Absichtlicher Fehler nach Stackstart und nach Healthy
         # ---------------------------------------------------------------------
         print("[7/13] H1-Negativtest 1: Absichtlicher Fehler nach Stackstart (vor Healthy)...")
-        test_h1_failure_cleanup_after_up(IMAGE_TAG)
+        test_h1_failure_cleanup_after_up(
+            IMAGE_TAG,
+            SENTINEL_VOL,
+            SENTINEL_NET,
+            RUN_ID,
+        )
 
         print("[8/13] H1-Negativtest 2: Absichtlicher Fehler nach Erreichen von Healthy...")
-        test_h1_failure_cleanup_after_healthy(IMAGE_TAG)
+        test_h1_failure_cleanup_after_healthy(
+            IMAGE_TAG,
+            SENTINEL_VOL,
+            SENTINEL_NET,
+            RUN_ID,
+        )
 
         # ---------------------------------------------------------------------
         # Haupt-Lifecycle: Start mit Schutzmaßnahmen und Warten auf 'healthy'
@@ -883,41 +1149,49 @@ def main() -> None:
         print("  -> PERSISTENZ BELEGT: Quittierter Halt und Revision 2 blieben nach Neustart erhalten.")
 
         # ---------------------------------------------------------------------
-        # H1: Ownership-basiertes Cleanup & Sentinel-Verifikation
+        # H1: Sentinel bleibt bis zum zentralen Cleanup unveraendert
         # ---------------------------------------------------------------------
         print("[13/13] H1: Zentraler Cleanup & Sentinel-Pruefung...")
-        compose_cmd(["down", "-v"], timeout=60)
+        code_v, owner_v, err_v = run_cmd(
+            [
+                "docker", "volume", "inspect", "--format",
+                "{{index .Labels \"aura.test.owner\"}}", SENTINEL_VOL,
+            ],
+            check=False,
+            timeout=8,
+        )
+        code_n, owner_n, err_n = run_cmd(
+            [
+                "docker", "network", "inspect", "--format",
+                "{{index .Labels \"aura.test.owner\"}}", SENTINEL_NET,
+            ],
+            check=False,
+            timeout=8,
+        )
+        if code_v != 0 or owner_v != RUN_ID:
+            raise AssertionError(
+                f"ISOLATIONS-VERLETZUNG: Sentinel-Volume fehlt oder Owner veraendert: {err_v}"
+            )
+        if code_n != 0 or owner_n != RUN_ID:
+            raise AssertionError(
+                f"ISOLATIONS-VERLETZUNG: Sentinel-Network fehlt oder Owner veraendert: {err_n}"
+            )
+        print("  -> OWNERSHIP-ISOLATION BELEGT: Fremde Sentinel-Ressourcen blieben unveraendert.")
 
-        _, vols_after, _ = run_cmd(["docker", "volume", "ls", "--format", "{{.Name}}"])
-        _, nets_after, _ = run_cmd(["docker", "network", "ls", "--format", "{{.Name}}"])
-        if SENTINEL_VOL not in vols_after.split():
-            raise AssertionError(f"ISOLATIONS-VERLETZUNG: Fremdes Sentinel-Volume '{SENTINEL_VOL}' wurde geloescht!")
-        if SENTINEL_NET not in nets_after.split():
-            raise AssertionError(f"ISOLATIONS-VERLETZUNG: Fremdes Sentinel-Network '{SENTINEL_NET}' wurde geloescht!")
-        print("  -> OWNERSHIP-ISOLATION BELEGT: Fremde Sentinel-Ressourcen blieben unversehrt erhalten.")
-
-    except BaseException as primary_exc:
-        print(f"\n[FEHLER AUFGETRETEN] Fuehre zwingenden Fehler-Cleanup aus...", file=sys.stderr)
-        cleanup_errs = cleanup_run_resources(
-            PROJECT_NAME,
-            RUN_ID,
+    try:
+        run_lifecycle_with_cleanup(
+            lifecycle_body,
+            project_name=PROJECT_NAME,
+            run_id=RUN_ID,
             image_tag=IMAGE_TAG,
             sentinel_vol=SENTINEL_VOL,
             sentinel_net=SENTINEL_NET,
+            container_api=CONTAINER_API,
+            container_worker=CONTAINER_WORKER,
+            volume_data=VOLUME_DATA,
+            volume_state=VOLUME_STATE,
         )
-        if cleanup_errs:
-            print(f"[ZUSATZ-CLEANUP-FEHLER]: {cleanup_errs}", file=sys.stderr)
-        raise primary_exc
     finally:
-        cleanup_errs = cleanup_run_resources(
-            PROJECT_NAME,
-            RUN_ID,
-            image_tag=IMAGE_TAG,
-            sentinel_vol=SENTINEL_VOL,
-            sentinel_net=SENTINEL_NET,
-        )
-        if cleanup_errs:
-            print(f"[ZUSATZ-CLEANUP-FEHLER]: {cleanup_errs}", file=sys.stderr)
         _TEMP_CFG_DIR.cleanup()
 
     print("\n========================================================")

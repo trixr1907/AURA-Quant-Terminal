@@ -1,0 +1,54 @@
+========================================================
+AURA DOCKER-COMPOSE LIFECYCLE AUDIT (H1 & H2 Härtung)
+Run-ID:         run_1789652922_2c79da
+Project:        aura_audit_run_1789652922_2c79da
+Compose-File:   /home/ivo/projects/AURA_v2/docker-compose.yml
+Repo-Root:      /home/ivo/projects/AURA_v2
+Docker-Target:  unix:///var/run/docker.sock
+========================================================
+
+[1/13] Docker-Daemon Endpunkt ausdruecklich pruefen...
+  -> Verifizierter lokaler Docker-Daemon: Ubuntu 24.04.4 LTS | 29.1.3
+[2/13] Negativtest: Unerlaubtes Docker-Ziel (Remote/TCP) bricht vor Mutation ab...
+  -> Negativtest ERFOLGREICH: Remote-Ziel vor jeder Mutation abgewiesen:
+     Unerlaubtes Docker-Ziel erkannt: DOCKER_HOST verweist auf Remote-Endpunkt ('tcp://production.aura-quant.internal:2375'). Ausfuehrung vor Mutation verweigert.
+[3/13] H2: Einspeisen kontaminierter COMPOSE_FILE-Umgebung in Eintrittspfad...
+  -> H2-Negativtest ERFOLGREICH: Fremde COMPOSE_FILE neutralisiert; effektive Bindung verifiziert (Services: ['aura-api', 'aura-worker']).
+[4/13] Negativtest: Echte Namenskollision muss vor Mutation abbrechen...
+  -> Negativtest ERFOLGREICH: Kollision erkannt, Abbruch vor Mutation:
+     Kollision erkannt: Volume 'aura_coll_sentinel_run_1789652922_2c79da' existiert bereits im Docker-Namespace! Abbruch vor Mutation.
+[5/13] D4-Negativtest: Nie erfolgreicher Healthcheck wird sauber abgewiesen...
+  -> D4-Negativtest ERFOLGREICH: Container 'aura_hc_fail_test_run_1789652922_2c79da' ging in Zustand 'unhealthy': {'Status': 'unhealthy', 'FailingStreak': 2, 'Log': [{'Start': '2026-09-17T15:48:44.472680584+02:00', 'End': '2026-09-17T15:48:44.508003806+02:00', 'ExitCode': 1, 'Output': ''}, {'Start': '2026-09-17T15:48:45.509351914+02:00', 'End': '2026-09-17T15:48:45.543631234+02:00', 'ExitCode': 1, 'Output': ''}]}
+[6/13] D1: Cache-Ausschluss Clean-Build mit verifiziertem requirements.lock...
+  -> Clean-Build abgeschlossen in 67.67s.
+  -> Test-Image ID: sha256:def01c77a870a284dbfe3c90d4fa2641d78b5e59547929fe537b43ed1dc8854d
+[7/13] H1-Negativtest 1: Absichtlicher Fehler nach Stackstart (vor Healthy)...
+  -> H1a-Negativtest ERFOLGREICH: API/Worker, Volumes und Netzwerk entfernt; fremder Sentinel unveraendert.
+[8/13] H1-Negativtest 2: Absichtlicher Fehler nach Erreichen von Healthy...
+  -> H1b-Negativtest ERFOLGREICH: API/Worker, Volumes und Netzwerk entfernt; fremder Sentinel unveraendert.
+[9/13] D2 & D4: Start Haupt-Compose-Stack mit Schutzmassnahmen...
+  -> Schutzmassnahmen 'aura-api-run_1789652922_2c79da': true [no-new-privileges:true] [ALL] 536870912
+  -> Schutzmassnahmen 'aura-worker-run_1789652922_2c79da': true [no-new-privileges:true] [ALL] 536870912
+  -> API Healthcheck:    STATUS=healthy
+  -> Worker Healthcheck: STATUS=healthy
+[10/13] D5: Auth-Trennung (Header-Token vs. Cookie-only)...
+  -> Strikter Cookie-only Zugriff auf /api/v3/state erfolgreich (HTTP 200, kein Token-Header).
+[11/13] D5: Konfigurationsquittierung & Negativtest mit gestopptem Worker...
+  -> Revision 1 quittiert: Command-ID=cmd_8f9e6c74a4014c48873c1186d3ef2507, DB=('applied', 1789653020741)
+  -> Stoppe Worker-Container fuer Negativtest...
+  -> Negativ-Test ERFOLGREICH: Gestoppter Worker quittiert nicht (status='pending', active_rev unveraendert).
+  -> Starte Worker-Container wieder...
+  -> Quittierung nach Wiederanlauf belegt: active_rev=2, DB=['applied', 1789653028198]
+[12/13] Not-Halt (zwingende Quittierung vor Restart) & Neustart...
+  -> Not-Halt angefordert: Command-ID=cmd_1f3cc49c5a0d482184f4e4e662b1f37e
+  -> Not-Halt VOR Neustart zwingend quittiert: status=applied, applied_at_ms=1789653031933, HALTED=True
+  -> Pre-restart Worker-Instanz: w_1_41378b, Heartbeat: 1789653033578
+  -> Führe aus: docker compose restart...
+  -> Post-restart Worker-Instanz: w_1_ebb5d1, Heartbeat: 1789653036537
+  -> PERSISTENZ BELEGT: Quittierter Halt und Revision 2 blieben nach Neustart erhalten.
+[13/13] H1: Zentraler Cleanup & Sentinel-Pruefung...
+  -> OWNERSHIP-ISOLATION BELEGT: Fremde Sentinel-Ressourcen blieben unveraendert.
+
+========================================================
+DOCKER COMPOSE LIFECYCLE AUDIT: 100% PASSED (H1 & H2 ERFÜLLT)!
+========================================================
