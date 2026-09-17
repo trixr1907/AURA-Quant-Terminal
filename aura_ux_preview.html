@@ -940,11 +940,12 @@ async function renderMarket() {
   const symbol = state.chart.symbol;
   let tf = state.chart.tf;
   const bitgetTf = (tf === "1h") ? "1H" : (tf === "4h" ? "4H" : (tf === "1d" ? "1D" : "15m"));
+  const apiSymbol = symbol.replace(".P", "");
   
   if (!SYMBOL_META[symbol]) { SYMBOL_META[symbol] = {unit: "USDT"}; }
   const meta = SYMBOL_META[symbol];
 
-  const payload = { "path": `/api/v2/mix/market/candles?symbol=${symbol}&granularity=${bitgetTf}&productType=USDT-FUTURES&limit=60` };
+  const payload = { "path": `/api/v2/mix/market/candles?symbol=${apiSymbol}&granularity=${bitgetTf}&productType=USDT-FUTURES&limit=60` };
   const r = await apiCall("/api/public", "POST", payload);
   let cList = [];
   if (r && r.data && Array.isArray(r.data)) {
