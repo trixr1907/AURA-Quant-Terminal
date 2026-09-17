@@ -515,6 +515,8 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
       <div class="pending-note" id="resumePendingNote" style="display:none">
         Wiederaufnahme <b>angefordert</b> (simuliert) — noch nicht angewendet. In Produktion wartet dies auf Bestätigung durch das Backend, bevor sich der Worker-Zustand ändert.
       </div>
+      <div id="resumeRejectionNote" class="rejection-note" style="display:none; margin-top:8px;"></div>
+      <div id="resumeRejectionNote" class="rejection-note" style="display:none; margin-top:8px;"></div>
       <div class="mock-note">Klick löst nur eine lokale Anzeige aus — kein API-Call, kein Effekt auf einen echten Worker.</div>
     </div>
 
@@ -586,6 +588,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
       </div>
 
       <div class="rejection-note" id="cfgRejectionNote" style="display:none"></div>
+      <div class="rejection-note" id="cfgUnknownNote" style="display:none; background-color: var(--card-bg); border-left-color: var(--text-muted);"></div>
       <div class="applied-note" id="cfgAppliedNote"></div>
     </div>
 
@@ -801,8 +804,9 @@ async function refreshData() {
             
             if (state.pendingHaltId) {
                 if (!stillHalt) {
-                    let cmdRes = await apiCall("/api/v3/command/" + state.pendingHaltId);
-                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
+                    let reqId = state.pendingHaltId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.pendingHaltId) return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.lastHaltResult = "<br><b>Resultat:</b> ABGELEHNT (" + (cmdRes.data.result||'') + ")";
@@ -823,8 +827,9 @@ async function refreshData() {
             
             if (state.pendingResumeId) {
                 if (!stillResume) {
-                    let cmdRes = await apiCall("/api/v3/command/" + state.pendingResumeId);
-                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
+                    let reqId = state.pendingResumeId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.pendingResumeId) return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.lastResumeResult = "Wiederaufnahme <b>ABGELEHNT</b>: " + (cmdRes.data.result||'');
@@ -845,28 +850,24 @@ async function refreshData() {
             
             if (state.cfg.pendingCmdId) {
                 if (!stillCfg) {
-                    let cmdRes = await apiCall("/api/v3/command/" + state.cfg.pendingCmdId);
-                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
+                    let reqId = state.cfg.pendingCmdId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.cfg.pendingCmdId) return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.cfg.status = "rejected";
                             state.cfg.lastRejectionReason = "Vom Worker abgelehnt: " + (cmdRes.data.result||'');
                             state.cfg.pendingCmdId = null;
                         } else if (cmdRes.data.status === "applied") {
-                            if (stateRes.active_config_rev === state.cfg.requested_rev) {
-                                state.cfg.status = "active";
-                                state.cfg.lastAppliedNote = "Übernommen als Revision #" + state.cfg.requested_rev;
-                            } else {
-                                state.cfg.status = "rejected";
-                                state.cfg.lastRejectionReason = "Konfiguration angewendet, aber Revision stimmt nicht überein.";
-                            }
+                            state.cfg.status = "active";
+                            state.cfg.lastAppliedNote = "Übernommen. (Die aktive Revision hat sich womöglich durch parallele Eingaben bereits weiterentwickelt).";
                             state.cfg.pendingCmdId = null;
                         } else {
-                            state.cfg.status = "rejected";
+                            state.cfg.status = "unknown";
                             state.cfg.lastRejectionReason = "Ergebnis unbekannt (Status: " + cmdRes.data.status + ").";
                         }
                     } else {
-                        state.cfg.status = "rejected";
+                        state.cfg.status = "unknown";
                         state.cfg.lastRejectionReason = "Ergebnis unbekannt (Kein Nachweis gefunden).";
                     }
                 } else if (now - state.pendingCfgAt > UI_CMD_TIMEOUT) {
@@ -964,14 +965,14 @@ function renderTopStatus(){
   // Not-Halt-Banner nur bei tatsaechlichem HALTED zeigen; bei "unknown" separater, vorsichtiger Text (siehe renderOverview)
   const haltBanner = document.getElementById('haltBanner');
   
-  let showHalt = state.scenario.worker.includes("HALTED") || state.pendingHaltId != null || state.lastHaltResult != null;
+  let showHalt = state.scenario.worker.toUpperCase().includes("HALTED") || state.pendingHaltId != null || state.lastHaltResult != null;
   haltBanner.classList.toggle('show', showHalt);
   haltBanner.style.display = showHalt ? "flex" : "none";
   
   if (showHalt) {
       const resultHtml = state.lastHaltResult ? `<div class="halt-result">${state.lastHaltResult}</div>` : "";
       
-      if (!state.scenario.worker.includes("HALTED")) {
+      if (!state.scenario.worker.toUpperCase().includes("HALTED")) {
           haltBanner.innerHTML = `<div class="icon">⏳</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">Not-Halt-Anforderung verarbeitet...</h2>${resultHtml}</div>`;
       } else {
           haltBanner.innerHTML = `<div class="icon">⛔</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">NOT-HALT AKTIV — keine neuen Einstiege möglich</h2><p style="margin:0 0 10px;">Ein Operator oder das System hat dies bewusst ausgelöst. Der Worker-Prozess kann dabei technisch gesund laufen.</p><details><summary>Details / Code</summary><ul><li><b>Interner Code</b> ${state.scenario.haltReason || "OPERATOR_OR_SYSTEM_HALT"}</li><li><b>Bedeutung</b> Freitext-Begründung wird nicht öffentlich angezeigt (siehe U2)</li></ul></details>${resultHtml}</div>`;
@@ -1323,8 +1324,8 @@ function cfgCurrentActive(){ return ACTIVE_SERVER_CONFIG; }
 function renderCfg(){
   const anon = state.scenario.auth === "anon";
   const badge = document.getElementById('cfgStatusBadge');
-  const statusLabels = {active:"Aktiv", editing:"Wird bearbeitet", diff:"Wird bearbeitet", pending:"Ausstehend", rejected:"Aktiv"};
-  const statusClass = {active:"active", editing:"editing", diff:"editing", pending:"pending", rejected:"active"};
+  const statusLabels = {active:"Aktiv", editing:"Wird bearbeitet", diff:"Wird bearbeitet", pending:"Ausstehend", rejected:"Aktiv", unknown:"Ergebnis unbekannt"};
+  const statusClass = {active:"active", editing:"editing", diff:"editing", pending:"pending", rejected:"active", unknown:"unknown"};
   badge.textContent = statusLabels[state.cfg.status];
   badge.className = "cfg-status-badge " + statusClass[state.cfg.status];
 
@@ -1341,6 +1342,7 @@ function renderCfg(){
     document.getElementById('cfgPendingView').style.display = "none";
     document.getElementById('cfgDirtyFlag').style.display = "none";
     document.getElementById('cfgRejectionNote').style.display = "none";
+    document.getElementById('cfgUnknownNote').style.display = "none";
     document.getElementById('cfgAppliedNote').classList.remove('show');
     return;
   }
@@ -1354,14 +1356,18 @@ function renderCfg(){
   const dirty = state.cfg.draft !== null && (state.cfg.status === "editing" || state.cfg.status === "diff");
   document.getElementById('cfgDirtyFlag').style.display = dirty ? "inline-flex" : "none";
 
-  document.getElementById('cfgActiveView').style.display = (state.cfg.status==="active"||state.cfg.status==="rejected"||state.cfg.status==="pending") ? "block" : "none";
+  document.getElementById('cfgActiveView').style.display = (state.cfg.status==="active"||state.cfg.status==="rejected"||state.cfg.status==="pending"||state.cfg.status==="unknown") ? "block" : "none";
   document.getElementById('cfgEditForm').style.display = state.cfg.status==="editing" ? "block" : "none";
   document.getElementById('cfgDiffView').style.display = state.cfg.status==="diff" ? "block" : "none";
   document.getElementById('cfgPendingView').style.display = state.cfg.status==="pending" ? "block" : "none";
 
-  document.getElementById('cfgRejectionNote').style.display = state.cfg.status==="rejected" ? "block" : "none";
+  document.getElementById('cfgRejectionNote').style.display = (state.cfg.status==="rejected") ? "block" : "none";
+  document.getElementById('cfgUnknownNote').style.display = (state.cfg.status==="unknown" || (state.cfg.status==="pending" && state.cfg.lastRejectionReason)) ? "block" : "none";
   if (state.cfg.status==="rejected"){
-    document.getElementById('cfgRejectionNote').innerHTML = "<b>Abgelehnt (simuliert):</b> " + state.cfg.lastRejectionReason + " Die aktive Konfiguration wurde nicht verändert (weiterhin Revision #" + ACTIVE_SERVER_CONFIG.revision + ").";
+    document.getElementById('cfgRejectionNote').innerHTML = "<b>Abgelehnt (oder Fehler):</b> " + state.cfg.lastRejectionReason + " Die aktive Konfiguration wurde nicht verändert.";
+  }
+  if (state.cfg.status === "unknown" || (state.cfg.status === "pending" && state.cfg.lastRejectionReason)) {
+    document.getElementById('cfgUnknownNote').innerHTML = "<b>Hinweis:</b> " + state.cfg.lastRejectionReason;
   }
   const appliedEl = document.getElementById('cfgAppliedNote');
   if (state.cfg.lastAppliedNote){
@@ -1569,6 +1575,18 @@ function wireEvents(){
   });
   document.getElementById('btnCfgWithdraw').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
   document.getElementById('btnCfgValidate').addEventListener('click', validateCfgDraft);
+  document.getElementById('btnCfgCancel').addEventListener('click', () => {
+    state.cfg.draft = null;
+    state.cfg.status = "active";
+    renderCfg();
+  });
+
+  document.getElementById('btnCfgCancel').addEventListener('click', () => {
+    state.cfg.draft = null;
+    state.cfg.status = "active";
+    renderCfg();
+  });
+
   document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { state.cfg.status = "editing"; renderCfg(); });
   document.getElementById('btnCfgRequest').addEventListener('click', async (e) => {
     if (state.scenario.auth === "anon" || state.inflightCfg) return;
