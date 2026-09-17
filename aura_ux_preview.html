@@ -717,10 +717,12 @@ async function refreshData() {
     }
 
 
-    const stateRes = await apiCall("/api/v3/state"); console.log("stateRes is:", stateRes);
+    const currentSessionGen = sessionGen; const stateRes = await apiCall("/api/v3/state");
     if(myGen !== fetchGen) return;
     if(stateRes._error && (stateRes.status===401||stateRes.status===403)){
-        state.scenario.auth = "anon"; OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
+        handleLogoutClean(); return;
+    } else if(currentSessionGen !== sessionGen){
+        return;
     } else if(stateRes._error){
         state.scenario.conn = "disconnected"; renderAll(); return;
     }
@@ -795,23 +797,25 @@ async function refreshData() {
             }
             
             // B1: Fetch outcome if it disappeared
-            let now = Date.now();
+                        let now = Date.now();
             
             if (state.pendingHaltId) {
                 if (!stillHalt) {
                     let cmdRes = await apiCall("/api/v3/command/" + state.pendingHaltId);
+                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.lastHaltResult = "<br><b>Resultat:</b> ABGELEHNT (" + (cmdRes.data.result||'') + ")";
+                            state.pendingHaltId = null;
                         } else if (cmdRes.data.status === "applied") {
                             state.lastHaltResult = "<br><b>Resultat:</b> ERFOLGREICH ausgeführt.";
+                            state.pendingHaltId = null;
                         } else {
                             state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (" + cmdRes.data.status + ").";
                         }
                     } else {
                         state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (Kein Nachweis gefunden).";
                     }
-                    state.pendingHaltId = null;
                 } else if (now - state.pendingHaltAt > UI_CMD_TIMEOUT) {
                     state.lastHaltResult = "<br><b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
                 }
@@ -820,18 +824,20 @@ async function refreshData() {
             if (state.pendingResumeId) {
                 if (!stillResume) {
                     let cmdRes = await apiCall("/api/v3/command/" + state.pendingResumeId);
+                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.lastResumeResult = "Wiederaufnahme <b>ABGELEHNT</b>: " + (cmdRes.data.result||'');
+                            state.pendingResumeId = null;
                         } else if (cmdRes.data.status === "applied") {
                             state.lastResumeResult = "";
+                            state.pendingResumeId = null;
                         } else {
                             state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (" + cmdRes.data.status + ")";
                         }
                     } else {
                         state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (Kein Nachweis gefunden).";
                     }
-                    state.pendingResumeId = null;
                 } else if (now - state.pendingResumeAt > UI_CMD_TIMEOUT) {
                     state.lastResumeResult = "Wiederaufnahme: <b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
                 }
@@ -840,10 +846,12 @@ async function refreshData() {
             if (state.cfg.pendingCmdId) {
                 if (!stillCfg) {
                     let cmdRes = await apiCall("/api/v3/command/" + state.cfg.pendingCmdId);
+                    if (currentSessionGen !== sessionGen || state.scenario.auth === "anon") return;
                     if (cmdRes && !cmdRes._error && cmdRes.data) {
                         if (cmdRes.data.status === "rejected") {
                             state.cfg.status = "rejected";
                             state.cfg.lastRejectionReason = "Vom Worker abgelehnt: " + (cmdRes.data.result||'');
+                            state.cfg.pendingCmdId = null;
                         } else if (cmdRes.data.status === "applied") {
                             if (stateRes.active_config_rev === state.cfg.requested_rev) {
                                 state.cfg.status = "active";
@@ -852,6 +860,7 @@ async function refreshData() {
                                 state.cfg.status = "rejected";
                                 state.cfg.lastRejectionReason = "Konfiguration angewendet, aber Revision stimmt nicht überein.";
                             }
+                            state.cfg.pendingCmdId = null;
                         } else {
                             state.cfg.status = "rejected";
                             state.cfg.lastRejectionReason = "Ergebnis unbekannt (Status: " + cmdRes.data.status + ").";
@@ -860,11 +869,9 @@ async function refreshData() {
                         state.cfg.status = "rejected";
                         state.cfg.lastRejectionReason = "Ergebnis unbekannt (Kein Nachweis gefunden).";
                     }
-                    state.cfg.pendingCmdId = null;
                 } else if (now - state.pendingCfgAt > UI_CMD_TIMEOUT) {
                     state.cfg.status = "pending";
-                    document.getElementById('cfgValidationErrors').style.display = "block";
-                    document.getElementById('cfgValidationErrors').innerHTML = "<b>Hinweis:</b> Command wartet ungewöhnlich lange... (Ergebnis unbekannt)";
+                    state.cfg.lastRejectionReason = "Command wartet ungewöhnlich lange... (Ergebnis unbekannt)";
                 }
             }
             
@@ -956,7 +963,20 @@ function renderTopStatus(){
 
   // Not-Halt-Banner nur bei tatsaechlichem HALTED zeigen; bei "unknown" separater, vorsichtiger Text (siehe renderOverview)
   const haltBanner = document.getElementById('haltBanner');
-  haltBanner.classList.toggle('show', s.worker === "halted");
+  
+  let showHalt = state.scenario.worker.includes("HALTED") || state.pendingHaltId != null || state.lastHaltResult != null;
+  haltBanner.classList.toggle('show', showHalt);
+  haltBanner.style.display = showHalt ? "flex" : "none";
+  
+  if (showHalt) {
+      const resultHtml = state.lastHaltResult ? `<div class="halt-result">${state.lastHaltResult}</div>` : "";
+      
+      if (!state.scenario.worker.includes("HALTED")) {
+          haltBanner.innerHTML = `<div class="icon">⏳</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">Not-Halt-Anforderung verarbeitet...</h2>${resultHtml}</div>`;
+      } else {
+          haltBanner.innerHTML = `<div class="icon">⛔</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">NOT-HALT AKTIV — keine neuen Einstiege möglich</h2><p style="margin:0 0 10px;">Ein Operator oder das System hat dies bewusst ausgelöst. Der Worker-Prozess kann dabei technisch gesund laufen.</p><details><summary>Details / Code</summary><ul><li><b>Interner Code</b> ${state.scenario.haltReason || "OPERATOR_OR_SYSTEM_HALT"}</li><li><b>Bedeutung</b> Freitext-Begründung wird nicht öffentlich angezeigt (siehe U2)</li></ul></details>${resultHtml}</div>`;
+      }
+  }
 }
 
 function renderOverview(){
@@ -1533,7 +1553,68 @@ function wireEvents(){
         state.inflightResume = false;
     }
 });
+  
+  document.getElementById('btnCfgEdit').addEventListener('click', () => { 
+      if (state.scenario.auth === "anon") return;
+      state.cfg.draft = Object.assign({}, ACTIVE_SERVER_CONFIG);
+      state.cfg.expected_rev = ACTIVE_SERVER_CONFIG.revision;
+      state.cfg.status = "editing";
+      state.cfg.lastAppliedNote = null;
+      document.getElementById('cfgRiskInput').value = state.cfg.draft.riskPerTradePct;
+      document.getElementById('cfgMaxPosInput').value = state.cfg.draft.maxOpenPositions;
+      document.getElementById('cfgMaxLevInput').value = state.cfg.draft.maxLeverage;
+      document.getElementById('cfgDryRunInput').checked = state.cfg.draft.dryRun;
+      document.getElementById('cfgValidationErrors').style.display = "none";
+      renderCfg();
+  });
   document.getElementById('btnCfgWithdraw').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
+  document.getElementById('btnCfgValidate').addEventListener('click', validateCfgDraft);
+  document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { state.cfg.status = "editing"; renderCfg(); });
+  document.getElementById('btnCfgRequest').addEventListener('click', async (e) => {
+    if (state.scenario.auth === "anon" || state.inflightCfg) return;
+    state.inflightCfg = true;
+    let myGen = sessionGen;
+    try {
+        let wRes = await apiCall('/status/worker');
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || wRes.stale || !wRes.worker_known) {
+            showToast("Blockiert: Worker unbekannt, Verbindungsfehler oder veraltet.");
+            return;
+        }
+        let d = state.cfg.draft;
+        const payload = {
+            risk_per_trade_pct: parseFloat(d.riskPerTradePct),
+            max_open_positions: parseInt(d.maxOpenPositions, 10),
+            max_leverage: parseInt(d.maxLeverage, 10),
+            long_threshold: ACTIVE_SERVER_CONFIG.longThreshold,
+            short_threshold: ACTIVE_SERVER_CONFIG.shortThreshold,
+            macro_cap: ACTIVE_SERVER_CONFIG.macroCap,
+            dry_run: !!d.dryRun,
+            ntfy_enabled: ACTIVE_SERVER_CONFIG.ntfyEnabled,
+            expected_rev: state.cfg.expected_rev
+        };
+        let r = await apiCall('/api/v3/config', 'POST', payload);
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!r._error && r.ok && r.data) {
+              state.cfg.status = "pending";
+              state.cfg.pendingCmdId = r.data.command_id;
+              state.cfg.requested_rev = r.data.requested_rev;
+              state.pendingCfgAt = Date.now();
+              document.getElementById('cfgValidationErrors').style.display = "none";
+              showToast("Konfiguration angefordert (Cmd: " + r.data.command_id + ")");
+              renderCfg();
+        } else if (r._error && r.status === 409) {
+              showToast("Konflikt: " + (r.detail || "Revision veraltet") + ".");
+              document.getElementById('cfgValidationErrors').style.display = "block";
+              document.getElementById('cfgValidationErrors').innerHTML = "<b>Konflikt (HTTP 409):</b> " + (r.detail||"Jemand anders hat die Konfiguration in der Zwischenzeit geändert.");
+        } else {
+              showToast("Konfiguration abgelehnt. " + (r?r.detail||"":""));
+        }
+    } finally {
+        state.inflightCfg = false;
+    }
+  });
+
   document.getElementById('btnCfgSimApprove').style.display = "none";
   document.getElementById('btnCfgSimReject').style.display = "none";
 
