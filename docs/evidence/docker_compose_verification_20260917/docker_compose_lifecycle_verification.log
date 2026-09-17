@@ -1,65 +1,60 @@
 ========================================================
-AURA DOCKER-COMPOSE LIFECYCLE AUDIT (D1-D5 Härtung)
-Run-ID:   run_1789615570_07eba4
-Project:  aura_audit_run_1789615570_07eba4
-Image:    aura-audit-test:run_1789615570_07eba4
+AURA DOCKER-COMPOSE LIFECYCLE AUDIT (de987aa Härtung)
+Run-ID:         run_1789616246_3d2f8a
+Project:        aura_audit_run_1789616246_3d2f8a
+Compose-File:   /home/ivo/projects/AURA_v2/docker-compose.yml
+Repo-Root:      /home/ivo/projects/AURA_v2
+Docker-Target:  unix:///var/run/docker.sock
 ========================================================
 
-[1/10] Docker Daemon Endpunkt & Kollisionsprüfung...
-  -> Docker Engine Version: 29.1.3
-  -> Docker Compose CLI:    Docker Compose version v5.5.1
+[1/12] Docker-Daemon Endpunkt ausdruecklich pruefen...
+  -> Verifizierter lokaler Docker-Daemon: Ubuntu 24.04.4 LTS | 29.1.3
+[2/12] Negativtest 1: Unerlaubtes Docker-Ziel (Remote/TCP) muss sofort abbrechen...
+  -> Negativtest ERFOLGREICH: Remote-Ziel wurde vor jeder Mutation abgewiesen:
+     Unerlaubtes Docker-Ziel erkannt: DOCKER_HOST verweist auf Remote-Endpunkt ('tcp://production.aura-quant.internal:2375'). Ausfuehrung vor Mutation verweigert.
+[3/12] Negativtest 2: Fremde COMPOSE_FILE-Auswahl wird strikt neutralisiert...
+  -> Negativtest ERFOLGREICH: Repository-Compose-Datei zwingend gebunden (Services: ['aura-api', 'aura-worker']).
+[4/12] Negativtest 3: Echte Namenskollision muss vor Mutation abbrechen...
+  -> Negativtest ERFOLGREICH: Kollision erkannt, Abbruch vor Mutation:
+     Kollision erkannt: Volume 'aura_coll_sentinel_run_1789616246_3d2f8a' existiert bereits im Docker-Namespace! Abbruch vor Mutation.
+[5/12] Kollisionsprüfung fuer Ziel-Ressourcen des Testlaufs...
   -> Keine Namenskollisionen im Docker-Namespace.
-[2/10] Erzeuge fremde Sentinel-Ressourcen (Isolations-Beweis)...
-  -> Sentinel-Volume angelegt:  aura_sentinel_vol_run_1789615570_07eba4
-  -> Sentinel-Network angelegt: aura_sentinel_net_run_1789615570_07eba4
-[3/10] Negativ-Test: Ein nie erfolgreicher Healthcheck muss fehlschlagen...
-  -> Negativ-Test ERFOLGREICH: Defekter Healthcheck wurde wie erwartet abgewiesen:
-     Container 'aura_hc_fail_test_run_1789615570_07eba4' entered 'unhealthy' state: {'Status': 'unhealthy', 'FailingStreak': 2, 'Log': [{'Start': '2026-09-17T05:26:11.485219903+02:00', 'End': '2026-09-17T05:26:11.51854134+02:00', 'ExitCode': 1, 'Output': ''}, {'Start': '2026-09-17T05:26:12.52387506+02:00', 'End': '2026-09-17T05:26:12.56297549+02:00', 'ExitCode': 1, 'Output': ''}]}
-[4/10] D1: Cache-Ausschluss Clean-Build des Test-Images (konsumiert requirements.lock)...
-  -> Clean-Build abgeschlossen in 62.66s.
-  -> Gebautes Test-Image ID: sha256:7426efd4e666102f5359be01b6572e6c7fd195907425d1613b7c603cf1601cea
-  -> Verifizierte Pakete im Image:
-     Name: fastapi
-     Version: 0.141.1
-     Name: uvicorn
-     Version: 0.53.0
-     Name: pydantic
-     Version: 2.13.5
-[5/10] D2: Start Compose-Stack mit Schutzmassnahmen auf isoliertem Volume...
-  -> Schutzmassnahmen 'aura-api-run_1789615570_07eba4': true [no-new-privileges:true] [ALL] 536870912
-  -> Schutzmassnahmen 'aura-worker-run_1789615570_07eba4': true [no-new-privileges:true] [ALL] 536870912
-[6/10] D4: Warte auf verifizierten 'healthy'-Zustand (API & Worker)...
+[6/12] Erzeuge fremde Sentinel-Ressourcen mit fremdem Owner-Label...
+  -> Fremdes Sentinel-Volume angelegt:  aura_sentinel_vol_run_1789616246_3d2f8a
+  -> Fremdes Sentinel-Network angelegt: aura_sentinel_net_run_1789616246_3d2f8a
+[7/12] D4-Negativtest: Nie erfolgreicher Healthcheck wird sauber abgewiesen...
+  -> D4-Negativtest ERFOLGREICH: Container 'aura_hc_fail_test_run_1789616246_3d2f8a' ging in Zustand 'unhealthy': {'Status': 'unhealthy', 'FailingStreak': 2, 'Log': [{'Start': '2026-09-17T05:37:27.929192597+02:00', 'End': '2026-09-17T05:37:27.961196679+02:00', 'ExitCode': 1, 'Output': ''}, {'Start': '2026-09-17T05:37:28.961655387+02:00', 'End': '2026-09-17T05:37:29.010242642+02:00', 'ExitCode': 1, 'Output': ''}]}
+[8/12] D1: Cache-Ausschluss Clean-Build mit verifiziertem requirements.lock...
+  -> Clean-Build abgeschlossen in 67.13s.
+  -> Test-Image ID: sha256:3a1e8644c05cd5e1fdb5b015848f03a5be757f19dc99e7eafc19aa0d2828b7af
+[9/12] D2 & D4: Start Compose-Stack mit Schutzmassnahmen & Warten auf 'healthy'...
+  -> Schutzmassnahmen 'aura-api-run_1789616246_3d2f8a': true [no-new-privileges:true] [ALL] 536870912
+  -> Schutzmassnahmen 'aura-worker-run_1789616246_3d2f8a': true [no-new-privileges:true] [ALL] 536870912
   -> API Healthcheck:    STATUS=healthy (FailingStreak=0)
   -> Worker Healthcheck: STATUS=healthy (FailingStreak=0)
-  -> DB-Migrationen verifiziert: ['schema_migrations', 'candles', 'universe', 'trades', 'trade_events', 'sqlite_sequence', 'commands', 'config_revisions', 'runner_state', 'shadow_log', 'notify_events', 'audit_log', 'processed_bars']
-[7/10] D5: Getrennter Nachweis: Header-Token vs. Cookie-only Authentifizierung...
-  -> Header-Token-Authentifizierung erfolgreich (HTTP 200, ohne Cookie).
-  -> Cookie-Login erfolgreich. Session-Cookie erhalten.
-  -> STRIKTER Cookie-only Zugriff auf /state erfolgreich (HTTP 200, kein Token-Header).
-[8/10] D5: Konfigurationsquittierung & Negativtest mit gestopptem Worker...
-  -> Revision 1 angefordert: Command-ID=cmd_44e283a4fd7643dfaf00d40318e0e8e3
-  -> Quittierung belegt: active_config_rev=1, DB-Command=('applied', 1789615645515)
+[10/12] D5: Auth-Trennung (Header-Token vs. Cookie-only)...
+  -> Strikter Cookie-only Zugriff auf /api/v3/state erfolgreich (HTTP 200, kein Token-Header).
+[11/12] D5: Konfigurationsquittierung & Negativtest mit gestopptem Worker...
+  -> Revision 1 quittiert: Command-ID=cmd_12cc238b46a14013ad2f91c129c16bbc, DB=('applied', 1789616325087)
   -> Stoppe Worker-Container fuer Negativtest...
-  -> Revision 2 bei GESTOPPTEM Worker angefordert: Command-ID=cmd_0bab675157b54be3801c01240c6c009f
-  -> Pruefung bei gestopptem Worker: active_rev=1, DB-Command=('pending', None)
-  -> Negativ-Test ERFOLGREICH: Gestoppter Worker kann keine Konfiguration quittieren (Status: pending).
+  -> Status bei gestopptem Worker: active_rev=1, req_rev=2, DB=['pending', None]
+  -> Negativ-Test ERFOLGREICH: Gestoppter Worker quittiert nicht (status='pending', active_rev unveraendert).
   -> Starte Worker-Container wieder...
-  -> Quittierung nach Worker-Wiederanlauf belegt: active_config_rev=2, DB=('applied', 1789615653647)
-[9/10] Not-Halt, Container-Neustart, Session-Invalidierung & Persistenz...
-  -> Worker vor Not-Halt: (1789615655353, '[w_1_3c3aaa] Feeds initialisiert, bereit fuer Signal-Scanning & Execution')
-  -> Pre-restart Worker-Instanz: w_1_3c3aaa, Heartbeat: 1789615660773
+  -> Quittierung nach Wiederanlauf belegt: active_rev=2, DB=['applied', 1789616329834]
+[12/12] Not-Halt (zwingende Quittierung vor Restart), Neustart & Ownership-Cleanup...
+  -> Not-Halt angefordert: Command-ID=cmd_a8d4f256ae9c4e94a303de95b78daaf0
+  -> Not-Halt VOR Neustart zwingend quittiert: status=applied, applied_at_ms=1789616335204, HALTED=True
+  -> Pre-restart Worker-Instanz: w_1_08c33a, Heartbeat: 1789616336843
   -> Führe aus: docker compose restart...
-  -> Status altes Cookie nach API-Neustart: HTTP 401
-  -> Session-Invalidierung verifiziert: Altes Cookie liefert wie erwartet HTTP 401.
-  -> Neuanmeldung nach Neustart erfolgreich; neues Session-Cookie aktiv.
-  -> Post-restart Worker-Instanz: w_1_7afe49, Heartbeat: 1789615663729
-  -> RESTART-NACHWEIS BESTAETIGT: Neue Instanz-ID (w_1_3c3aaa -> w_1_7afe49) und frischer Heartbeat.
-  -> PERSISTENZ BESTAETIGT: Not-Halt und Konfigurationsrevision ueber Neustart persistent erhalten.
-[10/10] D3: Sicherer Teardown des Stacks & Pruefung fremder Sentinel-Ressourcen...
-  -> ISOLATIONS-BEWEIS ERFOLGREICH: Fremde Sentinel-Ressourcen blieben unangetastet!
-  -> Raeume gezielt eigene Sentinels, Test-Image und Test-Stack auf...
+  -> Altes Session-Cookie nach Neustart: HTTP 401
+  -> Post-restart Worker-Instanz: w_1_4731f3, Heartbeat: 1789616342702
+  -> RESTART BELEGT: Neue Instanz (w_1_08c33a -> w_1_4731f3) und frischer Heartbeat.
+  -> PERSISTENZ BELEGT: Quittierter Halt und Revision 2 blieben nach Neustart erhalten.
+  -> Fuehre Compose-Teardown auf Projekt-Ebene aus...
+  -> OWNERSHIP-ISOLATION BELEGT: Fremde Sentinel-Ressourcen blieben unversehrt erhalten.
+  -> Gezieltes Cleanup der eigenen Test-Sentinels...
 
 ========================================================
-DOCKER COMPOSE LIFECYCLE AUDIT: 100% PASSED (D1-D5 ERFÜLLT)!
+DOCKER COMPOSE LIFECYCLE AUDIT: 100% PASSED (AUDIT de987aa VOLLSTÄNDIG ERFÜLLT)!
 ========================================================
 

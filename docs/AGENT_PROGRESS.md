@@ -184,18 +184,27 @@ python3 tests/pine_static_check.py        # OK, exit 0
     1. Header-Token-Test (ohne Cookie): HTTP 200.
     2. Cookie-only Test: Nach Login via `/api/v3/auth/login` wird `/api/v3/state` strikt ohne `X-AURA-TOKEN` Header abgefragt (HTTP 200).
     3. Session-Invalidierung: Nach API-Container-Neustart liefert das alte In-Memory-Cookie wie erwartet HTTP 401; erst Neuanmeldung stellt den Zugriff wieder her.
-  - Neustart-Nachweis: Echte Regex-Trennung der Instanz-IDs (`w_1_3c3aaa` -> `w_1_7afe49`) und frischer Heartbeat-Timestamp (`>= Restart-Startzeit`).
+  - Neustart-Nachweis: Echte Regex-Trennung der Instanz-IDs und frischer Heartbeat-Timestamp (`>= Restart-Startzeit`).
+
+- **Harness-Sicherheits- und Isolationshärtung (Review de987aa):**
+  - **Docker-Zielbindung:** Strikt lokale Socket-Bindung (`unix:///var/run/docker.sock`) für alle Subprozesse erzwungen. Negativtest 1 weist Remote-/unklare Ziele (`tcp://...`) vor jeder Mutation nachweislich ab.
+  - **Absolute Compose- und Pfadbindung:** Repository-Compose-Datei (`docker-compose.yml`) und Projektwurzel absolut gebunden (`-f ... --project-directory ...`). Fremde Umgebungsvariablen (`COMPOSE_FILE`, etc.) werden neutralisiert (Negativtest 2).
+  - **Kollisionsschutz:** Vorab-Prüfung aller Zielressourcen im Docker-Namespace. Negativtest 3 beweist, dass bei Namenskollision vor jeder Mutation abgebrochen wird und fremde Ressourcen unversehrt bleiben.
+  - **Ownership-basiertes Cleanup:** Nur Ressourcen mit passendem Projekt- und Run-ID-Owner-Label werden aufgeräumt. Fremde Sentinels bleiben nachweislich erhalten.
+  - **Zwingende Not-Halt-Quittierung:** Vor dem Neustart werden konkrete Command-ID, Status `applied`, Timestamp und Zustand `HALTED` zwingend verifiziert (Timeout führt zum Abbruch).
+  - **Testhygiene:** Keine öffentlichen ntfy-Nachrichten (lokale Dummy-URL/deaktiviert); alle Unterprozesse laufen mit begrenzten Timeouts (10s-180s); Docker-Konfigurationsverzeichnis nutzt isolierte `tempfile.TemporaryDirectory`.
 
 - **Abschlussstatus:**
   - `CONTAINER_ENGINE_LOCAL: PASS`
-  - `CONTAINER_COMPOSE_LOCAL: PASS (D1-D5 vollständig verifiziert)`
-  - Python-Tests: 642/642 passed in 52.14s (`pytest_full_642.log`)
-  - JS-Tests: 98/98 Testdateien passed in 4.84s, 0 Fehler (`all_js_tests_98.log`)
-  - 35 gezielte Review-Tests: 35 passed in 3.28s (G1-G3, R1-R5, runner, store)
+  - `CONTAINER_COMPOSE_LOCAL: PASS (Review de987aa vollständig erfüllt)`
+  - Python-Tests: 642/642 passed in 51.83s (`pytest_full_642.log`)
+  - JS-Tests: 98/98 Testdateien passed in 4.82s, 0 Fehler (`all_js_tests_98.log`)
+  - 35 gezielte Review-Tests: 35 passed in 3.19s (`pytest_review_35.log`)
 
 - **Evidenz & Rohlogs (unter `docs/evidence/docker_compose_verification_20260917/`):**
   - `docker_compose_version.log`: `Docker Compose version v5.5.1`.
-  - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 10 Stufen inkl. D1-D5 Negativtests.
+  - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 12 Stufen inkl. 4 Negativtests.
   - `requirements.lock`: Vollständig gelockte transitive Abhängigkeiten.
   - `all_js_tests_98.log`: Protokoll aller 98 JS-Testdateien mit Exit 0.
+  - `pytest_review_35.log`: 35/35 gezielte Regressionsprüfungen bestanden.
   - `pytest_full_642.log`: 642/642 Unit-/Integrations-/Regressionstests bestanden.

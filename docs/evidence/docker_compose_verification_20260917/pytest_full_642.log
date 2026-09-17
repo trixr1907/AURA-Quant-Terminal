@@ -64,4 +64,4 @@ tests/test_v3_store.py .........                                         [ 97%]
 tests/test_v3_vertical_integration.py .......                            [ 99%]
 tests/test_verdict_aggregation_masks_no_go.py ......                     [100%]
 
-============================= 642 passed in 52.14s =============================
+============================= 642 passed in 51.83s =============================
