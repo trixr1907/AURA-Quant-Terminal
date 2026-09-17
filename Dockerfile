@@ -36,6 +36,7 @@ COPY --chown=aura:aura data/ /app/data/
 COPY --chown=aura:aura scripts/ /app/scripts/
 COPY --chown=aura:aura bitget_relay.py headless_autobot.js SYMBIOSE_Tutorial.html shadow_collector.js /app/
 COPY --chown=aura:aura Symbiose_Dashboard.html /app/Symbiose_Dashboard.html
+COPY --chown=aura:aura aura_ux_preview.html /app/aura_ux_preview.html
 
 # Wechsle zum unprivilegierten Benutzer
 USER aura
