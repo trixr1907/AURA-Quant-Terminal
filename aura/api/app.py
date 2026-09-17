@@ -41,13 +41,20 @@ def create_app(
     )
 
     # 1. DB & State initialisieren
+    actual_db_path = str(db_path) if db_path else os.environ.get("AURA_DB_PATH", "aura_state.db")
     if conn is None:
-        actual_db_path = db_path or os.environ.get("AURA_DB_PATH", "aura_state.db")
         conn = connect(actual_db_path)
+    else:
+        try:
+            row = conn.execute("PRAGMA database_list").fetchone()
+            if row and len(row) > 2 and row[2]:
+                actual_db_path = str(row[2])
+        except Exception:
+            pass
 
     sm = state_machine or RunnerStateMachine()
     pe = paper_engine or PaperTradingEngine(conn=conn)
-    set_api_state(sm, pe, conn)
+    set_api_state(sm, pe, db_conn=conn, db_path=actual_db_path)
 
     # 2. Middlewares
     app.add_middleware(SecurityHeadersMiddleware)

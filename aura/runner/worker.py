@@ -103,6 +103,10 @@ class AuraWorkerService:
         last_bar = closed[-1]
         bar_end_ms = last_bar.time_ms + 3600_000
         max_stale_ms = int(self.max_stale_age_sec * 1000)
+        # G3 Kausalitaets-Guard: Eine als geschlossen markierte Kerze darf nicht in der Zukunft enden!
+        # Erlaubt maximal 5000ms Toleranz fuer Netzwerk-Jitter und Clock-Skew
+        if bar_end_ms > now_ms + 5_000:
+            return False, f"Geschlossene Kerze unvollstaendig: Bar-Ende {bar_end_ms} liegt in der Zukunft (jetzt: {now_ms})"
         if (now_ms - bar_end_ms) > max_stale_ms:
             return False, f"Feed veraltet: Letzter geschlossener Bar endete vor {(now_ms - bar_end_ms)/1000:.0f}s (max: {self.max_stale_age_sec:.0f}s)"
         if last_bar.time_ms > now_ms + 60_000:
@@ -371,7 +375,7 @@ class AuraWorkerService:
                         and not has_open
                         and self._liquidity_is_verified(sym, last_bar.time_ms)
                     ):
-                        pos = self._evaluate_and_enter(sym, closed_candles)
+                        pos = self._evaluate_and_enter(sym, closed_candles, pending_alerts=pending_alerts)
                         if pos is not None:
                             trade_opened_id = pos.trade_id
                     elif has_open:
@@ -392,18 +396,20 @@ class AuraWorkerService:
                     trade_id=trade_opened_id,
                 )
 
-            # Transaktion erfolgreich committet: Benachrichtigungen zustellen
-            for alert in pending_alerts:
-                try:
-                    self.notifier.send_alert(**alert)
-                except Exception as ex:
-                    logger.debug("Notifier Fehler: %s", ex)
-
         except BaseException:
-            # Bei Crash / Exception: Rollback in DB durch 'with self.conn:'.
+            # Bei Crash / Exception waehrend der DB-Transaktion:
+            # Rollback in DB durch 'with self.conn:'.
             # In-Memory-Zustand synchron zuruecksetzen!
             self._restore_engine_snapshot(engine_snapshot)
             raise
+
+        # Transaktion ERFOLGREICH committet: Benachrichtigungen erst jetzt zustellen.
+        # Fehler beim Versenden gefaehrden nicht die Datenintegritaet der bereits committeten Buchung.
+        for alert in pending_alerts:
+            try:
+                self.notifier.send_alert(**alert)
+            except Exception as ex:
+                logger.warning("Notifier Fehler beim Senden von %s: %s", alert.get("event_type"), ex)
 
     def _update_runner_state(self, cycle: int) -> None:
         fsm_state = self.sm.current_state.value
@@ -515,7 +521,12 @@ class AuraWorkerService:
             (decision, trade_id, detail, int(self.time_provider() * 1000), symbol, timeframe, open_time_ms),
         )
 
-    def _evaluate_and_enter(self, symbol: str, candles: list[Candle]):
+    def _evaluate_and_enter(
+        self,
+        symbol: str,
+        candles: list[Candle],
+        pending_alerts: list[dict[str, Any]] | None = None,
+    ):
         """Analysiert Kerzen und eroeffnet neue Paper-Position bei hoher Konfluenz."""
         raw_list = [
             {
@@ -580,12 +591,16 @@ class AuraWorkerService:
                     sl_price,
                     tp1_price,
                 )
-                self.notifier.send_alert(
-                    title=f"AURA Neuer Trade: {dir_str} {symbol}",
-                    message=f"Einstieg @ {current_price:.4f} | SL: {sl_price:.4f} | TP1: {tp1_price:.4f} | Qty: {pos.qty}",
-                    priority=3,
-                    event_type="TRADE_OPEN",
-                )
+                alert_payload = {
+                    "title": f"AURA Neuer Trade: {dir_str} {symbol}",
+                    "message": f"Einstieg @ {current_price:.4f} | SL: {sl_price:.4f} | TP1: {tp1_price:.4f} | Qty: {pos.qty}",
+                    "priority": 3,
+                    "event_type": "TRADE_OPEN",
+                }
+                if pending_alerts is not None:
+                    pending_alerts.append(alert_payload)
+                else:
+                    self.notifier.send_alert(**alert_payload)
                 return pos
         return None
 
@@ -606,10 +621,11 @@ if __name__ == "__main__":
         class DeterministicFreshFeed:
             def fetch_candles(self, symbol: str, granularity: str = "1H", limit: int = 60):
                 now_s = int(time.time())
-                now_h = now_s - (now_s % 3600)
+                # Letzte vollstaendig abgeschlossene Stunde (strikt in der Vergangenheit)
+                last_closed_h = (now_s - (now_s % 3600)) - 3600
                 candles = [
                     Candle(
-                        time_ms=(now_h - (39 - i) * 3600) * 1000,
+                        time_ms=(last_closed_h - (39 - i) * 3600) * 1000,
                         open=50000.0 + i * 10,
                         high=50050.0 + i * 10,
                         low=49950.0 + i * 10,

@@ -128,3 +128,30 @@ python3 tests/pine_static_check.py        # OK, exit 0
   - `pytest -ra`: 633 passed (100% grün, 0 Fehler).
   - `node tests/test_*.js`: 98 passed (100% grün).
   - `pytest /mnt/c/Users/Ivo/Downloads/aura_followup_probes.py`: 4 von 4 Defekt-Probes schlagen fehl (`open -> open`, `RECOVERING`, `RUNNING`, `0 rows`), Transaktions-Test `PASSED` (Befunde nachweisbar abgestellt).
+
+## Verifikation 2026-09-17 — Folgeprüfung G1–G3 (nach Commit 44dfe8c)
+
+- **G1: Sichere SQLite-Verbindungsnutzung bei parallelen API-Zugriffen:**
+  - `get_db()` in `aura/api/routes.py` liefert pro HTTP-Request eine eigene Verbindung via Dependency-Generator (`yield connect(_db_path)` mit `finally: conn.close()`), anstelle einer global geteilten Verbindung.
+  - `SafeConnection` in `aura/store/db.py` mit `threading.RLock()` gegen parallele Transaktionskollisionen auf Connection-Ebene gehärtet: Überlappende Transaktionsversuche auf derselben Verbindung werden geordnet serialisiert oder nach Timeout mit aussagekräftigem Fehler abgewiesen.
+  - Echte parallele Requests und Rollback-Isolation verifiziert: 25 gleichzeitige mutierende API-Requests (`/halt`, `/resume`, `/config`) laufen kollisionsfrei ohne `cannot start a transaction within a transaction` durch. Rollbacks in parallelen Threads bleiben strikt isoliert.
+
+- **G2: Strikte Verifikation der Entry- und Exit-Alerts (Commit-Sicherheit & Entkopplung):**
+  - `_evaluate_and_enter` entkoppelt: Entry-Alerts (`TRADE_OPEN`) werden nicht mehr vorab direkt versendet, sondern transaktional in `pending_alerts` gepuffert.
+  - Sämtliche Alerts (Entry und Exit) verlassen die Transaktion erst NACH erfolgreichem DB-Commit.
+  - Bei Rollback / Exception während der Bar-Verarbeitung wird kein einziger Alert emittiert (0 Ghost-Alerts).
+  - Der Alert-Versand nach dem Commit ist isoliert: Netzwerkfehler des Notifiers führen niemals zu einem Rollback bereits committeter Buchungen.
+
+- **G3: Kausalitäts-Guard für Kerzenfeeds, Zeitgrenzen & Testfeed-Korrektur:**
+  - `_is_candle_feed_healthy` in `aura/runner/worker.py` prüft Bar-Ende strikt gegen Wall-Clock: Als geschlossen markierte Kerzen, deren Intervall noch nicht vollendet ist (`bar_end_ms > now_ms + 5_000`), werden als ungesund abgewiesen (`is_valid = False`).
+  - Zulässige Zeitabweichung explizit auf 5000ms Jitter/Clock-Skew begrenzt.
+  - `DeterministicFreshFeed` im Worker korrigiert: Erzeugt nun die zuletzt vollendete Stunde (`(now_s - (now_s % 3600)) - 3600`) statt der noch laufenden Stunde.
+  - Deterministische Tests und E2E-Playwright-Generatoren auf kausal geschlossene Zeitintervalle synchronisiert.
+
+- **Test-Evidenz (Rohlogs unter `docs/evidence/v3_review_g1_to_g3_20260917/`):**
+  - `pytest tests/test_v3_review_g1_to_g3_regressions.py -v`: 9 passed (100% grün).
+  - `pytest tests/test_v3_review_r1_to_r5_regressions.py -v`: 10 passed (100% grün, F1–F5 intakt).
+  - `pytest tests/test_v3_*.py -ra`: 134 passed (100% grün).
+  - `pytest -ra`: 642 passed (100% grün, 0 Fehler).
+  - `node tests/test_*.js`: 98 passed (100% grün).
+  - `aura_review_44dfe8c_probes.py`: Bestätigt Abstellung der Defekte (Entry-Alerts nach Rollback = 0, unvollständige Kerzen als ungesund abgewiesen).
