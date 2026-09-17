@@ -1,0 +1,45 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 35 items
+
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_concurrent_api_requests_no_transaction_collision PASSED [  2%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_rollback_isolation_between_concurrent_threads PASSED [  5%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_shared_connection_rejects_overlapping_transaction_with_informative_error PASSED [  8%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_no_entry_alert_on_rolled_back_trade PASSED [ 11%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_entry_and_exit_alerts_delivered_after_successful_commit PASSED [ 14%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_notifier_failure_does_not_rollback_committed_trade PASSED [ 17%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_unfinished_hour_candle_rejected PASSED [ 20%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_clock_skew_and_boundary_tolerances PASSED [ 22%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_cli_test_feed_produces_only_strictly_closed_past_bars PASSED [ 25%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_halt_persists_across_worker_restarts PASSED [ 28%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_active_config_restored_across_worker_restarts PASSED [ 31%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF1CrashResilientBarProcessingAndStateConsistency::test_bar_crash_before_complete_rolls_back_db_and_in_memory PASSED [ 34%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_stale_feed_from_2023_rejected_and_blocks_running PASSED [ 37%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_feed_with_insufficient_closed_candles_blocks_running PASSED [ 40%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_running_system_transitions_to_degraded_when_feed_drops PASSED [ 42%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF3WarmupRecovery::test_failed_warmup_transitions_to_degraded_and_recovers_to_running_when_feed_returns PASSED [ 45%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF4DatabaseTransactionAtomicityAndMigrationScripts::test_with_conn_rolls_back_on_exception PASSED [ 48%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF4DatabaseTransactionAtomicityAndMigrationScripts::test_executescript_rolls_back_atomically_on_error PASSED [ 51%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF5SubprocessWorkerRestartAndHeartbeatEvidence::test_real_worker_subprocess_lifecycle_and_restart PASSED [ 54%]
+tests/test_v3_runner.py::TestRunnerStateMachine::test_valid_transitions PASSED [ 57%]
+tests/test_v3_runner.py::TestRunnerStateMachine::test_emergency_halt_blocks_new_trades_preserves_management PASSED [ 60%]
+tests/test_v3_runner.py::TestPaperEngineLifecycle::test_open_trade_and_sl_hit PASSED [ 62%]
+tests/test_v3_runner.py::TestPaperEngineLifecycle::test_tp1_partial_close_and_breakeven_move PASSED [ 65%]
+tests/test_v3_runner.py::TestPaperEngineLifecycle::test_intrabar_collision_conservative_policy PASSED [ 68%]
+tests/test_v3_runner.py::TestPaperEngineLifecycle::test_timestop_labeled_correctly PASSED [ 71%]
+tests/test_v3_runner.py::TestRunnerPersistence::test_trade_persisted_and_recovered_on_restart PASSED [ 74%]
+tests/test_v3_store.py::TestMigrations::test_fresh_db_migrates_to_v3_wal PASSED [ 77%]
+tests/test_v3_store.py::TestMigrations::test_migrate_is_idempotent PASSED [ 80%]
+tests/test_v3_store.py::TestMigrations::test_existing_v2_database_migrates_to_v3_without_trade_loss PASSED [ 82%]
+tests/test_v3_store.py::TestMigrations::test_fail_closed_on_newer_schema PASSED [ 85%]
+tests/test_v3_store.py::TestMigrations::test_append_only_triggers PASSED [ 88%]
+tests/test_v3_store.py::TestLegacyImport::test_dry_run_writes_nothing PASSED [ 91%]
+tests/test_v3_store.py::TestLegacyImport::test_real_import_maps_fields PASSED [ 94%]
+tests/test_v3_store.py::TestLegacyImport::test_import_is_idempotent PASSED [ 97%]
+tests/test_v3_store.py::TestLegacyImport::test_missing_state_file_raises PASSED [100%]
+
+============================== 35 passed in 3.18s ==============================
