@@ -61,6 +61,44 @@ class TestBacktestSimulator:
         res_high = sim_high_cost.run(synthetic_trending_candles, symbol="BTCUSDT", spec=spec)
 
         assert res_low.ending_equity > res_high.ending_equity
+    def test_backtest_charges_entry_fee_to_equity(self, monkeypatch):
+        candles = [
+            {
+                "time": 1_700_000_000_000 + i * 3_600_000,
+                "open": 100.0,
+                "high": 101.0,
+                "low": 84.0 if i == 2 else 99.0,
+                "close": 100.0,
+                "volume": 1000.0,
+            }
+            for i in range(10)
+        ]
+
+        class Analysis:
+            score = [80.0] + [50.0] * 9
+            atr = [10.0] * 10
+            st_dir = [1] + [0] * 9
+
+        monkeypatch.setattr("aura.backtest.engine.analyze_candles", lambda _: Analysis())
+        fee_rate = 0.01
+        costly = BacktestSimulator(
+            BacktestConfig(
+                warmup_bars=0,
+                slippage_bps=0.0,
+                maker_fee=0.0,
+                taker_fee=fee_rate,
+            )
+        ).run(
+            candles,
+            symbol="BTCUSDT",
+            spec={"ctVal": 0.01, "minSize": 0.01, "minNotional": 5.0},
+        )
+
+        assert len(costly.trades) == 1
+        trade = costly.trades[0]
+        entry_fee = trade["init_qty"] * trade["entry"] * fee_rate
+        expected_equity = costly.starting_equity - entry_fee + trade["realized_pnl"]
+        assert math.isclose(costly.ending_equity, expected_equity, rel_tol=1e-10, abs_tol=1e-10)
 
 
 class TestWalkForwardOptimization:
@@ -72,5 +110,35 @@ class TestWalkForwardOptimization:
         assert rep.k_folds == 4
         assert rep.total_bars == 500
         assert len(rep.fold_results) == 4
-        assert rep.model_status in ("EVIDENCE_SUPPORTED", "MODEL_NO_EVIDENCE")
+        assert rep.model_status == "MODEL_NO_EVIDENCE"
         assert 0.0 <= rep.dsr_result.dsr <= 1.0
+
+    def test_walk_forward_never_claims_evidence_without_explicit_lockbox(self, synthetic_trending_candles, monkeypatch):
+        from aura.core.stats import DsrResult, TradeEvaluation
+
+        positive_eval = TradeEvaluation(
+            total=100,
+            wins=80,
+            losses=20,
+            win_rate=0.8,
+            profit_factor=4.0,
+            expectancy_r=1.0,
+            max_drawdown_r=1.0,
+            avg_win_r=1.0,
+            avg_loss_r=1.0,
+            returns=[1.0, -0.2] * 50,
+        )
+        monkeypatch.setattr("aura.backtest.walk_forward.evaluate_trades", lambda _: positive_eval)
+        monkeypatch.setattr(
+            "aura.backtest.walk_forward.calc_dsr",
+            lambda *_args, **_kwargs: DsrResult(0.999, 2.0, 0.5, 0.0, 3.0),
+        )
+
+        report = WalkForwardOptimizer(k_folds=4, warmup_bars=235, num_trials=32).run(
+            synthetic_trending_candles,
+            symbol="BTCUSDT",
+            spec={"ctVal": 0.01, "minSize": 0.01, "minNotional": 5.0},
+        )
+
+        assert report.model_status == "MODEL_NO_EVIDENCE"
+

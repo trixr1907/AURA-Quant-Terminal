@@ -1,4 +1,4 @@
-# UX-Engineering-Audit: AURA v2.5.0 (Symbiose Dashboard & Tutorial)
+# UX-Engineering-Audit: AURA v2.5.0 (AURA Dashboard & Tutorial)
 
 **Auditor:** UX-Engineering-Auditor (AURA-Audit, Runde 40)  
 **Zielsystem:** `Symbiose_Dashboard.html` (599 KB Single-File) & `SYMBIOSE_Tutorial.html` (39 KB)  

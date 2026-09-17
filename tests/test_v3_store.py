@@ -134,20 +134,50 @@ def _write_legacy_dir(tmp_path) -> None:
 
 
 class TestMigrations:
-    def test_fresh_db_migrates_to_v1_wal(self, tmp_path):
+    def test_fresh_db_migrates_to_v3_wal(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
         info = store_db.info(conn, tmp_path / "aura.db")
-        assert info.schema_version == 1
+        assert info.schema_version == 3
         assert info.journal_mode == "wal"
         conn.close()
 
     def test_migrate_is_idempotent(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
-        assert store_db.migrate(conn) == 1
-        assert store_db.migrate(conn) == 1
-        count = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-        assert count == 1
+        assert store_db.migrate(conn) == 3
+        assert store_db.migrate(conn) == 3
+        rows = conn.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()
+        assert [row["version"] for row in rows] == [1, 2, 3]
         conn.close()
+
+    def test_existing_v2_database_migrates_to_v3_without_trade_loss(self, tmp_path):
+        db_path = tmp_path / "aura-v2.db"
+        conn = sqlite3.connect(db_path)
+        migration_v1 = (store_db.MIGRATIONS_DIR / "0001_init.sql").read_text(encoding="utf-8")
+        migration_v2 = (store_db.MIGRATIONS_DIR / "0002_processed_bars.sql").read_text(encoding="utf-8")
+        conn.executescript(migration_v1)
+        conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (1, 'test')")
+        conn.executescript(migration_v2)
+        conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (2, 'test')")
+        conn.execute(
+            "INSERT INTO trades (id, source, symbol, dir, status, entry_price, current_sl, initial_sl, "
+            "notional, margin, leverage, opened_at_ms, engine_version) "
+            "VALUES ('legacy-v2', 'server', 'BTCUSDT', 1, 'open', '100', '90', '90', "
+            "'1000', '100', 10, 1000, '3.0.0-dev')"
+        )
+        conn.commit()
+        conn.close()
+
+        migrated = store_db.connect(db_path)
+        assert store_db.current_version(migrated) == 3
+        row = migrated.execute(
+            "SELECT id, symbol, timeframe, entry_fee, remaining_qty FROM trades WHERE id = 'legacy-v2'"
+        ).fetchone()
+        assert row["id"] == "legacy-v2"
+        assert row["symbol"] == "BTCUSDT"
+        assert row["timeframe"] == "1h"
+        assert row["entry_fee"] is None
+        assert row["remaining_qty"] is None
+        migrated.close()
 
     def test_fail_closed_on_newer_schema(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")

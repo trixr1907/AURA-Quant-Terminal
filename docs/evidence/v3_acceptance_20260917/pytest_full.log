@@ -1,0 +1,194 @@
+COMMAND=python3 -m pytest -ra
+WORKDIR=/home/ivo/projects/AURA_v2
+UTC_START=2026-09-16T23:40:26Z
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.13.0, mock-3.15.1
+collected 595 items
+
+tests/test_aura_doctor.py ....                                           [  0%]
+tests/test_aura_webhook_receiver_reference.py ......                     [  1%]
+tests/test_bitget_usdt_futures_universe.py .....                         [  2%]
+tests/test_cost_model_unified.py .....                                   [  3%]
+tests/test_cvd_reference.py ..                                           [  3%]
+tests/test_data_foundation_audit.py ...........                          [  5%]
+tests/test_hypothesis_check.py ......................................... [ 12%]
+.....................                                                    [ 15%]
+tests/test_hypothesis_s6_gate.py ....                                    [ 16%]
+tests/test_launcher.py .................................                 [ 22%]
+tests/test_lockbox_enforcement.py ...                                    [ 22%]
+tests/test_lockbox_register.py .........................                 [ 26%]
+tests/test_package_hygiene.py ............                               [ 28%]
+tests/test_pf33_ntfy.py ............                                     [ 30%]
+tests/test_pf59_signal_hub.py .....                                      [ 31%]
+tests/test_pf62_btc_regime_parity.py ...                                 [ 32%]
+tests/test_pf63_digest.py ......                                         [ 33%]
+tests/test_pf67_server_mode.py .......................................   [ 39%]
+tests/test_pine_forecast_overlay.py .                                    [ 40%]
+tests/test_pine_fvg_capacity.py ...                                      [ 40%]
+tests/test_pine_structure_labels.py .                                    [ 40%]
+tests/test_prereg_new.py ......                                          [ 41%]
+tests/test_r38_release.py ....                                           [ 42%]
+tests/test_r39_release.py ..                                             [ 42%]
+tests/test_reference_backtest_ledger.py ....                             [ 43%]
+tests/test_relay_full.py ............................................... [ 51%]
+.........................                                                [ 55%]
+tests/test_relay_resilience.py .......                                   [ 56%]
+tests/test_relay_status.py .............                                 [ 58%]
+tests/test_release_sync.py ............................................. [ 66%]
+.......................                                                  [ 70%]
+tests/test_research_cleanup.py .........                                 [ 71%]
+tests/test_runner_crash_detector.py .....                                [ 72%]
+tests/test_runner_self_healing.py ........................               [ 76%]
+tests/test_runtime_packaging_closure.py .......                          [ 77%]
+tests/test_shadow_90d_window.py ..                                       [ 78%]
+tests/test_shadow_collector.py ....                                      [ 78%]
+tests/test_slippage_assigned.py ...                                      [ 79%]
+tests/test_state_migration.py .............                              [ 81%]
+tests/test_trials_ledger.py .................                            [ 84%]
+tests/test_v3_api_security.py .......                                    [ 85%]
+tests/test_v3_backtest.py ...                                            [ 86%]
+tests/test_v3_backup_restore.py .                                        [ 86%]
+tests/test_v3_core_indicators.py ................                        [ 88%]
+tests/test_v3_core_parity.py .....                                       [ 89%]
+tests/test_v3_core_risk.py .........                                     [ 91%]
+tests/test_v3_core_scoring.py ........                                   [ 92%]
+tests/test_v3_core_stats.py ...........                                  [ 94%]
+tests/test_v3_data.py ......                                             [ 95%]
+tests/test_v3_quant_accounting_independent.py F.F.                       [ 96%]
+tests/test_v3_runner.py .......                                          [ 97%]
+tests/test_v3_store.py ........                                          [ 98%]
+tests/test_v3_vertical_integration.py ..                                 [ 98%]
+tests/test_verdict_aggregation_masks_no_go.py ......                     [100%]
+
+=================================== FAILURES ===================================
+____ TestQuantAccountingIndependent.test_hand_calculated_long_two_stage_tp _____
+
+self = <test_v3_quant_accounting_independent.TestQuantAccountingIndependent object at 0x7f65070d9220>
+
+    def test_hand_calculated_long_two_stage_tp(self):
+        """Handberechneter Long-Trade mit 50% TP1 und 50% TP2."""
+        cfg = EngineConfig(
+            starting_equity=10000.0,
+            maker_fee=0.0002,   # 0.02%
+            taker_fee=0.0006,   # 0.06%
+            slippage_bps=0.0,   # 0 bps fuer exakte Handrechnung
+            max_open_positions=1,
+        )
+        engine = PaperTradingEngine(config=cfg)
+    
+        # Eroeffne Long: 0.05 BTC @ 50,000, SL=48,000, TP1=52,000, TP2=54,000
+        spec = {"ctVal": 0.0001, "minSize": 0.0001, "minNotional": 5.0}
+        pos = engine.open_trade(
+            symbol="BTCUSDT",
+            timeframe="1H",
+            direction=1,
+            entry_price=50000.0,
+            sl_price=48000.0,
+            tp1_price=52000.0,
+            tp2_price=54000.0,
+            spec=spec,
+            leverage=10,
+            score=80.0,
+            current_time_ms=1000,
+        )
+        assert pos is not None
+        qty = pos.qty  # 0.05 BTC
+    
+        # Handrechnung Entry Fee (Taker 0.06%): 0.05 * 50000 * 0.0006 = 1.50 USDT
+        expected_entry_fee = qty * 50000.0 * 0.0006
+        assert abs(pos.total_fees - expected_entry_fee) < 1e-6
+    
+        # Bar 1: TP1 Hit (High=52,500) -> 50% Partial Close (0.025 BTC) @ 52,000 (Maker Fee: 0.02%)
+        engine.on_bar_update("BTCUSDT", high=52500.0, low=50500.0, close=52100.0, bar_time_ms=2000)
+        assert pos.tp1_hit is True
+        assert pos.status == "partial_tp1"
+        assert abs(pos.qty - (qty * 0.5)) < 1e-6
+        assert pos.sl_price == 50000.0  # Breakeven SL
+    
+        tp1_qty = qty * 0.5
+        expected_tp1_gross = tp1_qty * (52000.0 - 50000.0)  # 0.025 * 2000 = 50.0 USDT
+        expected_tp1_fee = tp1_qty * 52000.0 * 0.0002       # 0.025 * 52000 * 0.0002 = 0.26 USDT
+        expected_tp1_net = expected_tp1_gross - expected_tp1_fee  # 49.74 USDT
+        assert abs(pos.realized_pnl - expected_tp1_net) < 1e-4
+    
+        # Bar 2: TP2 Hit (High=54,500) -> Full Close (0.025 BTC) @ 54,000 (Maker Fee: 0.02%)
+        closed = engine.on_bar_update("BTCUSDT", high=54500.0, low=51800.0, close=54200.0, bar_time_ms=3000)
+        assert len(closed) == 1
+        c = closed[0]
+        assert c.status == "closed"
+        assert c.exit_reason == "tp2_hit"
+    
+        tp2_qty = qty * 0.5
+        expected_tp2_gross = tp2_qty * (54000.0 - 50000.0)  # 0.025 * 4000 = 100.0 USDT
+        expected_tp2_fee = tp2_qty * 54000.0 * 0.0002       # 0.025 * 54000 * 0.0002 = 0.27 USDT
+        expected_tp2_net = expected_tp2_gross - expected_tp2_fee  # 99.73 USDT
+        expected_total_realized_from_exits = expected_tp1_net + expected_tp2_net  # 149.47 USDT
+        expected_total_fees = expected_entry_fee + expected_tp1_fee + expected_tp2_fee  # 2.03 USDT
+    
+        assert abs(c.realized_pnl - expected_total_realized_from_exits) < 1e-4
+        assert abs(c.total_fees - expected_total_fees) < 1e-4
+    
+        # Reconciled Equity: Start - EntryFee + ExitsRealizedPnL = 10000 - 1.50 + 149.47 = 10147.97
+        expected_equity = 10000.0 - expected_entry_fee + expected_total_realized_from_exits
+>       assert abs(engine.equity - expected_equity) < 1e-4
+E       assert 1.5 < 0.0001
+E        +  where 1.5 = abs((10149.47 - 10147.97))
+E        +    where 10149.47 = <aura.runner.paper_engine.PaperTradingEngine object at 0x7f6504db5dc0>.equity
+
+tests/test_v3_quant_accounting_independent.py:86: AssertionError
+_ TestQuantAccountingIndependent.test_restart_during_partial_exit_preserves_be_and_pnl _
+
+self = <test_v3_quant_accounting_independent.TestQuantAccountingIndependent object at 0x7f65070d97c0>
+
+    def test_restart_during_partial_exit_preserves_be_and_pnl(self):
+        """Neustart waehrend Partial-Exit behaelt Breakeven-SL und realisierten TP1-Gewinn bei."""
+        with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+            db_path = tmp.name
+            conn1 = connect(db_path)
+            migrate(conn1)
+    
+            engine1 = PaperTradingEngine(conn=conn1)
+            pos1 = engine1.open_trade(
+                symbol="SOLUSDT",
+                timeframe="1H",
+                direction=1,
+                entry_price=150.0,
+                sl_price=140.0,
+                tp1_price=165.0,
+                tp2_price=180.0,
+                spec={"ctVal": 0.1, "minSize": 0.1, "minNotional": 5.0},
+            )
+            assert pos1 is not None
+            init_qty = pos1.initial_qty
+    
+            # TP1 ausfuehren
+            engine1.on_bar_update("SOLUSDT", high=166.0, low=148.0, close=164.0, bar_time_ms=10000)
+            assert pos1.status == "partial_tp1"
+            tp1_pnl = pos1.realized_pnl
+            assert tp1_pnl > 0
+            conn1.close()
+    
+            # Neustart mit neuem Engine-Objekt gegen dieselbe SQLite-DB
+            conn2 = connect(db_path)
+            engine2 = PaperTradingEngine(conn=conn2)
+            assert len(engine2.open_positions) == 1
+            reloaded_pos = list(engine2.open_positions.values())[0]
+    
+            assert reloaded_pos.status == "partial_tp1"
+            assert reloaded_pos.tp1_hit is True
+>           assert abs(reloaded_pos.qty - (init_qty * 0.5)) < 1e-4
+E           AssertionError: assert 0.0007498875168723274 < 0.0001
+E            +  where 0.0007498875168723274 = abs((4.999250112483128 - (10.0 * 0.5)))
+E            +    where 4.999250112483128 = PaperPosition(trade_id='trade_6c5a3bbb93ae', symbol='SOLUSDT', timeframe='1h', direction=1, entry_price=150.0225, sl_p...995, unrealized_pnl=0.0, total_fees=1.065135, r_multiple=0.0, max_price=0.0, min_price=0.0, setup_score=50.0, notes='').qty
+
+tests/test_v3_quant_accounting_independent.py:147: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v3_quant_accounting_independent.py::TestQuantAccountingIndependent::test_hand_calculated_long_two_stage_tp
+FAILED tests/test_v3_quant_accounting_independent.py::TestQuantAccountingIndependent::test_restart_during_partial_exit_preserves_be_and_pnl
+======================== 2 failed, 593 passed in 15.48s ========================
+EXIT_CODE=1
+UTC_END=2026-09-16T23:40:42Z

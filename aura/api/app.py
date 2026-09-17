@@ -112,7 +112,7 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():
-        """Liefert das reaktive Symbiose Dashboard aus."""
+        """Liefert das reaktive AURA Dashboard aus."""
         dash_path = Path(__file__).parent.parent.parent / "Symbiose_Dashboard.html"
         if dash_path.exists():
             return HTMLResponse(content=dash_path.read_text(encoding="utf-8"))
