@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-POLICY_VERSION = "aura-liquidity-v1"
+POLICY_VERSION = "aura-liquidity-v2"
 
 
 @dataclass(frozen=True)

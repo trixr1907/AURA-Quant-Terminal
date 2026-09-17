@@ -82,8 +82,7 @@ class MarketDataUpdater:
 
         # 3. For configured symbols, fetch orderbook depth and evaluate liquidity
         for symbol in self.symbols:
-            # Capture decision time fresh for this symbol evaluation
-            current_ms = now_ms if now_ms is not None else int(self.time_provider() * 1000)
+            spec_check_ms = int(self.time_provider() * 1000)
 
             # Check instrument spec in database for this symbol
             spec_row = self.conn.execute(
@@ -93,29 +92,30 @@ class MarketDataUpdater:
             ).fetchone()
 
             if spec_row is None:
-                self.record_failure(symbol, current_ms, "missing_instrument_spec")
+                self.record_failure(symbol, spec_check_ms, "missing_instrument_spec")
                 results["symbols"][symbol] = {"status": "source_failed", "error": "missing_instrument_spec"}
                 continue
 
             spec_active = spec_row["symbol_status"] == "normal" and spec_row["symbol_type"] == "perpetual"
-            spec_age = current_ms - int(spec_row["fetched_at_ms"])
+            spec_age = spec_check_ms - int(spec_row["fetched_at_ms"])
             spec_stale = spec_age > self.policy.spec_max_age_ms
 
             if not spec_active:
-                self.record_failure(symbol, current_ms, f"instrument_not_active:{spec_row['symbol_status']}")
+                self.record_failure(symbol, spec_check_ms, f"instrument_not_active:{spec_row['symbol_status']}")
                 results["symbols"][symbol] = {"status": "insufficient", "error": "instrument_not_active"}
                 continue
 
             if spec_stale:
-                self.record_failure(symbol, current_ms, f"instrument_spec_stale:{spec_age}ms")
+                self.record_failure(symbol, spec_check_ms, f"instrument_spec_stale:{spec_age}ms")
                 results["symbols"][symbol] = {"status": "stale", "error": f"instrument_spec_stale_{spec_age}ms"}
                 continue
 
             try:
                 depth_raw, depth_fetched_ms, raw_sha = self.adapter.fetch_orderbook_depth(symbol, limit=50)
+                eval_time_ms = int(self.time_provider() * 1000)
                 if not depth_raw or depth_raw.get("code") != "00000":
                     err = depth_raw.get("msg") if depth_raw else "no_depth_response"
-                    self.record_failure(symbol, current_ms, f"depth_fetch_failed:{err}")
+                    self.record_failure(symbol, eval_time_ms, f"depth_fetch_failed:{err}")
                     results["symbols"][symbol] = {"status": "source_failed", "error": err}
                     continue
 
@@ -123,7 +123,7 @@ class MarketDataUpdater:
                     depth_raw, max_depth_band_bps=self.policy.depth_band_bps
                 )
                 if not ok:
-                    self.record_failure(symbol, current_ms, "unparseable_or_crossed_depth")
+                    self.record_failure(symbol, eval_time_ms, "unparseable_or_crossed_depth")
                     results["symbols"][symbol] = {"status": "insufficient", "error": "crossed_or_empty_depth"}
                     continue
 
@@ -131,32 +131,32 @@ class MarketDataUpdater:
                 depth_data = depth_raw.get("data") if isinstance(depth_raw.get("data"), dict) else {}
                 book_ts_raw = depth_data.get("ts")
                 if book_ts_raw is None or str(book_ts_raw).strip() == "":
-                    self.record_failure(symbol, current_ms, "book_timestamp_missing")
+                    self.record_failure(symbol, eval_time_ms, "book_timestamp_missing")
                     results["symbols"][symbol] = {"status": "source_failed", "error": "book_timestamp_missing"}
                     continue
                 try:
                     book_event_ms = int(book_ts_raw)
                 except (ValueError, TypeError):
-                    self.record_failure(symbol, current_ms, "book_timestamp_invalid")
+                    self.record_failure(symbol, eval_time_ms, "book_timestamp_invalid")
                     results["symbols"][symbol] = {"status": "source_failed", "error": "book_timestamp_invalid"}
                     continue
 
                 # Extract and strictly validate ticker volume and event timestamp
                 ticker = tickers_by_symbol.get(symbol)
                 if not ticker:
-                    self.record_failure(symbol, current_ms, "ticker_missing")
+                    self.record_failure(symbol, eval_time_ms, "ticker_missing")
                     results["symbols"][symbol] = {"status": "source_failed", "error": "ticker_missing"}
                     continue
 
                 ticker_ts_raw = ticker.get("ts")
                 if ticker_ts_raw is None or str(ticker_ts_raw).strip() == "":
-                    self.record_failure(symbol, current_ms, "ticker_timestamp_missing")
+                    self.record_failure(symbol, eval_time_ms, "ticker_timestamp_missing")
                     results["symbols"][symbol] = {"status": "source_failed", "error": "ticker_timestamp_missing"}
                     continue
                 try:
                     ticker_event_ms = int(ticker_ts_raw)
                 except (ValueError, TypeError):
-                    self.record_failure(symbol, current_ms, "ticker_timestamp_invalid")
+                    self.record_failure(symbol, eval_time_ms, "ticker_timestamp_invalid")
                     results["symbols"][symbol] = {"status": "source_failed", "error": "ticker_timestamp_invalid"}
                     continue
 
@@ -174,7 +174,7 @@ class MarketDataUpdater:
                     ticker_event_time_ms=ticker_event_ms,
                     ticker_fetched_at_ms=tickers_fetched_ms,
                     spec_fetched_at_ms=int(spec_row["fetched_at_ms"]),
-                    decision_time_ms=current_ms,
+                    decision_time_ms=eval_time_ms,
                     book_complete=True,
                 )
 
@@ -199,8 +199,9 @@ class MarketDataUpdater:
                 }
 
             except Exception as ex:
+                err_time_ms = int(self.time_provider() * 1000)
                 logger.warning("Fehler beim Aktualisieren von %s: %s", symbol, ex)
-                self.record_failure(symbol, current_ms, str(ex))
+                self.record_failure(symbol, err_time_ms, str(ex))
                 results["symbols"][symbol] = {"status": "source_failed", "error": str(ex)}
 
         self.last_update_ms = cycle_start_ms
