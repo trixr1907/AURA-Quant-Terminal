@@ -10,10 +10,12 @@ Beachtet Bitget API v2 Spezifikation fuer USDT-FUTURES:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
 import time
+from decimal import Decimal, InvalidOperation
 from typing import Any, Sequence
 from urllib import error, parse, request
 
@@ -113,39 +115,137 @@ class BitgetMarketAdapter:
         return candles, report
 
     def fetch_contract_specs(self) -> list[ContractSpec]:
-        """Laedt alle aktiven USDT-FUTURES Kontraktspezifikationen."""
+        """Load and strictly normalize active USDT perpetual specifications."""
         url = f"{self.base_url}/api/v2/mix/market/contracts?productType=USDT-FUTURES"
         raw_data = self._http_get_json(url)
-
-        specs: list[ContractSpec] = []
-        if not raw_data or raw_data.get("code") != "00000":
-            logger.error("Konnte Kontrakte von Bitget nicht laden: %s", raw_data)
+        if not raw_data:
+            return []
+        try:
+            return self.parse_contract_specs(raw_data, fetched_at_ms=int(time.time() * 1000))
+        except ValueError as ex:
+            logger.error("Konnte Bitget-Kontrakte nicht validieren: %s", ex)
             return []
 
-        for item in raw_data.get("data", []):
-            if item.get("symbolStatus") != "normal":
-                continue
-            try:
-                spec = ContractSpec(
-                    symbol=item.get("symbol", ""),
-                    base_coin=item.get("baseCoin", ""),
-                    quote_coin=item.get("quoteCoin", "USDT"),
-                    product_type=item.get("productType", "USDT-FUTURES"),
-                    ct_val=float(item.get("sizeMultiplier") or 0.001),
-                    maker_fee_rate=float(item.get("makerFeeRate") or 0.0002),
-                    taker_fee_rate=float(item.get("takerFeeRate") or 0.0006),
-                    min_size=float(item.get("minTradeNum") or 0.001),
-                    min_notional=float(item.get("minTradeUSDT") or 5.0),
-                    max_leverage=int(item.get("maxLever") or 50),
-                    price_place=int(item.get("pricePlace") or 2),
-                    volume_place=int(item.get("volumePlace") or 2),
-                    price_end_step=float(item.get("priceEndStep") or 1.0),
-                )
-                specs.append(spec)
-            except Exception as ex:
-                logger.warning("Konnte Spezifikation fuer %s nicht parsen: %s", item.get("symbol"), ex)
+    @staticmethod
+    def parse_contract_specs(raw_data: dict[str, Any], *, fetched_at_ms: int) -> list[ContractSpec]:
+        if raw_data.get("code") != "00000" or not isinstance(raw_data.get("data"), list):
+            raise ValueError("ungueltige Contract-Config-Antwort")
 
+        def required_decimal(item: dict[str, Any], field: str, *, allow_zero: bool = False) -> Decimal:
+            if field not in item or item[field] in (None, ""):
+                raise ValueError(f"{field} fehlt")
+            try:
+                value = Decimal(str(item[field]))
+            except (InvalidOperation, ValueError) as ex:
+                raise ValueError(f"{field} ist keine Dezimalzahl") from ex
+            if not value.is_finite() or value < 0 or (value == 0 and not allow_zero):
+                raise ValueError(f"{field} ist nicht positiv")
+            return value
+
+        specs: list[ContractSpec] = []
+        for item in raw_data["data"]:
+            if not isinstance(item, dict):
+                raise ValueError("Contract-Eintrag ist kein Objekt")
+            status = str(item.get("symbolStatus") or "")
+            symbol_type = str(item.get("symbolType") or "")
+            quote = str(item.get("quoteCoin") or "")
+            margin_coins = item.get("supportMarginCoins")
+            if status != "normal" or symbol_type != "perpetual" or quote != "USDT" or not isinstance(margin_coins, list) or "USDT" not in margin_coins:
+                continue
+            symbol = str(item.get("symbol") or "")
+            base = str(item.get("baseCoin") or "")
+            if not symbol or not base:
+                raise ValueError("symbol/baseCoin fehlt")
+            price_place = int(required_decimal(item, "pricePlace", allow_zero=True))
+            price_end_step = required_decimal(item, "priceEndStep")
+            qty_step = required_decimal(item, "sizeMultiplier")
+            min_qty = required_decimal(item, "minTradeNum")
+            if min_qty % qty_step != 0:
+                raise ValueError(f"minTradeNum ist kein Vielfaches von sizeMultiplier fuer {symbol}")
+            specs.append(
+                ContractSpec(
+                    symbol=symbol,
+                    base_coin=base,
+                    quote_coin=quote,
+                    settle_coin="USDT",
+                    product_type="USDT-FUTURES",
+                    symbol_type=symbol_type,
+                    symbol_status=status,
+                    price_tick=price_end_step * (Decimal(10) ** -price_place),
+                    qty_step=qty_step,
+                    min_qty=min_qty,
+                    min_notional=required_decimal(item, "minTradeUSDT"),
+                    maker_fee_rate=required_decimal(item, "makerFeeRate", allow_zero=True),
+                    taker_fee_rate=required_decimal(item, "takerFeeRate", allow_zero=True),
+                    max_leverage=int(required_decimal(item, "maxLever")),
+                    event_time_ms=int(raw_data.get("requestTime") or 0),
+                    fetched_at_ms=int(fetched_at_ms),
+                )
+            )
         return specs
+
+    def fetch_all_tickers(self, product_type: str = "USDT-FUTURES") -> tuple[dict[str, Any] | None, int, str]:
+        """Fetch all tickers with timing and raw SHA256."""
+        now_ms = int(time.time() * 1000)
+        url = f"{self.base_url}/api/v2/mix/market/tickers?productType={product_type}"
+        raw = self._http_get_json(url)
+        if not raw:
+            return None, now_ms, ""
+        raw_bytes = json.dumps(raw, sort_keys=True).encode("utf-8")
+        raw_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+        return raw, now_ms, raw_sha256
+
+    def fetch_orderbook_depth(
+        self, symbol: str, limit: int = 50, precision: str = "scale0"
+    ) -> tuple[dict[str, Any] | None, int, str]:
+        """Fetch orderbook depth with timing and raw SHA256."""
+        now_ms = int(time.time() * 1000)
+        params = {
+            "symbol": symbol,
+            "productType": "USDT-FUTURES",
+            "precision": precision,
+            "limit": str(limit),
+        }
+        url = f"{self.base_url}/api/v2/mix/market/merge-depth?{parse.urlencode(params)}"
+        raw = self._http_get_json(url)
+        if not raw:
+            return None, now_ms, ""
+        raw_bytes = json.dumps(raw, sort_keys=True).encode("utf-8")
+        raw_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+        return raw, now_ms, raw_sha256
+
+    @staticmethod
+    def parse_depth_metrics(
+        raw_depth: dict[str, Any], max_depth_band_bps: Decimal = Decimal("100")
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal, bool]:
+        """Extract spread and notional depth within ±max_depth_band_bps of mid."""
+        data = raw_depth.get("data") if isinstance(raw_depth, dict) and "data" in raw_depth else raw_depth
+        if not isinstance(data, dict):
+            return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+        asks = data.get("asks") or []
+        bids = data.get("bids") or []
+        if not asks or not bids:
+            return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+        try:
+            best_bid = Decimal(str(bids[0][0]))
+            best_ask = Decimal(str(asks[0][0]))
+            if best_bid <= 0 or best_ask <= 0 or best_ask <= best_bid:
+                return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+            mid = (best_bid + best_ask) / Decimal("2")
+            spread_bps = ((best_ask - best_bid) / mid) * Decimal("10000")
+            min_bid = mid * (Decimal("1") - max_depth_band_bps / Decimal("10000"))
+            max_ask = mid * (Decimal("1") + max_depth_band_bps / Decimal("10000"))
+            bid_depth = sum(
+                (Decimal(str(p)) * Decimal(str(s)) for p, s in bids if Decimal(str(p)) >= min_bid),
+                Decimal("0"),
+            )
+            ask_depth = sum(
+                (Decimal(str(p)) * Decimal(str(s)) for p, s in asks if Decimal(str(p)) <= max_ask),
+                Decimal("0"),
+            )
+            return spread_bps, bid_depth, ask_depth, best_bid, best_ask, True
+        except (InvalidOperation, ValueError, IndexError):
+            return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
 
     def _http_get_json(self, url: str) -> dict[str, Any] | None:
         """Fuehrt HTTP-GET mit Rate-Limiting und Retries mit Backoff aus."""

@@ -157,18 +157,22 @@ def e2e_environment(tmp_path_factory):
         "VALUES (1, 'RUNNING', 'E2E Test Start', 10000.0, 0, ?)",
         (now_ms,)
     )
-    init_conn.execute(
-        "INSERT OR REPLACE INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-        "VALUES ('BTCUSDT', 1, 1, 50000000.0, ?)",
-        (now_ms,)
-    )
-    init_conn.execute(
-        "INSERT OR REPLACE INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-        "VALUES ('ETHUSDT', 1, 1, 25000000.0, ?)",
-        (now_ms,)
-    )
     init_conn.commit()
     init_conn.close()
+
+    for sym, vol in [("BTCUSDT", "50000000"), ("ETHUSDT", "25000000")]:
+        worker.persist_test_market_snapshot(
+            symbol=sym,
+            now_ms=now_ms,
+            price_tick="0.1",
+            qty_step="0.0001",
+            min_qty="0.0001",
+            min_notional="5",
+            spread_bps="5",
+            bid_depth_notional="5000000",
+            ask_depth_notional="5000000",
+            quote_volume_24h=vol,
+        )
 
     worker_stop_event = threading.Event()
     def _worker_loop():
@@ -692,13 +696,19 @@ def test_scenario_k_deterministic_paper_trade_production_lifecycle_in_ui(e2e_env
         "UPDATE trades SET status = 'closed', closed_at_ms = ? WHERE status = 'open'",
         (now_ms,)
     )
-    # Universe-Timestamp aktualisieren (muss <= bar_time_ms sein)
-    conn.execute(
-        "UPDATE universe SET updated_at_ms = ? WHERE symbol = 'BTCUSDT'",
-        (now_ms - 7200000,)
+    # Universe-Snapshot aktualisieren
+    worker.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="5000000",
+        ask_depth_notional="5000000",
+        quote_volume_24h="100000000",
     )
-    conn.commit()
-    conn.close()
 
     # Deterministische synthetische Breakout-Kerzen einspeisen (mit bar_time_ms = now_ms)
     candles = _generate_synthetic_bullish_candles("BTCUSDT", n=60, base_price=60000.0)

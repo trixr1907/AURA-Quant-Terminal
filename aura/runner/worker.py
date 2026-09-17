@@ -15,11 +15,15 @@ import signal
 import sys
 import time
 import uuid
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
+from aura.core.risk import size_position
 from aura.core.scoring import analyze_candles
 from aura.data.bitget_adapter import BitgetMarketAdapter
+from aura.data.liquidity import LiquidityPolicy, POLICY_VERSION
+from aura.data.market_updater import MarketDataUpdater
 from aura.data.models import Candle, ValidationReport
 from aura.runner.notifier import NotificationConfig, NotificationDispatcher
 from aura.runner.paper_engine import EngineConfig, PaperTradingEngine
@@ -59,6 +63,7 @@ class AuraWorkerService:
         self.short_threshold = short_threshold
         self.time_provider = time_provider
         self.max_stale_age_sec = max_stale_age_sec
+        self.liquidity_policy = LiquidityPolicy()
         self.instance_id = instance_id or f"w_{os.getpid()}_{uuid.uuid4().hex[:6]}"
         self._running = False
 
@@ -71,6 +76,15 @@ class AuraWorkerService:
         ntfy_url = os.environ.get("AURA_NTFY_URL", "")
         ntfy_cfg = NotificationConfig(enabled=bool(ntfy_url), topic_url=ntfy_url)
         self.notifier = NotificationDispatcher(config=ntfy_cfg, conn=self.conn)
+
+        self.market_updater = MarketDataUpdater(
+            conn=self.conn,
+            adapter=self.adapter,
+            policy=self.liquidity_policy,
+            symbols=self.symbols,
+            min_interval_sec=float(os.environ.get("AURA_MARKET_UPDATE_INTERVAL", "60.0")),
+            time_provider=self.time_provider,
+        )
 
         # R1: Persistierten Zustand (Not-Halt, aktive Konfig) und R4 (verwaiste Claims) wiederherstellen
         self._restore_persisted_state()
@@ -295,6 +309,15 @@ class AuraWorkerService:
 
         now_ms = int(self.time_provider() * 1000)
 
+        # Market Data & Liquidity Update (wenn Adapter dies unterstuetzt und nicht explizit isoliert)
+        if os.environ.get("AURA_DISABLE_AUTO_SYNC") != "1" and hasattr(self.adapter, "fetch_orderbook_depth"):
+            try:
+                self.market_updater.adapter = self.adapter
+                self.market_updater.time_provider = self.time_provider
+                self.market_updater.update_cycle(now_ms=now_ms)
+            except Exception as ex:
+                logger.warning("MarketDataUpdater Zyklusfehler: %s", ex)
+
         # Phase 1: Globale Validierung aller Feeds VOR Trade-Entscheidungen (F2)
         symbol_data: dict[str, tuple[list[Candle], list[Candle]]] = {}
         all_feeds_valid = True
@@ -376,7 +399,6 @@ class AuraWorkerService:
                     if (
                         len(self.engine.open_positions) < self.max_open_positions
                         and not has_open
-                        and self._liquidity_is_verified(sym, last_bar.time_ms)
                     ):
                         pos = self._evaluate_and_enter(sym, closed_candles, pending_alerts=pending_alerts)
                         if pos is not None:
@@ -385,8 +407,6 @@ class AuraWorkerService:
                         self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", f"Bereits offene Position fuer {sym}")
                     elif len(self.engine.open_positions) >= self.max_open_positions:
                         self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", f"Max Positionen ({self.max_open_positions}) erreicht")
-                    elif not self._liquidity_is_verified(sym, last_bar.time_ms):
-                        self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Liquiditaet nicht verifiziert")
                 elif self.sm.is_halted:
                     self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Not-Halt aktiv")
 
@@ -448,17 +468,121 @@ class AuraWorkerService:
         except Exception:
             pass
 
-    def _liquidity_is_verified(self, symbol: str, bar_time_ms: int) -> bool:
+    def persist_test_market_snapshot(
+        self,
+        *,
+        symbol: str,
+        now_ms: int,
+        price_tick: str,
+        qty_step: str,
+        min_qty: str,
+        min_notional: str,
+        spread_bps: str,
+        bid_depth_notional: str,
+        ask_depth_notional: str,
+        quote_volume_24h: str,
+        source: str = "bitget_rest_v2",
+    ) -> None:
+        """Persist an explicitly synthetic, policy-evaluated fixture snapshot."""
+        assessment = self.liquidity_policy.evaluate_metrics(
+            active=True,
+            spread_bps=Decimal(spread_bps),
+            bid_depth_notional=Decimal(bid_depth_notional),
+            ask_depth_notional=Decimal(ask_depth_notional),
+            quote_volume_24h=Decimal(quote_volume_24h),
+            event_time_ms=now_ms,
+            fetched_at_ms=now_ms,
+            decision_time_ms=now_ms,
+            book_complete=True,
+        )
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO instrument_specs "
+                "(symbol, source, product_type, symbol_type, symbol_status, base_coin, quote_coin, settle_coin, "
+                "price_tick, qty_step, min_qty, min_notional, maker_fee_rate, taker_fee_rate, max_leverage, "
+                "event_time_ms, fetched_at_ms, raw_snapshot_sha256) "
+                "VALUES (?, ?, 'USDT-FUTURES', 'perpetual', 'normal', ?, 'USDT', 'USDT', ?, ?, ?, ?, "
+                "'0.0002', '0.0006', 50, ?, ?, 'synthetic_fixture') "
+                "ON CONFLICT(symbol) DO UPDATE SET price_tick=excluded.price_tick, qty_step=excluded.qty_step, "
+                "min_qty=excluded.min_qty, min_notional=excluded.min_notional, event_time_ms=excluded.event_time_ms, "
+                "fetched_at_ms=excluded.fetched_at_ms, source=excluded.source",
+                (symbol, source, symbol.removesuffix("USDT"), price_tick, qty_step, min_qty, min_notional, now_ms, now_ms),
+            )
+            self.conn.execute(
+                "INSERT INTO universe "
+                "(symbol, active, liquidity_verified, vol_24h, updated_at_ms, source, status, policy_version, "
+                "event_time_ms, fetched_at_ms, reasons_json, spread_bps, bid_depth_notional, ask_depth_notional, "
+                "quote_volume_24h, raw_snapshot_sha256) "
+                "VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synthetic_fixture') "
+                "ON CONFLICT(symbol) DO UPDATE SET active=excluded.active, liquidity_verified=excluded.liquidity_verified, "
+                "vol_24h=excluded.vol_24h, updated_at_ms=excluded.updated_at_ms, source=excluded.source, "
+                "status=excluded.status, policy_version=excluded.policy_version, event_time_ms=excluded.event_time_ms, "
+                "fetched_at_ms=excluded.fetched_at_ms, reasons_json=excluded.reasons_json, spread_bps=excluded.spread_bps, "
+                "bid_depth_notional=excluded.bid_depth_notional, ask_depth_notional=excluded.ask_depth_notional, "
+                "quote_volume_24h=excluded.quote_volume_24h, raw_snapshot_sha256=excluded.raw_snapshot_sha256",
+                (
+                    symbol, int(assessment.verified), float(Decimal(quote_volume_24h)), now_ms,
+                    source, assessment.status, POLICY_VERSION, now_ms, now_ms, json.dumps(list(assessment.reasons)),
+                    spread_bps, bid_depth_notional, ask_depth_notional, quote_volume_24h,
+                ),
+            )
+
+    def record_market_source_failure(self, symbols: list[str], now_ms: int, reason: str) -> None:
+        with self.conn:
+            for symbol in symbols:
+                self.conn.execute(
+                    "INSERT INTO universe "
+                    "(symbol, active, liquidity_verified, updated_at_ms, source, status, policy_version, "
+                    "fetched_at_ms, reasons_json) VALUES (?, 0, 0, ?, 'bitget_rest_v2', 'source_failed', ?, ?, ?) "
+                    "ON CONFLICT(symbol) DO UPDATE SET liquidity_verified=0, status='source_failed', "
+                    "updated_at_ms=excluded.updated_at_ms, fetched_at_ms=excluded.fetched_at_ms, reasons_json=excluded.reasons_json",
+                    (symbol, now_ms, POLICY_VERSION, now_ms, json.dumps([reason])),
+                )
+
+    def _liquidity_is_verified(
+        self,
+        symbol: str,
+        decision_time_ms: int,
+        *,
+        planned_notional: str | float | Decimal | None = None,
+        direction: int | None = None,
+    ) -> bool:
         row = self.conn.execute(
-            "SELECT active, liquidity_verified, updated_at_ms FROM universe WHERE symbol = ?",
+            "SELECT active, liquidity_verified, status, policy_version, event_time_ms, fetched_at_ms, "
+            "bid_depth_notional, ask_depth_notional FROM universe WHERE symbol = ?",
             (symbol,),
         ).fetchone()
-        if row is None:
+        spec = self.conn.execute(
+            "SELECT qty_step, min_qty, min_notional, symbol_status, symbol_type, quote_coin, settle_coin "
+            "FROM instrument_specs WHERE symbol = ?",
+            (symbol,),
+        ).fetchone()
+        if row is None or spec is None:
             return False
-        if not bool(row["active"]) or not bool(row["liquidity_verified"]):
+        if not bool(row["active"]) or not bool(row["liquidity_verified"]) or row["status"] != "valid":
             return False
-        max_age_ms = 24 * 60 * 60 * 1000
-        return 0 <= (bar_time_ms - int(row["updated_at_ms"])) <= max_age_ms
+        if row["policy_version"] != POLICY_VERSION:
+            return False
+        event_ms = row["event_time_ms"]
+        fetched_ms = row["fetched_at_ms"]
+        if event_ms is None or fetched_ms is None:
+            return False
+        age_event = decision_time_ms - int(event_ms)
+        age_fetch = decision_time_ms - int(fetched_ms)
+        if age_event < -self.liquidity_policy.max_future_skew_ms or age_fetch < -self.liquidity_policy.max_future_skew_ms:
+            return False
+        if age_event > self.liquidity_policy.max_age_ms or age_fetch > self.liquidity_policy.max_age_ms:
+            return False
+        if spec["symbol_status"] != "normal" or spec["symbol_type"] != "perpetual" or spec["quote_coin"] != "USDT" or spec["settle_coin"] != "USDT":
+            return False
+        if planned_notional is None or direction not in (-1, 1):
+            return False
+        try:
+            notional = Decimal(str(planned_notional))
+            side_depth = Decimal(str(row["ask_depth_notional"] if direction == 1 else row["bid_depth_notional"]))
+        except (InvalidOperation, ValueError):
+            return False
+        return notional > 0 and notional <= side_depth * self.liquidity_policy.max_position_depth_fraction
 
     def _persist_candles(self, symbol: str, timeframe: str, candles: list[Candle]) -> None:
         received_at_ms = int(time.time() * 1000)
@@ -569,7 +693,30 @@ class AuraWorkerService:
             tp2_price = current_price - 3.5 * atr_val
 
         if direction is not None:
-            spec = {"ctVal": 0.0001, "minSize": 0.0001, "minNotional": 5.0}
+            spec_row = self.conn.execute(
+                "SELECT qty_step, min_qty, min_notional, max_leverage FROM instrument_specs WHERE symbol = ?",
+                (symbol,),
+            ).fetchone()
+            if spec_row is None:
+                self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Instrumentenspezifikation fehlt")
+                return None
+            spec = {
+                "qtyStep": spec_row["qty_step"],
+                "minQty": spec_row["min_qty"],
+                "minNotional": spec_row["min_notional"],
+            }
+            leverage = min(10, int(spec_row["max_leverage"]))
+            risk_amt = Decimal(str(self.engine.equity)) * Decimal(str(self.engine.config.risk_per_trade_pct)) / Decimal("100")
+            sized = size_position(risk_amt, Decimal(str(current_price)), Decimal(str(abs(current_price - sl_price))), leverage, spec)
+            decision_time_ms = int(self.time_provider() * 1000)
+            if sized.qty <= 0 or not self._liquidity_is_verified(
+                symbol,
+                decision_time_ms,
+                planned_notional=Decimal(str(sized.notional)),
+                direction=direction,
+            ):
+                self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Liquiditaet oder ausfuehrungsspezifische Tiefe nicht verifiziert")
+                return None
             pos = self.engine.open_trade(
                 symbol=symbol,
                 timeframe="1H",
@@ -579,7 +726,7 @@ class AuraWorkerService:
                 tp1_price=tp1_price,
                 tp2_price=tp2_price,
                 spec=spec,
-                leverage=10,
+                leverage=leverage,
                 score=score,
                 current_time_ms=candles[-1].time_ms,
             )

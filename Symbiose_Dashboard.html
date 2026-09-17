@@ -584,6 +584,15 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <span style="padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.2);font-weight:900;font-size:9.5px;letter-spacing:0.04em">MODEL_NO_EVIDENCE</span>
           <span><b>Paper-Trading Simulation</b> · 8h-Funding-Kosten &amp; TP3-Tranchen sind in v3 noch nicht modelliert. DSR-Trials ungebunden. Keine reale Handelsevidenz.</span>
         </div>
+        <!-- v3 Market Data & Liquidity Status Banner -->
+        <div id="ab-market-data-banner" style="margin-bottom:8px;padding:6px 12px;border-radius:6px;background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.2);font-size:10px;font-family:var(--mono);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span><b>Marktdaten &amp; Liquidität:</b></span>
+            <span id="ab-market-status-badge" style="padding:1px 6px;border-radius:4px;font-weight:700;font-size:9.5px;background:rgba(148,163,184,.15);color:var(--dim)">lädt…</span>
+            <span id="ab-market-source-info" style="color:var(--dim)">Quelle: bitget_rest_v2 · Policy: aura-liquidity-v1</span>
+          </div>
+          <div id="ab-market-metrics-info" style="color:var(--dim)">Alter: —s · Kriterien: Spread &le; 10bps · Tiefe &ge; $5.000 · 24h &ge; $1M</div>
+        </div>
         <div id="ab-cmd-alert" style="display:none;margin-bottom:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-weight:700"></div>
 
         <div class="autobot-kpis">
@@ -9667,6 +9676,7 @@ const SyncEngine = {
         Autobot.pendingCommands = s.pending_commands || [];
         Autobot.rejectedCommands = s.rejected_commands || [];
         Autobot.missingCostsNotice = s.missing_costs_notice;
+        Autobot.marketData = s.market_data;
         Autobot.radar = s.radar || [];
 
         if (Array.isArray(s.open_positions)) {
@@ -11052,6 +11062,35 @@ const Autobot = {
         cmdAlert.textContent = `❌ Fehlgeschlagen: ${this.rejectedCommands[0].type} (${this.rejectedCommands[0].result || 'Abgelehnt'})`;
       } else {
         cmdAlert.style.display = 'none';
+      }
+    }
+
+    // Market data and liquidity status banner
+    const marketBadge = $('ab-market-status-badge');
+    const marketSource = $('ab-market-source-info');
+    const marketMetrics = $('ab-market-metrics-info');
+    if (marketBadge && this.marketData) {
+      const md = this.marketData;
+      const statusMap = {
+        'valid': { text: '● GÜLTIG (Liquidität verifiziert)', color: '#2dd4bf', bg: 'rgba(45,212,191,.15)', border: '#2dd4bf' },
+        'loading': { text: '◌ LÄDT (Initialisierung)', color: 'var(--dim)', bg: 'rgba(148,163,184,.15)', border: 'rgba(148,163,184,.3)' },
+        'stale': { text: '⚠️ VERALTET (>15m)', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', border: '#f59e0b' },
+        'insufficient': { text: '⛔ UNZUREICHEND (Tiefe/Spread)', color: '#ef4444', bg: 'rgba(239,68,68,.15)', border: '#ef4444' },
+        'source_failed': { text: '❌ QUELLE AUSGEFALLEN', color: '#ef4444', bg: 'rgba(239,68,68,.2)', border: '#ef4444' },
+      };
+      const st = statusMap[md.status] || { text: md.status || 'UNBEKANNT', color: 'var(--dim)', bg: 'rgba(148,163,184,.1)', border: 'rgba(148,163,184,.2)' };
+      marketBadge.textContent = st.text;
+      marketBadge.style.color = st.color;
+      marketBadge.style.background = st.bg;
+      marketBadge.style.border = `1px solid ${st.border}`;
+      if (marketSource) {
+        marketSource.textContent = `Quelle: ${md.source || 'bitget_rest_v2'} · Policy: ${md.policy_version || 'aura-liquidity-v1'}`;
+      }
+      if (marketMetrics && Array.isArray(md.symbols) && md.symbols.length > 0) {
+        const s0 = md.symbols[0];
+        const ageText = (s0.data_age_seconds !== null && s0.data_age_seconds !== undefined) ? `${s0.data_age_seconds}s` : '—';
+        const spText = s0.criteria && s0.criteria.spread_bps ? `${parseFloat(s0.criteria.spread_bps).toFixed(2)}bps` : '—';
+        marketMetrics.textContent = `${s0.symbol}: Alter ${ageText} · Spread ${spText} · Kriterien: Spread ≤ 10bps, Tiefe ≥ $5k, 24h ≥ $1M`;
       }
     }
 

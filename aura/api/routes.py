@@ -37,6 +37,7 @@ from aura.api.schemas import (
 )
 from aura.runner.paper_engine import PaperTradingEngine
 from aura.runner.state_machine import RunnerStateMachine, SystemState
+from aura.data.liquidity import POLICY_VERSION
 from aura.store.db import connect
 
 router = APIRouter()
@@ -334,6 +335,56 @@ def get_state(
     wins = [p for p in pe.closed_positions if p.realized_pnl > 0]
     win_rate = round((len(wins) / len(pe.closed_positions)) * 100.0, 1) if pe.closed_positions else 0.0
 
+    # 7. Market Data & Explanatory Liquidity State
+    cur.execute(
+        "SELECT symbol, active, liquidity_verified, vol_24h, updated_at_ms, source, status, "
+        "policy_version, event_time_ms, fetched_at_ms, reasons_json, spread_bps, "
+        "bid_depth_notional, ask_depth_notional, quote_volume_24h, raw_snapshot_sha256 "
+        "FROM universe ORDER BY symbol"
+    )
+    u_rows = cur.fetchall()
+    market_symbols = []
+    primary_source = "bitget_rest_v2"
+    primary_policy = POLICY_VERSION
+    overall_status = "loading" if not u_rows else ("valid" if any(r["liquidity_verified"] for r in u_rows) else "insufficient")
+    for r in u_rows:
+        keys = r.keys()
+        sym_src = r["source"] if "source" in keys and r["source"] else "bitget_rest_v2"
+        sym_pol = r["policy_version"] if "policy_version" in keys and r["policy_version"] else POLICY_VERSION
+        primary_source = sym_src
+        primary_policy = sym_pol
+        reasons = json.loads(r["reasons_json"]) if "reasons_json" in keys and r["reasons_json"] else []
+        status_val = r["status"] if "status" in keys and r["status"] else ("valid" if r["liquidity_verified"] else "unverified")
+        f_ms = r["fetched_at_ms"] if "fetched_at_ms" in keys else None
+        age_sec = round((now_ms - f_ms) / 1000.0, 1) if f_ms else None
+        if age_sec is not None and age_sec > 900.0 and status_val == "valid":
+            status_val = "stale"
+        market_symbols.append({
+            "symbol": r["symbol"],
+            "status": status_val,
+            "verified": bool(r["liquidity_verified"]),
+            "data_age_seconds": age_sec,
+            "reasons": reasons,
+            "criteria": {
+                "spread_bps": str(r["spread_bps"]) if "spread_bps" in keys and r["spread_bps"] is not None else None,
+                "bid_depth_notional": str(r["bid_depth_notional"]) if "bid_depth_notional" in keys and r["bid_depth_notional"] is not None else None,
+                "ask_depth_notional": str(r["ask_depth_notional"]) if "ask_depth_notional" in keys and r["ask_depth_notional"] is not None else None,
+                "quote_volume_24h": str(r["quote_volume_24h"]) if "quote_volume_24h" in keys and r["quote_volume_24h"] is not None else (str(r["vol_24h"]) if r["vol_24h"] is not None else None),
+            },
+        })
+
+    if u_rows:
+        if all(s["status"] == "source_failed" for s in market_symbols):
+            overall_status = "source_failed"
+        elif any(s["status"] == "valid" for s in market_symbols):
+            overall_status = "valid"
+        elif any(s["status"] == "stale" for s in market_symbols):
+            overall_status = "stale"
+        elif any(s["status"] == "insufficient" for s in market_symbols):
+            overall_status = "insufficient"
+        else:
+            overall_status = market_symbols[0]["status"]
+
     return {
         "server_time_ms": now_ms,
         "worker": {
@@ -344,6 +395,12 @@ def get_state(
             "last_heartbeat_ms": last_hb_ms,
             "data_age_seconds": data_age_sec,
             "is_stale": is_stale,
+        },
+        "market_data": {
+            "source": primary_source,
+            "policy_version": primary_policy,
+            "status": overall_status,
+            "symbols": market_symbols,
         },
         "equity": pe.equity,
         "starting_equity": pe.starting_equity,

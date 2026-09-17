@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 
@@ -54,16 +55,27 @@ class ContractSpec:
     symbol: str
     base_coin: str
     quote_coin: str
-    product_type: str  # 'USDT-FUTURES'
-    ct_val: float      # sizeMultiplier
-    maker_fee_rate: float
-    taker_fee_rate: float
-    min_size: float
-    min_notional: float
+    settle_coin: str
+    product_type: str
+    symbol_type: str
+    symbol_status: str
+    price_tick: Decimal
+    qty_step: Decimal
+    min_qty: Decimal
+    min_notional: Decimal
+    maker_fee_rate: Decimal
+    taker_fee_rate: Decimal
     max_leverage: int
-    price_place: int
-    volume_place: int
-    price_end_step: float = 1.0
+    event_time_ms: int
+    fetched_at_ms: int
+    source: str = "bitget_rest_v2"
+
+    def risk_spec(self) -> dict[str, Decimal]:
+        return {
+            "qtyStep": self.qty_step,
+            "minQty": self.min_qty,
+            "minNotional": self.min_notional,
+        }
 
 
 @dataclass
