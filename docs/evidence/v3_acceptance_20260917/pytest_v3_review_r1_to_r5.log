@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 7 items
+
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_halt_persists_across_worker_restarts PASSED [ 14%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_active_config_restored_across_worker_restarts PASSED [ 28%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR2ResumeRecoveryAndHealthGating::test_resume_stays_recovering_if_feeds_invalid_or_offline PASSED [ 42%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR2ResumeRecoveryAndHealthGating::test_resume_recovers_to_running_when_feeds_are_valid PASSED [ 57%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR3DatabaseTransactionAtomicity::test_with_conn_rolls_back_on_exception PASSED [ 71%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR4CrashResilientBarProcessing::test_incomplete_claim_is_retried_after_restart PASSED [ 85%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR5RealSubprocessWorkerRestart::test_real_worker_subprocess_lifecycle_and_restart PASSED [100%]
+
+============================== 7 passed in 6.11s ===============================
