@@ -589,7 +589,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
           <div style="display:flex;align-items:center;gap:6px">
             <span><b>Marktdaten &amp; Liquidität:</b></span>
             <span id="ab-market-status-badge" style="padding:1px 6px;border-radius:4px;font-weight:700;font-size:9.5px;background:rgba(148,163,184,.15);color:var(--dim)">lädt…</span>
-            <span id="ab-market-source-info" style="color:var(--dim)">Quelle: bitget_rest_v2 · Policy: aura-liquidity-v1</span>
+            <span id="ab-market-source-info" style="color:var(--dim)">Quelle: bitget_rest_v2 · Policy: aura-liquidity-v2</span>
           </div>
           <div id="ab-market-metrics-info" style="color:var(--dim)">Alter: —s · Kriterien: Spread &le; 10bps · Tiefe (&plusmn;25bps) &ge; $5.000 · Pos &le; 5% · 24h &ge; $1M</div>
         </div>
@@ -11084,7 +11084,7 @@ const Autobot = {
       marketBadge.style.background = st.bg;
       marketBadge.style.border = `1px solid ${st.border}`;
       if (marketSource) {
-        marketSource.textContent = `Quelle: ${md.source || 'bitget_rest_v2'} · Policy: ${md.policy_version || 'aura-liquidity-v1'}`;
+        marketSource.textContent = `Quelle: ${md.source || 'bitget_rest_v2'} · Policy: ${md.policy_version || 'aura-liquidity-v2'}`;
       }
       if (marketMetrics && Array.isArray(md.symbols) && md.symbols.length > 0) {
         const s0 = md.symbols[0];

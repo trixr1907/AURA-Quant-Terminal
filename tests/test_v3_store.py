@@ -137,16 +137,16 @@ class TestMigrations:
     def test_fresh_db_migrates_to_v3_wal(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
         info = store_db.info(conn, tmp_path / "aura.db")
-        assert info.schema_version == 5
+        assert info.schema_version == 6
         assert info.journal_mode == "wal"
         conn.close()
 
     def test_migrate_is_idempotent(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
-        assert store_db.migrate(conn) == 5
-        assert store_db.migrate(conn) == 5
+        assert store_db.migrate(conn) == 6
+        assert store_db.migrate(conn) == 6
         rows = conn.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()
-        assert [row["version"] for row in rows] == [1, 2, 3, 4, 5]
+        assert [row["version"] for row in rows] == [1, 2, 3, 4, 5, 6]
         conn.close()
 
     def test_existing_v2_database_migrates_to_v3_without_trade_loss(self, tmp_path):
@@ -168,7 +168,7 @@ class TestMigrations:
         conn.close()
 
         migrated = store_db.connect(db_path)
-        assert store_db.current_version(migrated) == 5
+        assert store_db.current_version(migrated) == 6
         row = migrated.execute(
             "SELECT id, symbol, timeframe, entry_fee, remaining_qty FROM trades WHERE id = 'legacy-v2'"
         ).fetchone()
@@ -177,6 +177,41 @@ class TestMigrations:
         assert row["timeframe"] == "1h"
         assert row["entry_fee"] is None
         assert row["remaining_qty"] is None
+        migrated.close()
+
+    def test_migration_0006_invalidates_legacy_v1_snapshots(self, tmp_path):
+        db_path = tmp_path / "aura.db"
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        # Run migrations 0001 through 0005 manually
+        for v in range(1, 6):
+            p = store_db.MIGRATIONS_DIR / f"{v:04d}_*.sql"
+            import glob
+            files = glob.glob(str(p))
+            assert len(files) == 1
+            sql = open(files[0]).read()
+            conn.executescript(sql)
+            conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?, 'test')", (v,))
+        conn.commit()
+
+        # Seed a positive universe snapshot under v1 policy
+        conn.execute(
+            "INSERT INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms, source, status, "
+            "policy_version, event_time_ms, fetched_at_ms, book_event_time_ms, book_fetched_at_ms, "
+            "ticker_event_time_ms, ticker_fetched_at_ms, reasons_json) "
+            "VALUES ('BTCUSDT', 1, 1, 5000000.0, 1000, 'bitget_rest_v2', 'valid', 'aura-liquidity-v1', "
+            "1000, 1000, 1000, 1000, 1000, 1000, '[]')"
+        )
+        conn.commit()
+        conn.close()
+
+        # Connect with store_db, which auto-applies migration 0006
+        migrated = store_db.connect(db_path)
+        assert store_db.current_version(migrated) == 6
+        row = migrated.execute("SELECT active, liquidity_verified, status, reasons_json FROM universe WHERE symbol = 'BTCUSDT'").fetchone()
+        assert row["liquidity_verified"] == 0
+        assert row["status"] == "stale"
+        assert "POLICY_UPGRADE_REVALIDATION_REQUIRED" in row["reasons_json"]
         migrated.close()
 
     def test_fail_closed_on_newer_schema(self, tmp_path):

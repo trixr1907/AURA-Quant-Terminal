@@ -240,3 +240,67 @@ def test_end_to_end_adapter_updater_worker_pipeline(tmp_path):
 
     # Worker gate must immediately reject
     assert worker._liquidity_is_verified("BTCUSDT", now_ms + 35_000, planned_notional="2500", direction=1) is False
+
+
+def test_legacy_policy_snapshot_without_separate_timestamps_is_rejected_at_worker_gate(tmp_path):
+    now_ms = 1_000_000_000
+    worker = AuraWorkerService(db_path=str(tmp_path / "legacy.db"), symbols=["BTCUSDT"], time_provider=lambda: now_ms / 1000)
+    _seed(worker, now_ms)
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is True
+
+    # Invalidate separate timestamps and policy version (legacy v1 snapshot)
+    worker.conn.execute(
+        "UPDATE universe SET book_event_time_ms=NULL, book_fetched_at_ms=NULL, "
+        "ticker_event_time_ms=NULL, ticker_fetched_at_ms=NULL, policy_version='aura-liquidity-v1'"
+    )
+    # Must be rejected fail-closed
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is False
+
+
+def test_real_worker_entry_path_enforces_price_tick_and_level_ordering(tmp_path):
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    from decimal import Decimal
+    from aura.data.models import Candle
+
+    now_ms = 1_000_000_000
+    w = AuraWorkerService(db_path=str(tmp_path / "tick.db"), symbols=["BTCUSDT"], time_provider=lambda: now_ms / 1000)
+    _seed(w, now_ms)
+    w.conn.execute("UPDATE instrument_specs SET price_tick='10' WHERE symbol='BTCUSDT'")
+
+    c = Candle(time_ms=now_ms - 3600000, open=139.1, high=140.0, low=138.0, close=139.37, volume=100.0, is_closed=True)
+    with patch("aura.runner.worker.analyze_candles", return_value=SimpleNamespace(score=[90], atr=[1.23])):
+        p = w._evaluate_and_enter("BTCUSDT", [c], pending_alerts=[])
+
+    assert p is not None
+    # All levels must be exact multiples of price_tick=10
+    assert Decimal(str(p.entry_price)) % Decimal("10") == 0
+    assert Decimal(str(p.sl_price)) % Decimal("10") == 0
+    assert Decimal(str(p.tp1_price)) % Decimal("10") == 0
+    assert Decimal(str(p.tp2_price)) % Decimal("10") == 0
+
+    # Strict ordering: sl < entry < tp1 <= tp2
+    assert p.sl_price < p.entry_price < p.tp1_price <= p.tp2_price
+    # Non-zero positive stop distance
+    assert p.entry_price - p.sl_price > 0
+    w.conn.close()
+
+
+def test_coarse_price_tick_collapsing_levels_rejects_trade(tmp_path):
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    from aura.data.models import Candle
+
+    now_ms = 1_000_000_000
+    w = AuraWorkerService(db_path=str(tmp_path / "coarse_tick.db"), symbols=["BTCUSDT"], time_provider=lambda: now_ms / 1000)
+    _seed(w, now_ms)
+    # Set price_tick = 50 (too coarse for asset price 139 with ATR 1.23, so SL/TP levels collapse)
+    w.conn.execute("UPDATE instrument_specs SET price_tick='50' WHERE symbol='BTCUSDT'")
+
+    c = Candle(time_ms=now_ms - 3600000, open=139.1, high=140.0, low=138.0, close=139.37, volume=100.0, is_closed=True)
+    with patch("aura.runner.worker.analyze_candles", return_value=SimpleNamespace(score=[90], atr=[1.23])):
+        p = w._evaluate_and_enter("BTCUSDT", [c], pending_alerts=[])
+
+    # Must be safely rejected, not opening a collapsed setup
+    assert p is None
+    w.conn.close()

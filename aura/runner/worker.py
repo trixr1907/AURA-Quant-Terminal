@@ -15,11 +15,11 @@ import signal
 import sys
 import time
 import uuid
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 from pathlib import Path
 from typing import Any, Callable
 
-from aura.core.risk import size_position
+from aura.core.risk import round_price_to_tick, size_position
 from aura.core.scoring import analyze_candles
 from aura.data.bitget_adapter import BitgetMarketAdapter
 from aura.data.liquidity import LiquidityPolicy, POLICY_VERSION
@@ -314,7 +314,7 @@ class AuraWorkerService:
             try:
                 self.market_updater.adapter = self.adapter
                 self.market_updater.time_provider = self.time_provider
-                self.market_updater.update_cycle(now_ms=now_ms)
+                self.market_updater.update_cycle()
             except Exception as ex:
                 logger.warning("MarketDataUpdater Zyklusfehler: %s", ex)
 
@@ -585,11 +585,11 @@ class AuraWorkerService:
         if row["policy_version"] != POLICY_VERSION:
             return False
 
-        # Independent timestamp freshness checks
-        book_evt = row["book_event_time_ms"] or row["event_time_ms"]
-        book_fetch = row["book_fetched_at_ms"] or row["fetched_at_ms"]
-        ticker_evt = row["ticker_event_time_ms"] or row["event_time_ms"]
-        ticker_fetch = row["ticker_fetched_at_ms"] or row["fetched_at_ms"]
+        # Independent timestamp freshness checks (strictly required without legacy fallback)
+        book_evt = row["book_event_time_ms"]
+        book_fetch = row["book_fetched_at_ms"]
+        ticker_evt = row["ticker_event_time_ms"]
+        ticker_fetch = row["ticker_fetched_at_ms"]
         spec_fetch = spec["fetched_at_ms"]
 
         if any(ts is None for ts in (book_evt, book_fetch, ticker_evt, ticker_fetch, spec_fetch)):
@@ -738,20 +738,55 @@ class AuraWorkerService:
 
         if direction is not None:
             spec_row = self.conn.execute(
-                "SELECT qty_step, min_qty, min_notional, max_leverage FROM instrument_specs WHERE symbol = ?",
+                "SELECT qty_step, min_qty, min_notional, max_leverage, price_tick FROM instrument_specs WHERE symbol = ?",
                 (symbol,),
             ).fetchone()
             if spec_row is None:
                 self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Instrumentenspezifikation fehlt")
                 return None
+
+            price_tick = Decimal(str(spec_row["price_tick"])) if spec_row["price_tick"] else Decimal("0.0001")
+            d_current = Decimal(str(current_price))
+            d_sl_raw = Decimal(str(sl_price))
+            d_tp1_raw = Decimal(str(tp1_price))
+            d_tp2_raw = Decimal(str(tp2_price))
+
+            # Direction-aware price-tick quantization:
+            # Entry: nearest tick (ROUND_HALF_UP)
+            # Long: SL rounded down (conservative stop), TP1/TP2 rounded up (conservative target)
+            # Short: SL rounded up (conservative stop), TP1/TP2 rounded down (conservative target)
+            if direction == 1:
+                d_entry = round_price_to_tick(d_current, price_tick, rounding=ROUND_HALF_UP)
+                d_sl = round_price_to_tick(d_sl_raw, price_tick, rounding=ROUND_DOWN)
+                d_tp1 = round_price_to_tick(d_tp1_raw, price_tick, rounding=ROUND_UP)
+                d_tp2 = round_price_to_tick(d_tp2_raw, price_tick, rounding=ROUND_UP)
+                if not (d_sl < d_entry < d_tp1 <= d_tp2) or (d_entry - d_sl) <= 0:
+                    self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Setup nach Preis-Tick-Rundung kollabiert")
+                    return None
+            else:
+                d_entry = round_price_to_tick(d_current, price_tick, rounding=ROUND_HALF_UP)
+                d_sl = round_price_to_tick(d_sl_raw, price_tick, rounding=ROUND_UP)
+                d_tp1 = round_price_to_tick(d_tp1_raw, price_tick, rounding=ROUND_DOWN)
+                d_tp2 = round_price_to_tick(d_tp2_raw, price_tick, rounding=ROUND_DOWN)
+                if not (d_sl > d_entry > d_tp1 >= d_tp2) or (d_sl - d_entry) <= 0:
+                    self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Setup nach Preis-Tick-Rundung kollabiert")
+                    return None
+
+            stop_dist = abs(d_entry - d_sl)
+            entry_price = float(d_entry)
+            sl_price = float(d_sl)
+            tp1_price = float(d_tp1)
+            tp2_price = float(d_tp2)
+
             spec = {
                 "qtyStep": spec_row["qty_step"],
                 "minQty": spec_row["min_qty"],
                 "minNotional": spec_row["min_notional"],
+                "priceTick": str(price_tick),
             }
             leverage = min(10, int(spec_row["max_leverage"]))
             risk_amt = Decimal(str(self.engine.equity)) * Decimal(str(self.engine.config.risk_per_trade_pct)) / Decimal("100")
-            sized = size_position(risk_amt, Decimal(str(current_price)), Decimal(str(abs(current_price - sl_price))), leverage, spec)
+            sized = size_position(risk_amt, d_entry, stop_dist, leverage, spec)
             decision_time_ms = int(self.time_provider() * 1000)
             if sized.qty <= 0 or not self._liquidity_is_verified(
                 symbol,
@@ -765,7 +800,7 @@ class AuraWorkerService:
                 symbol=symbol,
                 timeframe="1H",
                 direction=direction,
-                entry_price=current_price,
+                entry_price=entry_price,
                 sl_price=sl_price,
                 tp1_price=tp1_price,
                 tp2_price=tp2_price,

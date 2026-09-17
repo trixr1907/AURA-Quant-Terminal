@@ -17,10 +17,10 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Sequence
 
-from aura.core.risk import PositionSize, size_position
+from aura.core.risk import PositionSize, round_price_to_tick, size_position
 
 logger = logging.getLogger("aura.runner.paper_engine")
 
@@ -237,6 +237,9 @@ class PaperTradingEngine:
         # Slippage beim Einstieg (Taker)
         slip_factor = (1.0 + (self.config.slippage_bps / 10000.0) * direction)
         fill_price = entry_price * slip_factor
+        price_tick_val = Decimal(str(spec.get("priceTick") or "0")) if spec else Decimal("0")
+        if price_tick_val > 0:
+            fill_price = float(round_price_to_tick(Decimal(str(fill_price)), price_tick_val, rounding=ROUND_HALF_UP))
 
         # Entry Fee (Taker)
         entry_fee = sized.qty * fill_price * self.config.taker_fee
