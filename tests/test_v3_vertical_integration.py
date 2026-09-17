@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -44,11 +45,15 @@ def _set_test_token_env(monkeypatch):
     monkeypatch.setenv("AURA_RELAY_TOKEN", _TEST_TOKEN)
 
 
-def generate_synthetic_bullish_trend(num_bars: int = 60, start_price: float = 60000.0) -> list[Candle]:
+def generate_synthetic_bullish_trend(
+    num_bars: int = 60, start_price: float = 60000.0, end_time_ms: int | None = None
+) -> list[Candle]:
     """Generiert eine synthetische, deterministische bullische Kerzenfolge."""
     candles = []
     price = start_price
-    start_time_ms = 1700000000000
+    if end_time_ms is None:
+        end_time_ms = int(time.time() * 1000)
+    start_time_ms = end_time_ms - num_bars * 3600000
 
     for i in range(num_bars):
         t = start_time_ms + i * 3600000
@@ -81,7 +86,13 @@ class TestVerticalIntegration:
             conn = connect(db_path)
             migrate(conn)
 
-            worker = AuraWorkerService(db_path=db_path, poll_interval_sec=1, symbols=["BTCUSDT"])
+            now_sim = time.time()
+            worker = AuraWorkerService(
+                db_path=db_path,
+                poll_interval_sec=1,
+                symbols=["BTCUSDT"],
+                time_provider=lambda: now_sim,
+            )
             assert worker.sm.can_open_new_trades() is False
 
             # Initialisiere Worker auf RUNNING
@@ -91,6 +102,7 @@ class TestVerticalIntegration:
 
             # Mocke Adapter mit bullischer Trend-Kerzenreihe
             initial_candles = generate_synthetic_bullish_trend(num_bars=50, start_price=50000.0)
+            now_sim = initial_candles[-1].time_ms / 1000 + 3600
             worker.adapter.fetch_candles = MagicMock(return_value=(initial_candles, MagicMock(is_valid=True)))
 
             # Mocke Notifier
@@ -134,6 +146,7 @@ class TestVerticalIntegration:
                 close=tp1_target + 20.0,
                 volume=150.0,
             )
+            now_sim = tp1_bar.time_ms / 1000 + 3600
             worker.adapter.fetch_candles = MagicMock(return_value=(initial_candles + [tp1_bar], MagicMock(is_valid=True)))
             worker._run_cycle(2)
 
@@ -153,6 +166,7 @@ class TestVerticalIntegration:
                 close=tp2_target + 50.0,
                 volume=200.0,
             )
+            now_sim = tp2_bar.time_ms / 1000 + 3600
             worker.adapter.fetch_candles = MagicMock(return_value=(initial_candles + [tp1_bar, tp2_bar], MagicMock(is_valid=True)))
             worker._run_cycle(3)
 

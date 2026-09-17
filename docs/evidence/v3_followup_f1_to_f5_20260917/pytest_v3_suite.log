@@ -1,0 +1,24 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collected 125 items
+
+tests/test_v3_api_security.py ............                               [  9%]
+tests/test_v3_backtest.py .....                                          [ 13%]
+tests/test_v3_backup_restore.py .                                        [ 14%]
+tests/test_v3_core_indicators.py ................                        [ 27%]
+tests/test_v3_core_parity.py .....                                       [ 31%]
+tests/test_v3_core_risk.py .........                                     [ 38%]
+tests/test_v3_core_scoring.py ........                                   [ 44%]
+tests/test_v3_core_stats.py ...........                                  [ 53%]
+tests/test_v3_data.py ......                                             [ 58%]
+tests/test_v3_e2e_playwright.py ...........                              [ 67%]
+tests/test_v3_quant_accounting_independent.py ........                   [ 73%]
+tests/test_v3_review_r1_to_r5_regressions.py ..........                  [ 81%]
+tests/test_v3_runner.py .......                                          [ 87%]
+tests/test_v3_store.py .........                                         [ 94%]
+tests/test_v3_vertical_integration.py .......                            [100%]
+
+============================= 125 passed in 40.26s =============================
