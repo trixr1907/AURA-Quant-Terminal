@@ -669,32 +669,70 @@ function fmtPct(v, digits){
   digits = digits===undefined?1:digits;
   return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
 }
+let fetchGen = 0;
 async function refreshData() {
+    const myGen = ++fetchGen;
+    
+    // Auth & Basisstatus
     const authRes = await apiCall("/api/v3/auth/status");
-    if (authRes._error || !authRes.authenticated) {
+    if (myGen !== fetchGen) return;
+
+    if (authRes._error && (authRes.status === 401 || authRes.status === 403)) {
         state.scenario.auth = "anon";
-        state.scenario.worker = "unknown";
+        OPEN_POSITIONS = []; CLOSED_TRADES = [];
+        renderAll();
+        return;
+    } else if (authRes._error) {
         state.scenario.conn = "disconnected";
+        renderAll();
+        return;
+    } else if (!authRes.authenticated) {
+        state.scenario.auth = "anon";
+        OPEN_POSITIONS = []; CLOSED_TRADES = [];
         renderAll();
         return;
     }
     state.scenario.auth = "operator";
+    state.scenario.conn = "connected";
 
+    // Worker Status
     const workerRes = await apiCall("/status/worker");
+    if (myGen !== fetchGen) return;
     if (!workerRes._error) {
-        state.scenario.conn = "connected";
         state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
         KPIS.dataAgeSec = workerRes.data_age_seconds;
-        if (workerRes.is_stale || workerRes.data_age_seconds > 180) state.scenario.feed = "stale";
-        else state.scenario.feed = "fresh";
-    } else {
-        state.scenario.conn = "disconnected";
     }
 
+    // State (Positions, Config, Market status)
     const stateRes = await apiCall("/api/v3/state");
-    if (!stateRes._error && stateRes.open_positions !== undefined) {
+    if (myGen !== fetchGen) return;
+    
+    if (stateRes._error && (stateRes.status === 401 || stateRes.status === 403)) {
+        state.scenario.auth = "anon";
+        state.scenario.conn = "connected";
+        OPEN_POSITIONS = []; CLOSED_TRADES = [];
+        renderAll();
+        return;
+    } else if (stateRes._error) {
+        state.scenario.conn = "disconnected";
+        renderAll();
+        return;
+    }
+
+    // Marktdaten-Frische aus der tatsächlichen Backend-Metrik holen (statt vom Worker-Heartbeat)
+    if (stateRes.market_data) {
+        if (stateRes.market_data.status === "stale" || stateRes.market_data.status === "unverified") {
+            state.scenario.feed = "stale";
+        } else {
+            state.scenario.feed = "fresh";
+        }
+    } else {
+        state.scenario.feed = "stale";
+    }
+
+    if (stateRes.open_positions !== undefined) {
         OPEN_POSITIONS = stateRes.open_positions.map(p => ({
-            symbol: p.symbol, dir: p.dir, qty: p.qty, entry: p.entry_price, mark: 0,
+            symbol: p.symbol, dir: p.dir, qty: p.qty, entry: p.entry_price, mark: "—",
             grossPnl: p.unrealized_pnl + p.fees, feeOpen: p.fees, netPnl: p.unrealized_pnl, sl: p.sl_price, tp1: p.tp1_price
         }));
         CLOSED_TRADES = stateRes.closed_trades.map(t => ({
@@ -746,7 +784,6 @@ async function refreshData() {
     }
     renderAll();
 }
-
 function fmtPct(v, digits){
   digits = digits===undefined?1:digits;
   return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
@@ -935,7 +972,6 @@ function drawMockChart(){
 }
 
 
-async 
 async function renderMarket() {
   const symbol = state.chart.symbol;
   let tf = state.chart.tf;
