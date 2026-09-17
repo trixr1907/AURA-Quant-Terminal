@@ -10,20 +10,86 @@ import json
 import logging
 import os
 import sqlite3
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from aura import __version__ as _AURA_VERSION
+from fastapi import Body, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from aura.api.auth import SecurityHeadersMiddleware, get_configured_token, verify_auth_token
 from aura.api.routes import router as v3_router, set_api_state
 from aura.runner.paper_engine import PaperTradingEngine
-from aura.runner.state_machine import RunnerStateMachine
+from aura.runner.state_machine import RunnerStateMachine, SystemState
 from aura.store.db import connect
 
 logger = logging.getLogger("aura.api")
+
+
+PUBLIC_ALLOWED_PREFIXES = (
+    "/api/v2/mix/market/candles",
+    "/api/v2/mix/market/ticker",
+    "/api/v2/mix/market/tickers",
+    "/api/v2/mix/market/contracts",
+    "/api/v2/mix/market/history-fund-rate",
+    "/api/v2/mix/market/open-interest",
+)
+
+
+class PublicMarketCache:
+    def __init__(self):
+        self._cache: dict[tuple, tuple[float, dict]] = {}
+        self._lock = threading.Lock()
+
+    def get_ttl(self, path: str) -> float:
+        p = path.lower()
+        if "candle" in p or "kline" in p:
+            return 15.0
+        if "ticker" in p:
+            return 3.0
+        if "contract" in p or "history-fund-rate" in p or "open-interest" in p:
+            return 10.0
+        return 5.0
+
+    def get(self, key: tuple) -> dict | None:
+        now = time.monotonic()
+        with self._lock:
+            item = self._cache.get(key)
+            if item is None:
+                return None
+            exp, val = item
+            if now < exp:
+                return val
+            del self._cache[key]
+            return None
+
+    def set(self, key: tuple, val: dict, ttl: float) -> None:
+        now = time.monotonic()
+        with self._lock:
+            self._cache[key] = (now + ttl, val)
+
+
+_PUBLIC_CACHE = PublicMarketCache()
+
+_MAX_PARAM_KEY_LEN = 64
+_MAX_PARAM_VAL_LEN = 128
+_MAX_PARAMS_COUNT = 12
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Verhindert, dass urllib automatisch Redirects folgt (SSRF-Schutz)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        raise urllib.error.HTTPError(req.full_url, code, f"Redirect verweigert: {newurl}", headers, fp)
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
 
 
 def create_app(
@@ -116,6 +182,111 @@ def create_app(
         if universe_file.exists():
             return JSONResponse(content=json.loads(universe_file.read_text(encoding="utf-8")))
         return {"total_contracts": 0, "contracts": []}
+
+    @app.post("/api/public")
+    async def proxy_public_market(payload: dict = Body(...)):
+        """Öffentlicher Marktdaten-Proxy für Bitget-REST-Endpunkte.
+
+        Nur explizit freigegebene öffentliche /api/v2/mix/market/-Pfade sind erlaubt.
+        Keine Auth-Daten, keine Cookies werden an den Upstream weitergereicht.
+        Redirects sind deaktiviert (SSRF-Schutz via _NoRedirectHandler).
+        _PUBLIC_CACHE puffert Antworten; dies dient der Lastreduzierung,
+        nicht als Ratenbegrenzung – für Ratenbegrenzung ist ein dediziertes
+        Rate-Limiting-Layer erforderlich.
+        """
+        raw_path = payload.get("path") or payload.get("url", "")
+        if not isinstance(raw_path, str) or not raw_path.startswith("/api/v2/mix/market/") or "://" in raw_path:
+            raise HTTPException(status_code=400, detail="Pfad unzulaessig oder nicht in der Allowlist")
+
+        base_path, _, qs = raw_path.partition("?")
+        if not any(base_path.startswith(prefix) for prefix in PUBLIC_ALLOWED_PREFIXES):
+            raise HTTPException(status_code=400, detail="Endpunkt nicht erlaubt")
+
+        # Merge params; enforce key/value length and count limits (R2)
+        params = payload.get("params") or {}
+        if not isinstance(params, dict):
+            params = {}
+        merged: dict[str, str] = {}
+        for k, v in urllib.parse.parse_qsl(qs, keep_blank_values=True):
+            k_s, v_s = str(k)[:_MAX_PARAM_KEY_LEN], str(v)[:_MAX_PARAM_VAL_LEN]
+            merged.setdefault(k_s, v_s)
+        for k, v in params.items():
+            k_s, v_s = str(k)[:_MAX_PARAM_KEY_LEN], str(v)[:_MAX_PARAM_VAL_LEN]
+            merged.setdefault(k_s, v_s)
+        if len(merged) > _MAX_PARAMS_COUNT:
+            raise HTTPException(status_code=400, detail="Zu viele Query-Parameter")
+
+        cache_key = (base_path, tuple(sorted(merged.items())))
+        cached = _PUBLIC_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+
+        query_str = urllib.parse.urlencode(merged)
+        target_url = f"https://api.bitget.com{base_path}"
+        if query_str:
+            target_url += f"?{query_str}"
+
+        req = urllib.request.Request(
+            target_url,
+            headers={"User-Agent": "AURA-Quant-Terminal/3.0"},
+        )
+        try:
+            # R1: _NO_REDIRECT_OPENER verweigert HTTP-Redirects (SSRF-Schutz)
+            with _NO_REDIRECT_OPENER.open(req, timeout=8.0) as resp:
+                body = json.loads(resp.read(256 * 1024).decode("utf-8"))
+                if body.get("code") == "00000":
+                    _PUBLIC_CACHE.set(cache_key, body, _PUBLIC_CACHE.get_ttl(base_path))
+                return body
+        except urllib.error.HTTPError as ex:
+            raise HTTPException(status_code=ex.code, detail=f"Bitget Upstream HTTP {ex.code}")
+        except Exception as ex:
+            raise HTTPException(status_code=502, detail=f"Bitget Upstream Fehler: {str(ex)}")
+
+    @app.get("/serving")
+    def get_serving():
+        """Liefert die serverseitige Backend-Version für den Client-Reload-Banner.
+
+        Das Dashboard zeigt einen Reload-Hinweis wenn AURA_CLIENT_VERSION
+        (im HTML hardcodiert) von dieser Version abweicht.
+        Die Version stammt aus aura.__version__ (single source of truth).
+        """
+        return {"ok": True, "version": _AURA_VERSION}
+
+    @app.get("/ready")
+    def get_ready():
+        """Health-Probe für Orchestratoren und Dashboard-Startup-Checks.
+
+        bot_enabled spiegelt wider ob der Worker aktiv läuft (nicht HALTED/DEGRADED).
+        """
+        is_halted = sm.is_halted or sm.current_state == SystemState.HALTED
+        return {
+            "ok": True,
+            "mode": "server",
+            "bot_enabled": not is_halted,
+            "system_state": sm.current_state.value,
+            "is_halted": is_halted,
+        }
+
+    @app.get("/pine", response_class=PlainTextResponse)
+    @app.get("/Symbiose_Signal_System_v1.pine", response_class=PlainTextResponse)
+    def serve_pine_script():
+        """Liefert das Pine-Skript für TradingView-Bridge im Dashboard.
+
+        Verbraucher: Symbiose_Dashboard.html Zeile ~3837 (loadPineScript).
+        Gibt 404 zurück wenn die Datei nicht im Projektroot liegt –
+        das Dashboard behandelt diesen Fall bereits als nicht-kritisch.
+        """
+        pine_file = Path(__file__).parent.parent.parent / "Symbiose_Signal_System_v1.pine"
+        if pine_file.exists():
+            return PlainTextResponse(content=pine_file.read_text(encoding="utf-8"))
+        raise HTTPException(status_code=404, detail="Pine script not found")
+
+    @app.get("/data/bitget_usdt_futures_universe.json", response_class=JSONResponse)
+    def serve_universe_json():
+        u_file = Path(__file__).parent.parent.parent / "data" / "bitget_usdt_futures_universe.json"
+        if u_file.exists():
+            return JSONResponse(content=json.loads(u_file.read_text(encoding="utf-8")))
+        raise HTTPException(status_code=404, detail="Universe file not found")
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():
