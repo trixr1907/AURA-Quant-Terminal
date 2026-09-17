@@ -1,0 +1,5 @@
+--- Running Auftrag E: Funnel-Glasbox Tests ---
+✓ Test 1: computeFunnel24h accurately aggregates recent cycles and respects 24h cutoff
+✓ Test 2: ServerBotState includes funnel24h summary in toServerPayload()
+✓ Test 3: Empty cycle list handles nominal zeros without crashing
+All Auftrag E tests passed successfully!

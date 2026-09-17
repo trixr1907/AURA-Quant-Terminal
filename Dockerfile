@@ -18,15 +18,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Erstelle unprivilegierten Benutzer (UID 1000) und Datenverzeichnisse
-RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
-RUN groupadd -g 1000 aura 2>/dev/null || true && \
-    useradd -u 1000 -g aura -m -s /bin/bash aura 2>/dev/null || true && \
-    mkdir -p /data /var/lib/aura && chown -R aura:aura /data /var/lib/aura /app
+# Erstelle unprivilegierten Benutzer (UID 1000) vor Verzeichniserstellung und chown
+RUN groupadd -g 1000 aura && \
+    useradd -u 1000 -g aura -m -s /bin/bash aura
 
-# Installiere Python-Abhaengigkeiten
-COPY pyproject.toml requirements.txt* /app/
-RUN pip install --no-cache-dir fastapi uvicorn pydantic
+RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
+RUN mkdir -p /data /app && chown -R aura:aura /data /app
+
+# Installiere deklarierte Python-Abhaengigkeiten
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopiere Quellcode und statische Assets
 COPY --chown=aura:aura VERSION .
@@ -43,7 +44,7 @@ USER aura
 VOLUME ["/data", "/var/lib/aura"]
 
 # Standardmaessig API-Server starten
-EXPOSE 8000 8787
+EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4) if False else urllib.request.urlopen('http://127.0.0.1:8000/api/v3/health', timeout=4)" || exit 1

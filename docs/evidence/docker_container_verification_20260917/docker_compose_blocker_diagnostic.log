@@ -1,0 +1,50 @@
+=== DOCKER CLI & COMPOSE DIAGNOSTIC ===
+Thu Sep 17 02:52:11 UTC 2026
+--- which docker ---
+/usr/bin/docker
+Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+--- which docker-compose ---
+--- docker compose version ---
+--- cli plugins directories ---
+/home/ivo/.docker/cli-plugins:
+total 8
+drwxr-xr-x 2 ivo ivo 4096 Sep 17 04:47 .
+drwxr-xr-x 6 ivo ivo 4096 Sep  8 15:55 ..
+
+/usr/libexec/docker/cli-plugins:
+total 17952
+drwxr-xr-x 2 root root     4096 Aug 24 19:23 .
+drwxr-xr-x 3 root root     4096 Aug 24 19:23 ..
+-rwxr-xr-x 1 root root 18374552 Apr 29 18:41 docker-trust
+
+/usr/local/lib/docker/cli-plugins:
+total 72
+drwxr-xr-x 2 root root 4096 Sep 15 13:28 .
+drwxr-xr-x 3 root root 4096 Jun  7 08:03 ..
+lrwxrwxrwx 1 root root   79 Sep 15 13:28 docker-agent -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-agent
+lrwxrwxrwx 1 root root   76 Sep 15 13:28 docker-ai -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-ai
+lrwxrwxrwx 1 root root   80 Sep 15 13:28 docker-buildx -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-buildx
+lrwxrwxrwx 1 root root   81 Sep 15 13:28 docker-compose -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-compose
+lrwxrwxrwx 1 root root   79 Sep 15 13:28 docker-debug -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-debug
+lrwxrwxrwx 1 root root   81 Sep 15 13:28 docker-desktop -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-desktop
+lrwxrwxrwx 1 root root   77 Sep 15 13:28 docker-dhi -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-dhi
+lrwxrwxrwx 1 root root   83 Sep 15 13:28 docker-extension -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-extension
+lrwxrwxrwx 1 root root   78 Sep 15 13:28 docker-init -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-init
+lrwxrwxrwx 1 root root   77 Sep 15 13:28 docker-mcp -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-mcp
+lrwxrwxrwx 1 root root   79 Sep 15 13:28 docker-model -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-model
+lrwxrwxrwx 1 root root   81 Sep 15 13:28 docker-offload -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-offload
+lrwxrwxrwx 1 root root   78 Sep 15 13:28 docker-pass -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-pass
+lrwxrwxrwx 1 root root   81 Sep 15 13:28 docker-sandbox -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-sandbox
+lrwxrwxrwx 1 root root   78 Jun  7 18:47 docker-sbom -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-sbom
+lrwxrwxrwx 1 root root   79 Sep 15 13:28 docker-scout -> /mnt/wsl/docker-desktop/cli-tools/usr/local/lib/docker/cli-plugins/docker-scout
+--- apt policy docker-compose-v2 ---
+docker-compose-v2:
+  Installed: (none)
+  Candidate: 2.40.3+ds1-0ubuntu1~24.04.1
+  Version table:
+     2.40.3+ds1-0ubuntu1~24.04.1 500
+        500 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages
+     2.24.6+ds1-0ubuntu2 500
+        500 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages
+--- sudo -n check ---
+sudo: a password is required
