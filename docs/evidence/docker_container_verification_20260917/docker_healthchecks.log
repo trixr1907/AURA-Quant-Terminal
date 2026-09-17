@@ -1,0 +1,10 @@
+=== TESTING API & WORKER HEALTHCHECKS ===
+7e6acb3b013efa444171e9f72ab7f2e950d3b4903c11cdce7d96c0ec46c779e2
+API Health Status: starting
+HTTP Response: 200 {"status":"starting","system_state":"STARTING","version":"3.0.0-dev","data_fresh":true,"active_trades":0,"uptime_seconds":-0.23,"timestamp_ms":1789613842665}
+aura_hc_api_log
+aura_hc_vol_log
+f6148d615aa89d3c29aecdccb15d0d32072e3047eeca7b26290f9e33fcf16115
+DB Heartbeat check: (1789613846825, 'RUNNING') Age ms: 425.24
+aura_hc_worker_log
+aura_hc_vol_log

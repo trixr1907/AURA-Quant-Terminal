@@ -155,3 +155,52 @@ python3 tests/pine_static_check.py        # OK, exit 0
   - `pytest -ra`: 642 passed (100% grün, 0 Fehler).
   - `node tests/test_*.js`: 98 passed (100% grün).
   - `aura_review_44dfe8c_probes.py`: Bestätigt Abstellung der Defekte (Entry-Alerts nach Rollback = 0, unvollständige Kerzen als ungesund abgewiesen).
+
+## Verifikation 2026-09-17 — Docker-Umgebung & Multi-Container Lifecycle
+
+- **Docker-Engine & Compose Verfügbarkeitsprüfung (Gate 1):**
+  - Docker Engine ist aktiv und funktionsfähig (`Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2`).
+  - Docker Compose CLI ist nun eingerichtet und lauffähig: `Docker Compose version v5.5.1` (`docker compose version`).
+
+- **Behebung bekannter Docker-Probleme:**
+  - `Dockerfile`: Unprivilegierte Benutzergruppe und Benutzer `aura:aura` (UID 1000) werden VOR der Verzeichniserstellung und `chown` angelegt. Fehlerverschleppung (`|| true`) entfernt.
+  - `requirements.txt`: Explizite Deklaration der Laufzeit-Dependencies (`fastapi>=0.115.0`, `uvicorn[standard]>=0.30.0`, `pydantic>=2.0.0`) unter Beibehaltung der Testwerkzeuge (`playwright`, `pytest`).
+  - `requirements.lock`: Vollständig gelockte transitive Abhängigkeiten aus dem gebauten Container exportiert (28 Pakete exakt gepinnt).
+  - `Dockerfile`: Deklarierte Dependencies werden sauber per `pip install --no-cache-dir -r requirements.txt` installiert.
+  - Healthchecks getrennt: `aura-api` prüft HTTP `/api/v3/health`. `aura-worker` prüft den Heartbeat-Timestamp der SQLite-DB `/data/aura_state.db` und fordert keinen offenen HTTP-Port mehr an.
+  - Versions- und Image-Tags konsistent auf `aura-quant-terminal:2.5.0` (matching `VERSION`) in `Dockerfile` und `docker-compose.yml` vereinheitlicht.
+  - Explizite Pfade und Volumes: `AURA_DB_PATH=/data/aura_state.db` und persistent gebundenes Volume `aura_data:/data`.
+  - Compose-Isolation gehärtet: Container- und Volumennamen sowie Port-Bindings in `docker-compose.yml` parametrisiert (`${AURA_API_CONTAINER_NAME:-aura-api}`, `${AURA_DATA_VOLUME_NAME:-aura_data}`, `${AURA_PORT_BIND:-127.0.0.1:8000}:8000`), um Namenskollisionen bei parallelen Test-Stacks auszuschließen.
+
+- **Docker Compose Lifecycle-Verifikation (`scripts/verify_docker_compose_lifecycle.py`):**
+  - Build & Start auf isoliertem Test-Volume (`aura-compose-test-data`) via `docker compose -p aura_compose_audit up -d`.
+  - Automatische Schemamigration auf leerem Volume durch API und Worker erfolgreich nachgewiesen (`schema_migrations`, `candles`, `trades`, `commands`, `config_revisions`, etc.).
+  - Webzugriff auf Dashboard (HTTP 200) und Token-Authentifizierung via `/api/v3/auth/login` mit Session-Cookie erfolgreich geprüft.
+  - Konfigurations-Workflow: POST `/api/v3/config` Revision 1 wird transaktional eingetragen und vom Worker quittiert (`applied_at_ms IS NOT NULL`, `long_threshold: 68.0`).
+  - Not-Halt: POST `/api/v3/halt` führt zu Quittierung durch den Worker und Übergang nach `HALTED`.
+  - Echter Container-Neustart via `docker compose restart`:
+    - Neue Worker-Instanz-ID belegt: `w_1_b8793d` -> `w_1_043d03`.
+    - Frischer Post-Restart-Heartbeat belegt: `1789614533828 >= 1789614525282`.
+    - Not-Halt (`HALTED`, `is_halted=True`) und Konfiguration (`long_threshold=68.0`) über Neustart persistent erhalten.
+  - Ehrliche Marktdatenanzeige: 0 gefälschte Trades, fail-closed Liquiditäts-Gate.
+
+- **Offene Datenintegrationslücke (Liquiditätsfreigabe):**
+  - Befund: In `aura/runner/worker.py` prüft `_liquidity_is_verified()` die SQLite-Tabelle `universe` auf `liquidity_verified = 1`.
+  - Status: Aktuell existiert in `aura/` noch keine Hintergrund-Komponente, die Bitget-Orderbuch-/Volumendaten periodisch in die `universe`-Tabelle einpflegt. Signale werden daher fail-closed ehrlich mit `"Liquiditaet nicht verifiziert"` abgewiesen. Dies ist als offene Datenintegrationslücke dokumentiert und bleibt bis zur Implementierung des Universe-Updaters offen.
+
+- **Klarstellung der JS-Evidenz:**
+  - Gesamtumfang: Genau 98 Testdateien unter `tests/test_*.js`.
+  - Alle 98 Dateien wurden einzeln und vollständig via `scripts/run_all_js_tests.py` ausgeführt.
+  - Ergebnis: 98 von 98 Dateien erfolgreich bestanden (Exit-Code 0, 0 Fehler).
+  - Umfang: Über 450 individuelle Einzeltests und Assertions (z.B. `test_engine_full.js` mit 121 Tests, `test_pf66_headless_runner.js` mit 35 Tests, `test_cross_device_sync.js` mit 25 Tests).
+
+- **Status:**
+  - `CONTAINER_ENGINE_LOCAL: PASS`
+  - `CONTAINER_COMPOSE_LOCAL: PASS`
+
+- **Evidenz & Rohlogs (unter `docs/evidence/docker_compose_verification_20260917/`):**
+  - `docker_compose_version.log`: `Docker Compose version v5.5.1`.
+  - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 8 Stufen.
+  - `requirements.lock`: Vollständig gelockte transitive Abhängigkeiten.
+  - `all_js_tests_98.log`: Protokoll aller 98 JS-Testdateien mit Exit 0.
+  - `pytest_full_642.log`: 642/642 Unit-/Integrations-/Regressionstests bestanden.

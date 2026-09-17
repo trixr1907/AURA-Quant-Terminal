@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import math
 import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -76,6 +77,7 @@ class PaperTradingEngine:
         config: EngineConfig | None = None,
         conn: sqlite3.Connection | None = None,
     ):
+        self._lock = threading.RLock()
         self.config = config or EngineConfig()
         self.conn = conn
         self.equity: float = self.config.starting_equity
@@ -87,113 +89,114 @@ class PaperTradingEngine:
     def _load_state_from_db_if_available(self) -> None:
         if not self.conn:
             return
-        cur = self.conn.cursor()
+        with self._lock:
+            cur = self.conn.cursor()
 
-        # Vor dem Neuladen bestehende Speicherlisten zuruecksetzen (verhindert Duplikate bei wiederholtem Aufruf)
-        self.open_positions.clear()
-        self.closed_positions.clear()
+            # Vor dem Neuladen bestehende Speicherlisten zuruecksetzen (verhindert Duplikate bei wiederholtem Aufruf)
+            self.open_positions.clear()
+            self.closed_positions.clear()
 
-        # 1. Offene Positionen laden
-        cur.execute(
-            "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
-            "tp1, tp2, notional, margin, leverage, opened_at_ms, timeframe, remaining_qty, entry_fee, "
-            "status, tp1_hit, realized_pnl, fees FROM trades WHERE status = 'open'"
-        )
-        entry_fees_paid = 0.0
-        realized_from_open = 0.0
-        for row in cur.fetchall():
-            ep = float(row["entry_price"])
-            sl = float(row["current_sl"])
-            margin = float(row["margin"])
-            lev = int(row["leverage"])
-            initial_notional = float(row["notional"])
-            initial_qty = (initial_notional / ep) if ep > 0 else 0.0
-            tp1_hit = bool(row["tp1_hit"])
-            qty = float(row["remaining_qty"]) if row["remaining_qty"] is not None else (
-                (initial_qty * 0.5) if tp1_hit else initial_qty
+            # 1. Offene Positionen laden
+            cur.execute(
+                "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
+                "tp1, tp2, notional, margin, leverage, opened_at_ms, timeframe, remaining_qty, entry_fee, "
+                "status, tp1_hit, realized_pnl, fees FROM trades WHERE status = 'open'"
             )
-            entry_fees_paid += (
-                float(row["entry_fee"])
-                if row["entry_fee"] is not None
-                else float(row["fees"] or 0.0)
-            )
-            realized_from_open += float(row["realized_pnl"] or 0.0)
+            entry_fees_paid = 0.0
+            realized_from_open = 0.0
+            for row in cur.fetchall():
+                ep = float(row["entry_price"])
+                sl = float(row["current_sl"])
+                margin = float(row["margin"])
+                lev = int(row["leverage"])
+                initial_notional = float(row["notional"])
+                initial_qty = (initial_notional / ep) if ep > 0 else 0.0
+                tp1_hit = bool(row["tp1_hit"])
+                qty = float(row["remaining_qty"]) if row["remaining_qty"] is not None else (
+                    (initial_qty * 0.5) if tp1_hit else initial_qty
+                )
+                entry_fees_paid += (
+                    float(row["entry_fee"])
+                    if row["entry_fee"] is not None
+                    else float(row["fees"] or 0.0)
+                )
+                realized_from_open += float(row["realized_pnl"] or 0.0)
 
-            pos = PaperPosition(
-                trade_id=row["id"],
-                symbol=row["symbol"],
-                timeframe=row["timeframe"],
-                direction=int(row["dir"]),
-                entry_price=ep,
-                sl_price=sl,
-                initial_sl_price=float(row["initial_sl"]),
-                tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
-                tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
-                qty=qty,
-                contracts=1,
-                initial_qty=initial_qty,
-                margin=margin,
-                leverage=lev,
-                entry_time_ms=int(row["opened_at_ms"]),
-                status="partial_tp1" if tp1_hit else "open",
-                tp1_hit=tp1_hit,
-                realized_pnl=float(row["realized_pnl"] or 0.0),
-                total_fees=float(row["fees"] or 0.0),
-            )
-            self.open_positions[pos.trade_id] = pos
+                pos = PaperPosition(
+                    trade_id=row["id"],
+                    symbol=row["symbol"],
+                    timeframe=row["timeframe"],
+                    direction=int(row["dir"]),
+                    entry_price=ep,
+                    sl_price=sl,
+                    initial_sl_price=float(row["initial_sl"]),
+                    tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
+                    tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
+                    qty=qty,
+                    contracts=1,
+                    initial_qty=initial_qty,
+                    margin=margin,
+                    leverage=lev,
+                    entry_time_ms=int(row["opened_at_ms"]),
+                    status="partial_tp1" if tp1_hit else "open",
+                    tp1_hit=tp1_hit,
+                    realized_pnl=float(row["realized_pnl"] or 0.0),
+                    total_fees=float(row["fees"] or 0.0),
+                )
+                self.open_positions[pos.trade_id] = pos
 
-        # 2. Geschlossene Positionen & Equity-Historie laden
-        cur.execute(
-            "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
-            "tp1, tp2, notional, margin, leverage, opened_at_ms, closed_at_ms, exit_price, exit_reason, "
-            "timeframe, entry_fee, status, tp1_hit, realized_pnl, fees "
-            "FROM trades WHERE status = 'closed' ORDER BY closed_at_ms ASC"
-        )
-        total_realized = realized_from_open
-        for row in cur.fetchall():
-            ep = float(row["entry_price"])
-            margin = float(row["margin"])
-            lev = int(row["leverage"])
-            initial_notional = float(row["notional"])
-            qty = (initial_notional / ep) if ep > 0 else 0.0
-            pnl = float(row["realized_pnl"] or 0.0)
-            fees = float(row["fees"] or 0.0)
-            entry_fee = (
-                float(row["entry_fee"])
-                if row["entry_fee"] is not None
-                else 0.0
+            # 2. Geschlossene Positionen & Equity-Historie laden
+            cur.execute(
+                "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
+                "tp1, tp2, notional, margin, leverage, opened_at_ms, closed_at_ms, exit_price, exit_reason, "
+                "timeframe, entry_fee, status, tp1_hit, realized_pnl, fees "
+                "FROM trades WHERE status = 'closed' ORDER BY closed_at_ms ASC"
             )
-            entry_fees_paid += entry_fee
-            total_realized += pnl
+            total_realized = realized_from_open
+            for row in cur.fetchall():
+                ep = float(row["entry_price"])
+                margin = float(row["margin"])
+                lev = int(row["leverage"])
+                initial_notional = float(row["notional"])
+                qty = (initial_notional / ep) if ep > 0 else 0.0
+                pnl = float(row["realized_pnl"] or 0.0)
+                fees = float(row["fees"] or 0.0)
+                entry_fee = (
+                    float(row["entry_fee"])
+                    if row["entry_fee"] is not None
+                    else 0.0
+                )
+                entry_fees_paid += entry_fee
+                total_realized += pnl
 
-            pos = PaperPosition(
-                trade_id=row["id"],
-                symbol=row["symbol"],
-                timeframe=row["timeframe"],
-                direction=int(row["dir"]),
-                entry_price=ep,
-                sl_price=float(row["current_sl"]),
-                initial_sl_price=float(row["initial_sl"]),
-                tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
-                tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
-                qty=qty,
-                contracts=1,
-                initial_qty=qty,
-                margin=margin,
-                leverage=lev,
-                entry_time_ms=int(row["opened_at_ms"]),
-                exit_time_ms=int(row["closed_at_ms"]) if row["closed_at_ms"] else None,
-                exit_price=float(row["exit_price"]) if row["exit_price"] else None,
-                exit_reason=row["exit_reason"],
-                status="closed",
-                tp1_hit=bool(row["tp1_hit"]),
-                realized_pnl=pnl,
-                total_fees=fees,
-            )
-            self.closed_positions.append(pos)
+                pos = PaperPosition(
+                    trade_id=row["id"],
+                    symbol=row["symbol"],
+                    timeframe=row["timeframe"],
+                    direction=int(row["dir"]),
+                    entry_price=ep,
+                    sl_price=float(row["current_sl"]),
+                    initial_sl_price=float(row["initial_sl"]),
+                    tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
+                    tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
+                    qty=qty,
+                    contracts=1,
+                    initial_qty=qty,
+                    margin=margin,
+                    leverage=lev,
+                    entry_time_ms=int(row["opened_at_ms"]),
+                    exit_time_ms=int(row["closed_at_ms"]) if row["closed_at_ms"] else None,
+                    exit_price=float(row["exit_price"]) if row["exit_price"] else None,
+                    exit_reason=row["exit_reason"],
+                    status="closed",
+                    tp1_hit=bool(row["tp1_hit"]),
+                    realized_pnl=pnl,
+                    total_fees=fees,
+                )
+                self.closed_positions.append(pos)
 
-        # Equity = Start minus alle Entry-Gebuehren plus bereits realisierte Netto-Exits.
-        self.equity = self.starting_equity - entry_fees_paid + total_realized
+            # Equity = Start minus alle Entry-Gebuehren plus bereits realisierte Netto-Exits.
+            self.equity = self.starting_equity - entry_fees_paid + total_realized
 
     def open_trade(
         self,
