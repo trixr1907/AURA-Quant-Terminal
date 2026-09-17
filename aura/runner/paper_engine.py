@@ -32,6 +32,7 @@ class PaperPosition:
     direction: int  # 1 = Long, -1 = Short
     entry_price: float
     sl_price: float
+    initial_sl_price: float
     tp1_price: float
     tp2_price: float
     qty: float
@@ -87,26 +88,88 @@ class PaperTradingEngine:
         if not self.conn:
             return
         cur = self.conn.cursor()
+
+        # 1. Offene Positionen laden
         cur.execute(
             "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
-            "tp1, tp2, margin, leverage, opened_at_ms, "
+            "tp1, tp2, notional, margin, leverage, opened_at_ms, timeframe, remaining_qty, entry_fee, "
             "status, tp1_hit, realized_pnl, fees FROM trades WHERE status = 'open'"
         )
+        entry_fees_paid = 0.0
+        realized_from_open = 0.0
         for row in cur.fetchall():
             ep = float(row["entry_price"])
             sl = float(row["current_sl"])
             margin = float(row["margin"])
             lev = int(row["leverage"])
-            notional = margin * lev
-            qty = (notional / ep) if ep > 0 else 0.0
+            initial_notional = float(row["notional"])
+            initial_qty = (initial_notional / ep) if ep > 0 else 0.0
+            tp1_hit = bool(row["tp1_hit"])
+            qty = float(row["remaining_qty"]) if row["remaining_qty"] is not None else (
+                (initial_qty * 0.5) if tp1_hit else initial_qty
+            )
+            entry_fees_paid += (
+                float(row["entry_fee"])
+                if row["entry_fee"] is not None
+                else float(row["fees"] or 0.0)
+            )
+            realized_from_open += float(row["realized_pnl"] or 0.0)
 
             pos = PaperPosition(
                 trade_id=row["id"],
                 symbol=row["symbol"],
-                timeframe="1h",
+                timeframe=row["timeframe"],
                 direction=int(row["dir"]),
                 entry_price=ep,
                 sl_price=sl,
+                initial_sl_price=float(row["initial_sl"]),
+                tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
+                tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
+                qty=qty,
+                contracts=1,
+                initial_qty=initial_qty,
+                margin=margin,
+                leverage=lev,
+                entry_time_ms=int(row["opened_at_ms"]),
+                status="partial_tp1" if tp1_hit else "open",
+                tp1_hit=tp1_hit,
+                realized_pnl=float(row["realized_pnl"] or 0.0),
+                total_fees=float(row["fees"] or 0.0),
+            )
+            self.open_positions[pos.trade_id] = pos
+
+        # 2. Geschlossene Positionen & Equity-Historie laden
+        cur.execute(
+            "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
+            "tp1, tp2, notional, margin, leverage, opened_at_ms, closed_at_ms, exit_price, exit_reason, "
+            "timeframe, entry_fee, status, tp1_hit, realized_pnl, fees "
+            "FROM trades WHERE status = 'closed' ORDER BY closed_at_ms ASC"
+        )
+        total_realized = realized_from_open
+        for row in cur.fetchall():
+            ep = float(row["entry_price"])
+            margin = float(row["margin"])
+            lev = int(row["leverage"])
+            initial_notional = float(row["notional"])
+            qty = (initial_notional / ep) if ep > 0 else 0.0
+            pnl = float(row["realized_pnl"] or 0.0)
+            fees = float(row["fees"] or 0.0)
+            entry_fee = (
+                float(row["entry_fee"])
+                if row["entry_fee"] is not None
+                else 0.0
+            )
+            entry_fees_paid += entry_fee
+            total_realized += pnl
+
+            pos = PaperPosition(
+                trade_id=row["id"],
+                symbol=row["symbol"],
+                timeframe=row["timeframe"],
+                direction=int(row["dir"]),
+                entry_price=ep,
+                sl_price=float(row["current_sl"]),
+                initial_sl_price=float(row["initial_sl"]),
                 tp1_price=float(row["tp1"]) if row["tp1"] else (ep * 1.05),
                 tp2_price=float(row["tp2"]) if row["tp2"] else (ep * 1.10),
                 qty=qty,
@@ -115,12 +178,18 @@ class PaperTradingEngine:
                 margin=margin,
                 leverage=lev,
                 entry_time_ms=int(row["opened_at_ms"]),
-                status="partial_tp1" if row["tp1_hit"] else "open",
+                exit_time_ms=int(row["closed_at_ms"]) if row["closed_at_ms"] else None,
+                exit_price=float(row["exit_price"]) if row["exit_price"] else None,
+                exit_reason=row["exit_reason"],
+                status="closed",
                 tp1_hit=bool(row["tp1_hit"]),
-                realized_pnl=float(row["realized_pnl"] or 0.0),
-                total_fees=float(row["fees"] or 0.0),
+                realized_pnl=pnl,
+                total_fees=fees,
             )
-            self.open_positions[pos.trade_id] = pos
+            self.closed_positions.append(pos)
+
+        # Equity = Start minus alle Entry-Gebuehren plus bereits realisierte Netto-Exits.
+        self.equity = self.starting_equity - entry_fees_paid + total_realized
 
     def open_trade(
         self,
@@ -175,6 +244,7 @@ class PaperTradingEngine:
             direction=direction,
             entry_price=fill_price,
             sl_price=sl_price,
+            initial_sl_price=sl_price,
             tp1_price=tp1_price,
             tp2_price=tp2_price,
             qty=sized.qty,
@@ -191,6 +261,8 @@ class PaperTradingEngine:
         )
 
         self.open_positions[trade_id] = pos
+        # Entry-Gebuehr ist sofort realisiert und reduziert die Kontoequity.
+        self.equity -= entry_fee
         self._persist_trade(pos)
         logger.info(
             "Paper Trade geoeffnet: %s %s @ %.4f (SL: %.4f, TP1: %.4f)",
@@ -201,6 +273,17 @@ class PaperTradingEngine:
             tp1_price,
         )
         return pos
+
+    @staticmethod
+    def _timeframe_ms(timeframe: str) -> int:
+        units = {"m": 60_000, "h": 3_600_000, "d": 86_400_000}
+        normalized = timeframe.strip().lower()
+        if len(normalized) < 2 or normalized[-1] not in units:
+            raise ValueError(f"Nicht unterstuetzter Timeframe: {timeframe}")
+        amount = int(normalized[:-1])
+        if amount <= 0:
+            raise ValueError(f"Nicht unterstuetzter Timeframe: {timeframe}")
+        return amount * units[normalized[-1]]
 
     def on_bar_update(
         self,
@@ -267,7 +350,7 @@ class PaperTradingEngine:
 
             # 4. Timestop Pruefung
             holding_ms = bar_time_ms - pos.entry_time_ms
-            max_ms = self.config.max_hold_bars * 3600 * 1000  # Default 72h
+            max_ms = self.config.max_hold_bars * self._timeframe_ms(pos.timeframe)
             if holding_ms >= max_ms:
                 self._close_full(pos, close, bar_time_ms, "timestop")
                 closed_in_bar.append(pos)
@@ -342,7 +425,7 @@ class PaperTradingEngine:
         pos.unrealized_pnl = 0.0
 
         # R-Multiple Berechnung
-        init_risk = pos.initial_qty * abs(pos.entry_price - pos.sl_price)
+        init_risk = pos.initial_qty * abs(pos.entry_price - pos.initial_sl_price)
         pos.r_multiple = (pos.realized_pnl / init_risk) if init_risk > 0 else 0.0
 
         # Mandats-Garantie Q-01: Exakte Equity-Verrechnung
@@ -361,7 +444,7 @@ class PaperTradingEngine:
     def _persist_trade(self, pos: PaperPosition) -> None:
         if not self.conn:
             return
-        notional_val = pos.qty * pos.entry_price
+        stored_notional = pos.initial_qty * pos.entry_price
         with self.conn:
             self.conn.execute(
                 """
@@ -369,8 +452,8 @@ class PaperTradingEngine:
                     id, source, symbol, dir, status, entry_price, current_sl, initial_sl,
                     tp1, tp2, tp1_hit, notional, margin, leverage, opened_at_ms,
                     closed_at_ms, exit_price, exit_reason, realized_pnl, fees,
-                    engine_version, record_schema
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    engine_version, record_schema, entry_fee, timeframe, remaining_qty
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     status = excluded.status,
                     current_sl = excluded.current_sl,
@@ -379,7 +462,8 @@ class PaperTradingEngine:
                     exit_price = excluded.exit_price,
                     exit_reason = excluded.exit_reason,
                     realized_pnl = excluded.realized_pnl,
-                    fees = excluded.fees
+                    fees = excluded.fees,
+                    remaining_qty = excluded.remaining_qty
                 """,
                 (
                     pos.trade_id,
@@ -389,11 +473,11 @@ class PaperTradingEngine:
                     "closed" if pos.status == "closed" else "open",
                     str(pos.entry_price),
                     str(pos.sl_price),
-                    str(pos.sl_price),
+                    str(pos.initial_sl_price),
                     str(pos.tp1_price),
                     str(pos.tp2_price),
                     1 if pos.tp1_hit else 0,
-                    str(notional_val),
+                    str(stored_notional),
                     str(pos.margin),
                     pos.leverage,
                     pos.entry_time_ms,
@@ -404,5 +488,8 @@ class PaperTradingEngine:
                     str(pos.total_fees),
                     "3.0.0-dev",
                     3,
+                    str(pos.initial_qty * pos.entry_price * self.config.taker_fee),
+                    pos.timeframe,
+                    str(pos.qty),
                 ),
             )

@@ -103,14 +103,9 @@ class WalkForwardOptimizer:
         returns = combined_eval.returns
         dsr = calc_dsr(returns, num_trials=self.num_trials)
 
-        # Mandats-Garantie §7: Ohne ausreichende OOS-Evidenz lautet der Status MODEL_NO_EVIDENCE
-        is_evidence_supported = (
-            combined_eval.total >= 30
-            and combined_eval.expectancy_r > 0.15
-            and combined_eval.profit_factor >= 1.25
-            and dsr.dsr >= 0.95
-        )
-        model_status = "EVIDENCE_SUPPORTED" if is_evidence_supported else "MODEL_NO_EVIDENCE"
+        # This component performs OOS measurement only. It does not receive or
+        # consume a sealed final holdout, so it must never promote model evidence.
+        model_status = "MODEL_NO_EVIDENCE"
 
         return WalkForwardReport(
             k_folds=len(folds),
