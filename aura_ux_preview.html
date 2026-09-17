@@ -655,6 +655,8 @@ async function apiCall(endpoint, method="GET", body=null) {
     }
 }
 
+let sessionGen = 0;
+const UI_CMD_TIMEOUT = 10000;
 let OPEN_POSITIONS = [];
 let CLOSED_TRADES = [];
 let KPIS = {
@@ -793,65 +795,77 @@ async function refreshData() {
             }
             
             // B1: Fetch outcome if it disappeared
-            console.log("Resolving halt:", state.pendingHaltId, !stillHalt); if (state.pendingHaltId && !stillHalt) {
-                let cmdRes = await apiCall("/api/v3/command/" + state.pendingHaltId);
-                let hn = document.getElementById('haltBanner');
-                if (cmdRes && cmdRes.ok && cmdRes.data) {
-                    if (cmdRes.data.status === "rejected") {
-                        if (hn) { hn.innerHTML += "<br><b>Resultat:</b> ABGELEHNT (" + (cmdRes.data.result||'') + ")"; }
-                    } else if (cmdRes.data.status === "applied") {
-                        showToast("Not-Halt ERFOLGREICH ausgeführt.");
-                    } else {
-                        if (hn) { hn.innerHTML += "<br><b>Resultat:</b> UNBEKANNT (" + cmdRes.data.status + ")."; }
-                    }
-                } else {
-                    if (hn) { hn.innerHTML += "<br><b>Resultat:</b> UNBEKANNT (Kein Nachweis gefunden)."; }
-                }
-                state.pendingHaltId = null;
-            }
+            let now = Date.now();
             
-            if (state.pendingResumeId && !stillResume) {
-                let cmdRes = await apiCall("/api/v3/command/" + state.pendingResumeId);
-                let rn = document.getElementById('resumePendingNote');
-                if (cmdRes && cmdRes.ok && cmdRes.data) {
-                    if (cmdRes.data.status === "rejected") {
-                        if (rn) { rn.innerHTML = "Wiederaufnahme <b>ABGELEHNT</b>: " + (cmdRes.data.result||''); }
-                    } else if (cmdRes.data.status === "applied") {
-                        if (rn) { rn.style.display = "none"; }
-                        showToast("Wiederaufnahme quittiert.");
-                    } else {
-                        if (rn) { rn.innerHTML = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (" + cmdRes.data.status + ")"; }
-                    }
-                } else {
-                    if (rn) { rn.innerHTML = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (Kein Nachweis gefunden)."; }
-                }
-                state.pendingResumeId = null;
-            }
-            
-            if (state.cfg.pendingCmdId && !stillCfg) {
-                let cmdRes = await apiCall("/api/v3/command/" + state.cfg.pendingCmdId);
-                if (cmdRes && cmdRes.ok && cmdRes.data) {
-                    if (cmdRes.data.status === "rejected") {
-                        state.cfg.status = "rejected";
-                        state.cfg.lastRejectionReason = "Vom Worker abgelehnt: " + (cmdRes.data.result||'');
-                    } else if (cmdRes.data.status === "applied") {
-                        if (stateRes.active_config_rev === state.cfg.requested_rev) {
-                            state.cfg.status = "active";
-                            state.cfg.lastAppliedNote = "Übernommen als Revision #" + state.cfg.requested_rev;
+            if (state.pendingHaltId) {
+                if (!stillHalt) {
+                    let cmdRes = await apiCall("/api/v3/command/" + state.pendingHaltId);
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.lastHaltResult = "<br><b>Resultat:</b> ABGELEHNT (" + (cmdRes.data.result||'') + ")";
+                        } else if (cmdRes.data.status === "applied") {
+                            state.lastHaltResult = "<br><b>Resultat:</b> ERFOLGREICH ausgeführt.";
                         } else {
-                            state.cfg.status = "rejected"; // If applied but rev doesn't match? Edge case. We treat it as unknown/rejected view
-                            state.cfg.lastRejectionReason = "Konfiguration angewendet, aber Revision stimmt nicht überein.";
+                            state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (" + cmdRes.data.status + ").";
+                        }
+                    } else {
+                        state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (Kein Nachweis gefunden).";
+                    }
+                    state.pendingHaltId = null;
+                } else if (now - state.pendingHaltAt > UI_CMD_TIMEOUT) {
+                    state.lastHaltResult = "<br><b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
+                }
+            }
+            
+            if (state.pendingResumeId) {
+                if (!stillResume) {
+                    let cmdRes = await apiCall("/api/v3/command/" + state.pendingResumeId);
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.lastResumeResult = "Wiederaufnahme <b>ABGELEHNT</b>: " + (cmdRes.data.result||'');
+                        } else if (cmdRes.data.status === "applied") {
+                            state.lastResumeResult = "";
+                        } else {
+                            state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (" + cmdRes.data.status + ")";
+                        }
+                    } else {
+                        state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (Kein Nachweis gefunden).";
+                    }
+                    state.pendingResumeId = null;
+                } else if (now - state.pendingResumeAt > UI_CMD_TIMEOUT) {
+                    state.lastResumeResult = "Wiederaufnahme: <b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
+                }
+            }
+            
+            if (state.cfg.pendingCmdId) {
+                if (!stillCfg) {
+                    let cmdRes = await apiCall("/api/v3/command/" + state.cfg.pendingCmdId);
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.cfg.status = "rejected";
+                            state.cfg.lastRejectionReason = "Vom Worker abgelehnt: " + (cmdRes.data.result||'');
+                        } else if (cmdRes.data.status === "applied") {
+                            if (stateRes.active_config_rev === state.cfg.requested_rev) {
+                                state.cfg.status = "active";
+                                state.cfg.lastAppliedNote = "Übernommen als Revision #" + state.cfg.requested_rev;
+                            } else {
+                                state.cfg.status = "rejected";
+                                state.cfg.lastRejectionReason = "Konfiguration angewendet, aber Revision stimmt nicht überein.";
+                            }
+                        } else {
+                            state.cfg.status = "rejected";
+                            state.cfg.lastRejectionReason = "Ergebnis unbekannt (Status: " + cmdRes.data.status + ").";
                         }
                     } else {
                         state.cfg.status = "rejected";
-                        state.cfg.lastRejectionReason = "Ergebnis unbekannt (Status: " + cmdRes.data.status + ").";
+                        state.cfg.lastRejectionReason = "Ergebnis unbekannt (Kein Nachweis gefunden).";
                     }
-                } else {
-                    state.cfg.status = "rejected";
-                    state.cfg.lastRejectionReason = "Ergebnis unbekannt (Kein Nachweis gefunden).";
+                    state.cfg.pendingCmdId = null;
+                } else if (now - state.pendingCfgAt > UI_CMD_TIMEOUT) {
+                    state.cfg.status = "pending";
+                    document.getElementById('cfgValidationErrors').style.display = "block";
+                    document.getElementById('cfgValidationErrors').innerHTML = "<b>Hinweis:</b> Command wartet ungewöhnlich lange... (Ergebnis unbekannt)";
                 }
-                state.cfg.pendingCmdId = null;
-                renderCfg();
             }
             
             // Wenn serverseitig eine NEUERE Revision aktiv ist als wir kennen
@@ -878,16 +892,17 @@ function fmtPct(v, digits){
 }
 
 function handleLogoutClean() {
+    sessionGen++;
     state.scenario.auth = "anon";
     OPEN_POSITIONS = []; CLOSED_TRADES = [];
     document.getElementById('resumeConfirmRow').classList.remove('show');
     document.getElementById('resumePendingNote').style.display = "none";
-    state.pendingResumeId = null;
-    state.pendingHaltId = null;
+    state.pendingResumeId = null; state.pendingResumeAt = null;
+    state.pendingHaltId = null; state.pendingHaltAt = null;
     if (state.cfg.status === "editing" || state.cfg.status === "diff" || state.cfg.status === "pending") {
         state.cfg.status = "active";
         state.cfg.draft = null;
-        state.cfg.pendingCmdId = null;
+        state.cfg.pendingCmdId = null; state.pendingCfgAt = null;
     }
     renderAll();
 }
@@ -1456,17 +1471,22 @@ function wireEvents(){
   });
 
   async function haltRequested(){
-    if (state.scenario.auth === "anon") return;
+    if (state.scenario.auth === "anon" || state.inflightHalt) return;
+    state.inflightHalt = true;
+    let myGen = sessionGen;
     try {
         let r = await apiCall('/api/v3/halt', 'POST', { reason: "Operator Not-Halt" });
+        if(myGen !== sessionGen || state.scenario.auth === "anon") return;
         if(r && !r._error && r.data){
             state.pendingHaltId = r.data.command_id;
+            state.pendingHaltAt = Date.now();
             showToast("Not-Halt angefordert (Cmd: "+r.data.command_id+").");
         } else {
             showToast("Not-Halt: Ergebnis unbekannt (" + (r && r.detail ? r.detail : "Serverfehler") + ")");
         }
     } catch(e) { showToast("Not-Halt: Ergebnis unbekannt (Netzwerkfehler)."); }
-  }
+    finally { state.inflightHalt = false; }
+}
   document.getElementById('btnHalt').addEventListener('click', haltRequested);
   document.getElementById('btnHaltTop').addEventListener('click', haltRequested);
 
@@ -1482,100 +1502,37 @@ function wireEvents(){
     document.getElementById('resumeConfirmRow').classList.remove('show');
   });
   document.getElementById('btnResumeConfirm').addEventListener('click', async (e) => {
-    if (state.scenario.auth === "anon") return;
-    if (e.target.disabled) return;
-    e.target.disabled = true;
-    setTimeout(() => { e.target.disabled = false; }, 3000); // Re-enable after 3s to prevent loop but allow retry if needed
-    
-    let wRes = await apiCall('/status/worker');
-    if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || wRes.stale || !wRes.worker_known) {
-        showToast("Blockiert: Worker unbekannt, Verbindungsfehler oder veraltet.");
-        e.target.disabled = false;
-        return;
-    }
-    document.getElementById('resumeConfirmRow').classList.remove('show');
-    document.getElementById('resumePendingNote').style.display = "block";
-    document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b>...";
-    
+    if (state.scenario.auth === "anon" || state.inflightResume) return;
+    state.inflightResume = true;
+    let myGen = sessionGen;
     try {
+        let wRes = await apiCall('/status/worker');
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || wRes.stale || !wRes.worker_known) {
+            showToast("Blockiert: Worker unbekannt, Verbindungsfehler oder veraltet.");
+            return;
+        }
+        document.getElementById('resumeConfirmRow').classList.remove('show');
+        document.getElementById('resumePendingNote').style.display = "block";
+        document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b>...";
         let r = await apiCall('/api/v3/resume', 'POST', { reason: "Operator Freigabe" });
-        console.log("Resume API Response:", r);
+        if(myGen !== sessionGen || state.scenario.auth === "anon") return;
         if (r && !r._error && r.data) {
             state.pendingResumeId = r.data.command_id;
-            document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b> (Cmd: " + r.data.command_id + ") — wartet auf Bestätigung durch Worker.";
+            state.pendingResumeAt = Date.now();
+            state.lastResumeResult = "";
+            document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b> (Cmd: " + r.data.command_id + ") — wartet...";
         } else {
             document.getElementById('resumePendingNote').style.display = "none";
-            showToast("Wiederaufnahme: Ergebnis unbekannt (" + (r && r.detail ? r.detail : "Serverfehler") + ")");
+            showToast("Fehler bei Wiederaufnahme.");
         }
     } catch(e) {
         document.getElementById('resumePendingNote').style.display = "none";
         showToast("Wiederaufnahme: Ergebnis unbekannt (Netzwerkfehler).");
+    } finally {
+        state.inflightResume = false;
     }
-  });
-
-  
-  document.getElementById('btnCfgEdit').addEventListener('click', () => { 
-      if (state.scenario.auth === "anon") return;
-      state.cfg.draft = Object.assign({}, ACTIVE_SERVER_CONFIG);
-      state.cfg.expected_rev = ACTIVE_SERVER_CONFIG.revision;
-      state.cfg.status = "editing";
-      state.cfg.lastAppliedNote = null;
-      document.getElementById('cfgRiskInput').value = state.cfg.draft.riskPerTradePct;
-      document.getElementById('cfgMaxPosInput').value = state.cfg.draft.maxOpenPositions;
-      document.getElementById('cfgMaxLevInput').value = state.cfg.draft.maxLeverage;
-      document.getElementById('cfgDryRunInput').checked = state.cfg.draft.dryRun;
-      document.getElementById('cfgValidationErrors').style.display = "none";
-      renderCfg();
-  });
-  document.getElementById('btnCfgCancel').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
-  document.getElementById('btnCfgValidate').addEventListener('click', validateCfgDraft);
-  document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { state.cfg.status = "editing"; renderCfg(); });
-  document.getElementById('btnCfgRequest').addEventListener('click', async (e) => {
-    if (state.scenario.auth === "anon") return;
-    if (e.target.disabled) return;
-    e.target.disabled = true;
-    setTimeout(() => { e.target.disabled = false; }, 3000);
-    
-    let wRes = await apiCall('/status/worker');
-    if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || !wRes.worker_known) {
-        showToast("Blockiert: Worker nicht bestätigt oder API-Verbindung getrennt.");
-        e.target.disabled = false;
-        return;
-    }
-
-    let d = state.cfg.draft; const payload = {
-          risk_per_trade_pct: parseFloat(d.riskPerTradePct),
-          max_open_positions: parseInt(d.maxOpenPositions, 10),
-          max_leverage: parseInt(d.maxLeverage, 10),
-          long_threshold: ACTIVE_SERVER_CONFIG.longThreshold,
-          short_threshold: ACTIVE_SERVER_CONFIG.shortThreshold,
-          macro_cap: ACTIVE_SERVER_CONFIG.macroCap,
-          dry_run: !!d.dryRun,
-          ntfy_enabled: ACTIVE_SERVER_CONFIG.ntfyEnabled,
-          expected_rev: state.cfg.expected_rev
-      };
-      try {
-          let r = await apiCall('/api/v3/config', 'POST', payload);
-          if (!r._error && r.ok && r.data) {
-              state.cfg.status = "pending";
-              state.cfg.pendingCmdId = r.data.command_id;
-              state.cfg.requested_rev = r.data.requested_rev;
-              showToast("Konfiguration angefordert (Cmd: " + r.data.command_id + ")");
-              renderCfg();
-              refreshData(); // To fetch updated cmd queue
-          } else if (r._error && r.status === 409) {
-              showToast("Konflikt: " + (r.detail || "Revision veraltet") + ".");
-              // Keep diff view, let them see active vs theirs
-              await refreshData();
-              document.getElementById('cfgValidationErrors').style.display = "block";
-              document.getElementById('cfgValidationErrors').innerHTML = "<b>Konflikt (HTTP 409):</b> " + (r.detail||"Jemand anders hat die Konfiguration in der Zwischenzeit geändert.");
-          } else {
-              showToast("Konfiguration fehlgeschlagen: " + (r.detail||"Unbekannter Fehler"));
-          }
-      } catch(e) {
-          showToast("Konfiguration: Ergebnis unbekannt (Netzwerkabbruch)");
-      }
-  });
+});
   document.getElementById('btnCfgWithdraw').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
   document.getElementById('btnCfgSimApprove').style.display = "none";
   document.getElementById('btnCfgSimReject').style.display = "none";
