@@ -524,7 +524,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
         <span class="cfg-status-badge active" id="cfgStatusBadge">Aktiv</span>
         <span class="dirty-flag" id="cfgDirtyFlag" style="display:none">● Ungespeicherte Änderungen</span>
         <span style="margin-left:auto"></span>
-        <button type="button" class="btn primary" id="btnCfgEdit">Bearbeiten (simuliert)</button>
+        <button type="button" class="btn primary" id="btnCfgEdit">Bearbeiten</button>
       </div>
 
       <div class="mock-note" id="cfgAnonNotice" style="display:none">Geschützte Serverkonfiguration nicht verfügbar — Anmeldung als Operator erforderlich (Demo-Szenario: anonym).</div>
@@ -582,7 +582,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
           <button type="button" class="btn danger" id="btnCfgSimReject">Demo: als „abgelehnt" simulieren</button>
           <button type="button" class="btn ghost" id="btnCfgWithdraw">Anfrage zurückziehen</button>
         </div>
-        <div class="mock-note">Die beiden „Demo:"-Schaltflächen ersetzen hier bewusst eine echte Backend-Antwort — es gibt keinen echten Prüfprozess.</div>
+        
       </div>
 
       <div class="rejection-note" id="cfgRejectionNote" style="display:none"></div>
@@ -644,7 +644,11 @@ async function apiCall(endpoint, method="GET", body=null) {
     if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
     try {
         const r = await fetch(API_URL + endpoint, opts);
-        if (!r.ok) return { _error: true, status: r.status };
+        if (!r.ok) {
+            let detail = null;
+            try { const d = await r.json(); detail = d.detail || d.message; } catch(err){}
+            return { _error: true, status: r.status, detail: detail };
+        }
         return await r.json();
     } catch (e) {
         return { _error: true, message: e.message };
@@ -687,13 +691,11 @@ async function refreshData() {
     if(myGen !== fetchGen) return;
 
     if(authRes._error && (authRes.status===401||authRes.status===403)){
-        state.scenario.auth = "anon";
-        OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
+        handleLogoutClean(); return;
     }else if(authRes._error){
         state.scenario.conn = "disconnected"; renderAll(); return;
     }else if(!authRes.authenticated){
-        state.scenario.auth = "anon";
-        OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
+        handleLogoutClean(); return;
     }
     state.scenario.auth = "operator"; state.scenario.conn = "connected";
 
@@ -766,10 +768,66 @@ async function refreshData() {
         
         if(stateRes.config){
             ACTIVE_SERVER_CONFIG = {
-                revision: stateRes.active_config_rev||0, riskPerTradePct: stateRes.config.risk_per_trade_pct||1.0,
-                maxOpenPositions: stateRes.config.max_open_positions||5, maxLeverage: stateRes.config.max_leverage||10,
-                dryRun: stateRes.config.dry_run!==false
+                revision: stateRes.active_config_rev||0, 
+                riskPerTradePct: stateRes.config.risk_per_trade_pct||1.0,
+                maxOpenPositions: stateRes.config.max_open_positions||5, 
+                maxLeverage: stateRes.config.max_leverage||10,
+                dryRun: stateRes.config.dry_run!==false,
+                longThreshold: stateRes.config.long_threshold||60.0,
+                shortThreshold: stateRes.config.short_threshold||10.0,
+                macroCap: stateRes.config.macro_cap||0.0,
+                ntfyEnabled: stateRes.config.ntfy_enabled!==false
             };
+            
+                        // Check commands
+            console.log("REACHED CHECK COMMANDS!", stateRes, state.pendingResumeId);
+            let stillHalt = false;
+            let stillResume = false;
+            let stillCfg = false;
+            if (stateRes.pending_cmds) {
+                for (let c of stateRes.pending_cmds) {
+                    if (state.pendingHaltId && c.id === state.pendingHaltId) stillHalt = true;
+                    if (state.pendingResumeId && c.id === state.pendingResumeId) stillResume = true;
+                    if (state.cfg.pendingCmdId && c.id === state.cfg.pendingCmdId) stillCfg = true;
+                }
+            }
+            
+            // Resolve Halt
+            if (state.pendingHaltId && !stillHalt) {
+                if (stateRes.rejected_cmds && stateRes.rejected_cmds.some(r => r.id === state.pendingHaltId)) showToast("Not-Halt vom Worker abgelehnt/failed.");
+                else showToast("Not-Halt quittiert.");
+                state.pendingHaltId = null;
+            }
+                        // Resolve Resume
+            console.log("Resolving Resume", state.pendingResumeId, "still:", stillResume);
+
+            if (state.pendingResumeId && !stillResume) {
+                if (stateRes.rejected_cmds && stateRes.rejected_cmds.some(r => r.id === state.pendingResumeId)) showToast("Wiederaufnahme vom Worker abgelehnt/failed.");
+                else showToast("Wiederaufnahme quittiert.");
+                state.pendingResumeId = null;
+                document.getElementById('resumePendingNote').style.display = "none";
+            }
+            // Resolve Config
+            if (state.cfg.pendingCmdId && !stillCfg) {
+                if (stateRes.rejected_cmds && stateRes.rejected_cmds.some(r => r.id === state.cfg.pendingCmdId)) {
+                    state.cfg.status = "rejected";
+                    state.cfg.lastRejectionReason = "Vom Worker oder Validierung abgelehnt";
+                } else if (stateRes.active_config_rev === state.cfg.requested_rev) {
+                    state.cfg.status = "active";
+                    state.cfg.lastAppliedNote = "Übernommen als Revision #" + state.cfg.requested_rev;
+                } else {
+                    state.cfg.status = "active";
+                    state.cfg.lastAppliedNote = "Konfiguration quittiert aber nicht aktive Revision.";
+                }
+                state.cfg.pendingCmdId = null;
+            }
+            
+            // Wenn serverseitig eine NEUERE Revision aktiv ist als wir kennen
+            // und wir nicht diffing, dann verwerfen wir alte entstuecke
+            if ((state.cfg.status==="diff" || state.cfg.status==="editing") && ACTIVE_SERVER_CONFIG.revision !== state.cfg.expected_rev) {
+                // Conflict pending show UI warning
+                // we leave it to explicit checks
+            }
         }
         if(stateRes.market_data && stateRes.market_data.symbols){
             stateRes.market_data.symbols.forEach(s => {
@@ -787,6 +845,20 @@ function fmtPct(v, digits){
   return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
 }
 
+function handleLogoutClean() {
+    state.scenario.auth = "anon";
+    OPEN_POSITIONS = []; CLOSED_TRADES = [];
+    document.getElementById('resumeConfirmRow').classList.remove('show');
+    document.getElementById('resumePendingNote').style.display = "none";
+    state.pendingResumeId = null;
+    state.pendingHaltId = null;
+    if (state.cfg.status === "editing" || state.cfg.status === "diff" || state.cfg.status === "pending") {
+        state.cfg.status = "active";
+        state.cfg.draft = null;
+        state.cfg.pendingCmdId = null;
+    }
+    renderAll();
+}
 /* ---------- 3) Anwendungszustand (state-driven rendering) ---------- */
 const state = {
   tab: "overview",
@@ -1351,36 +1423,110 @@ function wireEvents(){
     });
   });
 
-  function haltRequested(){
-    if (state.scenario.auth === "anon"){ showToast("Zugriff verweigert (Anonym). Operator-Login erforderlich."); return; }
-    showToast('In dieser Vorschau nicht verfügbar: Operator-Aktionen (Halt/Resume/Config) sind gesperrt.');
+  async function haltRequested(){
+    if (state.scenario.auth === "anon") return;
+    try {
+        let r = await apiCall('/api/v3/halt', 'POST', { reason: "Operator Not-Halt" });
+        if(r && !r._error && r.data){
+            state.pendingHaltId = r.data.command_id;
+            showToast("Not-Halt angefordert (Cmd: "+r.data.command_id+").");
+        } else {
+            showToast("Not-Halt: Ergebnis unbekannt (" + (r && r.detail ? r.detail : "Serverfehler") + ")");
+        }
+    } catch(e) { showToast("Not-Halt: Ergebnis unbekannt (Netzwerkfehler)."); }
   }
   document.getElementById('btnHalt').addEventListener('click', haltRequested);
   document.getElementById('btnHaltTop').addEventListener('click', haltRequested);
 
   document.getElementById('btnResume').addEventListener('click', () => {
-    if (state.scenario.auth === "anon"){ showToast("Zugriff verweigert (Anonym). Operator-Login erforderlich."); return; }
+    if (state.scenario.auth === "anon") return;
+    if (state.scenario.worker === "UNBEKANNT" || state.scenario.worker.includes("VERALTET")) {
+        showToast("Keine Freigabe bei unbekanntem/veraltetem Worker.");
+        return;
+    }
     document.getElementById('resumeConfirmRow').classList.add('show');
   });
   document.getElementById('btnResumeCancel').addEventListener('click', () => {
     document.getElementById('resumeConfirmRow').classList.remove('show');
   });
-  document.getElementById('btnResumeConfirm').addEventListener('click', () => {
-    if (state.scenario.auth === "anon") return; // Handler-Pruefung fuer Resume
+  document.getElementById('btnResumeConfirm').addEventListener('click', async () => {
+    if (state.scenario.auth === "anon") return;
     document.getElementById('resumeConfirmRow').classList.remove('show');
     document.getElementById('resumePendingNote').style.display = "block";
-    showToast('Wiederaufnahme angefordert (simuliert) — nicht bereits angewendet.');
+    document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b>...";
+    
+    try {
+        let r = await apiCall('/api/v3/resume', 'POST', { reason: "Operator Freigabe" });
+        console.log("Resume API Response:", r);
+        if (r && !r._error && r.data) {
+            state.pendingResumeId = r.data.command_id;
+            document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b> (Cmd: " + r.data.command_id + ") — wartet auf Bestätigung durch Worker.";
+        } else {
+            document.getElementById('resumePendingNote').style.display = "none";
+            showToast("Wiederaufnahme: Ergebnis unbekannt (" + (r && r.detail ? r.detail : "Serverfehler") + ")");
+        }
+    } catch(e) {
+        document.getElementById('resumePendingNote').style.display = "none";
+        showToast("Wiederaufnahme: Ergebnis unbekannt (Netzwerkfehler).");
+    }
   });
 
   
-  document.getElementById('btnCfgEdit').addEventListener('click', () => { showToast('In dieser Vorschau nicht verfügbar: Schreibzugriff gesperrt.'); });
-  document.getElementById('btnCfgCancel').addEventListener('click', () => { });
-  document.getElementById('btnCfgValidate').addEventListener('click', () => { });
-  document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { });
-  document.getElementById('btnCfgRequest').addEventListener('click', () => { });
-  document.getElementById('btnCfgWithdraw').addEventListener('click', () => { });
-  document.getElementById('btnCfgSimApprove').addEventListener('click', () => { });
-  document.getElementById('btnCfgSimReject').addEventListener('click', () => { });
+  document.getElementById('btnCfgEdit').addEventListener('click', () => { 
+      if (state.scenario.auth === "anon") return;
+      state.cfg.draft = Object.assign({}, ACTIVE_SERVER_CONFIG);
+      state.cfg.expected_rev = ACTIVE_SERVER_CONFIG.revision;
+      state.cfg.status = "editing";
+      state.cfg.lastAppliedNote = null;
+      document.getElementById('cfgRiskInput').value = state.cfg.draft.riskPerTradePct;
+      document.getElementById('cfgMaxPosInput').value = state.cfg.draft.maxOpenPositions;
+      document.getElementById('cfgMaxLevInput').value = state.cfg.draft.maxLeverage;
+      document.getElementById('cfgDryRunInput').checked = state.cfg.draft.dryRun;
+      document.getElementById('cfgValidationErrors').style.display = "none";
+      renderCfg();
+  });
+  document.getElementById('btnCfgCancel').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
+  document.getElementById('btnCfgValidate').addEventListener('click', validateCfgDraft);
+  document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { state.cfg.status = "editing"; renderCfg(); });
+  document.getElementById('btnCfgRequest').addEventListener('click', async () => { 
+      if (state.scenario.auth === "anon") return;
+      const d = state.cfg.draft;
+      const payload = {
+          risk_per_trade_pct: parseFloat(d.riskPerTradePct),
+          max_open_positions: parseInt(d.maxOpenPositions, 10),
+          max_leverage: parseInt(d.maxLeverage, 10),
+          long_threshold: ACTIVE_SERVER_CONFIG.longThreshold,
+          short_threshold: ACTIVE_SERVER_CONFIG.shortThreshold,
+          macro_cap: ACTIVE_SERVER_CONFIG.macroCap,
+          dry_run: !!d.dryRun,
+          ntfy_enabled: ACTIVE_SERVER_CONFIG.ntfyEnabled,
+          expected_rev: state.cfg.expected_rev
+      };
+      try {
+          let r = await apiCall('/api/v3/config', 'POST', payload);
+          if (!r._error && r.ok && r.data) {
+              state.cfg.status = "pending";
+              state.cfg.pendingCmdId = r.data.command_id;
+              state.cfg.requested_rev = r.data.requested_rev;
+              showToast("Konfiguration angefordert (Cmd: " + r.data.command_id + ")");
+              renderCfg();
+              refreshData(); // To fetch updated cmd queue
+          } else if (r._error && r.status === 409) {
+              showToast("Konflikt: " + (r.detail || "Revision veraltet") + ".");
+              // Keep diff view, let them see active vs theirs
+              await refreshData();
+              document.getElementById('cfgValidationErrors').style.display = "block";
+              document.getElementById('cfgValidationErrors').innerHTML = "<b>Konflikt (HTTP 409):</b> " + (r.detail||"Jemand anders hat die Konfiguration in der Zwischenzeit geändert.");
+          } else {
+              showToast("Konfiguration fehlgeschlagen: " + (r.detail||"Unbekannter Fehler"));
+          }
+      } catch(e) {
+          showToast("Konfiguration: Ergebnis unbekannt (Netzwerkabbruch)");
+      }
+  });
+  document.getElementById('btnCfgWithdraw').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
+  document.getElementById('btnCfgSimApprove').style.display = "none";
+  document.getElementById('btnCfgSimReject').style.display = "none";
 
 
   const rngRisk = document.getElementById('rngRisk');
