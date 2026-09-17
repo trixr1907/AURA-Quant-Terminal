@@ -252,19 +252,103 @@ def create_app(
         """
         return {"ok": True, "version": _AURA_VERSION}
 
+    # ---------------------------------------------------------------------------
+    # Hilfsfunktion: Worker-Zustand autoritativ aus DB lesen
+    # ---------------------------------------------------------------------------
+    _WORKER_ACTIVE_STATES = frozenset({"RUNNING", "WARMING_UP", "RECOVERING"})
+    _STALE_THRESHOLD_S = 120.0
+
+    def _read_worker_status_from_db() -> dict:
+        """Liest runner_state aus DB. Kein Auth nötig, kein Portfolio-Zustand.
+
+        Semantik der Felder:
+          fsm_state      — letzter persistierter Zustand des Workers
+          is_halted      — Worker ist im Not-Halt (Einstiege gesperrt)
+          entries_locked — Entry-Gate geschlossen (HALTED, STARTING, veraltete Daten oder kein Eintrag)
+          stale          — letzter Heartbeat > _STALE_THRESHOLD_S Sekunden alt
+          worker_known   — ob ein runner_state-Eintrag in der DB existiert
+          reason         — Halt-Grund (nur gesetzt wenn HALTED)
+          data_age_seconds — Sekunden seit letztem Heartbeat (None wenn kein Eintrag)
+        """
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT fsm_state, reason, updated_at_ms FROM runner_state WHERE id = 1"
+            )
+            row = cur.fetchone()
+        except Exception as ex:
+            logger.warning("runner_state DB-Lesefehler: %s", ex)
+            row = None
+
+        now_ms = int(time.time() * 1000)
+
+        if row is None:
+            # Kein Eintrag: fail-closed — keine Entry-Freigabe ohne verifizierten Zustand
+            return {
+                "fsm_state": "UNKNOWN",
+                "is_halted": False,
+                "entries_locked": True,
+                "stale": True,
+                "worker_known": False,
+                "reason": None,
+                "data_age_seconds": None,
+            }
+
+        fsm_state = row[0] if isinstance(row, (tuple, list)) else row["fsm_state"]
+        reason = row[1] if isinstance(row, (tuple, list)) else row["reason"]
+        updated_ms = row[2] if isinstance(row, (tuple, list)) else row["updated_at_ms"]
+
+        age_s = round((now_ms - (updated_ms or 0)) / 1000.0, 1) if updated_ms else None
+        stale = (age_s is None) or (age_s > _STALE_THRESHOLD_S)
+        is_halted = (fsm_state == "HALTED")
+        # Entry-Gate: nur freigeben wenn RUNNING/WARMING_UP/RECOVERING UND frisch
+        entries_locked = is_halted or stale or (fsm_state not in _WORKER_ACTIVE_STATES)
+
+        return {
+            "fsm_state": fsm_state,
+            "is_halted": is_halted,
+            "entries_locked": entries_locked,
+            "stale": stale,
+            "worker_known": True,
+            "reason": reason if is_halted else None,
+            "data_age_seconds": age_s,
+        }
+
+    @app.get("/status/worker")
+    def get_worker_status():
+        """Öffentlicher Worker-Zustandsendpunkt — kein Auth erforderlich.
+
+        Liefert ausschließlich den persistierten Worker-Zustand aus der DB.
+        Kein Portfolio, keine Trades, keine Konfiguration, keine Equitydaten.
+        Datenquelle: runner_state (id=1), die der Worker bei jedem Heartbeat schreibt.
+
+        Verbraucher:
+          - Dashboard (anonyme Statusanzeige im Autobot-Panel)
+          - fetchReadyFunnel() (bot_enabled-Flag)
+          - Externe Monitoring-Tools
+        """
+        return _read_worker_status_from_db()
+
     @app.get("/ready")
     def get_ready():
         """Health-Probe für Orchestratoren und Dashboard-Startup-Checks.
 
-        bot_enabled spiegelt wider ob der Worker aktiv läuft (nicht HALTED/DEGRADED).
+        Liest den Worker-Zustand direkt aus der DB (runner_state),
+        nicht aus der In-Memory-SM des API-Prozesses.
+
+        bot_enabled=True nur wenn Worker RUNNING/WARMING_UP/RECOVERING UND frischer Heartbeat.
+        STARTING, HALTED, fehlender oder veralteter Eintrag → bot_enabled=False (fail-closed).
         """
-        is_halted = sm.is_halted or sm.current_state == SystemState.HALTED
+        ws = _read_worker_status_from_db()
         return {
             "ok": True,
             "mode": "server",
-            "bot_enabled": not is_halted,
-            "system_state": sm.current_state.value,
-            "is_halted": is_halted,
+            "bot_enabled": not ws["entries_locked"],
+            "is_halted": ws["is_halted"],
+            "worker_known": ws["worker_known"],
+            "stale": ws["stale"],
+            "system_state": ws["fsm_state"],
+            "data_age_seconds": ws["data_age_seconds"],
         }
 
     @app.get("/pine", response_class=PlainTextResponse)

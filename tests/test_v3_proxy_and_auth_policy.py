@@ -290,19 +290,53 @@ class TestProxySecurity:
 # P9/P10  /ready und /serving
 # ---------------------------------------------------------------------------
 class TestReadyAndServing:
-    def test_p9_ready_halted_bot_enabled_false(self, halted_client: TestClient):
-        resp = halted_client.get("/ready")
+    def test_p9_ready_halted_bot_enabled_false(self, tmp_path, monkeypatch):
+        """HALTED in DB → bot_enabled=False, kein Auth nötig."""
+        import sqlite3 as _sq, time as _t
+        monkeypatch.setenv("AURA_RELAY_TOKEN", TEST_TOKEN)
+        from aura.api.auth import _FAILED_LOGINS, _ACTIVE_SESSIONS
+        _FAILED_LOGINS.clear(); _ACTIVE_SESSIONS.clear()
+        from aura.store.db import connect as _connect
+        conn = _connect(tmp_path / "ready_halted.db")
+        now_ms = int(_t.time() * 1000)
+        conn.execute(
+            "INSERT INTO runner_state (id, fsm_state, reason, equity, cycle_count, updated_at_ms) "
+            "VALUES (1, 'HALTED', 'Test', '10000', 0, ?)", (now_ms,)
+        ); conn.commit()
+        from aura.runner import RunnerStateMachine, SystemState, PaperTradingEngine
+        from aura.api.app import create_app
+        app = create_app(conn=conn, state_machine=RunnerStateMachine(SystemState.STARTING),
+                         paper_engine=PaperTradingEngine(conn=conn))
+        client = TestClient(app)
+        resp = client.get("/ready")
         assert resp.status_code == 200
         data = resp.json()
         assert data["ok"] is True
         assert data["is_halted"] is True
-        assert data["bot_enabled"] is False, "bot_enabled muss False sein wenn HALTED"
+        assert data["bot_enabled"] is False, f"HALTED in DB muss bot_enabled=False liefern: {data}"
 
-    def test_p9_ready_running_bot_enabled_true(self, running_client: TestClient):
-        resp = running_client.get("/ready")
+    def test_p9_ready_running_bot_enabled_true(self, tmp_path, monkeypatch):
+        """RUNNING in DB mit frischem Heartbeat → bot_enabled=True."""
+        import time as _t
+        monkeypatch.setenv("AURA_RELAY_TOKEN", TEST_TOKEN)
+        from aura.api.auth import _FAILED_LOGINS, _ACTIVE_SESSIONS
+        _FAILED_LOGINS.clear(); _ACTIVE_SESSIONS.clear()
+        from aura.store.db import connect as _connect
+        conn = _connect(tmp_path / "ready_running.db")
+        now_ms = int(_t.time() * 1000)
+        conn.execute(
+            "INSERT INTO runner_state (id, fsm_state, reason, equity, cycle_count, updated_at_ms) "
+            "VALUES (1, 'RUNNING', '', '10000', 1, ?)", (now_ms,)
+        ); conn.commit()
+        from aura.runner import RunnerStateMachine, SystemState, PaperTradingEngine
+        from aura.api.app import create_app
+        app = create_app(conn=conn, state_machine=RunnerStateMachine(SystemState.STARTING),
+                         paper_engine=PaperTradingEngine(conn=conn))
+        client = TestClient(app)
+        resp = client.get("/ready")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["bot_enabled"] is True
+        assert data["bot_enabled"] is True, f"RUNNING+frisch muss bot_enabled=True liefern: {data}"
         assert data["is_halted"] is False
 
     def test_p10_serving_version_matches_aura_version(self, halted_client: TestClient):
