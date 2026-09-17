@@ -26,7 +26,7 @@ from aura.data.liquidity import LiquidityPolicy, POLICY_VERSION
 from aura.data.market_updater import MarketDataUpdater
 from aura.data.models import Candle, ValidationReport
 from aura.runner.notifier import NotificationConfig, NotificationDispatcher
-from aura.runner.paper_engine import EngineConfig, PaperTradingEngine
+from aura.runner.paper_engine import EngineConfig, PaperExecutionPlan, PaperTradingEngine
 from aura.runner.state_machine import RunnerStateMachine, SystemState
 from aura.store.db import connect
 
@@ -746,38 +746,6 @@ class AuraWorkerService:
                 return None
 
             price_tick = Decimal(str(spec_row["price_tick"])) if spec_row["price_tick"] else Decimal("0.0001")
-            d_current = Decimal(str(current_price))
-            d_sl_raw = Decimal(str(sl_price))
-            d_tp1_raw = Decimal(str(tp1_price))
-            d_tp2_raw = Decimal(str(tp2_price))
-
-            # Direction-aware price-tick quantization:
-            # Entry: nearest tick (ROUND_HALF_UP)
-            # Long: SL rounded down (conservative stop), TP1/TP2 rounded up (conservative target)
-            # Short: SL rounded up (conservative stop), TP1/TP2 rounded down (conservative target)
-            if direction == 1:
-                d_entry = round_price_to_tick(d_current, price_tick, rounding=ROUND_HALF_UP)
-                d_sl = round_price_to_tick(d_sl_raw, price_tick, rounding=ROUND_DOWN)
-                d_tp1 = round_price_to_tick(d_tp1_raw, price_tick, rounding=ROUND_UP)
-                d_tp2 = round_price_to_tick(d_tp2_raw, price_tick, rounding=ROUND_UP)
-                if not (d_sl < d_entry < d_tp1 <= d_tp2) or (d_entry - d_sl) <= 0:
-                    self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Setup nach Preis-Tick-Rundung kollabiert")
-                    return None
-            else:
-                d_entry = round_price_to_tick(d_current, price_tick, rounding=ROUND_HALF_UP)
-                d_sl = round_price_to_tick(d_sl_raw, price_tick, rounding=ROUND_UP)
-                d_tp1 = round_price_to_tick(d_tp1_raw, price_tick, rounding=ROUND_DOWN)
-                d_tp2 = round_price_to_tick(d_tp2_raw, price_tick, rounding=ROUND_DOWN)
-                if not (d_sl > d_entry > d_tp1 >= d_tp2) or (d_sl - d_entry) <= 0:
-                    self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Setup nach Preis-Tick-Rundung kollabiert")
-                    return None
-
-            stop_dist = abs(d_entry - d_sl)
-            entry_price = float(d_entry)
-            sl_price = float(d_sl)
-            tp1_price = float(d_tp1)
-            tp2_price = float(d_tp2)
-
             spec = {
                 "qtyStep": spec_row["qty_step"],
                 "minQty": spec_row["min_qty"],
@@ -785,27 +753,39 @@ class AuraWorkerService:
                 "priceTick": str(price_tick),
             }
             leverage = min(10, int(spec_row["max_leverage"]))
-            risk_amt = Decimal(str(self.engine.equity)) * Decimal(str(self.engine.config.risk_per_trade_pct)) / Decimal("100")
-            sized = size_position(risk_amt, d_entry, stop_dist, leverage, spec)
-            decision_time_ms = int(self.time_provider() * 1000)
-            if sized.qty <= 0 or not self._liquidity_is_verified(
-                symbol,
-                decision_time_ms,
-                planned_notional=Decimal(str(sized.notional)),
-                direction=direction,
-            ):
-                self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Liquiditaet oder ausfuehrungsspezifische Tiefe nicht verifiziert")
-                return None
-            pos = self.engine.open_trade(
+            risk_budget = Decimal(str(self.engine.equity)) * Decimal(str(self.engine.config.risk_per_trade_pct)) / Decimal("100")
+
+            # Kanonischen Ausfuehrungsplan auf effektivem Fill (nach Slippage/Tick) und gequantelten Schutzleveln bilden:
+            plan = self.engine.create_execution_plan(
                 symbol=symbol,
-                timeframe="1H",
                 direction=direction,
-                entry_price=entry_price,
+                reference_price=current_price,
                 sl_price=sl_price,
                 tp1_price=tp1_price,
                 tp2_price=tp2_price,
                 spec=spec,
                 leverage=leverage,
+                risk_budget=risk_budget,
+            )
+            if not plan.levels_valid:
+                self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", plan.error_reason or "Ungueltiger Ausfuehrungsplan")
+                return None
+
+            # Liquiditaetspruefung strikt auf dem finalen Notional des Ausfuehrungsplans:
+            decision_time_ms = int(self.time_provider() * 1000)
+            if not self._liquidity_is_verified(
+                symbol,
+                decision_time_ms,
+                planned_notional=plan.final_notional,
+                direction=direction,
+            ):
+                self._log_decision(symbol, candles[-1].time_ms, direction, score, "REJECTED", "Liquiditaet oder ausfuehrungsspezifische Tiefe nicht verifiziert")
+                return None
+
+            # Bucht exakt den freigegebenen Plan ohne zweiten Sizing- oder Preisshift:
+            pos = self.engine.execute_plan(
+                plan=plan,
+                timeframe="1H",
                 score=score,
                 current_time_ms=candles[-1].time_ms,
             )
@@ -816,13 +796,13 @@ class AuraWorkerService:
                     pos.trade_id,
                     dir_str,
                     symbol,
-                    current_price,
-                    sl_price,
-                    tp1_price,
+                    pos.entry_price,
+                    pos.sl_price,
+                    pos.tp1_price,
                 )
                 alert_payload = {
                     "title": f"AURA Neuer Trade: {dir_str} {symbol}",
-                    "message": f"Einstieg @ {current_price:.4f} | SL: {sl_price:.4f} | TP1: {tp1_price:.4f} | Qty: {pos.qty}",
+                    "message": f"Einstieg @ {pos.entry_price:.4f} | SL: {pos.sl_price:.4f} | TP1: {pos.tp1_price:.4f} | Qty: {pos.qty}",
                     "priority": 3,
                     "event_type": "TRADE_OPEN",
                 }
@@ -830,6 +810,14 @@ class AuraWorkerService:
                     pending_alerts.append(alert_payload)
                 else:
                     self.notifier.send_alert(**alert_payload)
+                self._log_decision(
+                    symbol,
+                    candles[-1].time_ms,
+                    direction,
+                    score,
+                    "ACCEPTED",
+                    f"Paper Trade #{pos.trade_id} @ {pos.entry_price:.4f}",
+                )
                 return pos
         return None
 
