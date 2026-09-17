@@ -240,7 +240,19 @@ def test_g2_entry_and_exit_alerts_delivered_after_successful_commit(tmp_path):
     w = AuraWorkerService(db_path=str(tmp_path / "alerts_success.db"), symbols=["BTCUSDT"], long_threshold=-1.0)
     w.sm.transition_to(SystemState.WARMING_UP)
     w.sm.transition_to(SystemState.RUNNING)
-    w.conn.execute("INSERT INTO universe (symbol, active, liquidity_verified, updated_at_ms) VALUES ('BTCUSDT', 1, 1, ?)", (ts,))
+    now_wall_ms = int(time.time() * 1000)
+    w.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_wall_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="5000000",
+        ask_depth_notional="5000000",
+        quote_volume_24h="100000000",
+    )
 
     sent_alerts: list[dict[str, Any]] = []
     setattr(w.notifier, "send_alert", lambda **kw: sent_alerts.append(kw) or True)
@@ -262,7 +274,19 @@ def test_g2_notifier_failure_does_not_rollback_committed_trade(tmp_path):
     w = AuraWorkerService(db_path=str(tmp_path / "notifier_fail.db"), symbols=["BTCUSDT"], long_threshold=-1.0)
     w.sm.transition_to(SystemState.WARMING_UP)
     w.sm.transition_to(SystemState.RUNNING)
-    w.conn.execute("INSERT INTO universe (symbol, active, liquidity_verified, updated_at_ms) VALUES ('BTCUSDT', 1, 1, ?)", (ts,))
+    now_wall_ms = int(time.time() * 1000)
+    w.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_wall_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="5000000",
+        ask_depth_notional="5000000",
+        quote_volume_24h="100000000",
+    )
 
     def failing_notifier(**kw):
         raise ConnectionError("Telegram Gateway offline")
