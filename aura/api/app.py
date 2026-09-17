@@ -6,9 +6,12 @@ Dokumentiert in docs/ARCHITECTURE.md und docs/SECURITY.md.
 
 from __future__ import annotations
 
+import asyncio
+import collections
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -32,19 +35,33 @@ from aura.store.db import connect
 logger = logging.getLogger("aura.api")
 
 
-PUBLIC_ALLOWED_PREFIXES = (
+# U3: exakte Pfad-Allowlist (Set-Mitgliedschaft), keine Praefix-/startswith-Pruefung mehr.
+# Jeder Eintrag muss dem base_path (Pfad ohne Query-String) exakt entsprechen —
+# Suffixe, Traversal oder sonstige Pfadvarianten werden dadurch verworfen.
+PUBLIC_ALLOWED_PATHS = frozenset({
     "/api/v2/mix/market/candles",
     "/api/v2/mix/market/ticker",
     "/api/v2/mix/market/tickers",
     "/api/v2/mix/market/contracts",
     "/api/v2/mix/market/history-fund-rate",
     "/api/v2/mix/market/open-interest",
-)
+})
+
+# Rueckwaertskompatibler Alias fuer evtl. externe Importe/Tests des alten Namens.
+PUBLIC_ALLOWED_PREFIXES = tuple(sorted(PUBLIC_ALLOWED_PATHS))
+
+# U3: nur ein enges Zeichen-Set im Pfad zulassen (keine Traversal-/Encoding-Tricks,
+# keine Backslashes, kein Whitespace, keine Steuerzeichen).
+_PUBLIC_PATH_CHARS_RE = re.compile(r"^/api/v2/mix/market/[A-Za-z0-9_-]+$")
 
 
 class PublicMarketCache:
+    """Bounded LRU-Cache fuer /api/public Antworten (U3: Kapazitaet + Eviction)."""
+
+    _MAX_ENTRIES = 256
+
     def __init__(self):
-        self._cache: dict[tuple, tuple[float, dict]] = {}
+        self._cache: collections.OrderedDict[tuple, tuple[float, dict]] = collections.OrderedDict()
         self._lock = threading.Lock()
 
     def get_ttl(self, path: str) -> float:
@@ -65,6 +82,7 @@ class PublicMarketCache:
                 return None
             exp, val = item
             if now < exp:
+                self._cache.move_to_end(key)
                 return val
             del self._cache[key]
             return None
@@ -72,7 +90,23 @@ class PublicMarketCache:
     def set(self, key: tuple, val: dict, ttl: float) -> None:
         now = time.monotonic()
         with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+            elif len(self._cache) >= self._MAX_ENTRIES:
+                self._evict_locked(now)
             self._cache[key] = (now + ttl, val)
+
+    def _evict_locked(self, now: float) -> None:
+        """Entfernt zunaechst abgelaufene, danach aelteste Einträge (LRU) bis unter Kapazität."""
+        expired_keys = [k for k, (exp, _) in self._cache.items() if exp <= now]
+        for k in expired_keys:
+            del self._cache[k]
+        while len(self._cache) >= self._MAX_ENTRIES:
+            self._cache.popitem(last=False)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._cache)
 
 
 _PUBLIC_CACHE = PublicMarketCache()
@@ -90,6 +124,23 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 _NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
+
+
+def _fetch_upstream_sync(target_url: str) -> dict:
+    """Synchroner Upstream-Call (U3: bewusst NICHT in der Async-Handlerfunktion
+
+    ausgefuehrt, sondern via asyncio.to_thread aufgerufen — blockierendes
+    urllib-I/O darf die API-Eventloop nicht belegen, sonst wuerden parallele
+    Requests (z. B. /ready, /status/worker) waehrend eines langsamen Upstreams
+    blockiert).
+    """
+    req = urllib.request.Request(
+        target_url,
+        headers={"User-Agent": "AURA-Quant-Terminal/3.0"},
+    )
+    # R1: _NO_REDIRECT_OPENER verweigert HTTP-Redirects (SSRF-Schutz)
+    with _NO_REDIRECT_OPENER.open(req, timeout=8.0) as resp:
+        return json.loads(resp.read(256 * 1024).decode("utf-8"))
 
 
 def create_app(
@@ -187,31 +238,49 @@ def create_app(
     async def proxy_public_market(payload: dict = Body(...)):
         """Öffentlicher Marktdaten-Proxy für Bitget-REST-Endpunkte.
 
-        Nur explizit freigegebene öffentliche /api/v2/mix/market/-Pfade sind erlaubt.
-        Keine Auth-Daten, keine Cookies werden an den Upstream weitergereicht.
-        Redirects sind deaktiviert (SSRF-Schutz via _NoRedirectHandler).
-        _PUBLIC_CACHE puffert Antworten; dies dient der Lastreduzierung,
-        nicht als Ratenbegrenzung – für Ratenbegrenzung ist ein dediziertes
-        Rate-Limiting-Layer erforderlich.
+        U3: Exakte Pfad-Allowlist (Set-Mitgliedschaft) statt Präfixprüfung —
+        nur ein Pfad aus PUBLIC_ALLOWED_PATHS wird akzeptiert, keine Suffixe,
+        kein Traversal, keine Pfadvarianten. Überlange Parameter werden mit
+        400 abgelehnt statt still abgeschnitten. Keine Auth-Daten, keine
+        Cookies werden an den Upstream weitergereicht. Redirects sind
+        deaktiviert (SSRF-Schutz via _NoRedirectHandler). Das blockierende
+        Upstream-I/O läuft in einem Thread (asyncio.to_thread), damit die
+        API-Eventloop (inkl. /ready, /status/worker) nicht blockiert wird.
+        _PUBLIC_CACHE puffert Antworten begrenzt (LRU, U3); dies dient der
+        Lastreduzierung, nicht als Ratenbegrenzung.
         """
         raw_path = payload.get("path") or payload.get("url", "")
-        if not isinstance(raw_path, str) or not raw_path.startswith("/api/v2/mix/market/") or "://" in raw_path:
+        if not isinstance(raw_path, str) or "://" in raw_path:
             raise HTTPException(status_code=400, detail="Pfad unzulaessig oder nicht in der Allowlist")
 
         base_path, _, qs = raw_path.partition("?")
-        if not any(base_path.startswith(prefix) for prefix in PUBLIC_ALLOWED_PREFIXES):
+
+        # U3: enges Zeichen-Set erzwingen — verwirft Traversal ("..", "/"),
+        # Backslashes, Whitespace, Steuerzeichen und sonstige Pfadvarianten,
+        # bevor die exakte Allowlist-Prüfung überhaupt greift.
+        if not _PUBLIC_PATH_CHARS_RE.match(base_path):
+            raise HTTPException(status_code=400, detail="Pfad enthaelt unzulaessige Zeichen")
+
+        # U3: exakte Mitgliedschaft statt startswith — Suffixe wie
+        # "/candles_NOT_ALLOWED" werden dadurch zuverlaessig abgewiesen.
+        if base_path not in PUBLIC_ALLOWED_PATHS:
             raise HTTPException(status_code=400, detail="Endpunkt nicht erlaubt")
 
-        # Merge params; enforce key/value length and count limits (R2)
+        # U3: Parameter validieren statt kürzen. Überlänge/zu viele Parameter
+        # führen zu 400, kein stilles Abschneiden mehr.
         params = payload.get("params") or {}
         if not isinstance(params, dict):
-            params = {}
+            raise HTTPException(status_code=400, detail="params muss ein Objekt sein")
+
         merged: dict[str, str] = {}
         for k, v in urllib.parse.parse_qsl(qs, keep_blank_values=True):
-            k_s, v_s = str(k)[:_MAX_PARAM_KEY_LEN], str(v)[:_MAX_PARAM_VAL_LEN]
-            merged.setdefault(k_s, v_s)
+            if len(k) > _MAX_PARAM_KEY_LEN or len(v) > _MAX_PARAM_VAL_LEN:
+                raise HTTPException(status_code=400, detail="Query-Parameter zu lang")
+            merged.setdefault(k, v)
         for k, v in params.items():
-            k_s, v_s = str(k)[:_MAX_PARAM_KEY_LEN], str(v)[:_MAX_PARAM_VAL_LEN]
+            k_s, v_s = str(k), str(v)
+            if len(k_s) > _MAX_PARAM_KEY_LEN or len(v_s) > _MAX_PARAM_VAL_LEN:
+                raise HTTPException(status_code=400, detail="Parameter zu lang")
             merged.setdefault(k_s, v_s)
         if len(merged) > _MAX_PARAMS_COUNT:
             raise HTTPException(status_code=400, detail="Zu viele Query-Parameter")
@@ -226,17 +295,14 @@ def create_app(
         if query_str:
             target_url += f"?{query_str}"
 
-        req = urllib.request.Request(
-            target_url,
-            headers={"User-Agent": "AURA-Quant-Terminal/3.0"},
-        )
         try:
-            # R1: _NO_REDIRECT_OPENER verweigert HTTP-Redirects (SSRF-Schutz)
-            with _NO_REDIRECT_OPENER.open(req, timeout=8.0) as resp:
-                body = json.loads(resp.read(256 * 1024).decode("utf-8"))
-                if body.get("code") == "00000":
-                    _PUBLIC_CACHE.set(cache_key, body, _PUBLIC_CACHE.get_ttl(base_path))
-                return body
+            # U3: blockierendes urllib-I/O in einen Worker-Thread verlagern,
+            # damit die API-Eventloop (und damit /ready, /status/worker etc.)
+            # waehrend eines langsamen Upstreams weiter bedienbar bleibt.
+            body = await asyncio.to_thread(_fetch_upstream_sync, target_url)
+            if body.get("code") == "00000":
+                _PUBLIC_CACHE.set(cache_key, body, _PUBLIC_CACHE.get_ttl(base_path))
+            return body
         except urllib.error.HTTPError as ex:
             raise HTTPException(status_code=ex.code, detail=f"Bitget Upstream HTTP {ex.code}")
         except Exception as ex:
@@ -255,19 +321,37 @@ def create_app(
     # ---------------------------------------------------------------------------
     # Hilfsfunktion: Worker-Zustand autoritativ aus DB lesen
     # ---------------------------------------------------------------------------
-    _WORKER_ACTIVE_STATES = frozenset({"RUNNING", "WARMING_UP", "RECOVERING"})
+    # U1: Nur RUNNING gilt FSM-seitig als entryfaehig — deckungsgleich mit
+    # RunnerStateMachine.can_open_new_trades() (aura/runner/state_machine.py).
+    # WARMING_UP/RECOVERING/DEGRADED sind Zustaende eines gesunden, aber fuer
+    # neue Einstiege gesperrten Prozesses. Prozessgesundheit (process_healthy)
+    # ist daher bewusst von der Entry-Faehigkeit (entries_locked) getrennt.
+    # Das eigentliche Trading-Gate (can_open_new_trades) bleibt unveraendert.
+    _ENTRY_CAPABLE_STATES = frozenset({"RUNNING"})
+    _PROCESS_HEALTHY_STATES = frozenset({"RUNNING", "WARMING_UP", "RECOVERING", "DEGRADED"})
     _STALE_THRESHOLD_S = 120.0
+    # U1: Uhren-Drift bis zu wenigen Sekunden tolerieren; alles darueber ist ein
+    # unplausibler Zukunftszeitstempel und darf nicht als "frisch" gelten.
+    _FUTURE_SKEW_TOLERANCE_S = 5.0
+    # U2: Interner Halt-Freitext (runner_state.reason) darf nicht anonym
+    # veroeffentlicht werden. Oeffentlich wird nur ein fester Code geliefert;
+    # der tatsaechliche Grund bleibt dem authentifizierten /api/v3/state vorbehalten.
+    _PUBLIC_HALT_REASON_CODE = "OPERATOR_OR_SYSTEM_HALT"
 
     def _read_worker_status_from_db() -> dict:
         """Liest runner_state aus DB. Kein Auth nötig, kein Portfolio-Zustand.
 
         Semantik der Felder:
-          fsm_state      — letzter persistierter Zustand des Workers
-          is_halted      — Worker ist im Not-Halt (Einstiege gesperrt)
-          entries_locked — Entry-Gate geschlossen (HALTED, STARTING, veraltete Daten oder kein Eintrag)
-          stale          — letzter Heartbeat > _STALE_THRESHOLD_S Sekunden alt
-          worker_known   — ob ein runner_state-Eintrag in der DB existiert
-          reason         — Halt-Grund (nur gesetzt wenn HALTED)
+          fsm_state        — letzter persistierter Zustand des Workers
+          is_halted        — Worker ist im Not-Halt (Einstiege gesperrt)
+          entries_locked   — Entry-Gate geschlossen (nur RUNNING+frisch oeffnet es)
+          process_healthy  — Prozess laeuft gesund (RUNNING/WARMING_UP/RECOVERING/
+                              DEGRADED und frisch), unabhaengig von entries_locked
+          stale            — letzter Heartbeat > _STALE_THRESHOLD_S alt ODER
+                              Zeitstempel implausibel in der Zukunft
+          worker_known     — ob ein runner_state-Eintrag in der DB existiert
+          reason           — fester oeffentlicher Code (nur gesetzt wenn HALTED),
+                              NIEMALS der interne Freitext (siehe U2)
           data_age_seconds — Sekunden seit letztem Heartbeat (None wenn kein Eintrag)
         """
         try:
@@ -288,6 +372,7 @@ def create_app(
                 "fsm_state": "UNKNOWN",
                 "is_halted": False,
                 "entries_locked": True,
+                "process_healthy": False,
                 "stale": True,
                 "worker_known": False,
                 "reason": None,
@@ -295,22 +380,28 @@ def create_app(
             }
 
         fsm_state = row[0] if isinstance(row, (tuple, list)) else row["fsm_state"]
-        reason = row[1] if isinstance(row, (tuple, list)) else row["reason"]
+        # U2: interner Freitext wird gelesen, aber absichtlich NICHT zurückgegeben.
+        _internal_reason = row[1] if isinstance(row, (tuple, list)) else row["reason"]
         updated_ms = row[2] if isinstance(row, (tuple, list)) else row["updated_at_ms"]
 
         age_s = round((now_ms - (updated_ms or 0)) / 1000.0, 1) if updated_ms else None
-        stale = (age_s is None) or (age_s > _STALE_THRESHOLD_S)
+        # U1: unplausibler Zukunftszeitstempel (Uhr-Drift/Manipulation) zaehlt als stale.
+        implausible_future = age_s is not None and age_s < -_FUTURE_SKEW_TOLERANCE_S
+        stale = (age_s is None) or (age_s > _STALE_THRESHOLD_S) or implausible_future
         is_halted = (fsm_state == "HALTED")
-        # Entry-Gate: nur freigeben wenn RUNNING/WARMING_UP/RECOVERING UND frisch
-        entries_locked = is_halted or stale or (fsm_state not in _WORKER_ACTIVE_STATES)
+        # Entry-Gate: ausschließlich frisches RUNNING öffnet Einstiege (U1).
+        entries_locked = stale or (fsm_state not in _ENTRY_CAPABLE_STATES)
+        # Prozessgesundheit ist unabhängig von der Entry-Freigabe zu bewerten (U1).
+        process_healthy = (not stale) and (fsm_state in _PROCESS_HEALTHY_STATES)
 
         return {
             "fsm_state": fsm_state,
             "is_halted": is_halted,
             "entries_locked": entries_locked,
+            "process_healthy": process_healthy,
             "stale": stale,
             "worker_known": True,
-            "reason": reason if is_halted else None,
+            "reason": _PUBLIC_HALT_REASON_CODE if is_halted else None,
             "data_age_seconds": age_s,
         }
 
@@ -336,8 +427,12 @@ def create_app(
         Liest den Worker-Zustand direkt aus der DB (runner_state),
         nicht aus der In-Memory-SM des API-Prozesses.
 
-        bot_enabled=True nur wenn Worker RUNNING/WARMING_UP/RECOVERING UND frischer Heartbeat.
-        STARTING, HALTED, fehlender oder veralteter Eintrag → bot_enabled=False (fail-closed).
+        bot_enabled=True nur wenn Worker RUNNING (deckungsgleich mit
+        RunnerStateMachine.can_open_new_trades()) UND frischer, plausibler
+        Heartbeat. STARTING, WARMING_UP, RECOVERING, DEGRADED, HALTED,
+        fehlender/veralteter/zukunftsdatierter Eintrag → bot_enabled=False
+        (fail-closed). process_healthy meldet unabhängig davon, ob der
+        Worker-Prozess grundsätzlich lebt (U1: Prozessgesundheit != Entry-Gate).
         """
         ws = _read_worker_status_from_db()
         return {
@@ -345,6 +440,7 @@ def create_app(
             "mode": "server",
             "bot_enabled": not ws["entries_locked"],
             "is_halted": ws["is_halted"],
+            "process_healthy": ws["process_healthy"],
             "worker_known": ws["worker_known"],
             "stale": ws["stale"],
             "system_state": ws["fsm_state"],
