@@ -29,7 +29,7 @@ Bitget-Futures verwenden für `size` die Menge der Base Coin. Deshalb ist `sizeM
 
 Pflichtfelder werden als Dezimalstrings geparst und validiert. Fehlende, nullwertige, negative oder widersprüchliche Werte erzeugen keine Spezifikation. Es gibt keine erfundenen Null- oder Börsen-Defaults.
 
-## Liquiditäts-Policy `aura-liquidity-v1`
+## Liquiditäts-Policy `aura-liquidity-v2`
 
 Entscheidungszeit ist die aktuelle Worker-/Updater-Uhr, nicht die Startzeit einer Kerze. Ein Snapshot ist höchstens 120 Sekunden alt; mehr als 5 Sekunden Zukunftsabweichung blockieren.
 

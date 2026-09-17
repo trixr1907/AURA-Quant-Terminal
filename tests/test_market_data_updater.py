@@ -182,3 +182,94 @@ def test_market_data_updater_invalidates_removed_contract_specs(tmp_path):
     assert eth_u["active"] == 0
     assert eth_u["liquidity_verified"] == 0
     assert eth_u["status"] == "insufficient"
+
+
+def test_updater_evaluates_fresh_clock_advancing_during_fetch(tmp_path):
+    conn = connect(tmp_path / "advancing_clock.db")
+
+    class AdvancingClock:
+        def __init__(self, start_sec: float):
+            self.current_sec = start_sec
+
+        def time(self) -> float:
+            return self.current_sec
+
+        def advance(self, delta_sec: float):
+            self.current_sec += delta_sec
+
+    clock = AdvancingClock(1_000_000.0)
+    spec_time_ms = int(clock.time() * 1000)
+
+    spec = ContractSpec(
+        symbol="BTCUSDT",
+        product_type="USDT-FUTURES",
+        symbol_type="perpetual",
+        symbol_status="normal",
+        base_coin="BTC",
+        quote_coin="USDT",
+        settle_coin="USDT",
+        price_tick=Decimal("0.1"),
+        qty_step=Decimal("0.0001"),
+        min_qty=Decimal("0.0001"),
+        min_notional=Decimal("5"),
+        maker_fee_rate=Decimal("0.0002"),
+        taker_fee_rate=Decimal("0.0006"),
+        max_leverage=125,
+        event_time_ms=spec_time_ms,
+        fetched_at_ms=spec_time_ms,
+        raw_snapshot_sha256="sha_spec",
+    )
+
+    mock_adapter = MagicMock()
+    mock_adapter.fetch_contract_specs.return_value = [spec]
+
+    def mock_fetch_tickers():
+        t_ms = int(clock.time() * 1000)
+        return (
+            {
+                "code": "00000",
+                "data": [{"symbol": "BTCUSDT", "usdtVolume": "50000000", "ts": str(t_ms)}],
+            },
+            t_ms,
+            "sha_tickers",
+        )
+
+    def mock_fetch_depth(symbol, limit=50):
+        book_ts = int(clock.time() * 1000)
+        clock.advance(130.0)
+        fetch_finish_ms = int(clock.time() * 1000)
+        return (
+            {"code": "00000", "data": {"ts": str(book_ts)}},
+            fetch_finish_ms,
+            "sha_depth",
+        )
+
+    mock_adapter.fetch_all_tickers.side_effect = mock_fetch_tickers
+    mock_adapter.fetch_orderbook_depth.side_effect = mock_fetch_depth
+    mock_adapter.parse_depth_metrics.return_value = (
+        Decimal("0.5"),
+        Decimal("50000"),
+        Decimal("50000"),
+        Decimal("70000.0"),
+        Decimal("70000.1"),
+        True,
+    )
+
+    updater = MarketDataUpdater(
+        conn=conn,
+        adapter=mock_adapter,
+        policy=LiquidityPolicy(),
+        symbols=["BTCUSDT"],
+        time_provider=clock.time,
+    )
+
+    res = updater.update_cycle(force=True)
+    assert res["updated"] is True
+    assert res["symbols"]["BTCUSDT"]["status"] == "stale"
+    assert res["symbols"]["BTCUSDT"]["verified"] is False
+    assert "STALE_BOOK_EVENT_TIME" in res["symbols"]["BTCUSDT"]["reasons"]
+
+    row = conn.execute("SELECT active, liquidity_verified, status, reasons_json FROM universe WHERE symbol = 'BTCUSDT'").fetchone()
+    assert row["liquidity_verified"] == 0
+    assert row["status"] == "stale"
+    assert "STALE_BOOK_EVENT_TIME" in row["reasons_json"]

@@ -11,6 +11,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import time
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -18,6 +19,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aura.api.app import create_app
+from aura.core.risk import round_price_to_tick
 from aura.core.scoring import analyze_candles
 from aura.data.bitget_adapter import BitgetMarketAdapter
 from aura.data.models import Candle
@@ -133,7 +135,7 @@ class TestVerticalIntegration:
             assert pos.direction == 1
             assert pos.status == "open"
             assert pos.tp1_hit is False
-            expected_fill = initial_candles[-1].close * (1.0 + 1.5 / 10000.0)
+            expected_fill = float(round_price_to_tick(Decimal(str(initial_candles[-1].close * (1.0 + 1.5 / 10000.0))), Decimal("0.1")))
             assert abs(pos.entry_price - expected_fill) < 1e-4
             entry_price = pos.entry_price
             tp1_target = pos.tp1_price
