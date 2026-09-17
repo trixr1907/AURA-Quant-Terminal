@@ -13,14 +13,21 @@ services:
   # 1. API & Control Plane (WebUI + REST API)
   # ----------------------------------------------------------------------------
   aura-api:
-    image: aura-quant-terminal:2.5.0
+    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:2.5.0}
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ${AURA_API_CONTAINER_NAME:-aura-api}
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "${AURA_PORT_BIND:-127.0.0.1:8000}:8000"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     environment:
       - AURA_DB_PATH=/data/aura_state.db
       - AURA_STATE_DIR=/var/lib/aura
@@ -34,10 +41,15 @@ services:
     # Healthcheck fuer API-Container (Referenz 127.0.0.1:8787/ready via Fallback)
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4) if False else urllib.request.urlopen('http://127.0.0.1:8000/api/v3/health', timeout=4)\" || exit 1"]
-      interval: 30s
+      interval: ${AURA_API_HC_INTERVAL:-5s}
       timeout: 5s
       retries: 3
       start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -48,18 +60,26 @@ services:
   # 2. Worker Engine (Headless Runner)
   # ----------------------------------------------------------------------------
   aura-worker:
-    image: aura-quant-terminal:2.5.0
+    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:2.5.0}
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ${AURA_WORKER_CONTAINER_NAME:-aura-worker}
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     command: ["python3", "-m", "aura.runner.worker", "--interval", "${AURA_WORKER_INTERVAL:-60}"]
     environment:
       - AURA_DB_PATH=/data/aura_state.db
       - AURA_STATE_DIR=/var/lib/aura
       - AURA_RELAY_TOKEN=${AURA_RELAY_TOKEN:-}
       - AURA_ALLOWED_HOSTS=${AURA_ALLOWED_HOSTS:-127.0.0.1}
+      - AURA_NTFY_URL=${AURA_NTFY_URL:-}
     volumes:
       - aura_data:/data
       - aura-state:/var/lib/aura
@@ -71,10 +91,15 @@ services:
     # Healthcheck fuer Worker-Container prueft Datenbank-Heartbeat, NICHT Port 8000
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import sqlite3, time; c=sqlite3.connect('/data/aura_state.db'); row=c.execute('SELECT updated_at_ms FROM runner_state WHERE id=1').fetchone(); c.close(); now=time.time()*1000; exit(0 if row and (now - row[0]) < 180000 else 1)\" || exit 1"]
-      interval: 30s
+      interval: ${AURA_WORKER_HC_INTERVAL:-30s}
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: ${AURA_WORKER_HC_START_PERIOD:-30s}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     logging:
       driver: "json-file"
       options:

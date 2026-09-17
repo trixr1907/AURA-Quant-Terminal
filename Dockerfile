@@ -25,9 +25,9 @@ RUN groupadd -g 1000 aura && \
 RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
 RUN mkdir -p /data /app && chown -R aura:aura /data /app
 
-# Installiere deklarierte Python-Abhaengigkeiten
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# Installiere verifizierten Lockstand der Python-Abhaengigkeiten (D1)
+COPY requirements.lock requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.lock
 
 # Kopiere Quellcode und statische Assets
 COPY --chown=aura:aura VERSION .

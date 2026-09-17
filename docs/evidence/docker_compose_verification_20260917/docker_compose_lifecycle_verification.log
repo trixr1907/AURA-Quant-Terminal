@@ -1,34 +1,65 @@
-[TEARDOWN] Stopping Compose project and wiping test volumes...
-[1/8] Checking Compose CLI and Docker daemon...
-  -> Docker Compose CLI: Docker Compose version v5.5.1
-[2/8] Building Compose images cleanly...
-[3/8] Starting Compose stack on empty test volumes...
-[4/8] Waiting for API readiness and verifying DB migrations...
-  -> API is online (HTTP 200): {'status': 'starting', 'system_state': 'STARTING', 'version': '3.0.0-dev', 'data_fresh': True, 'active_trades': 0, 'uptime_seconds': 0.63, 'timestamp_ms': 1789614520047}
-  -> Migrations verified on empty volume: ['schema_migrations', 'candles', 'universe', 'trades', 'trade_events', 'sqlite_sequence', 'commands', 'config_revisions', 'runner_state', 'shadow_log', 'notify_events', 'audit_log', 'processed_bars']
-[5/8] Verifying separate container healthchecks...
-  -> API Healthcheck status: starting
-  -> Worker Healthcheck status: starting
-[6/8] Web access, token authentication and config workflow...
-  -> Dashboard Web-UI delivered (HTTP 200)
-  -> Session established via cookie auth
-  -> Config revision 1 posted: cmd_46beb5d337d047198646e3520a360e3e
-  -> Worker applied and acknowledged config revision (long_threshold=68.0)
-[7/8] Emergency Halt, container restart and persistence verification...
-  -> Worker state before halt: (1789614520929, '[w_1_b8793d] Feeds initialisiert, bereit fuer Signal-Scanning & Execution', 'RUNNING')
-  -> Emergency halt posted
-  -> Worker transitioned to HALTED state
-  -> Pre-restart Worker Instance: '[w_1_b8793d] Not-Halt: Compose Audit Test Halt', Heartbeat: 1789614525282
-  -> Executing: docker compose restart...
-  -> Post-restart Worker Instance: '[w_1_043d03] Not-Halt: Compose Audit Test Halt', Heartbeat: 1789614533828
-  -> RESTART EVIDENCE CONFIRMED: New worker instance ID and fresh post-restart heartbeat verified!
-  -> PERSISTENCE CONFIRMED: Halt state and config survived container restart perfectly.
-[8/8] Verifying honest market data display and open liquidity gap...
-  -> Radar rejection sample: symbol=DOGEUSDT, reason='Liquiditaet nicht verifiziert'
-  -> Honest display confirmed: 0 open positions, fail-closed liquidity gating.
-
 ========================================================
-DOCKER COMPOSE LIFECYCLE VERIFICATION: 100% PASSED!
+AURA DOCKER-COMPOSE LIFECYCLE AUDIT (D1-D5 Härtung)
+Run-ID:   run_1789615570_07eba4
+Project:  aura_audit_run_1789615570_07eba4
+Image:    aura-audit-test:run_1789615570_07eba4
 ========================================================
 
-[TEARDOWN] Stopping Compose project and wiping test volumes...
+[1/10] Docker Daemon Endpunkt & Kollisionsprüfung...
+  -> Docker Engine Version: 29.1.3
+  -> Docker Compose CLI:    Docker Compose version v5.5.1
+  -> Keine Namenskollisionen im Docker-Namespace.
+[2/10] Erzeuge fremde Sentinel-Ressourcen (Isolations-Beweis)...
+  -> Sentinel-Volume angelegt:  aura_sentinel_vol_run_1789615570_07eba4
+  -> Sentinel-Network angelegt: aura_sentinel_net_run_1789615570_07eba4
+[3/10] Negativ-Test: Ein nie erfolgreicher Healthcheck muss fehlschlagen...
+  -> Negativ-Test ERFOLGREICH: Defekter Healthcheck wurde wie erwartet abgewiesen:
+     Container 'aura_hc_fail_test_run_1789615570_07eba4' entered 'unhealthy' state: {'Status': 'unhealthy', 'FailingStreak': 2, 'Log': [{'Start': '2026-09-17T05:26:11.485219903+02:00', 'End': '2026-09-17T05:26:11.51854134+02:00', 'ExitCode': 1, 'Output': ''}, {'Start': '2026-09-17T05:26:12.52387506+02:00', 'End': '2026-09-17T05:26:12.56297549+02:00', 'ExitCode': 1, 'Output': ''}]}
+[4/10] D1: Cache-Ausschluss Clean-Build des Test-Images (konsumiert requirements.lock)...
+  -> Clean-Build abgeschlossen in 62.66s.
+  -> Gebautes Test-Image ID: sha256:7426efd4e666102f5359be01b6572e6c7fd195907425d1613b7c603cf1601cea
+  -> Verifizierte Pakete im Image:
+     Name: fastapi
+     Version: 0.141.1
+     Name: uvicorn
+     Version: 0.53.0
+     Name: pydantic
+     Version: 2.13.5
+[5/10] D2: Start Compose-Stack mit Schutzmassnahmen auf isoliertem Volume...
+  -> Schutzmassnahmen 'aura-api-run_1789615570_07eba4': true [no-new-privileges:true] [ALL] 536870912
+  -> Schutzmassnahmen 'aura-worker-run_1789615570_07eba4': true [no-new-privileges:true] [ALL] 536870912
+[6/10] D4: Warte auf verifizierten 'healthy'-Zustand (API & Worker)...
+  -> API Healthcheck:    STATUS=healthy (FailingStreak=0)
+  -> Worker Healthcheck: STATUS=healthy (FailingStreak=0)
+  -> DB-Migrationen verifiziert: ['schema_migrations', 'candles', 'universe', 'trades', 'trade_events', 'sqlite_sequence', 'commands', 'config_revisions', 'runner_state', 'shadow_log', 'notify_events', 'audit_log', 'processed_bars']
+[7/10] D5: Getrennter Nachweis: Header-Token vs. Cookie-only Authentifizierung...
+  -> Header-Token-Authentifizierung erfolgreich (HTTP 200, ohne Cookie).
+  -> Cookie-Login erfolgreich. Session-Cookie erhalten.
+  -> STRIKTER Cookie-only Zugriff auf /state erfolgreich (HTTP 200, kein Token-Header).
+[8/10] D5: Konfigurationsquittierung & Negativtest mit gestopptem Worker...
+  -> Revision 1 angefordert: Command-ID=cmd_44e283a4fd7643dfaf00d40318e0e8e3
+  -> Quittierung belegt: active_config_rev=1, DB-Command=('applied', 1789615645515)
+  -> Stoppe Worker-Container fuer Negativtest...
+  -> Revision 2 bei GESTOPPTEM Worker angefordert: Command-ID=cmd_0bab675157b54be3801c01240c6c009f
+  -> Pruefung bei gestopptem Worker: active_rev=1, DB-Command=('pending', None)
+  -> Negativ-Test ERFOLGREICH: Gestoppter Worker kann keine Konfiguration quittieren (Status: pending).
+  -> Starte Worker-Container wieder...
+  -> Quittierung nach Worker-Wiederanlauf belegt: active_config_rev=2, DB=('applied', 1789615653647)
+[9/10] Not-Halt, Container-Neustart, Session-Invalidierung & Persistenz...
+  -> Worker vor Not-Halt: (1789615655353, '[w_1_3c3aaa] Feeds initialisiert, bereit fuer Signal-Scanning & Execution')
+  -> Pre-restart Worker-Instanz: w_1_3c3aaa, Heartbeat: 1789615660773
+  -> Führe aus: docker compose restart...
+  -> Status altes Cookie nach API-Neustart: HTTP 401
+  -> Session-Invalidierung verifiziert: Altes Cookie liefert wie erwartet HTTP 401.
+  -> Neuanmeldung nach Neustart erfolgreich; neues Session-Cookie aktiv.
+  -> Post-restart Worker-Instanz: w_1_7afe49, Heartbeat: 1789615663729
+  -> RESTART-NACHWEIS BESTAETIGT: Neue Instanz-ID (w_1_3c3aaa -> w_1_7afe49) und frischer Heartbeat.
+  -> PERSISTENZ BESTAETIGT: Not-Halt und Konfigurationsrevision ueber Neustart persistent erhalten.
+[10/10] D3: Sicherer Teardown des Stacks & Pruefung fremder Sentinel-Ressourcen...
+  -> ISOLATIONS-BEWEIS ERFOLGREICH: Fremde Sentinel-Ressourcen blieben unangetastet!
+  -> Raeume gezielt eigene Sentinels, Test-Image und Test-Stack auf...
+
+========================================================
+DOCKER COMPOSE LIFECYCLE AUDIT: 100% PASSED (D1-D5 ERFÜLLT)!
+========================================================
+
