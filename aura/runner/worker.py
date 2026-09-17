@@ -64,15 +64,88 @@ class AuraWorkerService:
         ntfy_cfg = NotificationConfig(enabled=bool(ntfy_url), topic_url=ntfy_url)
         self.notifier = NotificationDispatcher(config=ntfy_cfg, conn=self.conn)
 
+        # R1: Persistierten Zustand (Not-Halt, aktive Konfig) und R4 (verwaiste Claims) wiederherstellen
+        self._restore_persisted_state()
+
+    def _restore_persisted_state(self) -> None:
+        """Stellt aktive Konfiguration, Not-Halt-Zustand und verwaiste Bar-Claims aus der DB wieder her."""
+        # 1. R4: Verwaiste 'processing'-Bar-Claims aus vorangegangenen Abstuerzen aufraeumen
+        try:
+            with self.conn:
+                self.conn.execute("DELETE FROM processed_bars WHERE decision = 'processing'")
+        except Exception as ex:
+            logger.debug("processed_bars Clean-Up: %s", ex)
+
+        # 2. R1: Zuletzt angewendete Konfiguration aus config_revisions laden
+        try:
+            cur = self.conn.execute(
+                "SELECT payload, rev FROM config_revisions WHERE applied_at_ms IS NOT NULL ORDER BY rev DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+            if row and row["payload"]:
+                cfg = json.loads(row["payload"])
+                if "risk_per_trade_pct" in cfg:
+                    self.risk_per_trade_pct = float(cfg["risk_per_trade_pct"])
+                if "max_open_positions" in cfg:
+                    self.max_open_positions = int(cfg["max_open_positions"])
+                if "long_threshold" in cfg:
+                    self.long_threshold = float(cfg["long_threshold"])
+                if "short_threshold" in cfg:
+                    self.short_threshold = float(cfg["short_threshold"])
+                self.engine.config = EngineConfig(
+                    risk_per_trade_pct=self.risk_per_trade_pct,
+                    max_open_positions=self.max_open_positions,
+                )
+                logger.info("Aktive Konfigurations-Revision %s wiederhergestellt", row["rev"])
+        except Exception as ex:
+            logger.warning("Konnte persistierte Konfiguration nicht laden: %s", ex)
+
+        # 3. R1: Persistierten Not-Halt wiederherstellen
+        try:
+            cur = self.conn.execute(
+                "SELECT type, payload FROM commands WHERE type IN ('halt', 'resume') AND status = 'applied' "
+                "ORDER BY applied_at_ms DESC, id DESC LIMIT 1"
+            )
+            last_cmd = cur.fetchone()
+
+            cur = self.conn.execute("SELECT fsm_state, reason FROM runner_state WHERE id = 1")
+            last_runner = cur.fetchone()
+
+            should_halt = False
+            halt_reason = "Persistierter Not-Halt nach Neustart wiederhergestellt"
+            if last_cmd and last_cmd["type"] == "halt":
+                should_halt = True
+                p = json.loads(last_cmd["payload"] or "{}")
+                halt_reason = str(p.get("reason") or halt_reason)
+            elif last_runner and last_runner["fsm_state"] == "HALTED":
+                should_halt = True
+                halt_reason = str(last_runner["reason"] or halt_reason)
+
+            if should_halt and not self.sm.is_halted:
+                self.sm.emergency_halt(halt_reason)
+                logger.warning("Not-Halt aus persistentem Zustand wiederhergestellt: %s", halt_reason)
+        except Exception as ex:
+            logger.warning("Konnte Not-Halt-Status nicht pruefen: %s", ex)
+
     def start(self, max_cycles: int | None = None) -> None:
         """Startet die Worker-Schleife."""
         self._running = True
         self._setup_signals()
         logger.info("AURA v3 Worker gestartet (DB: %s, Symbole: %s)", self.db_path, self.symbols)
 
-        self.sm.transition_to(SystemState.WARMING_UP, "Initialisiere Marktdaten-Feeds")
-        self._warmup_feeds()
-        self.sm.transition_to(SystemState.RUNNING, "Feeds initialisiert, bereit fuer Signal-Scanning & Execution")
+        # Persistierten Zustand vor Start-Uebergaengen aktualisieren
+        self._restore_persisted_state()
+
+        if self.sm.is_halted:
+            logger.warning("Worker startet im Zustand HALTED (persistierter Not-Halt aktiv: %s)", self.sm.halt_reason)
+        else:
+            self.sm.transition_to(SystemState.WARMING_UP, "Initialisiere Marktdaten-Feeds")
+            warmup_ok = self._warmup_feeds()
+            if not warmup_ok:
+                logger.warning("Warmup unvollstaendig (Marktdaten offline oder unzureichend). Gehe in DEGRADED.")
+                self.sm.mark_degraded("Marktdaten beim Start unvollstaendig oder offline")
+            else:
+                self.sm.transition_to(SystemState.RUNNING, "Feeds initialisiert, bereit fuer Signal-Scanning & Execution")
 
         cycle = 0
         while self._running:
@@ -101,16 +174,20 @@ class AuraWorkerService:
             # Nicht im Main-Thread (z.B. bei Tests)
             pass
 
-    def _warmup_feeds(self) -> None:
+    def _warmup_feeds(self) -> bool:
+        all_ok = True
         for sym in self.symbols:
             try:
                 candles, rep = self.adapter.fetch_candles(sym, granularity="1H", limit=100)
-                if rep.is_valid:
+                if rep.is_valid and len(candles) >= 30:
                     logger.info("Warmup erfolgreich fuer %s (%d Bars geladen)", sym, len(candles))
                 else:
-                    logger.warning("Warmup Warnung fuer %s: %s", sym, rep.errors)
+                    all_ok = False
+                    logger.warning("Warmup Warnung fuer %s: %s (Bars: %d)", sym, rep.errors, len(candles))
             except Exception as ex:
+                all_ok = False
                 logger.warning("Konnte Warmup fuer %s nicht abschliessen: %s", sym, ex)
+        return all_ok
 
     def _apply_control_plane_commands(self) -> None:
         """Applies pending API commands through the shared SQLite control plane."""
@@ -165,10 +242,13 @@ class AuraWorkerService:
         logger.debug("Worker-Zyklus #%d gestartet...", cycle)
         self._apply_control_plane_commands()
 
+        all_feeds_valid = True
+
         for sym in self.symbols:
             try:
                 candles, rep = self.adapter.fetch_candles(sym, granularity="1H", limit=60)
-                if not candles or not rep.is_valid or len(candles) < 30:
+                if not rep or not rep.is_valid or not candles or len(candles) < 30:
+                    all_feeds_valid = False
                     continue
 
                 self._persist_candles(sym, "1h", candles)
@@ -198,6 +278,7 @@ class AuraWorkerService:
                     )
 
                 # 2. Signal-Scanning fuer neue Entries (nur wenn System RUNNING ist)
+                trade_opened_id = None
                 if self.sm.can_open_new_trades():
                     has_open = any(p.symbol == sym for p in self.engine.open_positions.values())
                     if (
@@ -205,7 +286,9 @@ class AuraWorkerService:
                         and not has_open
                         and self._liquidity_is_verified(sym, last_bar.time_ms)
                     ):
-                        self._evaluate_and_enter(sym, closed_candles)
+                        pos = self._evaluate_and_enter(sym, closed_candles)
+                        if pos is not None:
+                            trade_opened_id = pos.trade_id
                     elif has_open:
                         self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", f"Bereits offene Position fuer {sym}")
                     elif len(self.engine.open_positions) >= self.max_open_positions:
@@ -215,8 +298,23 @@ class AuraWorkerService:
                 elif self.sm.is_halted:
                     self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Not-Halt aktiv")
 
+                # Bar-Verarbeitung erfolgreich abschliessen (decision='completed')
+                self._complete_closed_bar(
+                    symbol=sym,
+                    timeframe="1h",
+                    open_time_ms=last_bar.time_ms,
+                    decision="completed",
+                    trade_id=trade_opened_id,
+                )
+
             except Exception as ex:
+                all_feeds_valid = False
                 logger.warning("Fehler beim Verarbeiten von %s in Zyklus #%d: %s", sym, cycle, ex)
+
+        # R2: Recovery ueberpruefen
+        if self.sm.current_state in (SystemState.RECOVERING, SystemState.DEGRADED):
+            if all_feeds_valid and len(self.symbols) > 0:
+                self.sm.mark_healthy("Recovery erfolgreich: Alle Feeds synchron und valide")
 
         self._update_runner_state(cycle)
 
@@ -306,9 +404,25 @@ class AuraWorkerService:
                 "VALUES ('bitget', ?, ?, ?, ?, 'processing')",
                 (symbol, timeframe, open_time_ms, int(time.time() * 1000)),
             )
-        return cursor.rowcount == 1
+            return cursor.rowcount == 1
 
-    def _evaluate_and_enter(self, symbol: str, candles: list[Candle]) -> None:
+    def _complete_closed_bar(
+        self,
+        symbol: str,
+        timeframe: str,
+        open_time_ms: int,
+        decision: str = "completed",
+        trade_id: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        with self.conn:
+            self.conn.execute(
+                "UPDATE processed_bars SET decision = ?, trade_id = ?, detail = ?, processed_at_ms = ? "
+                "WHERE source = 'bitget' AND symbol = ? AND timeframe = ? AND open_time_ms = ?",
+                (decision, trade_id, detail, int(time.time() * 1000), symbol, timeframe, open_time_ms),
+            )
+
+    def _evaluate_and_enter(self, symbol: str, candles: list[Candle]):
         """Analysiert Kerzen und eroeffnet neue Paper-Position bei hoher Konfluenz."""
         raw_list = [
             {
@@ -324,7 +438,7 @@ class AuraWorkerService:
 
         analysis = analyze_candles(raw_list)
         if not analysis.score:
-            return
+            return None
 
         last_idx = len(analysis.score) - 1
         score = analysis.score[last_idx]
@@ -379,9 +493,19 @@ class AuraWorkerService:
                     priority=3,
                     event_type="TRADE_OPEN",
                 )
+                return pos
+        return None
 
 
 if __name__ == "__main__":
-    db_path = os.environ.get("AURA_DB_PATH", "aura_state.db")
-    worker = AuraWorkerService(db_path=db_path)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="AURA v3 Autonomer Hintergrund-Worker")
+    parser.add_argument("--db", default=os.environ.get("AURA_DB_PATH", "aura_state.db"), help="Pfad zur SQLite-Datenbank")
+    parser.add_argument("--symbols", default="BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,DOGEUSDT", help="Kommagetrennte Symbole")
+    parser.add_argument("--interval", type=int, default=60, help="Poll-Intervall in Sekunden")
+    args = parser.parse_args()
+
+    sym_list = [s.strip() for s in args.symbols.split(",") if s.strip()]
+    worker = AuraWorkerService(db_path=args.db, poll_interval_sec=args.interval, symbols=sym_list)
     worker.start()
