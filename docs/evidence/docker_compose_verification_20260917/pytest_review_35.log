@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collected 35 items
+
+tests/test_v3_review_g1_to_g3_regressions.py .........                   [ 25%]
+tests/test_v3_review_r1_to_r5_regressions.py ..........                  [ 54%]
+tests/test_v3_runner.py .......                                          [ 74%]
+tests/test_v3_store.py .........                                         [100%]
+
+============================== 35 passed in 3.19s ==============================
