@@ -26,6 +26,21 @@ from aura.runner.state_machine import RunnerStateMachine, SystemState
 from aura.runner.worker import AuraWorkerService
 from aura.store.db import connect, migrate
 
+
+def _seed_verified_market_data(worker: AuraWorkerService, symbol: str, now_ms: int) -> None:
+    worker.persist_test_market_snapshot(
+        symbol=symbol,
+        now_ms=now_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="5000000",
+        ask_depth_notional="5000000",
+        quote_volume_24h="100000000",
+    )
+
 _TEST_TOKEN = "test-vertical-integration-token"
 
 
@@ -107,12 +122,7 @@ class TestVerticalIntegration:
 
             # Mocke Notifier
             worker.notifier.send_alert = MagicMock(return_value=True)
-            with worker.conn:
-                worker.conn.execute(
-                    "INSERT INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-                    "VALUES ('BTCUSDT', 1, 1, 100000000.0, ?)",
-                    (initial_candles[-1].time_ms,),
-                )
+            _seed_verified_market_data(worker, "BTCUSDT", int(now_sim * 1000))
 
             # 1. Zyklus: Scanner erkennt bullisches Signal und eroeffnet Long-Position
             worker._run_cycle(1)
@@ -216,12 +226,7 @@ class TestVerticalIntegration:
         candles = generate_synthetic_bullish_trend(num_bars=50, start_price=50000.0)
         worker.adapter.fetch_candles = MagicMock(return_value=(candles, MagicMock(is_valid=True)))
         worker.notifier.send_alert = MagicMock(return_value=True)
-        with worker.conn:
-            worker.conn.execute(
-                "INSERT INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-                "VALUES ('BTCUSDT', 1, 1, 100000000.0, ?)",
-                (candles[-1].time_ms,),
-            )
+        _seed_verified_market_data(worker, "BTCUSDT", candles[-1].time_ms + 3600_000)
         worker._run_cycle(1)
 
         state = client.get("/api/v3/state").json()
@@ -250,12 +255,7 @@ class TestWorkerMarketPersistence:
         )
         worker.adapter.fetch_candles = MagicMock(return_value=(candles, MagicMock(is_valid=True)))
         worker.notifier.send_alert = MagicMock(return_value=True)
-        with worker.conn:
-            worker.conn.execute(
-                "INSERT INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-                "VALUES ('BTCUSDT', 1, 1, 100000000.0, ?)",
-                (candles[-2].time_ms,),
-            )
+        _seed_verified_market_data(worker, "BTCUSDT", candles[-2].time_ms + 3600_000)
 
         worker._run_cycle(1)
         first_trade_ids = set(worker.engine.open_positions)
@@ -290,12 +290,7 @@ class TestWorkerMarketPersistence:
         worker._run_cycle(1)
         assert worker.engine.open_positions == {}
 
-        with worker.conn:
-            worker.conn.execute(
-                "INSERT INTO universe (symbol, active, liquidity_verified, vol_24h, updated_at_ms) "
-                "VALUES ('BTCUSDT', 1, 1, 100000000.0, ?)",
-                (candles[-1].time_ms,),
-            )
+        _seed_verified_market_data(worker, "BTCUSDT", candles[-1].time_ms + 3600_000)
         worker.conn.execute("DELETE FROM processed_bars")
         worker._run_cycle(2)
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_UP
 from typing import Any
 
 
@@ -116,81 +116,57 @@ class PositionSize:
 
 
 def size_position(
-    risk_amt: float,
-    entry: float,
-    stop_distance: float,
+    risk_amt: float | Decimal,
+    entry: float | Decimal,
+    stop_distance: float | Decimal,
     leverage: int = 1,
     spec: dict[str, Any] | None = None,
 ) -> PositionSize:
-    """Berechnet Lots/Kontrakte mit Truncation und ULP-Schutz (F29).
-
-    Rundet NIEMALS auf ein Boersen-Minimum auf, wenn das Budget ueberschritten wuerde.
-    """
+    """Calculate base-coin size with exact downward step rounding."""
     zero = PositionSize(qty=0.0, contracts=0, notional=0.0, margin=0.0, actual_risk_amt=0.0)
-    if not (
-        math.isfinite(risk_amt)
-        and risk_amt > 0
-        and math.isfinite(entry)
-        and entry > 0
-        and math.isfinite(stop_distance)
-        and stop_distance > 0
-        and leverage > 0
-    ):
+    try:
+        risk_d = Decimal(str(risk_amt))
+        entry_d = Decimal(str(entry))
+        stop_d = Decimal(str(stop_distance))
+        leverage_d = Decimal(leverage)
+    except (InvalidOperation, ValueError):
+        return zero
+    if not all(value.is_finite() and value > 0 for value in (risk_d, entry_d, stop_d, leverage_d)):
         return zero
 
-    ct_val = float(spec.get("ctVal", 0.0)) if spec else 0.0
-    if ct_val <= 0:
+    raw_step = spec.get("qtyStep", spec.get("ctVal")) if spec else None
+    raw_min_qty = spec.get("minQty", spec.get("minSize", 0)) if spec else None
+    raw_min_notional = spec.get("minNotional", 0) if spec else None
+    try:
+        qty_step = Decimal(str(raw_step))
+        min_qty = Decimal(str(raw_min_qty))
+        min_notional = Decimal(str(raw_min_notional))
+    except (InvalidOperation, ValueError):
+        return zero
+    if not qty_step.is_finite() or qty_step <= 0 or min_qty < 0 or min_notional < 0:
         return zero
 
-    raw_contracts = (risk_amt / stop_distance) / ct_val
-    if not math.isfinite(raw_contracts) or raw_contracts < 1:
+    raw_qty = risk_d / stop_d
+    steps = int((raw_qty / qty_step).to_integral_value(rounding=ROUND_DOWN))
+    min_steps = max(1, int((min_qty / qty_step).to_integral_value(rounding=ROUND_UP)))
+    if steps < min_steps:
         return zero
 
-    contracts = int(math.floor(raw_contracts))
-    if contracts <= 0:
+    qty = qty_step * steps
+    actual_risk = qty * stop_d
+    if actual_risk > risk_d:
         return zero
-
-    min_size = float(spec.get("minSize", 0.0)) if spec else 0.0
-    min_contracts = max(1, int(math.ceil(min_size / ct_val))) if min_size > 0 else 1
-    if contracts < min_contracts:
+    notional = qty * entry_d
+    if notional < min_notional:
         return zero
-
-    # Praezision aus ctVal ableiten
-    ct_str = str(ct_val)
-    if "e-" in ct_str:
-        qty_precision = min(12, int(ct_str.split("e-")[1]))
-    elif "." in ct_str:
-        qty_precision = min(12, len(ct_str.split(".")[1]))
-    else:
-        qty_precision = 0
-
-    qty = round(contracts * ct_val, qty_precision)
-    actual_risk = qty * stop_distance
-
-    # ULP-Schutz: falls Float-Multiplikation das Budget ueberschreitet
-    if actual_risk > risk_amt:
-        contracts -= 1
-        if contracts < min_contracts:
-            return zero
-        qty = round(contracts * ct_val, qty_precision)
-        actual_risk = qty * stop_distance
-
-    raw_notional = qty * entry
-    min_notional = float(spec.get("minNotional", 0.0)) if spec else 0.0
-    if raw_notional < min_notional:
-        return zero
-
-    notional = math.floor(raw_notional * 1e8) / 1e8
-    raw_margin = notional / float(leverage)
-    margin = math.floor(raw_margin * 1e8) / 1e8
-    actual_risk = math.floor(actual_risk * 1e8) / 1e8
+    margin = notional / leverage_d
 
     return PositionSize(
-        qty=qty,
-        contracts=contracts,
-        notional=notional,
-        margin=margin,
-        actual_risk_amt=actual_risk,
+        qty=float(qty),
+        contracts=steps,
+        notional=float(notional.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)),
+        margin=float(margin.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)),
+        actual_risk_amt=float(actual_risk.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)),
     )
 
 
