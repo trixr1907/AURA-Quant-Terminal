@@ -49,7 +49,7 @@ Die Schwellen sind konservative, versionierte Betriebsannahmen. Hohes 24h-Volume
 Vor jedem neuen Paper-Entry wird das bereits abgerundete Positionsnotional zusätzlich gegen die Snapshot-Tiefe der benötigten Seite geprüft:
 
 - Long benötigt Ask-Tiefe, Short Bid-Tiefe.
-- Positionsnotional darf höchstens 10 % der verfügbaren Bandtiefe betragen.
+- Positionsnotional darf höchstens 5 % der verfügbaren Bandtiefe (im ±25 bps Band) betragen.
 - Fehlendes geplantes Notional, fehlende Seite oder veralteter Snapshot blockiert.
 
 Ein positiver allgemeiner Marktstatus ist daher weder eine automatische Trade-Freigabe noch ein Nachweis realer Ausführbarkeit, Nettoergebnisse oder Profitabilität.
