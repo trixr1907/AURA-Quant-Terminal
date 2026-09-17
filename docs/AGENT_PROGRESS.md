@@ -186,24 +186,30 @@ python3 tests/pine_static_check.py        # OK, exit 0
     3. Session-Invalidierung: Nach API-Container-Neustart liefert das alte In-Memory-Cookie wie erwartet HTTP 401; erst Neuanmeldung stellt den Zugriff wieder her.
   - Neustart-Nachweis: Echte Regex-Trennung der Instanz-IDs und frischer Heartbeat-Timestamp (`>= Restart-Startzeit`).
 
-- **Harness-Sicherheits- und Isolationshärtung (Review de987aa):**
-  - **Docker-Zielbindung:** Strikt lokale Socket-Bindung (`unix:///var/run/docker.sock`) für alle Subprozesse erzwungen. Negativtest 1 weist Remote-/unklare Ziele (`tcp://...`) vor jeder Mutation nachweislich ab.
-  - **Absolute Compose- und Pfadbindung:** Repository-Compose-Datei (`docker-compose.yml`) und Projektwurzel absolut gebunden (`-f ... --project-directory ...`). Fremde Umgebungsvariablen (`COMPOSE_FILE`, etc.) werden neutralisiert (Negativtest 2).
-  - **Kollisionsschutz:** Vorab-Prüfung aller Zielressourcen im Docker-Namespace. Negativtest 3 beweist, dass bei Namenskollision vor jeder Mutation abgebrochen wird und fremde Ressourcen unversehrt bleiben.
-  - **Ownership-basiertes Cleanup:** Nur Ressourcen mit passendem Projekt- und Run-ID-Owner-Label werden aufgeräumt. Fremde Sentinels bleiben nachweislich erhalten.
-  - **Zwingende Not-Halt-Quittierung:** Vor dem Neustart werden konkrete Command-ID, Status `applied`, Timestamp und Zustand `HALTED` zwingend verifiziert (Timeout führt zum Abbruch).
-  - **Testhygiene:** Keine öffentlichen ntfy-Nachrichten (lokale Dummy-URL/deaktiviert); alle Unterprozesse laufen mit begrenzten Timeouts (10s-180s); Docker-Konfigurationsverzeichnis nutzt isolierte `tempfile.TemporaryDirectory`.
+- **Harness-Sicherheits- und Isolationshärtung (Review de987aa & fe6141c — H1 & H2):**
+  - **Docker-Zielbindung:** Strikt lokale Socket-Bindung (`unix:///var/run/docker.sock`) für alle Subprozesse erzwungen. Negativtest weist Remote-/unklare Ziele (`tcp://...`) vor jeder Mutation nachweislich ab.
+  - **H2 — Reale Einspeisung kontaminierter COMPOSE_FILE-Umgebung:** Kontaminierte Umgebung (`COMPOSE_FILE=/tmp/...`, `COMPOSE_PROJECT_NAME=...`) wird real in `build_compose_invocation()` eingespeist. Effektive `argv` (`-f ...`, `--project-directory ...`), bereinigte Umgebung (`COMPOSE_FILE` neutralisiert) und `cwd` werden verifiziert. Ausführung via `docker compose config --services` erfolgt ohne mutierende Docker-Befehle (PASS).
+  - **Kollisionsschutz:** Vorab-Prüfung aller Zielressourcen im Docker-Namespace. Negativtest beweist Abbruch vor Mutation; fremde Ressourcen bleiben unversehrt.
+  - **H1 — Zentraler, robuster Fehler-Cleanup:**
+    * `cleanup_run_resources()` wird auch bei fehlgeschlagenen Assertions, Timeouts, Exceptions und `KeyboardInterrupt` ausgeführt.
+    * Stoppt und entfernt ausschließlich nachweislich eigene Projektressourcen (`label=com.docker.compose.project={project_name}`, Image-Tag, Sentinels mit passendem Owner-Label).
+    * Ursprünglicher Testfehler bleibt erhalten; zusätzliche Cleanup-Fehler werden auf `stderr` gemeldet.
+    * Ist der Docker-Daemon nicht erreichbar, werden verbliebene Ressourcen namentlich und konkret benannt.
+    * **H1-Negativtests:** Absichtlicher Fehler unmittelbar nach Stackstart (H1a) und nach Erreichen von `healthy` (H1b) weisen nach: Eigener Stack läuft danach nicht weiter, fremde Sentinel-Ressourcen bleiben unversehrt erhalten.
+  - **Zwingende Not-Halt-Quittierung:** Vor dem Neustart werden konkrete Command-ID, Status `applied`, Timestamp und Zustand `HALTED` zwingend verifiziert.
+  - **Testhygiene:** Keine öffentlichen ntfy-Nachrichten (lokale Dummy-URL/deaktiviert); Docker-Timeouts aktiv; isoliertes temporäres Konfigurationsverzeichnis.
 
 - **Abschlussstatus:**
   - `CONTAINER_ENGINE_LOCAL: PASS`
-  - `CONTAINER_COMPOSE_LOCAL: PASS (Review de987aa vollständig erfüllt)`
-  - Python-Tests: 642/642 passed in 51.83s (`pytest_full_642.log`)
-  - JS-Tests: 98/98 Testdateien passed in 4.82s, 0 Fehler (`all_js_tests_98.log`)
-  - 35 gezielte Review-Tests: 35 passed in 3.19s (`pytest_review_35.log`)
+  - `CONTAINER_COMPOSE_LOCAL: PASS (H1 & H2 aus Review fe6141c vollständig erfüllt)`
+  - Python-Tests: 642/642 passed in 51.70s (`pytest_full_642.log`)
+  - JS-Tests: 98/98 Testdateien passed in 4.68s, 0 Fehler (`all_js_tests_98.log`)
+  - 35 gezielte Review-Tests: 35 passed in 3.14s (`pytest_review_35.log`)
+  - Docker Compose Lifecycle Audit: 13/13 Stufen inkl. aller H1/H2-Negativtests PASSED (`docker_compose_lifecycle_verification.log`)
 
 - **Evidenz & Rohlogs (unter `docs/evidence/docker_compose_verification_20260917/`):**
   - `docker_compose_version.log`: `Docker Compose version v5.5.1`.
-  - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 12 Stufen inkl. 4 Negativtests.
+  - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 13 Stufen inkl. H1-Fehler-Cleanup- und H2-Störungs-Negativtests.
   - `requirements.lock`: Vollständig gelockte transitive Abhängigkeiten.
   - `all_js_tests_98.log`: Protokoll aller 98 JS-Testdateien mit Exit 0.
   - `pytest_review_35.log`: 35/35 gezielte Regressionsprüfungen bestanden.
