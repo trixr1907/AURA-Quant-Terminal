@@ -137,7 +137,7 @@ async function runAll() {
     ctx.renderLiveTrades = () => { renderCalled = true; };
     ctx.SyncEngine.bootstrapped = true;
     setFetchHandler(async (url) => {
-      if (url === '/api/state') {
+      if (url === '/api/state' || url === '/api/v3/state') {
         return {
           ok: true,
           status: 200,
@@ -244,7 +244,7 @@ async function runAll() {
           })
         };
       }
-      if (url === '/api/state' && (!opts || opts.method === 'GET')) {
+      if ((url === '/api/state' || url === '/api/v3/state') && (!opts || opts.method === 'GET')) {
         pullCalled = true;
         return {
           ok: true,

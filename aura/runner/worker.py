@@ -206,9 +206,52 @@ class AuraWorkerService:
                         and self._liquidity_is_verified(sym, last_bar.time_ms)
                     ):
                         self._evaluate_and_enter(sym, closed_candles)
+                    elif has_open:
+                        self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", f"Bereits offene Position fuer {sym}")
+                    elif len(self.engine.open_positions) >= self.max_open_positions:
+                        self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", f"Max Positionen ({self.max_open_positions}) erreicht")
+                    elif not self._liquidity_is_verified(sym, last_bar.time_ms):
+                        self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Liquiditaet nicht verifiziert")
+                elif self.sm.is_halted:
+                    self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Not-Halt aktiv")
 
             except Exception as ex:
                 logger.warning("Fehler beim Verarbeiten von %s in Zyklus #%d: %s", sym, cycle, ex)
+
+        self._update_runner_state(cycle)
+
+    def _update_runner_state(self, cycle: int) -> None:
+        fsm_state = self.sm.current_state.value
+        reason = self.sm.reason or "Normalbetrieb"
+        now_ms = int(time.time() * 1000)
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO runner_state (id, fsm_state, reason, equity, cycle_count, updated_at_ms) "
+                "VALUES (1, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET "
+                "fsm_state=excluded.fsm_state, reason=excluded.reason, equity=excluded.equity, "
+                "cycle_count=excluded.cycle_count, updated_at_ms=excluded.updated_at_ms",
+                (fsm_state, reason, str(self.engine.equity), cycle, now_ms),
+            )
+
+    def _log_decision(
+        self,
+        symbol: str,
+        ts_ms: int,
+        direction: int,
+        score: float | None,
+        decision: str,
+        reason: str,
+    ) -> None:
+        try:
+            with self.conn:
+                self.conn.execute(
+                    "INSERT INTO shadow_log (ts_ms, symbol, timeframe, dir, score, decision, reject_reason, config_sha256, payload) "
+                    "VALUES (?, ?, '1h', ?, ?, ?, ?, 'sha256_placeholder', '{}')",
+                    (ts_ms, symbol, direction, score, decision, reason),
+                )
+        except Exception:
+            pass
 
     def _liquidity_is_verified(self, symbol: str, bar_time_ms: int) -> bool:
         row = self.conn.execute(

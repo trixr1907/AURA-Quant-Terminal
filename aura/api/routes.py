@@ -6,20 +6,33 @@ Dokumentiert in docs/ARCHITECTURE.md §6 und docs/SECURITY.md.
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
-from aura.api.auth import verify_auth_token
+from aura.api.auth import (
+    SESSION_COOKIE_NAME,
+    check_login_rate_limit,
+    clear_failed_logins,
+    create_session,
+    destroy_session,
+    get_configured_token,
+    is_valid_session,
+    record_failed_login,
+    verify_auth_token,
+)
 from aura.api.schemas import (
+    AuthStatusResponse,
     BotConfigUpdate,
     CloseTradeRequest,
     GenericResponse,
     HaltRequest,
     HealthResponse,
+    LoginRequest,
     ResumeRequest,
 )
 from aura.runner.paper_engine import PaperTradingEngine
@@ -75,6 +88,70 @@ def _enqueue_command(db: sqlite3.Connection, command_type: str, payload: dict[st
     return command_id
 
 
+@router.post("/auth/login", response_model=GenericResponse)
+def login_operator(payload: LoginRequest, request: Request, response: Response):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    check_login_rate_limit(client_ip)
+
+    configured = get_configured_token()
+    if not secrets.compare_digest(payload.token.strip(), configured):
+        record_failed_login(client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zugriff verweigert: Ungueltiger Authentifizierungs-Token",
+        )
+    clear_failed_logins(client_ip)
+
+    session_id = create_session()
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_id,
+        httponly=True,
+        samesite="lax",
+        max_age=86400,
+        secure=is_https,
+    )
+    return GenericResponse(
+        ok=True,
+        message="Anmeldung erfolgreich",
+        data={"authenticated": True, "role": "operator"},
+    )
+
+
+@router.post("/auth/logout", response_model=GenericResponse)
+def logout_operator(request: Request, response: Response):
+    session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    destroy_session(session_cookie)
+    response.delete_cookie(key=SESSION_COOKIE_NAME)
+    return GenericResponse(
+        ok=True,
+        message="Erfolgreich abgemeldet",
+        data={"authenticated": False, "role": "anonymous"},
+    )
+
+
+@router.get("/auth/status", response_model=AuthStatusResponse)
+def get_auth_status(request: Request):
+    session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    if is_valid_session(session_cookie):
+        return AuthStatusResponse(ok=True, authenticated=True, role="operator")
+
+    auth_header = request.headers.get("Authorization")
+    x_token = request.headers.get("X-AURA-TOKEN")
+    configured = get_configured_token()
+    token_to_check = None
+    if x_token:
+        token_to_check = x_token.strip()
+    elif auth_header and auth_header.startswith("Bearer "):
+        token_to_check = auth_header.split("Bearer ", 1)[1].strip()
+
+    if token_to_check and secrets.compare_digest(token_to_check, configured):
+        return AuthStatusResponse(ok=True, authenticated=True, role="operator")
+
+    return AuthStatusResponse(ok=True, authenticated=False, role="anonymous")
+
+
 @router.get("/health", response_model=HealthResponse)
 def get_health(sm: RunnerStateMachine = Depends(get_state_machine), pe: PaperTradingEngine = Depends(get_paper_engine)):
     state = sm.current_state
@@ -106,8 +183,13 @@ def get_status(sm: RunnerStateMachine = Depends(get_state_machine), pe: PaperTra
 
 
 @router.get("/state")
-def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Connection = Depends(get_db)):
-    # Lade aktive Config-Revision
+def get_state(
+    sm: RunnerStateMachine = Depends(get_state_machine),
+    pe: PaperTradingEngine = Depends(get_paper_engine),
+    db: sqlite3.Connection = Depends(get_db),
+    _token: str = Depends(verify_auth_token),
+):
+    # 1. Lade aktive Config-Revision
     cur = db.cursor()
     cur.execute("SELECT payload, rev, applied_at_ms FROM config_revisions ORDER BY rev DESC LIMIT 1")
     cfg_row = cur.fetchone()
@@ -119,7 +201,27 @@ def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Co
     active_row = cur.fetchone()
     active_rev = active_row["rev"] if active_row else None
 
-    # Offene Positionen serialisieren
+    # 2. Lade Worker-Zustand aus runner_state
+    cur.execute("SELECT fsm_state, reason, equity, cycle_count, updated_at_ms FROM runner_state WHERE id = 1")
+    runner_row = cur.fetchone()
+    now_ms = int(time.time() * 1000)
+
+    if runner_row:
+        worker_status = runner_row["fsm_state"]
+        worker_reason = runner_row["reason"]
+        worker_cycle = runner_row["cycle_count"]
+        last_hb_ms = runner_row["updated_at_ms"]
+        data_age_sec = round(max(0.0, (now_ms - last_hb_ms) / 1000.0), 1)
+        is_stale = data_age_sec > 120.0
+    else:
+        worker_status = sm.current_state.value
+        worker_reason = sm.reason
+        worker_cycle = 0
+        last_hb_ms = None
+        data_age_sec = None
+        is_stale = True
+
+    # 3. Offene Positionen serialisieren
     open_list = [
         {
             "id": p.trade_id,
@@ -127,12 +229,15 @@ def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Co
             "dir": p.direction,
             "entry_price": p.entry_price,
             "sl_price": p.sl_price,
+            "initial_sl_price": p.initial_sl_price,
             "tp1_price": p.tp1_price,
             "tp2_price": p.tp2_price,
             "qty": p.qty,
+            "initial_qty": p.initial_qty,
             "margin": p.margin,
             "leverage": p.leverage,
             "opened_at_ms": p.entry_time_ms,
+            "timeframe": p.timeframe,
             "status": p.status,
             "tp1_hit": p.tp1_hit,
             "realized_pnl": p.realized_pnl,
@@ -144,7 +249,7 @@ def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Co
         for p in pe.open_positions.values()
     ]
 
-    # Geschlossene Positionen serialisieren
+    # 4. Geschlossene Positionen serialisieren
     closed_list = [
         {
             "id": p.trade_id,
@@ -158,20 +263,84 @@ def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Co
             "opened_at_ms": p.entry_time_ms,
             "closed_at_ms": p.exit_time_ms,
             "status": p.status,
+            "r_multiple": p.r_multiple,
         }
         for p in pe.closed_positions
     ]
 
+    # 5. Pending Commands & Recent Rejected Commands
+    cur.execute("SELECT id, type, status, created_at_ms FROM commands WHERE status = 'pending' ORDER BY created_at_ms")
+    pending_cmds = [
+        {
+            "id": r["id"],
+            "type": r["type"],
+            "status": r["status"],
+            "created_at_ms": r["created_at_ms"],
+        }
+        for r in cur.fetchall()
+    ]
+
+    cur.execute("SELECT id, type, result, applied_at_ms FROM commands WHERE status = 'rejected' ORDER BY id DESC LIMIT 5")
+    rejected_cmds = [
+        {
+            "id": r["id"],
+            "type": r["type"],
+            "result": r["result"],
+            "applied_at_ms": r["applied_at_ms"],
+        }
+        for r in cur.fetchall()
+    ]
+
+    # 6. Shadow Log (Radar / Gate Rejections)
+    cur.execute("SELECT ts_ms, symbol, dir, score, decision, reject_reason FROM shadow_log ORDER BY ts_ms DESC, id DESC LIMIT 25")
+    radar_rows = [
+        {
+            "ts_ms": r["ts_ms"],
+            "symbol": r["symbol"],
+            "dir": r["dir"],
+            "score": r["score"],
+            "decision": r["decision"],
+            "reason": r["reject_reason"],
+        }
+        for r in cur.fetchall()
+    ]
+
+    # Performance Metriken
+    total_realized = sum(p.realized_pnl for p in pe.closed_positions)
+    total_unrealized = sum(p.unrealized_pnl for p in pe.open_positions.values())
+    roi_pct = round(((pe.equity - pe.starting_equity) / pe.starting_equity) * 100.0, 2) if pe.starting_equity > 0 else 0.0
+    wins = [p for p in pe.closed_positions if p.realized_pnl > 0]
+    win_rate = round((len(wins) / len(pe.closed_positions)) * 100.0, 1) if pe.closed_positions else 0.0
+
     return {
+        "server_time_ms": now_ms,
+        "worker": {
+            "status": worker_status,
+            "is_halted": worker_status == "HALTED",
+            "reason": worker_reason,
+            "cycle_count": worker_cycle,
+            "last_heartbeat_ms": last_hb_ms,
+            "data_age_seconds": data_age_sec,
+            "is_stale": is_stale,
+        },
         "equity": pe.equity,
         "starting_equity": pe.starting_equity,
+        "realized_pnl": total_realized,
+        "unrealized_pnl": total_unrealized,
+        "roi_pct": roi_pct,
+        "win_rate_pct": win_rate,
+        "total_closed_trades": len(pe.closed_positions),
         "open_positions": open_list,
         "closed_trades": closed_list,
         "config": bot_cfg,
         "config_rev": active_rev,
         "requested_config_rev": requested_rev,
         "active_config_rev": active_rev,
-        "server_time_ms": int(time.time() * 1000),
+        "pending_commands": pending_cmds,
+        "rejected_commands": rejected_cmds,
+        "radar": radar_rows,
+        "model_status": "MODEL_NO_EVIDENCE",
+        "missing_costs_notice": "Hinweis: 8h-Funding und TP3-Tranchen sind in dieser v3-Version noch nicht modelliert. Status: MODEL_NO_EVIDENCE.",
     }
 
 
@@ -183,7 +352,21 @@ def update_config(
     pe: PaperTradingEngine = Depends(get_paper_engine),
 ):
     """Aktualisiert die Bot-Konfiguration transaktional und inkrementiert die Revision."""
-    cfg_dict = payload.model_dump()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT rev FROM config_revisions WHERE applied_at_ms IS NOT NULL ORDER BY rev DESC LIMIT 1"
+    )
+    active_row = cur.fetchone()
+    current_active_rev = active_row["rev"] if active_row else 0
+
+    # Optimistic locking check against expected_rev
+    if payload.expected_rev is not None and payload.expected_rev != current_active_rev:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Konfigurationskonflikt: Revision {current_active_rev} ist aktiv, erwartet wurde {payload.expected_rev}. Bitte Konfiguration neu laden.",
+        )
+
+    cfg_dict = payload.model_dump(exclude={"expected_rev"})
     cfg_json = json.dumps(cfg_dict)
     now_ms = int(time.time() * 1000)
 
@@ -206,7 +389,7 @@ def update_config(
         message=f"Konfiguration als Revision {next_rev} angefordert",
         data={
             "requested_rev": next_rev,
-            "active_rev": None,
+            "active_rev": current_active_rev,
             "command_id": command_id,
             "status": "pending",
             "config": cfg_dict,

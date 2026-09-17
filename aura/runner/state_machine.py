@@ -64,6 +64,14 @@ class RunnerStateMachine:
     def is_halted(self) -> bool:
         return self._halted
 
+    @property
+    def reason(self) -> str:
+        return self._reason
+
+    @property
+    def halt_reason(self) -> str:
+        return self._halt_reason
+
     def can_open_new_trades(self) -> bool:
         """Neuer Trade-Einstieg ist nur im Zustand RUNNING und wenn nicht gehaltet erlaubt."""
         return self._state == SystemState.RUNNING and not self._halted

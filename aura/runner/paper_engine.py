@@ -89,6 +89,10 @@ class PaperTradingEngine:
             return
         cur = self.conn.cursor()
 
+        # Vor dem Neuladen bestehende Speicherlisten zuruecksetzen (verhindert Duplikate bei wiederholtem Aufruf)
+        self.open_positions.clear()
+        self.closed_positions.clear()
+
         # 1. Offene Positionen laden
         cur.execute(
             "SELECT id, symbol, dir, entry_price, current_sl, initial_sl, "
@@ -384,7 +388,11 @@ class PaperTradingEngine:
         pos.qty = remaining_qty
         pos.tp1_hit = True
         pos.status = "partial_tp1"
-        pos.sl_price = pos.entry_price  # Breakeven Stop
+        # Preis-Breakeven: Stop-Loss wird auf den tatsaechlichen Entry-Fill-Preis gesetzt.
+        # Wichtig: Dies ist ein Preis-Breakeven, keine absolute Netto-Verlustfreiheit,
+        # da bei Ausloesung des Stops fuer die verbleibende Restmenge noch Exit-Gebuehren
+        # (Taker-Fee) und potenzielle Slippage anfallen.
+        pos.sl_price = pos.entry_price
         pos.notes = f"TP1 @ {fill_price:.4f} (50% Teilgewinn: {net_partial:.2f})"
 
         # Equity-Gutschrift fuer den realisierten Teilgewinn
