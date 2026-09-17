@@ -119,3 +119,7 @@ def create_app(
         return HTMLResponse(content="<h1>AURA v3 Running</h1>")
 
     return app
+
+
+# Standard-ASGI-Instanz fuer Uvicorn/Gunicorn
+app = create_app()
