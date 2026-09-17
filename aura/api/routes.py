@@ -564,3 +564,27 @@ def get_history(
             for r in rows
         ],
     }
+
+@router.get("/command/{cmd_id}", response_model=GenericResponse)
+def get_command_status(
+    cmd_id: str,
+    _token: str = Depends(verify_auth_token),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    cur = db.cursor()
+    cur.execute("SELECT id, type, status, result, applied_at_ms, created_at_ms FROM commands WHERE id = ?", (cmd_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Command not found")
+    return GenericResponse(
+        ok=True,
+        message="Command found",
+        data={
+            "id": row["id"],
+            "type": row["type"],
+            "status": row["status"],
+            "result": row["result"],
+            "applied_at_ms": row["applied_at_ms"],
+            "created_at_ms": row["created_at_ms"]
+        }
+    )
