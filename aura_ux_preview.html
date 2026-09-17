@@ -879,8 +879,8 @@ function renderOverview(){
     wEl.innerHTML = "⛔ Angehalten — Einstiege gesperrt";
     wSub.textContent = "Bewusster Sicherheitszustand. Prozess kann dabei technisch gesund laufen (kein Absturz).";
   } else if (s.worker === "RUNNING") {
-    wEl.innerHTML = "✅ RUNNING — Einstiege zulässig";
-    wSub.textContent = "Worker läuft aktiv und ist bestätigbar.";
+    wEl.innerHTML = "✅ RUNNING — Worker läuft";
+    wSub.textContent = "Worker-Zustand bestätigt. Eine Trade-Freigabe ist damit nicht bestätigt; Daten-, Risiko- und Ausführungsprüfungen erfolgen separat.";
   } else {
     wEl.innerHTML = "❔ Zustand nicht bestätigt (" + (s.worker || "unbekannt") + ")";
     wSub.textContent = "Einstiegsfähigkeit kann nicht bestätigt werden — wird nicht als freigegeben angezeigt (fail-closed).";

@@ -179,24 +179,24 @@ async def run_tests():
             await page.unroute("**/api/v3/state**")
 
         # CASE 1: RUNNING + frischer Worker + valide Marktdaten
-        await test_matrix(False, "RUNNING", True, False, "fresh",
-                          "RUNNING", "frisch", "RUNNING — Einstiege", "Verbunden, Daten aktuell")
+        await test_matrix(False, "RUNNING", True, False, "valid",
+                          "RUNNING", "frisch", "RUNNING — Worker läuft", "Verbunden, Daten aktuell")
                           
         # CASE 2: RUNNING + frischer Worker + source_failed-Marktdaten
         # RUNNING worker must STAY RUNNING! ONLY market feed is source_failed.
         await test_matrix(False, "RUNNING", True, False, "source_failed",
-                          "RUNNING", "source_failed", "RUNNING — Einstiege", "Verbunden, Datenzustand: veraltet")
+                          "RUNNING", "source_failed", "RUNNING — Worker läuft", "Verbunden, Datenzustand: veraltet")
 
         # CASE 3: RUNNING + veralteter Worker + valide Marktdaten
-        await test_matrix(False, "RUNNING", True, True, "fresh",
+        await test_matrix(False, "RUNNING", True, True, "valid",
                           "VERALTET", "frisch", "nicht bestätigt", "Verbunden, Daten aktuell")
 
         # CASE 4: frischer HALTED-Worker + valide Marktdaten
-        await test_matrix(True, "RUNNING", True, False, "fresh",
+        await test_matrix(True, "RUNNING", True, False, "valid",
                           "HALTED", "frisch", "Angehalten", "Verbunden, Daten aktuell")
 
         # CASE 5: fehlender/unbekannter Worker + valide Marktdaten
-        await test_matrix(False, "UNKNOWN", False, False, "fresh",
+        await test_matrix(False, "UNKNOWN", False, False, "valid",
                           "UNBEKANNT", "frisch", "nicht bestätigt", "Verbunden, Daten aktuell")
                           
 
