@@ -2411,7 +2411,17 @@ async function relayCall(endpoint, payload) {
   throw new Error('Relay retry limit exceeded');
 }
 async function bgGet(path) {
-  if (isRelayServedOrigin()) return await relayCall('/api/public', { method: 'GET', path });
+  if (isRelayServedOrigin()) {
+    try {
+      return await relayCall('/api/public', { method: 'GET', path });
+    } catch (err) {
+      try {
+        return await jfetch(BITGET_BASE + path);
+      } catch (_) {
+        throw err;
+      }
+    }
+  }
   return await jfetch(BITGET_BASE + path);
 }
 
@@ -3311,14 +3321,14 @@ function renderStatus(force = false) {
   if (btcSince) btcSince.textContent = App.data.btcRegimeChangedAt ? `Regime seit ${fmtDuration(Date.now() - App.data.btcRegimeChangedAt)}` : 'Regime seit —';
   const fng = $('macro-fng');
   if (fng) {
-    fng.textContent = App.data.fng ? `${App.data.fng.value} · ${App.data.fng.label}` : 'LÄDT';
+    fng.textContent = App.data.fng ? `${App.data.fng.value} · ${App.data.fng.label}` : 'nicht verfügbar';
     fng.style.color = App.data.fng && App.data.fng.value >= 55 ? 'var(--grn2)'
-      : App.data.fng && App.data.fng.value <= 45 ? 'var(--red2)' : 'var(--mut)';
+      : App.data.fng && App.data.fng.value <= 45 ? 'var(--red2)' : 'var(--dim)';
   }
   const deriv = $('macro-deriv');
   if (deriv) {
     const cf = App.data.crypto;
-    if (!cf) { deriv.textContent = 'LÄDT'; deriv.style.color = 'var(--dim)'; }
+    if (!cf) { deriv.textContent = 'nicht verfügbar'; deriv.style.color = 'var(--dim)'; }
     else {
       const extreme = (cf.funding && Math.abs(cf.funding.z) >= 2.5) || (cf.oi && Math.abs(cf.oi.chg4h) >= 5);
       deriv.textContent = extreme ? 'EXTREM' : 'NORMAL';
@@ -4182,7 +4192,24 @@ function renderGauge(sc) {
 // --- Score-Sub-Scores ---
 function renderSignal(force = false) {
   const L = App.data.live, A = App.data.chart, cf = App.data.crypto;
-  if (!L || !A) return;
+  if (!L || !A) {
+    if (App.chartLoad && App.chartLoad.status === 'error') {
+      const badge = $('sigbadge');
+      if (badge) {
+        badge.textContent = 'NICHT VERFÜGBAR';
+        badge.style.background = 'rgba(239,68,68,.15)';
+        badge.style.color = 'var(--red2)';
+      }
+      const plain = $('sigplain');
+      if (plain) {
+        plain.textContent = 'Marktdaten nicht verfügbar — Chart-Ladefehler.';
+        plain.style.color = 'var(--dim)';
+      }
+      const sigstrength = $('sigstrength');
+      if (sigstrength) sigstrength.textContent = 'Warte auf Marktdaten...';
+    }
+    return;
+  }
   const stateKey = [App.symbol, App.chartTF, L.core, L.total, L.dir, L.strength, L.blockReason, L.reasonCode, L.btcBlock, L.longSig, L.shortSig, L.aligned, L.probWin, L.kelly?.hasEdge, L.kelly?.edge, L.riskAmt, L.entry, L.sl, L.tp1, L.tp2, L.tp3, L.qty, L.notional, L.contracts, L.margin, L.lev, L.levRec?.leverage, A.last?.trend, A.last?.mom, A.last?.vol, A.last?.str, cf?.funding?.z, cf?.oi?.bias];
   if (!force && !RenderCache.isDirty('signal', stateKey)) return;
   const sc = L.total;
@@ -9462,6 +9489,18 @@ _auraRoot.AuraApp = {
       const btnLogout = $('btn-logout');
       if (btnLogout) btnLogout.style.display = 'none';
     }
+    if (typeof Autobot !== 'undefined') {
+      Autobot.trades = [];
+      Autobot.history = [];
+      Autobot.equity = null;
+      Autobot.startingEquity = null;
+      Autobot.pendingCommands = [];
+      Autobot.rejectedCommands = [];
+      Autobot.render();
+    }
+    if (typeof SyncEngine !== 'undefined') {
+      await SyncEngine.pull();
+    }
     this.showLogin();
   },
   async checkAuth() {
@@ -9623,7 +9662,8 @@ const SyncEngine = {
       const res = await fetch('/api/v3/state', { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          this.setStatus('offline', 'Nicht autorisiert');
+          this.setStatus('offline', 'Anmeldung erforderlich');
+          if (typeof AuraApp !== 'undefined') AuraApp.isAuthenticated = false;
           const authPill = $('auth-status-pill');
           if (authPill) {
             authPill.textContent = '🔒 ANMELDUNG';
@@ -9631,6 +9671,13 @@ const SyncEngine = {
           }
           const btnLogout = $('btn-logout');
           if (btnLogout) btnLogout.style.display = 'none';
+          if (typeof Autobot !== 'undefined') {
+            Autobot.serverBotActive = false;
+            Autobot.equity = null;
+            Autobot.startingEquity = null;
+            Autobot.initialEquity = null;
+            Autobot.render();
+          }
         } else {
           this.setStatus('offline', 'HTTP ' + res.status);
         }
@@ -9646,35 +9693,40 @@ const SyncEngine = {
       }
 
       const remote = (s.data && typeof s.data === 'object') ? s.data : s;
+      const isAuth = !(s.authenticated === false || s.role === 'anonymous');
+      if (typeof AuraApp !== 'undefined') AuraApp.isAuthenticated = isAuth;
 
       const authPill = $('auth-status-pill');
       if (authPill) {
-        authPill.textContent = '● OPERATOR (Live)';
-        authPill.className = 'feed-status-pill live';
+        authPill.textContent = isAuth ? '● OPERATOR (Live)' : '🔒 ANMELDUNG';
+        authPill.className = isAuth ? 'feed-status-pill live' : 'feed-status-pill offline';
       }
       const btnLogout = $('btn-logout');
-      if (btnLogout) btnLogout.style.display = 'inline-block';
+      if (btnLogout) btnLogout.style.display = isAuth ? 'inline-block' : 'none';
 
       // Bootstrap & Reconcile Legacy Sync State if present in remote payload
-      if (!this.bootstrapped) {
+      if (!this.bootstrapped && isAuth) {
         this.bootstrapped = true;
         await this.bootstrapIfNeeded(remote);
       }
-      this.applyServerState(remote, true);
+      if (isAuth) {
+        this.applyServerState(remote, true);
+      }
 
       if (typeof Autobot !== 'undefined') {
         Autobot.serverBotActive = true;
         Autobot.worker = s.worker;
-        Autobot.equity = s.equity || 1000;
-        Autobot.startingEquity = s.starting_equity || 1000;
-        Autobot.roiPct = s.roi_pct || 0;
-        Autobot.pnl = (s.realized_pnl || 0) + (s.unrealized_pnl || 0);
-        Autobot.winRate = s.win_rate_pct || 0;
-        Autobot.totalClosedTrades = s.total_closed_trades || 0;
-        Autobot.activeConfigRev = s.active_config_rev;
-        Autobot.requestedConfigRev = s.requested_config_rev;
-        Autobot.pendingCommands = s.pending_commands || [];
-        Autobot.rejectedCommands = s.rejected_commands || [];
+        Autobot.equity = isAuth ? (s.equity || 10000) : null;
+        Autobot.startingEquity = isAuth ? (s.starting_equity || 10000) : null;
+        Autobot.initialEquity = isAuth ? (s.starting_equity || 10000) : null;
+        Autobot.roiPct = isAuth ? (s.roi_pct || 0) : 0;
+        Autobot.pnl = isAuth ? ((s.realized_pnl || 0) + (s.unrealized_pnl || 0)) : 0;
+        Autobot.winRate = isAuth ? (s.win_rate_pct || 0) : 0;
+        Autobot.totalClosedTrades = isAuth ? (s.total_closed_trades || 0) : 0;
+        Autobot.activeConfigRev = isAuth ? s.active_config_rev : null;
+        Autobot.requestedConfigRev = isAuth ? s.requested_config_rev : null;
+        Autobot.pendingCommands = isAuth ? (s.pending_commands || []) : [];
+        Autobot.rejectedCommands = isAuth ? (s.rejected_commands || []) : [];
         Autobot.missingCostsNotice = s.missing_costs_notice;
         Autobot.marketData = s.market_data;
         Autobot.radar = s.radar || [];
@@ -10988,6 +11040,8 @@ const Autobot = {
   },
 
   render() {
+    const isAuth = typeof AuraApp !== 'undefined' && AuraApp.isAuthenticated;
+
     // 1. Status Badge & Toggle Button
     const badge = $('ab-status-badge');
     const btn = $('btn-toggle-autobot');
@@ -10999,8 +11053,17 @@ const Autobot = {
         badge.style.borderColor = '#ef4444';
         badge.style.color = '#ef4444';
         if (btn) {
-          btn.textContent = '▶ Wiederaufnahme (Resume)';
-          btn.className = 'ab-toggle-btn running';
+          if (isAuth) {
+            btn.textContent = '▶ Wiederaufnahme (Resume)';
+            btn.className = 'ab-toggle-btn running';
+            btn.disabled = false;
+            btn.title = 'Worker wieder anfahren';
+          } else {
+            btn.textContent = '🔒 Operator-Anmeldung erforderlich';
+            btn.className = 'ab-toggle-btn';
+            btn.disabled = true;
+            btn.title = 'Nur angemeldete Operatoren können Not-Halt oder Wiederaufnahme steuern';
+          }
         }
       } else if (this.worker && this.worker.is_stale) {
         badge.textContent = `⚠️ WORKER STALE (${this.worker.data_age_seconds || '?'}s)`;
@@ -11009,8 +11072,15 @@ const Autobot = {
         badge.style.borderColor = '#f59e0b';
         badge.style.color = '#f59e0b';
         if (btn) {
-          btn.textContent = '⏹ Not-Halt anfordern';
-          btn.className = 'ab-toggle-btn';
+          if (isAuth) {
+            btn.textContent = '⏹ Not-Halt anfordern';
+            btn.className = 'ab-toggle-btn';
+            btn.disabled = false;
+          } else {
+            btn.textContent = '🔒 Operator-Anmeldung erforderlich';
+            btn.className = 'ab-toggle-btn';
+            btn.disabled = true;
+          }
         }
       } else if (this.worker && this.worker.status === 'RUNNING') {
         badge.textContent = `● SERVER RUNNING (${this.worker.data_age_seconds || 0}s)`;
@@ -11019,15 +11089,22 @@ const Autobot = {
         badge.style.borderColor = '#2dd4bf';
         badge.style.color = '#2dd4bf';
         if (btn) {
-          btn.textContent = '⏹ Not-Halt anfordern';
-          btn.className = 'ab-toggle-btn';
+          if (isAuth) {
+            btn.textContent = '⏹ Not-Halt anfordern';
+            btn.className = 'ab-toggle-btn';
+            btn.disabled = false;
+          } else {
+            btn.textContent = '🔒 Operator-Anmeldung erforderlich';
+            btn.className = 'ab-toggle-btn';
+            btn.disabled = true;
+          }
         }
       } else {
-        badge.textContent = `● ${this.worker ? this.worker.status : 'SERVER LIVE'}`;
+        badge.textContent = `● ${this.worker ? this.worker.status : 'SERVER HALTED'}`;
         badge.className = 'autobot-status-badge';
         if (btn) {
-          btn.textContent = '⏹ Not-Halt anfordern';
-          btn.className = 'ab-toggle-btn';
+          btn.textContent = isAuth ? '⏹ Not-Halt anfordern' : '🔒 Operator-Anmeldung erforderlich';
+          btn.disabled = !isAuth;
         }
       }
     }
@@ -11157,20 +11234,35 @@ const Autobot = {
 
     const histStats = calculateHistoryStats(this.history);
     const realizedPnl = histStats.grossPnl;
-    const totalEquity = this.equity + investedMargin + unrealizedPnl;
-    const totalRoi = ((totalEquity - this.initialEquity) / this.initialEquity) * 100;
+    const baseEq = (this.startingEquity && this.startingEquity > 0) ? this.startingEquity : (this.initialEquity || 10000);
+    const totalEquity = (this.equity !== null && typeof this.equity === 'number')
+      ? (this.equity + investedMargin + unrealizedPnl)
+      : null;
+    const totalRoi = totalEquity !== null
+      ? (((totalEquity - baseEq) / baseEq) * 100)
+      : null;
     const wr = histStats.realizedWinRatePct;
     const pf = histStats.profitFactor > 0 ? histStats.profitFactor.toFixed(2) : (histStats.grossWin > 0 ? '∞' : '—');
 
     const eqEl = $('ab-equity'), roiEl = $('ab-roi'), pnlEl = $('ab-pnl'), wrEl = $('ab-wr'), pfEl = $('ab-pf'), countEl = $('ab-open-count');
-    if (eqEl) eqEl.textContent = `${totalEquity.toFixed(2)} USDT`;
+    if (eqEl) eqEl.textContent = totalEquity !== null ? `${totalEquity.toFixed(2)} USDT` : '🔒 Geschützt';
     if (roiEl) {
-      roiEl.textContent = `${totalRoi >= 0 ? '+' : ''}${totalRoi.toFixed(2)}%`;
-      roiEl.style.color = totalRoi >= 0 ? 'var(--grn2)' : 'var(--red2)';
+      if (totalRoi !== null) {
+        roiEl.textContent = `${totalRoi >= 0 ? '+' : ''}${totalRoi.toFixed(2)}%`;
+        roiEl.style.color = totalRoi >= 0 ? 'var(--grn2)' : 'var(--red2)';
+      } else {
+        roiEl.textContent = '—%';
+        roiEl.style.color = 'var(--dim)';
+      }
     }
     if (pnlEl) {
-      pnlEl.textContent = `${(realizedPnl + unrealizedPnl) >= 0 ? '+' : ''}${(realizedPnl + unrealizedPnl).toFixed(2)} USDT`;
-      pnlEl.style.color = (realizedPnl + unrealizedPnl) >= 0 ? 'var(--grn2)' : 'var(--red2)';
+      if (isAuth) {
+        pnlEl.textContent = `${(realizedPnl + unrealizedPnl) >= 0 ? '+' : ''}${(realizedPnl + unrealizedPnl).toFixed(2)} USDT`;
+        pnlEl.style.color = (realizedPnl + unrealizedPnl) >= 0 ? 'var(--grn2)' : 'var(--red2)';
+      } else {
+        pnlEl.textContent = '— USDT';
+        pnlEl.style.color = 'var(--dim)';
+      }
     }
     if (wrEl) {
       wrEl.textContent = `${wr.toFixed(1)}% (${this.history.length})`;
