@@ -703,6 +703,10 @@ async function refreshData() {
         state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
         KPIS.dataAgeSec = workerRes.data_age_seconds;
     }
+    // R1: Ein veralteter RUNNING-Datensatz darf nicht als bestaetigt laufend angezeigt werden
+    if (state.scenario.feed === "stale" && state.scenario.worker === "RUNNING") {
+        state.scenario.worker = "UNBEKANNT (Feed veraltet)";
+    }
 
     const stateRes = await apiCall("/api/v3/state");
     if(myGen !== fetchGen) return;
@@ -879,7 +883,7 @@ function renderOverview(){
   const cSub = document.getElementById('ovConnSub');
   if (s.conn === "connected" && s.feed === "fresh"){
     cEl.innerHTML = "✅ Verbunden, Daten aktuell";
-    cSub.textContent = "API erreichbar, letzter Marktdaten-Tick vor 12s.";
+    cSub.textContent = "API erreichbar, auf echten Markttick basierend.";
   } else if (s.conn !== "connected"){
     cEl.innerHTML = "🔴 Verbindung unterbrochen";
     cSub.textContent = "Keine Anzeige scheinbar gültiger Werte — Anzeigen werden als nicht verfügbar markiert.";
@@ -898,7 +902,7 @@ function renderOverview(){
   if (s.conn !== "connected"){
     items.push({cls:"crit", ico:"🔌", title:"API-Verbindung unterbrochen", txt:"Live-Daten und Steuerbefehle sind aktuell nicht verlässlich verfügbar.", details:"Betrifft Feed, Status und Operator-Aktionen gleichermaßen."});
   } else if (s.feed !== "fresh"){
-    items.push({cls:"warn", ico:"📡", title:"Marktdaten veraltet", txt:"Angezeigte Kurse können vom tatsächlichen Markt abweichen.", details:"Schwelle veraltet in dieser Demo: 180s ohne neuen Tick."});
+    items.push({cls:"warn", ico:"📡", title:"Marktdaten veraltet", txt:"Angezeigte Kurse können vom tatsächlichen Markt abweichen.", details:"Siehe Marktdaten-Status/Alter."});
   }
   if (KPIS.smallSample){
     items.push({cls:"warn", ico:"📉", title:"Kleine Stichprobe bei Kennzahlen", txt: KPIS.closedCount + " geschlossene Demo-Trades — Kennzahlen wie Profit-Faktor sind rechnerisch gültig, aber statistisch wenig aussagekräftig.", details:"Siehe Berechnungsdefinitionen im Paper-Trading-Tab."});
@@ -981,11 +985,15 @@ async function renderMarket() {
 
   let cList = [];
   if (r && r.data && Array.isArray(r.data)) {
-      cList = r.data.map(c => ({
+      cList = r.data.filter(c => {
+          if (!c || c.length < 5) return false;
+          if (c.some(x => x === null || x === "" || x === undefined)) return false;
+          return true;
+      }).map(c => ({
           ts: Number(c[0]), open: Number(c[1]), high: Number(c[2]), low: Number(c[3]), close: Number(c[4])
       })).filter(c => {
           if (!Number.isFinite(c.ts) || !Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) return false;
-          if (c.ts < 0 || c.open < 0 || c.high < 0 || c.low < 0 || c.close < 0) return false;
+          if (c.ts <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0) return false;
           if (c.high < Math.max(c.open, c.close) || c.low > Math.min(c.open, c.close)) return false;
           return true;
       });
@@ -1093,7 +1101,7 @@ function renderPaper(){
         <summary>Details (brutto/netto, Gebühren)</summary>
         <div class="dtl-body">
           <div class="row"><span>Unreal. PnL (brutto)</span><b style="color:${p.grossPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.grossPnl,true)}</b></div>
-          <div class="row"><span>Angefallene Gebühr (Entry)</span><b>${fmtMoney(p.feeOpen,false)}</b></div>
+          <div class="row"><span>Bisher angefallene Gebühren</span><b>${fmtMoney(p.feeOpen,false)}</b></div>
           <div class="row"><span>Unreal. PnL (netto)</span><b style="color:${p.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.netPnl,true)}</b></div>
           <div class="row"><span>SL / TP1</span><b>${fmtMoney(p.sl,false)} / ${fmtMoney(p.tp1,false)}</b></div>
         </div>
