@@ -981,6 +981,13 @@ function renderTopStatus(){
 
 function renderOverview(){
   const s = state.scenario;
+  const rrNote = document.getElementById('resumeRejectionNote');
+  if (state.lastResumeResult) {
+    rrNote.style.display = "block";
+    rrNote.innerHTML = state.lastResumeResult;
+  } else {
+    rrNote.style.display = "none";
+  }
   const resNote = document.getElementById('resumeRejectionNote');
   if (state.lastResumeResult) {
     resNote.style.display = "block";
