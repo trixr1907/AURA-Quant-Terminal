@@ -207,6 +207,15 @@ python3 tests/pine_static_check.py        # OK, exit 0
   - 35 gezielte Review-Tests: 35 passed in 3.14s (`pytest_review_35.log`)
   - Docker Compose Lifecycle Audit: 13/13 Stufen inkl. aller H1/H2-Negativtests PASSED (`docker_compose_lifecycle_verification.log`)
 
+- **Finale H1-Fehlerbehandlung (Review bb2a464):**
+  - Initiales `docker info` im Cleanup ist gegen Timeout und `OSError` abgesichert; Fehler werden strukturiert zurückgegeben und benennen alle bekannten Run-Ressourcen.
+  - Cleanup wertet jeden relevanten Returncode aus. Insbesondere wird `compose down` mit Exit-Code ungleich 0 als Cleanup-Fehler gemeldet, obwohl der Befehl absichtlich mit `check=False` ausgeführt wird.
+  - Lifecycle und Cleanup sind über `run_lifecycle_with_cleanup()` zentral gekoppelt: genau ein Cleanup im `finally`; primäre Fehler bleiben erhalten, zusätzliche Cleanup-Fehler werden separat gemeldet. Cleanup-Fehler nach erfolgreichem Ablauf erzwingen einen Fehlerstatus statt PASS/Exit 0.
+  - H1a/H1b bestätigen nach Fehlern sowohl API- als auch Worker-Entfernung, Daten-/State-Volumes, Compose-Netzwerk und unverändertes Owner-Label des fremden Sentinels.
+  - Deterministische Docker-freie Fehlerpfadtests: 4/4 passed (`tests/test_docker_cleanup_harness.py`).
+  - Gesamtregression nach Ergänzung: 646/646 passed; JS-Suite: 98/98 Testdateien passed.
+  - Rohlogs: `docs/evidence/docker_compose_h1_final_20260917/`.
+
 - **Evidenz & Rohlogs (unter `docs/evidence/docker_compose_verification_20260917/`):**
   - `docker_compose_version.log`: `Docker Compose version v5.5.1`.
   - `docker_compose_lifecycle_verification.log`: Vollständiges Protokoll aller 13 Stufen inkl. H1-Fehler-Cleanup- und H2-Störungs-Negativtests.
