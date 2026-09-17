@@ -7,18 +7,20 @@ Dokumentiert in docs/ARCHITECTURE.md und ADR-0003.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
 import signal
 import sys
 import time
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from aura.core.scoring import analyze_candles
 from aura.data.bitget_adapter import BitgetMarketAdapter
-from aura.data.models import Candle
+from aura.data.models import Candle, ValidationReport
 from aura.runner.notifier import NotificationConfig, NotificationDispatcher
 from aura.runner.paper_engine import EngineConfig, PaperTradingEngine
 from aura.runner.state_machine import RunnerStateMachine, SystemState
@@ -44,6 +46,9 @@ class AuraWorkerService:
         max_open_positions: int = 3,
         long_threshold: float = 75.0,
         short_threshold: float = 25.0,
+        time_provider: Callable[[], float] = time.time,
+        max_stale_age_sec: float = 7200.0,
+        instance_id: str | None = None,
     ):
         self.db_path = db_path
         self.poll_interval = poll_interval_sec
@@ -52,11 +57,14 @@ class AuraWorkerService:
         self.max_open_positions = max_open_positions
         self.long_threshold = long_threshold
         self.short_threshold = short_threshold
+        self.time_provider = time_provider
+        self.max_stale_age_sec = max_stale_age_sec
+        self.instance_id = instance_id or f"w_{os.getpid()}_{uuid.uuid4().hex[:6]}"
         self._running = False
 
         self.conn = connect(self.db_path)
         self.sm = RunnerStateMachine(SystemState.STARTING)
-        self.adapter = BitgetMarketAdapter()
+        self.adapter: Any = BitgetMarketAdapter()
         engine_cfg = EngineConfig(risk_per_trade_pct=self.risk_per_trade_pct, max_open_positions=self.max_open_positions)
         self.engine = PaperTradingEngine(config=engine_cfg, conn=self.conn)
 
@@ -66,6 +74,40 @@ class AuraWorkerService:
 
         # R1: Persistierten Zustand (Not-Halt, aktive Konfig) und R4 (verwaiste Claims) wiederherstellen
         self._restore_persisted_state()
+
+    def _snapshot_engine_state(self) -> dict[str, Any]:
+        """Erstellt einen In-Memory Snapshot des Engine-Zustands fuer atomare Transaktions-Rollbacks."""
+        return {
+            "open_positions": copy.deepcopy(self.engine.open_positions),
+            "closed_positions": copy.deepcopy(self.engine.closed_positions),
+            "equity": self.engine.equity,
+        }
+
+    def _restore_engine_snapshot(self, snapshot: dict[str, Any]) -> None:
+        """Stellt den In-Memory Engine-Zustand nach einem Rollback synchron wieder her."""
+        self.engine.open_positions = snapshot["open_positions"]
+        self.engine.closed_positions = snapshot["closed_positions"]
+        self.engine.equity = snapshot["equity"]
+
+    def _is_candle_feed_healthy(
+        self, candles: list[Candle], report: ValidationReport, now_ms: int
+    ) -> tuple[bool, str]:
+        """Prueft Schema-Validitaet, Mindest-Historie und zeitliche Frische eines Feeds."""
+        if not report or not report.is_valid:
+            return False, "ValidationReport unvollstaendig oder ungueltig"
+        if not candles:
+            return False, "Keine Kerzen empfangen"
+        closed = [c for c in candles if c.is_closed]
+        if len(closed) < 30:
+            return False, f"Zu wenige geschlossene Kerzen ({len(closed)} < 30)"
+        last_bar = closed[-1]
+        bar_end_ms = last_bar.time_ms + 3600_000
+        max_stale_ms = int(self.max_stale_age_sec * 1000)
+        if (now_ms - bar_end_ms) > max_stale_ms:
+            return False, f"Feed veraltet: Letzter geschlossener Bar endete vor {(now_ms - bar_end_ms)/1000:.0f}s (max: {self.max_stale_age_sec:.0f}s)"
+        if last_bar.time_ms > now_ms + 60_000:
+            return False, "Feed-Zeitstempel liegt in der Zukunft"
+        return True, "OK"
 
     def _restore_persisted_state(self) -> None:
         """Stellt aktive Konfiguration, Not-Halt-Zustand und verwaiste Bar-Claims aus der DB wieder her."""
@@ -176,14 +218,16 @@ class AuraWorkerService:
 
     def _warmup_feeds(self) -> bool:
         all_ok = True
+        now_ms = int(self.time_provider() * 1000)
         for sym in self.symbols:
             try:
                 candles, rep = self.adapter.fetch_candles(sym, granularity="1H", limit=100)
-                if rep.is_valid and len(candles) >= 30:
+                healthy, err = self._is_candle_feed_healthy(candles, rep, now_ms)
+                if healthy:
                     logger.info("Warmup erfolgreich fuer %s (%d Bars geladen)", sym, len(candles))
                 else:
                     all_ok = False
-                    logger.warning("Warmup Warnung fuer %s: %s (Bars: %d)", sym, rep.errors, len(candles))
+                    logger.warning("Warmup Warnung fuer %s: %s (Bars: %d)", sym, err, len(candles) if candles else 0)
             except Exception as ex:
                 all_ok = False
                 logger.warning("Konnte Warmup fuer %s nicht abschliessen: %s", sym, ex)
@@ -204,10 +248,10 @@ class AuraWorkerService:
             if command_type == "halt":
                 self.sm.emergency_halt(str(payload.get("reason") or "Control-Plane Not-Halt"))
                 applied = True
-                result = "worker halted"
+                result = f"worker halted by {self.instance_id}"
             elif command_type == "resume":
                 applied = self.sm.resume_from_halt(str(payload.get("reason") or "Control-Plane Resume"))
-                result = "worker recovering" if applied else "worker rejected resume"
+                result = f"worker recovering ({self.instance_id})" if applied else "worker rejected resume"
             elif command_type == "set_config":
                 config = payload.get("config") or {}
                 revision = int(payload.get("rev"))
@@ -219,10 +263,10 @@ class AuraWorkerService:
                 with self.conn:
                     self.conn.execute(
                         "UPDATE config_revisions SET applied_at_ms = ? WHERE rev = ? AND applied_at_ms IS NULL",
-                        (int(time.time() * 1000), revision),
+                        (int(self.time_provider() * 1000), revision),
                     )
                 applied = True
-                result = f"config revision {revision} applied"
+                result = f"config revision {revision} applied by {self.instance_id}"
             else:
                 result = f"unsupported command type: {command_type}"
 
@@ -232,7 +276,7 @@ class AuraWorkerService:
                     "WHERE id = ? AND status = 'pending'",
                     (
                         "applied" if applied else "rejected",
-                        int(time.time() * 1000),
+                        int(self.time_provider() * 1000),
                         result,
                         command_id,
                     ),
@@ -242,26 +286,67 @@ class AuraWorkerService:
         logger.debug("Worker-Zyklus #%d gestartet...", cycle)
         self._apply_control_plane_commands()
 
+        now_ms = int(self.time_provider() * 1000)
+
+        # Phase 1: Globale Validierung aller Feeds VOR Trade-Entscheidungen (F2)
+        symbol_data: dict[str, tuple[list[Candle], list[Candle]]] = {}
         all_feeds_valid = True
+        invalid_reasons: list[str] = []
 
         for sym in self.symbols:
             try:
                 candles, rep = self.adapter.fetch_candles(sym, granularity="1H", limit=60)
-                if not rep or not rep.is_valid or not candles or len(candles) < 30:
+                healthy, err = self._is_candle_feed_healthy(candles, rep, now_ms)
+                if not healthy:
                     all_feeds_valid = False
+                    invalid_reasons.append(f"{sym}: {err}")
                     continue
 
                 self._persist_candles(sym, "1h", candles)
                 closed_candles = [c for c in candles if c.is_closed]
                 if len(closed_candles) < 30:
+                    all_feeds_valid = False
+                    invalid_reasons.append(f"{sym}: Zu wenige geschlossene Kerzen ({len(closed_candles)} < 30)")
                     continue
-                last_bar = closed_candles[-1]
 
-                # Positions are managed once for every newly closed bar.
+                symbol_data[sym] = (candles, closed_candles)
+            except Exception as ex:
+                all_feeds_valid = False
+                invalid_reasons.append(f"{sym}: Ausnahme {ex}")
+                logger.warning("Fehler beim Abruf von %s in Zyklus #%d: %s", sym, cycle, ex)
+
+        # R2 / F2 / F3: State-Transitions basierend auf Feed-Zustand
+        if not all_feeds_valid or len(self.symbols) == 0:
+            err_summary = "; ".join(invalid_reasons) or "Keine Symbole konfiguriert"
+            if self.sm.current_state == SystemState.RUNNING:
+                logger.warning("Feeds nicht mehr vollstaendig valide. Schalte RUNNING -> DEGRADED: %s", err_summary)
+                self.sm.mark_degraded(f"Feeds unvollstaendig oder veraltet: {err_summary}")
+        else:
+            if self.sm.current_state in (SystemState.RECOVERING, SystemState.DEGRADED, SystemState.WARMING_UP):
+                logger.info("Recovery/Warmup erfolgreich: Alle Feeds synchron, aktuell und valide. Schalte -> RUNNING")
+                self.sm.mark_healthy("Recovery erfolgreich: Alle Feeds synchron, aktuell und valide")
+
+        # Phase 2: Bar-Verarbeitung fuer verfuegbare Symbole (F1: atomar mit In-Memory-Rollback)
+        for sym, (candles, closed_candles) in symbol_data.items():
+            last_bar = closed_candles[-1]
+            try:
+                self._process_closed_bar(sym, last_bar, closed_candles)
+            except Exception as ex:
+                logger.warning("Fehler beim Verarbeiten von Bar fuer %s in Zyklus #%d: %s", sym, cycle, ex)
+
+        self._update_runner_state(cycle)
+
+    def _process_closed_bar(self, sym: str, last_bar: Candle, closed_candles: list[Candle]) -> None:
+        engine_snapshot = self._snapshot_engine_state()
+        pending_alerts: list[dict[str, Any]] = []
+
+        try:
+            with self.conn:
+                # 1. Bar beanspruchen
                 if not self._claim_closed_bar(sym, "1h", last_bar.time_ms):
-                    continue
+                    return
 
-                # 1. Bar-Updates fuer offene Positionen (SL, TP1, TP2, Timestop)
+                # 2. Bar-Updates fuer bestehende offene Positionen (SL, TP1, TP2, Timestop)
                 closed = self.engine.on_bar_update(
                     symbol=sym,
                     high=last_bar.high,
@@ -270,14 +355,14 @@ class AuraWorkerService:
                     bar_time_ms=last_bar.time_ms,
                 )
                 for pos in closed:
-                    self.notifier.send_alert(
-                        title=f"AURA Trade Closed: {pos.symbol}",
-                        message=f"Grund: {pos.exit_reason} @ {pos.exit_price:.4f} | Realisierter PnL: {pos.realized_pnl:+.2f} USDT",
-                        priority=4,
-                        event_type="TRADE_CLOSE",
-                    )
+                    pending_alerts.append({
+                        "title": f"AURA Trade Closed: {pos.symbol}",
+                        "message": f"Grund: {pos.exit_reason} @ {pos.exit_price:.4f} | Realisierter PnL: {pos.realized_pnl:+.2f} USDT",
+                        "priority": 4,
+                        "event_type": "TRADE_CLOSE",
+                    })
 
-                # 2. Signal-Scanning fuer neue Entries (nur wenn System RUNNING ist)
+                # 3. Signal-Scanning fuer neue Entries (nur wenn System RUNNING ist)
                 trade_opened_id = None
                 if self.sm.can_open_new_trades():
                     has_open = any(p.symbol == sym for p in self.engine.open_positions.values())
@@ -298,7 +383,7 @@ class AuraWorkerService:
                 elif self.sm.is_halted:
                     self._log_decision(sym, last_bar.time_ms, 0, None, "REJECTED", "Not-Halt aktiv")
 
-                # Bar-Verarbeitung erfolgreich abschliessen (decision='completed')
+                # 4. Bar-Verarbeitung abschliessen (decision='completed')
                 self._complete_closed_bar(
                     symbol=sym,
                     timeframe="1h",
@@ -307,21 +392,24 @@ class AuraWorkerService:
                     trade_id=trade_opened_id,
                 )
 
-            except Exception as ex:
-                all_feeds_valid = False
-                logger.warning("Fehler beim Verarbeiten von %s in Zyklus #%d: %s", sym, cycle, ex)
+            # Transaktion erfolgreich committet: Benachrichtigungen zustellen
+            for alert in pending_alerts:
+                try:
+                    self.notifier.send_alert(**alert)
+                except Exception as ex:
+                    logger.debug("Notifier Fehler: %s", ex)
 
-        # R2: Recovery ueberpruefen
-        if self.sm.current_state in (SystemState.RECOVERING, SystemState.DEGRADED):
-            if all_feeds_valid and len(self.symbols) > 0:
-                self.sm.mark_healthy("Recovery erfolgreich: Alle Feeds synchron und valide")
-
-        self._update_runner_state(cycle)
+        except BaseException:
+            # Bei Crash / Exception: Rollback in DB durch 'with self.conn:'.
+            # In-Memory-Zustand synchron zuruecksetzen!
+            self._restore_engine_snapshot(engine_snapshot)
+            raise
 
     def _update_runner_state(self, cycle: int) -> None:
         fsm_state = self.sm.current_state.value
-        reason = self.sm.reason or "Normalbetrieb"
-        now_ms = int(time.time() * 1000)
+        raw_reason = self.sm.reason or "Normalbetrieb"
+        reason = f"[{self.instance_id}] {raw_reason}"
+        now_ms = int(self.time_provider() * 1000)
         with self.conn:
             self.conn.execute(
                 "INSERT INTO runner_state (id, fsm_state, reason, equity, cycle_count, updated_at_ms) "
@@ -397,14 +485,20 @@ class AuraWorkerService:
             )
 
     def _claim_closed_bar(self, symbol: str, timeframe: str, open_time_ms: int) -> bool:
-        with self.conn:
-            cursor = self.conn.execute(
-                "INSERT OR IGNORE INTO processed_bars "
-                "(source, symbol, timeframe, open_time_ms, processed_at_ms, decision) "
-                "VALUES ('bitget', ?, ?, ?, ?, 'processing')",
-                (symbol, timeframe, open_time_ms, int(time.time() * 1000)),
-            )
-            return cursor.rowcount == 1
+        row = self.conn.execute(
+            "SELECT decision FROM processed_bars "
+            "WHERE source = 'bitget' AND symbol = ? AND timeframe = ? AND open_time_ms = ?",
+            (symbol, timeframe, open_time_ms),
+        ).fetchone()
+        if row is not None:
+            return False
+        cursor = self.conn.execute(
+            "INSERT OR IGNORE INTO processed_bars "
+            "(source, symbol, timeframe, open_time_ms, processed_at_ms, decision) "
+            "VALUES ('bitget', ?, ?, ?, ?, 'processing')",
+            (symbol, timeframe, open_time_ms, int(self.time_provider() * 1000)),
+        )
+        return cursor.rowcount == 1
 
     def _complete_closed_bar(
         self,
@@ -415,12 +509,11 @@ class AuraWorkerService:
         trade_id: str | None = None,
         detail: str | None = None,
     ) -> None:
-        with self.conn:
-            self.conn.execute(
-                "UPDATE processed_bars SET decision = ?, trade_id = ?, detail = ?, processed_at_ms = ? "
-                "WHERE source = 'bitget' AND symbol = ? AND timeframe = ? AND open_time_ms = ?",
-                (decision, trade_id, detail, int(time.time() * 1000), symbol, timeframe, open_time_ms),
-            )
+        self.conn.execute(
+            "UPDATE processed_bars SET decision = ?, trade_id = ?, detail = ?, processed_at_ms = ? "
+            "WHERE source = 'bitget' AND symbol = ? AND timeframe = ? AND open_time_ms = ?",
+            (decision, trade_id, detail, int(self.time_provider() * 1000), symbol, timeframe, open_time_ms),
+        )
 
     def _evaluate_and_enter(self, symbol: str, candles: list[Candle]):
         """Analysiert Kerzen und eroeffnet neue Paper-Position bei hoher Konfluenz."""
@@ -503,9 +596,29 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AURA v3 Autonomer Hintergrund-Worker")
     parser.add_argument("--db", default=os.environ.get("AURA_DB_PATH", "aura_state.db"), help="Pfad zur SQLite-Datenbank")
     parser.add_argument("--symbols", default="BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,DOGEUSDT", help="Kommagetrennte Symbole")
-    parser.add_argument("--interval", type=int, default=60, help="Poll-Intervall in Sekunden")
+    parser.add_argument("--interval", type=float, default=60.0, help="Poll-Intervall in Sekunden")
+    parser.add_argument("--test-mode", action="store_true", help="Synthetischer Determinismus-Feed fuer Offline-/Lifecycle-Tests")
     args = parser.parse_args()
 
     sym_list = [s.strip() for s in args.symbols.split(",") if s.strip()]
     worker = AuraWorkerService(db_path=args.db, poll_interval_sec=args.interval, symbols=sym_list)
+    if args.test_mode or os.environ.get("AURA_TEST_FEED") == "1":
+        class DeterministicFreshFeed:
+            def fetch_candles(self, symbol: str, granularity: str = "1H", limit: int = 60):
+                now_s = int(time.time())
+                now_h = now_s - (now_s % 3600)
+                candles = [
+                    Candle(
+                        time_ms=(now_h - (39 - i) * 3600) * 1000,
+                        open=50000.0 + i * 10,
+                        high=50050.0 + i * 10,
+                        low=49950.0 + i * 10,
+                        close=50020.0 + i * 10,
+                        volume=100.0,
+                        is_closed=True,
+                    )
+                    for i in range(40)
+                ]
+                return candles, ValidationReport(is_valid=True, total_checked=len(candles), errors=[])
+        worker.adapter = DeterministicFreshFeed()
     worker.start()

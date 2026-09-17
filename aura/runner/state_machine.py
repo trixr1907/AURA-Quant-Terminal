@@ -120,7 +120,7 @@ class RunnerStateMachine:
         return self.transition_to(SystemState.RECOVERING, reason=reason)
 
     def mark_degraded(self, reason: str) -> None:
-        if self._state == SystemState.RUNNING:
+        if self._state in (SystemState.RUNNING, SystemState.WARMING_UP):
             self.transition_to(SystemState.DEGRADED, reason=reason)
 
     def mark_healthy(self, reason: str = "Feeds wieder synchron") -> None:

@@ -1,0 +1,104 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /mnt/c/Users/Ivo/Downloads
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 5 items
+
+../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_r4_replay_after_partial_exit_changes_trade SAME_BAR_REPLAY: open -> open
+FAILED
+../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_stale_feed_is_accepted_as_recovered STALE_2023_FEED_STATE: RECOVERING
+FAILED
+../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_failed_warmup_never_recovers_from_warming_up AFTER_FEED_RETURN: RUNNING
+FAILED
+../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_executescript_breaks_rollback ROWS_SURVIVING_SCRIPT_ROLLBACK: 0
+FAILED
+../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_plain_and_nested_transactions_now_work PASSED
+
+=================================== FAILURES ===================================
+_______________ test_r4_replay_after_partial_exit_changes_trade ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-116/test_r4_replay_after_partial_e0')
+
+    def test_r4_replay_after_partial_exit_changes_trade(tmp_path):
+        path=str(tmp_path/'r4.db'); ts=int(time.time()*1000)-3600000
+        w=AuraWorkerService(db_path=path,symbols=['BTCUSDT']); running(w)
+        w.adapter=Feed(bars(ts))
+        p=w.engine.open_trade(symbol='BTCUSDT',timeframe='1h',direction=1,entry_price=100,sl_price=90,tp1_price=110,tp2_price=120,spec={'ctVal':0.0001,'minSize':0.0001,'minNotional':5.0},current_time_ms=ts-3600000)
+        assert p is not None
+        class PowerLoss(BaseException): pass
+        def crash(*a,**k): raise PowerLoss()
+        w._complete_closed_bar=crash
+        with pytest.raises(PowerLoss): w._run_cycle(1)
+        before=w.conn.execute('SELECT status FROM trades WHERE id=?',(p.trade_id,)).fetchone()[0]
+        assert p.tp1_hit and p.qty < p.initial_qty
+        w.conn.close()
+        w2=AuraWorkerService(db_path=path,symbols=['BTCUSDT']); running(w2); w2.adapter=Feed(bars(ts))
+        w2._run_cycle(2)
+        after=w2.conn.execute('SELECT status FROM trades WHERE id=?',(p.trade_id,)).fetchone()[0]
+        print('SAME_BAR_REPLAY:',before,'->',after)
+>       assert p.trade_id not in w2.engine.open_positions
+E       AssertionError: assert 'trade_d9d0efd6b4b5' not in {'trade_d9d0efd6b4b5': PaperPosition(trade_id='trade_d9d0efd6b4b5', symbol='BTCUSDT', timeframe='1h', direction=1, entry_price=100.01500000000001, sl_price=100.01500000000001, initial_sl_price=90.0, tp1_price=110.0, tp2_price=120.0, qty=5.0, contracts=1, initial_qty=10.0, margin=100.0, leverage=10, entry_time_ms=1789604294947, status='partial_tp1', tp1_hit=True, exit_price=None, exit_time_ms=None, exit_reason=None, realized_pnl=49.81499999999993, unrealized_pnl=0.0, total_fees=0.71009, r_multiple=0.0, max_price=111, min_price=99, setup_score=50.0, notes='TP1 @ 110.0000 (50% Teilgewinn: 49.81)')}
+E        +  where 'trade_d9d0efd6b4b5' = PaperPosition(trade_id='trade_d9d0efd6b4b5', symbol='BTCUSDT', timeframe='1h', direction=1, entry_price=100.01500000000001, sl_price=100.01500000000001, initial_sl_price=90, tp1_price=110, tp2_price=120, qty=5.0, contracts=100000, initial_qty=10.0, margin=100.0, leverage=10, entry_time_ms=1789604294947, status='partial_tp1', tp1_hit=True, exit_price=None, exit_time_ms=None, exit_reason=None, realized_pnl=49.81499999999993, unrealized_pnl=0.0, total_fees=0.71009, r_multiple=0.0, max_price=111, min_price=99, setup_score=65.0, notes='TP1 @ 110.0000 (50% Teilgewinn: 49.81)').trade_id
+E        +  and   {'trade_d9d0efd6b4b5': PaperPosition(trade_id='trade_d9d0efd6b4b5', symbol='BTCUSDT', timeframe='1h', direction=1, entry_price=100.01500000000001, sl_price=100.01500000000001, initial_sl_price=90.0, tp1_price=110.0, tp2_price=120.0, qty=5.0, contracts=1, initial_qty=10.0, margin=100.0, leverage=10, entry_time_ms=1789604294947, status='partial_tp1', tp1_hit=True, exit_price=None, exit_time_ms=None, exit_reason=None, realized_pnl=49.81499999999993, unrealized_pnl=0.0, total_fees=0.71009, r_multiple=0.0, max_price=111, min_price=99, setup_score=50.0, notes='TP1 @ 110.0000 (50% Teilgewinn: 49.81)')} = <aura.runner.paper_engine.PaperTradingEngine object at 0x73027d31d2b0>.open_positions
+E        +    where <aura.runner.paper_engine.PaperTradingEngine object at 0x73027d31d2b0> = <aura.runner.worker.AuraWorkerService object at 0x73027d63b920>.engine
+
+/mnt/c/Users/Ivo/Downloads/aura_followup_probes.py:40: AssertionError
+___________________ test_stale_feed_is_accepted_as_recovered ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-116/test_stale_feed_is_accepted_as0')
+
+    def test_stale_feed_is_accepted_as_recovered(tmp_path):
+        w=AuraWorkerService(db_path=str(tmp_path/'old.db'),symbols=['BTCUSDT']); running(w)
+        w.sm.emergency_halt('probe'); w.sm.resume_from_halt('probe')
+        w.adapter=Feed(bars(1700000000000)); w._run_cycle(1)
+        print('STALE_2023_FEED_STATE:',w.sm.current_state.value)
+>       assert w.sm.can_open_new_trades()
+E       assert False
+E        +  where False = can_open_new_trades()
+E        +    where can_open_new_trades = <aura.runner.state_machine.RunnerStateMachine object at 0x73027d3412e0>.can_open_new_trades
+E        +      where <aura.runner.state_machine.RunnerStateMachine object at 0x73027d3412e0> = <aura.runner.worker.AuraWorkerService object at 0x73027d342480>.sm
+
+/mnt/c/Users/Ivo/Downloads/aura_followup_probes.py:49: AssertionError
+______________ test_failed_warmup_never_recovers_from_warming_up _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-116/test_failed_warmup_never_recov0')
+
+    def test_failed_warmup_never_recovers_from_warming_up(tmp_path):
+        w=AuraWorkerService(db_path=str(tmp_path/'warm.db'),symbols=['BTCUSDT'])
+        w.adapter=Feed(valid=False); w.start(max_cycles=1)
+        w.adapter=Feed(bars(int(time.time()*1000)-3600000)); w._run_cycle(2)
+        print('AFTER_FEED_RETURN:',w.sm.current_state.value)
+>       assert w.sm.current_state==SystemState.WARMING_UP
+E       AssertionError: assert <SystemState....NG: 'RUNNING'> == <SystemState.... 'WARMING_UP'>
+E         
+E         - WARMING_UP
+E         + RUNNING
+
+/mnt/c/Users/Ivo/Downloads/aura_followup_probes.py:57: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  aura.worker:worker.py:230 Warmup Warnung fuer BTCUSDT: ValidationReport unvollstaendig oder ungueltig (Bars: 0)
+WARNING  aura.worker:worker.py:187 Warmup unvollstaendig (Marktdaten offline oder unzureichend). Gehe in DEGRADED.
+______________________ test_executescript_breaks_rollback ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-116/test_executescript_breaks_roll0')
+
+    def test_executescript_breaks_rollback(tmp_path):
+        c=connect(tmp_path/'tx.db'); c.execute('CREATE TABLE probe(x INTEGER)')
+        with pytest.raises(RuntimeError):
+            with c:
+                c.execute('INSERT INTO probe VALUES(1)')
+                c.executescript('INSERT INTO probe VALUES(2);')
+                raise RuntimeError('failure')
+        n=c.execute('SELECT COUNT(*) FROM probe').fetchone()[0]
+        print('ROWS_SURVIVING_SCRIPT_ROLLBACK:',n)
+>       assert n==2
+E       assert 0 == 2
+
+/mnt/c/Users/Ivo/Downloads/aura_followup_probes.py:69: AssertionError
+=========================== short test summary info ============================
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_r4_replay_after_partial_exit_changes_trade
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_stale_feed_is_accepted_as_recovered
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_failed_warmup_never_recovers_from_warming_up
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_followup_probes.py::test_executescript_breaks_rollback
+========================= 4 failed, 1 passed in 0.57s ==========================
