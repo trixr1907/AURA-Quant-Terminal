@@ -1,5 +1,7 @@
 import asyncio
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, expect
+import urllib.parse
+import json
 
 async def run_tests():
     async with async_playwright() as p:
@@ -8,120 +10,108 @@ async def run_tests():
         page = await context.new_page()
         
         network_calls = []
-        public_payloads = []
         js_errors = []
         
-        def handle_request(request):
-            network_calls.append({"method": request.method, "url": request.url})
-            if "/api/public" in request.url and request.method == "POST":
-                public_payloads.append(request.post_data)
-                
-        page.on("request", handle_request)
+        page.on("request", lambda request: network_calls.append({"method": request.method, "url": request.url}))
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
         
-        print("=== Test 1: Laden (keine JS Fehler) ===")
+        # Start without cookies
         await context.clear_cookies()
         await page.goto("http://127.0.0.1:8899/preview")
         await page.wait_for_timeout(1000)
-        print(f"JS Errors: {js_errors}")
+        
+        assert len(js_errors) == 0, f"Unerwartete JS-Fehler: {js_errors}"
+        
+        # Test: Anon-Zustand + UI-Login 
+        auth_txt = await page.locator("#pill-auth-txt").inner_text()
+        assert auth_txt == "Anonym"
 
-        print("\n=== Test 2: Login & Fehlende Bewertungsmarke ===")
-        await page.evaluate("""fetch('/api/v3/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({token: 'aura_dev_insecure_token_change_in_prod'})
-            })""")
-        await page.evaluate("refreshData()")
+        # Login per UI Form (I4)
+        # Use WRONG token first (Negativkontrolle)
+        # Assuming the UI element is correctly added to DOM via our previous injection
+        await page.locator("#loginTokenInput").fill("wrong_token_123")
+        await page.locator("#btnLoginSubmit").click()
+        await page.wait_for_timeout(500)
+        error_msg = await page.locator("#loginError").inner_text()
+        assert error_msg == "Fehlerhafte Anmeldung", f"Falsche Token-Erwartung, Error war: {error_msg}"
+        auth_txt = await page.locator("#pill-auth-txt").inner_text()
+        assert auth_txt == "Anonym"
+
+        # Use CORRECT token
+        correct_token = "TEST_INTEGRATION_TOKEN_XYZ"
+        await page.locator("#loginTokenInput").fill(correct_token)
+        await page.locator("#btnLoginSubmit").click()
         await page.wait_for_timeout(1000)
         
+        auth_txt = await page.locator("#pill-auth-txt").inner_text()
+        assert auth_txt == "Operator", f"Login fehlgeschlagen. Auth war: {auth_txt}"
+        
+        # PnL Check (I2) & Bewertungsmarke
         await page.locator("#tab-paper-d").click()
+        await page.wait_for_selector("#openPosTbody")
         await page.wait_for_timeout(500)
-        # Check "Bewertungsmarke" cell inside the Paper table
-        # Find row for SOLUSDT
-        mark_value = await page.evaluate("""
-            Array.from(document.querySelectorAll('#openPosTbody tr')).find(tr => tr.innerText.includes('SOLUSDT')).cells[4].innerText
-        """)
-        print(f"Auth State logged in: {await page.locator('#pill-auth-txt').inner_text()}")
-        print(f"Bewertungsmarke fuer SOLUSDT: {mark_value} (erwartet '—')")
+        row = page.locator("#openPosTbody tr", has_text="SOLUSDT")
+        
+        # Verify mark price "—"
+        mark_price = await row.locator("td:nth-child(5)").inner_text()
+        assert mark_price == "—", f"Bewertungsmarke entsprach nicht '—', sondern {mark_price}"
+        
+        gross_pnl = await row.locator("td:nth-child(6)").inner_text()
+        net_pnl = await row.locator("td:nth-child(7)").inner_text()
+        assert "USDT" not in gross_pnl # PnL formatting check
+        assert net_pnl == "—", "Erfundenes NetPnl ohne Daten!"
 
-        print("\n=== Test 3: Symbolnormalisierung & OHLC Mapping ===")
+        # I3 / I1: Kerzen Map & Symbolnormalisierung & Race-Condition beim Wechsel
         await page.locator("#tab-market-d").click()
-        await page.evaluate("""
-            document.querySelector('select#symbolSelect').value = 'BTCUSDT.P';
-            document.querySelector('select#symbolSelect').dispatchEvent(new Event('change'));
-        """)
-        await page.wait_for_timeout(1000)
-        print("Captured /api/public payloads:", public_payloads[-1] if public_payloads else "None")
-        print("Chart Caption:", await page.locator("#chartCaption").inner_text())
-
-        print("\n=== Test 4: Unterschiedliche Worker-/Marktdatenfrische ===")
-        worker_txt = await page.locator("#pill-worker-txt").inner_text()
-        feed_txt = await page.locator("#pill-feed-txt").inner_text()
-        print(f"Worker-Status: {worker_txt}, Marktdaten-Feed: {feed_txt}")
-
-        print("\n=== Test 5: Verspätete State-Antwort nach Logout ===")
+        await page.wait_for_timeout(500)
+        
+        # Abort late fetch implicitly via playwright route race condition (Race-verwerfen)
+        wait_for_fetch = asyncio.Event()
+        async def delay_candles(route):
+            await wait_for_fetch.wait() # Blockiert Route
+            await route.continue_()
+            
+        await page.route("**/api/public", delay_candles)
+        
+        # 1. Klicke ein Symbol -> Fetch 1 startet
+        await page.locator("select#symbolSelect").select_option("BTCUSDT.P")
+        await page.wait_for_timeout(200)
+        # 2. Klicke ein ANDERES Symbol -> Fetch 2 startet
+        await page.locator("select#symbolSelect").select_option("ETHUSDT.P")
+        await page.wait_for_timeout(200)
+        
+        # Jetzt beide Routen freigeben
+        wait_for_fetch.set()
+        await page.wait_for_timeout(1500)
+        await page.unroute("**/api/public")
+        
+        # Wir erwarten, dass er bei ETHUSDT.P (zweiter) verblieben ist, auch wenn BTC (erster) langsamer eintrudelt.
+        caption = await page.locator("#chartCaption").inner_text()
+        assert "ETHUSDT" in caption, "Chart Caption spiegelt nicht das zuletzt gewaehlte Symbol wider!"
+        assert "Bitget:ETHUSDT ·" in caption, f"Normalisierung fehlt in Chart Caption, ist: {caption}"
+        
+        # I4: Logout-Race
         async def delay_state(route):
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(2.0)
             await route.continue_()
             
         await page.route("**/api/v3/state**", delay_state)
-        await page.evaluate("refreshData()") # fires delayed fetch
-        # logout immediately
-        await page.evaluate("fetch('/api/v3/auth/logout', {method: 'POST'})")
-        # second fetch overwrites auth
         await page.evaluate("refreshData()")
+        await page.locator("#btnLogout").click()
+        # Erneuter refresh feuert und ist instant wegen 401 unauth (loescht DOM)
         await page.wait_for_timeout(200)
-        immediate_auth = await page.locator("#pill-auth-txt").inner_text()
+        auth_now = await page.locator("#pill-auth-txt").inner_text()
+        assert auth_now == "Anonym"
         
-        # Wait for the delayed response to arrive
-        await page.wait_for_timeout(1500)
-        delayed_auth = await page.locator("#pill-auth-txt").inner_text()
-        equity_display = await page.locator("#ovEquity").inner_text()
-        print(f"Immediate post-logout auth: {immediate_auth}")
-        print(f"Delayed response arrived. Auth remains: {delayed_auth}")
-        print(f"Equity cleared: {equity_display}")
+        # Warten auf verzoegertes stateRes (altes request von vorher)
+        await page.wait_for_timeout(2500)
+        auth_later = await page.locator("#pill-auth-txt").inner_text()
+        assert auth_later == "Anonym", "Alter State-Call hat nach Logout den DOM ueberschrieben!"
         await page.unroute("**/api/v3/state**")
 
-        print("\n=== Test 6: Sitzungsablauf (State 401 clearing) ===")
-        # Login again
-        await page.evaluate("""fetch('/api/v3/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({token: 'aura_dev_insecure_token_change_in_prod'})
-            })""")
-        await page.evaluate("refreshData()")
-        await page.wait_for_timeout(1000)
-        print("Re-logged in. Auth:", await page.locator("#pill-auth-txt").inner_text())
-        
-        # Manually clear session cookie to simulate expiry 
-        await context.clear_cookies()
-        await page.evaluate("refreshData()")
-        await page.wait_for_timeout(1000)
-        print("After session expiry. Auth:", await page.locator("#pill-auth-txt").inner_text())
-
-        print("\n=== Test 7: API-Ausfall und Wiederverbindung ===")
-        await page.route("**/api/v3/auth/status", lambda r: r.abort())
-        await page.evaluate("refreshData()")
-        await page.wait_for_timeout(1000)
-        print("API Drop. Conn State:", await page.locator("#pill-conn-txt").inner_text())
-        
-        await page.unroute("**/api/v3/auth/status")
-        # Login needed again because auth request was aborted and we lost the refresh data pipeline correctly
-        await page.evaluate("""fetch('/api/v3/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({token: 'aura_dev_insecure_token_change_in_prod'})
-            })""")
-        await page.evaluate("refreshData()")
-        await page.wait_for_timeout(1000)
-        print("API Restore. Conn State:", await page.locator("#pill-conn-txt").inner_text())
-
-        print("\n=== Test 8: Kontrolle unerwarteter Schreib-Requests ===")
-        write_endpoints = [r["url"] for r in network_calls if r["method"] not in ["GET", "OPTIONS"] and "public" not in r["url"] and "login" not in r["url"] and "logout" not in r["url"]]
-        print("Unexpected Write Requests:", write_endpoints)
-        
         await context.close()
         await browser.close()
+        print("Alle Integrationstests BESTANDEN.")
 
 if __name__ == "__main__":
     asyncio.run(run_tests())

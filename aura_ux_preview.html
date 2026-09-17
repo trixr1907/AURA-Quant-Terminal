@@ -341,6 +341,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
     <span class="pill" id="pill-worker"><span class="ic" aria-hidden="true">⚙️</span><span class="lbl">Worker</span><span class="txt" id="pill-worker-txt">HALTED</span></span>
   </div>
   <button type="button" class="halt-btn-top" id="btnHaltTop">⛔ Not-Halt</button>
+      <button type="button" class="btn ghost" id="btnLogout" style="display:none; margin-left:10px; height:44px; padding:0 16px;">🚪 Logout</button>
 </div>
 
 <div class="halt-banner" id="haltBanner" role="status">
@@ -370,6 +371,15 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
   <!-- ================= TAB 1: ÜBERSICHT ================= -->
   <section class="view active" id="view-overview" role="tabpanel" aria-labelledby="tab-overview-d">
 
+    
+    <div id="loginFormCont" style="display:none; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:16px; margin-top:20px; flex-shrink:0;">
+        <h3 style="margin-top:0">Operator-Login</h3>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="loginTokenInput" placeholder="AURA_RELAY_TOKEN eingeben" style="flex:1; padding:8px; border-radius:4px; border:1px solid var(--line); background:var(--surface); color:var(--txt)">
+            <button class="btn primary" id="btnLoginSubmit">Anmelden</button>
+        </div>
+        <div id="loginError" style="color:var(--red2); margin-top:8px; font-size:12px"></div>
+    </div>
     <h2 class="section-title">Konto </h2>
     <div class="grid cols-4" id="accountKpis">
       <div class="card"><h3>Equity</h3><div class="kpi" id="ovEquity">—</div><div class="sub" id="ovEquitySub">—</div></div>
@@ -618,6 +628,8 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
 
 <script>
 "use strict";
+let fetchGen = 0;
+let marketFetchGen = 0;
 /* =========================================================================
    AURA UX-Prototyp v2 — vollstaendig lokal, keine externen Requests.
    Ein einziges deterministisches Datenmodell (FACTS) speist alle Ansichten.
@@ -669,121 +681,99 @@ function fmtPct(v, digits){
   digits = digits===undefined?1:digits;
   return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
 }
-let fetchGen = 0;
 async function refreshData() {
     const myGen = ++fetchGen;
-    
-    // Auth & Basisstatus
     const authRes = await apiCall("/api/v3/auth/status");
-    if (myGen !== fetchGen) return;
+    if(myGen !== fetchGen) return;
 
-    if (authRes._error && (authRes.status === 401 || authRes.status === 403)) {
+    if(authRes._error && (authRes.status===401||authRes.status===403)){
         state.scenario.auth = "anon";
-        OPEN_POSITIONS = []; CLOSED_TRADES = [];
-        renderAll();
-        return;
-    } else if (authRes._error) {
-        state.scenario.conn = "disconnected";
-        renderAll();
-        return;
-    } else if (!authRes.authenticated) {
+        OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
+    }else if(authRes._error){
+        state.scenario.conn = "disconnected"; renderAll(); return;
+    }else if(!authRes.authenticated){
         state.scenario.auth = "anon";
-        OPEN_POSITIONS = []; CLOSED_TRADES = [];
-        renderAll();
-        return;
+        OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
     }
-    state.scenario.auth = "operator";
-    state.scenario.conn = "connected";
+    state.scenario.auth = "operator"; state.scenario.conn = "connected";
 
-    // Worker Status
     const workerRes = await apiCall("/status/worker");
-    if (myGen !== fetchGen) return;
-    if (!workerRes._error) {
+    if(myGen !== fetchGen) return;
+    if(!workerRes._error){
         state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
         KPIS.dataAgeSec = workerRes.data_age_seconds;
     }
 
-    // State (Positions, Config, Market status)
     const stateRes = await apiCall("/api/v3/state");
-    if (myGen !== fetchGen) return;
-    
-    if (stateRes._error && (stateRes.status === 401 || stateRes.status === 403)) {
-        state.scenario.auth = "anon";
-        state.scenario.conn = "connected";
-        OPEN_POSITIONS = []; CLOSED_TRADES = [];
-        renderAll();
-        return;
-    } else if (stateRes._error) {
-        state.scenario.conn = "disconnected";
-        renderAll();
-        return;
+    if(myGen !== fetchGen) return;
+    if(stateRes._error && (stateRes.status===401||stateRes.status===403)){
+        state.scenario.auth = "anon"; OPEN_POSITIONS = []; CLOSED_TRADES = []; renderAll(); return;
+    } else if(stateRes._error){
+        state.scenario.conn = "disconnected"; renderAll(); return;
     }
 
-    // Marktdaten-Frische aus der tatsächlichen Backend-Metrik holen (statt vom Worker-Heartbeat)
-    if (stateRes.market_data) {
-        if (stateRes.market_data.status === "stale" || stateRes.market_data.status === "unverified") {
+    if(stateRes.market_data){
+        const ms = stateRes.market_data.status;
+        if(ms === "stale" || ms === "unverified" || ms === "source_failed"){
             state.scenario.feed = "stale";
+            state.scenario.feedText = "veraltet (" + ms + ")";
         } else {
             state.scenario.feed = "fresh";
+            state.scenario.feedText = "frisch (" + ms + ")";
         }
     } else {
         state.scenario.feed = "stale";
+        state.scenario.feedText = "fehlend";
     }
 
-    if (stateRes.open_positions !== undefined) {
+    if(stateRes.open_positions !== undefined){
         OPEN_POSITIONS = stateRes.open_positions.map(p => ({
-            symbol: p.symbol, dir: p.dir, qty: p.qty, entry: p.entry_price, mark: "—",
-            grossPnl: p.unrealized_pnl + p.fees, feeOpen: p.fees, netPnl: p.unrealized_pnl, sl: p.sl_price, tp1: p.tp1_price
+            symbol: p.symbol, dir: p.dir, qty: p.qty, entry: p.entry_price,
+            mark: p.mark_price?p.mark_price:"—", sl: p.sl_price, tp1: p.tp1_price,
+            grossPnl: p.unrealized_pnl, feeOpen: p.fees,
+            netPnl: null
         }));
         CLOSED_TRADES = stateRes.closed_trades.map(t => ({
             symbol: t.symbol, dir: t.dir, entry: t.entry_price, exit: t.exit_price,
             grossPnl: t.realized_pnl + t.fees, fees: t.fees, netPnl: t.realized_pnl, rNet: t.r_multiple,
-            outcome: t.realized_pnl > 0 ? "win" : (t.realized_pnl < 0 ? "loss" : "breakeven")
+            outcome: t.realized_pnl>0?"win":(t.realized_pnl<0?"loss":"breakeven")
         }));
-        KPIS.equity = stateRes.equity;
-        KPIS.starting_equity = stateRes.starting_equity;
-        KPIS.realizedNet = stateRes.realized_pnl;
-        KPIS.unrealizedNet = stateRes.unrealized_pnl;
-        KPIS.winRate = (stateRes.win_rate_pct != null) ? (stateRes.win_rate_pct / 100) : null;
+        KPIS.equity = stateRes.equity; KPIS.starting_equity = stateRes.starting_equity;
+        KPIS.realizedNet = stateRes.realized_pnl; KPIS.unrealizedNet = stateRes.unrealized_pnl;
+        KPIS.winRate = (stateRes.win_rate_pct!=null)?(stateRes.win_rate_pct/100):null;
         
-        let wins = CLOSED_TRADES.filter(t=>t.outcome==="win");
-        let losses = CLOSED_TRADES.filter(t=>t.outcome==="loss");
-        let grossProfit = wins.reduce((s,t)=>s+t.netPnl, 0);
-        let grossLoss = Math.abs(losses.reduce((s,t)=>s+t.netPnl, 0));
-        KPIS.profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : null;
+        let wins = CLOSED_TRADES.filter(t=>t.outcome==="win"), losses = CLOSED_TRADES.filter(t=>t.outcome==="loss");
+        let gp = wins.reduce((s,t)=>s+t.netPnl,0), gl = Math.abs(losses.reduce((s,t)=>s+t.netPnl,0));
+        KPIS.profitFactor = gl>0 ? (gp/gl) : null;
         
-        let validR = CLOSED_TRADES.filter(t => t.rNet !== null);
-        KPIS.avgRValidCount = validR.length;
-        KPIS.avgRExcludedCount = CLOSED_TRADES.length - validR.length;
-        KPIS.avgR = KPIS.avgRValidCount > 0 ? (validR.reduce((s,t)=>s+t.rNet,0)/KPIS.avgRValidCount) : null;
-        
+        let valR = CLOSED_TRADES.filter(t=>t.rNet!==null);
+        KPIS.avgRValidCount = valR.length; KPIS.avgRExcludedCount = CLOSED_TRADES.length - valR.length;
+        KPIS.avgR = KPIS.avgRValidCount>0 ? (valR.reduce((s,t)=>s+t.rNet,0)/KPIS.avgRValidCount) : null;
+
         KPIS.totalFeesClosed = CLOSED_TRADES.reduce((s,t)=>s+t.fees, 0);
         KPIS.totalFeesOpenIncurred = OPEN_POSITIONS.reduce((s,p)=>s+p.feeOpen, 0);
         KPIS.totalFeesToDate = KPIS.totalFeesClosed + KPIS.totalFeesOpenIncurred;
-        KPIS.closedCount = CLOSED_TRADES.length;
-        KPIS.smallSample = KPIS.closedCount < 30;
-        KPIS.winsCount = wins.length;
-        KPIS.decided = wins.length + losses.length;
-
-        if (stateRes.config) {
+        KPIS.closedCount = CLOSED_TRADES.length; KPIS.smallSample = KPIS.closedCount < 30;
+        KPIS.winsCount = wins.length; KPIS.decided = wins.length+losses.length;
+        
+        if(stateRes.config){
             ACTIVE_SERVER_CONFIG = {
-                revision: stateRes.active_config_rev || 0,
-                riskPerTradePct: stateRes.config.risk_per_trade_pct || 1.0,
-                maxOpenPositions: stateRes.config.max_open_positions || 5,
-                maxLeverage: stateRes.config.max_leverage || 10,
-                dryRun: stateRes.config.dry_run !== false
+                revision: stateRes.active_config_rev||0, riskPerTradePct: stateRes.config.risk_per_trade_pct||1.0,
+                maxOpenPositions: stateRes.config.max_open_positions||5, maxLeverage: stateRes.config.max_leverage||10,
+                dryRun: stateRes.config.dry_run!==false
             };
         }
-
-        if (stateRes.market_data && stateRes.market_data.symbols) {
+        if(stateRes.market_data && stateRes.market_data.symbols){
             stateRes.market_data.symbols.forEach(s => {
-                SYMBOL_META[s.symbol] = { unit: "USDT" };
-                MARKET_LIQ[s.symbol] = s;
+                const cleanSym = s.symbol.replace(/\.P$/, "");
+                SYMBOL_META[cleanSym] = { unit: "USDT" };
+                MARKET_LIQ[cleanSym] = s;
             });
         }
     }
     renderAll();
 }
+
 function fmtPct(v, digits){
   digits = digits===undefined?1:digits;
   return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
@@ -846,6 +836,8 @@ function renderOverview(){
   const anon = s.auth === "anon";
 
   document.getElementById('ovAnonNote').style.display = anon ? "block" : "none";
+  document.getElementById('loginFormCont').style.display = anon ? "block" : "none";
+  document.getElementById('btnLogout').style.display = !!anon ? "none" : "block";
   document.getElementById('ovFeesTeaser').style.display = anon ? "none" : "block";
 
   if (anon){
@@ -973,33 +965,43 @@ function drawMockChart(){
 
 
 async function renderMarket() {
-  const symbol = state.chart.symbol;
+  const mGen = ++marketFetchGen;
+  const rawSymbol = state.chart.symbol;
   let tf = state.chart.tf;
   const bitgetTf = (tf === "1h") ? "1H" : (tf === "4h" ? "4H" : (tf === "1d" ? "1D" : "15m"));
-  const apiSymbol = symbol.replace(".P", "");
   
-  if (!SYMBOL_META[symbol]) { SYMBOL_META[symbol] = {unit: "USDT"}; }
-  const meta = SYMBOL_META[symbol];
+  const apiSymbol = rawSymbol.replace(/\.P$/, "");
+  if (!SYMBOL_META[apiSymbol]) { SYMBOL_META[apiSymbol] = {unit: "USDT"}; }
+  const meta = SYMBOL_META[apiSymbol];
 
   const payload = { "path": `/api/v2/mix/market/candles?symbol=${apiSymbol}&granularity=${bitgetTf}&productType=USDT-FUTURES&limit=60` };
   const r = await apiCall("/api/public", "POST", payload);
+  if(mGen !== marketFetchGen) return;
+
   let cList = [];
   if (r && r.data && Array.isArray(r.data)) {
       cList = r.data.map(c => ({
-          open: parseFloat(c[1]), high: parseFloat(c[2]), low: parseFloat(c[3]), close: parseFloat(c[4])
-      }));
+          ts: parseInt(c[0], 10), open: parseFloat(c[1]), high: parseFloat(c[2]), low: parseFloat(c[3]), close: parseFloat(c[4])
+      })).filter(c => !isNaN(c.ts) && !isNaN(c.open) && !isNaN(c.high) && !isNaN(c.low) && !isNaN(c.close));
+      cList.sort((a,b) => a.ts - b.ts);
+      let dedup = []; let seen = new Set();
+      for (const c of cList) {
+          if (!seen.has(c.ts)) { seen.add(c.ts); dedup.push(c); }
+      }
+      cList = dedup;
   }
   
   if (cList.length === 0) {
-      document.getElementById('priceTag').textContent = "Keine Daten";
+      document.getElementById('priceTag').textContent = "—";
       document.getElementById('chartCaption').textContent = "Fehler: Kerzen nicht verfügbar";
       currentCandles = [];
   } else {
       currentCandles = cList;
       const last = cList[cList.length - 1];
       document.getElementById('priceTag').textContent = fmtMoney(last.close, false) + " " + meta.unit;
-      document.getElementById('chartCaption').textContent = "Bitget:" + symbol + " · " + bitgetTf + " (Prod)";
-      document.getElementById('chartAgeTag').textContent = "Live-Daten via /api/public Proxy — Read-Only Vorschau";
+      const datum = new Date(last.ts).toLocaleTimeString("de-DE");
+      document.getElementById('chartCaption').textContent = "Bitget:" + apiSymbol + " · " + bitgetTf + " (Prod)";
+      document.getElementById('chartAgeTag').textContent = "Zuletzt generiert: " + datum + " (Proxy)";
   }
   requestAnimationFrame(drawMockChart);
 
@@ -1007,19 +1009,20 @@ async function renderMarket() {
   const symbols = Object.keys(SYMBOL_META);
   if(symbols.length > 0) {
       wl.innerHTML = symbols.map(sym => {
-        const selected = sym === symbol;
-        return `<button type="button" class="wl-item" role="option" aria-pressed="${selected}" data-sym="${sym}"><b>${sym}</b></button>`;
+        const displaySym = sym.endsWith(".P") ? sym : sym + ".P";
+        const selected = (rawSymbol.replace(/\.P$/, "") === sym);
+        return `<button type="button" class="wl-item" role="option" aria-pressed="${selected}" data-sym="${displaySym}"><b>${displaySym}</b></button>`;
       }).join('');
       wl.querySelectorAll('.wl-item').forEach(btn => {
         btn.addEventListener('click', async () => {
           document.getElementById('symbolSelect').value = btn.dataset.sym;
           state.chart.symbol = btn.dataset.sym;
-          await renderMarket();
+          renderMarket();
         });
       });
   }
 
-  const liq = MARKET_LIQ[symbol];
+  const liq = MARKET_LIQ[apiSymbol];
   if (liq && liq.criteria) {
       document.getElementById('liqRows').innerHTML = `
         <div class="row" style="display:flex;justify-content:space-between"><span>Spread</span><b class="mono">${liq.criteria.spread_bps || '--'} bps</b></div>
@@ -1030,9 +1033,6 @@ async function renderMarket() {
   } else {
       document.getElementById('liqRows').innerHTML = `<div class="mock-note">Nicht verfügbar</div>`;
   }
-
-  document.getElementById('reasoningRows').innerHTML = `<div class="mock-note">Setup-Auswertung in v3 Server-Log (Shadow Log). UI Read-Only-Integration zeigt keine Live-Faktoren.</div>`;
-  document.getElementById('reasoningNote').textContent = "";
 }
 
 
@@ -1069,7 +1069,7 @@ function renderPaper(){
       <td>${fmtMoney(p.entry,false)}</td>
       <td>${fmtMoney(p.mark,false)}</td>
       <td style="color:${p.grossPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.grossPnl,true)}</td>
-      <td style="color:${p.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.netPnl,true)}</td>
+      <td style="color:${p.netPnl===null?'var(--mut)':(p.netPnl>=0?'var(--grn2)':'var(--red2)')}">${p.netPnl===null?'—':fmtMoney(p.netPnl,true)}</td>
       <td style="color:var(--mut)">${fmtMoney(p.feeOpen,false)}</td>
     </tr>`).join('');
   document.getElementById('openPosTbody').innerHTML = openRows;
@@ -1293,6 +1293,26 @@ function wireTabs(container){
 
 /* ---------- 6) Event-Wiring ---------- */
 function wireEvents(){
+
+  document.getElementById('btnLoginSubmit').addEventListener('click', async () => {
+      const token = document.getElementById('loginTokenInput').value;
+      const r = await fetch('/api/v3/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({token})
+      });
+      if (!r.ok) {
+         document.getElementById('loginError').textContent = "Fehlerhafte Anmeldung";
+      } else {
+         document.getElementById('loginTokenInput').value = "";
+         document.getElementById('loginError').textContent = "";
+         refreshData();
+      }
+  });
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+      await fetch('/api/v3/auth/logout', { method: 'POST' });
+      refreshData();
+  });
   wireTabs(document.getElementById('tablistDesktop'));
   wireTabs(document.getElementById('tablistMobile'));
 
