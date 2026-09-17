@@ -8,6 +8,7 @@ SQL-Texte sind auditierbar.
 from __future__ import annotations
 
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +30,15 @@ class SafeConnection(sqlite3.Connection):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._tx_depth = 0
+        self._local = threading.local()
+
+    @property
+    def _tx_depth(self) -> int:
+        return getattr(self._local, "depth", 0)
+
+    @_tx_depth.setter
+    def _tx_depth(self, val: int) -> None:
+        self._local.depth = val
 
     def __enter__(self):
         if self._tx_depth == 0:
@@ -48,9 +57,11 @@ class SafeConnection(sqlite3.Connection):
             else:
                 try:
                     self.execute(f"ROLLBACK TO SAVEPOINT sp_{self._tx_depth}")
-                    self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
-                except sqlite3.OperationalError:
-                    pass
+                finally:
+                    try:
+                        self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
+                    except sqlite3.OperationalError:
+                        pass
         else:
             if self._tx_depth == 0:
                 if self.in_transaction:
@@ -61,6 +72,27 @@ class SafeConnection(sqlite3.Connection):
                 except sqlite3.OperationalError:
                     pass
         return False
+
+    def executescript(self, sql_script: str) -> sqlite3.Cursor:
+        """Fuehrt SQL-Skripte atomar aus, ohne vorzeitige COMMITs der Standardbibliothek."""
+        statements = []
+        current = []
+        for part in sql_script.split(";"):
+            current.append(part)
+            candidate = ";".join(current) + ";"
+            if sqlite3.complete_statement(candidate):
+                stmt = candidate.strip()
+                if stmt and stmt != ";":
+                    statements.append(stmt)
+                current = []
+        trailing = ";".join(current).strip()
+        if trailing and trailing != ";":
+            statements.append(trailing)
+
+        cursor = self.cursor()
+        for stmt in statements:
+            cursor.execute(stmt)
+        return cursor
 
 
 def connect(db_path: str | Path) -> sqlite3.Connection:

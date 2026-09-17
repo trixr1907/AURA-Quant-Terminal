@@ -93,3 +93,38 @@ python3 tests/pine_static_check.py        # OK, exit 0
 - Der zuvor nur prozesslokale Not-Halt wurde über die SQLite-Command-Tabelle an den separaten Worker gekoppelt; Cross-Process Halt+Resume ist mit getrennten DB-Verbindungen grün getestet.
 - Unabhängige Read-only-Reviews bestätigten weitere Blocker: fehlendes Funding/TP3, falsches R-Multiple nach TP1, Backtest-Entry-Fee, fehlender Holdout-Gate, unsicherer Default-Token und unkoordinierter Restore; der ebenfalls gefundene Same-Bar-Dedupe-Fehler ist inzwischen red-first behoben.
 - Daher derzeit ausdrücklich: **kein SOFTWARE GO, kein Deployment GO, MODEL_NO_EVIDENCE**.
+
+## Verifikation 2026-09-17 — Folgeprüfung F1–F5 (nach Commit 473cbf4)
+
+- **F1 (R4 — Atomare Bar-Verarbeitung & Replay-Resilienz):**
+  - Bar-Verarbeitung (`_process_closed_bar`) inklusive Bar-Claim, Trades (`on_bar_update`), Signal-Scanning und Abschlussmarker (`completed`) in eine gemeinsame atomare Transaktion gefasst.
+  - In-Memory-Snapshotting der Engine (`_snapshot_engine_state` / `_restore_engine_snapshot`): Bei Exceptions/Crashes vor Bar-Abschluss rollt SQLite die DB-Änderungen zurück und die In-Memory-Instanz wird synchron auf den Pre-Bar-Zustand restauriert.
+  - Transaktionale Benachrichtigungs-Pufferung: Trade-Close-Alerts werden erst nach erfolgreichem COMMIT versendet; bei Abbruch werden sie verworfen.
+  - Verhindert, dass dieselbe Kerze nach Wiederanlauf an einem fälschlich nachgezogenen Stop ausgestoppt wird. Der Trade bleibt nach Wiederanlauf im Status `open` (`partial_tp1`), der PnL wird exakt einmal verbucht.
+
+- **F2 (R2 — Tatsächliche Datenfrische & Historie-Validierung):**
+  - Echte Wall-Clock-Frischeprüfung (`_is_candle_feed_healthy`): Letzter geschlossener Bar darf maximal `max_stale_age_sec` (Default: 7200s / 2h) in der Vergangenheit liegen; Zukunfts-Zeitstempel (Clock-Skew > 60s) werden abgewiesen.
+  - Mindesthistorie von 30 geschlossenen Kerzen wird zwingend gefordert; Unterschreitung setzt `all_feeds_valid = False`.
+  - Globales All-Feed-Gate: Alle Feeds werden vor Trade-Entscheidungen validiert. Ist ein Feed fehlerhaft/veraltet und das System `RUNNING`, wechselt es unverzüglich in `DEGRADED`.
+
+- **F3 (R2 — Selbstständige Warmup-Recovery):**
+  - `RunnerStateMachine.mark_degraded()` erweitert, sodass auch der Übergang `WARMING_UP -> DEGRADED` bei fehlgeschlagenem Warmup zulässig ist.
+  - Nach Rückkehr valider, aktueller Marktdaten erkennt die Worker-Schleife die Genesung (`all_feeds_valid == True`) und führt das System selbstständig von `DEGRADED` (oder `WARMING_UP`/`RECOVERING`) nach `RUNNING`.
+
+- **F4 (R3 — Echte Transaktions-Atomizität für Migrationen):**
+  - `SafeConnection.executescript()` überschrieben: Skripte werden über `sqlite3.complete_statement` in Einzelschritte zerlegt und innerhalb der bestehenden Transaktion ausgeführt, ohne implizite C-Level-`COMMIT`s der Python-Standardbibliothek auszulösen.
+  - `threading.local` für Transaktionstiefe (`_tx_depth`), um nebenläufige Threads sauber zu isolieren.
+  - `migrate()` führt jede Migrationsdatei und die zugehörige Registrierung in `schema_migrations` in einer echten atomaren Transaktion aus. Bricht ein Skript ab, rollt SQLite die Schemaänderungen vollständig zurück.
+
+- **F5 (R5 — Echte Prozessneustart- und Heartbeat-Evidenz):**
+  - Worker generiert eindeutige `instance_id` (`w_<pid>_<uuid>`) und schreibt sie in `runner_state.reason`.
+  - Heartbeat-Zeitstempel (`updated_at_ms`) wird bei jedem Zyklus aktualisiert.
+  - CLI unterstützt `--test-mode` und float-basierte `--interval` (z.B. 0.2s) für vollständig deterministische, offline-fähige Lifecycle-Tests ohne Bitget-Netzwerkabhängigkeit.
+  - Test `test_real_worker_subprocess_lifecycle_and_restart` belegt: echter Subprozess 1 wird gekillt (`proc.terminate()`), Subprozess 2 startet auf gleicher DB, beweist neue `instance_id`, frischen Heartbeat (`updated_at_ms >= t_restart`), Beibehaltung von `HALTED`, Wiederherstellung der Konfiguration und Übergang nach `RUNNING` nach quittiertem `resume`-Befehl.
+
+- **Test-Evidenz (Rohlogs unter `docs/evidence/v3_followup_f1_to_f5_20260917/`):**
+  - `pytest tests/test_v3_review_r1_to_r5_regressions.py -v`: 10 passed (100% grün).
+  - `pytest tests/test_v3_*.py -ra`: 125 passed (100% grün).
+  - `pytest -ra`: 633 passed (100% grün, 0 Fehler).
+  - `node tests/test_*.js`: 98 passed (100% grün).
+  - `pytest /mnt/c/Users/Ivo/Downloads/aura_followup_probes.py`: 4 von 4 Defekt-Probes schlagen fehl (`open -> open`, `RECOVERING`, `RUNNING`, `0 rows`), Transaktions-Test `PASSED` (Befunde nachweisbar abgestellt).
