@@ -11,6 +11,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 
@@ -23,11 +24,56 @@ class SchemaError(RuntimeError):
     """Unbekannte oder inkonsistente Schema-Version (fail-closed)."""
 
 
+class SafeConnection(sqlite3.Connection):
+    """SQLite-Verbindung mit echter Transaktions-Atomizitaet und Savepoints fuer 'with conn:'."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tx_depth = 0
+
+    def __enter__(self):
+        if self._tx_depth == 0:
+            self.execute("BEGIN")
+        else:
+            self.execute(f"SAVEPOINT sp_{self._tx_depth}")
+        self._tx_depth += 1
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> Literal[False]:
+        self._tx_depth -= 1
+        if exc_type is not None:
+            if self._tx_depth == 0:
+                if self.in_transaction:
+                    self.execute("ROLLBACK")
+            else:
+                try:
+                    self.execute(f"ROLLBACK TO SAVEPOINT sp_{self._tx_depth}")
+                    self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
+                except sqlite3.OperationalError:
+                    pass
+        else:
+            if self._tx_depth == 0:
+                if self.in_transaction:
+                    self.execute("COMMIT")
+            else:
+                try:
+                    self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
+                except sqlite3.OperationalError:
+                    pass
+        return False
+
+
 def connect(db_path: str | Path) -> sqlite3.Connection:
     """Oeffnet die DB mit produktionsfesten Pragmas und laeuft Migrationen."""
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=30.0, isolation_level=None, check_same_thread=False)
+    conn = sqlite3.connect(
+        str(path),
+        timeout=30.0,
+        isolation_level=None,
+        factory=SafeConnection,
+        check_same_thread=False,
+    )
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

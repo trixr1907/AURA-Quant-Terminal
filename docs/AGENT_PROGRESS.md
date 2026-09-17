@@ -67,20 +67,22 @@ python3 tests/pine_static_check.py        # OK, exit 0
 ## Verifikation 2026-09-17 — Abschluss Arbeitspaket 1 (UI- & Control-Plane-Integration)
 
 - **Paketstatus:** `UI_INTEGRATION: PASS` (nachweisbar durch Playwright-E2E, Pytest- und JS-Regressionen).
+- **Review-Befunde R1–R5 (Commit 373daa3) behoben & verifiziert:**
+  - **R1 (Persistenter Halt & Konfig-Recovery):** `AuraWorkerService` stellt beim Start aus `config_revisions` und `runner_state`/`commands` den Not-Halt und die zuletzt wirksame Konfiguration wieder her (`tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig`).
+  - **R2 (Resume-Recovery & Health-Gating):** Resume schaltet das System in `RECOVERING`. Erst nach vollständiger und erfolgreicher Validierung der Marktdaten-Feeds aller konfigurierten Symbole erfolgt über `mark_healthy()` die Rückkehr nach `RUNNING` und die Freigabe neuer Einstiege (`TestR2ResumeRecoveryAndHealthGating`).
+  - **R3 (Echte Transaktions-Atomizität):** `aura/store/db.py` verwendet `SafeConnection` mit echten `BEGIN`/`COMMIT`/`ROLLBACK`-Transaktionsgrenzen und Savepoints für `with conn:`. Abbruch mitten im Block hinterlässt keine Teilzustände (`TestR3DatabaseTransactionAtomicity`).
+  - **R4 (Absturzsichere Bar-Verarbeitung):** Verwaiste `'processing'`-Claims aus vorangegangenen Abstürzen werden bei Neustart bereinigt; unfertige Kerzenverarbeitung geht nicht verloren und wird nach Recovery ausgeführt. Nach `_complete_closed_bar` wird Doppelverarbeitung dauerhaft verhindert (`TestR4CrashResilientBarProcessing`).
+  - **R5 (Echter Worker-Prozess-Neustart):** Test mit echtem Subprozess (`python3 -m aura.runner.worker --db ...`), Heartbeat-Prüfung, `proc.terminate()`/`kill()` und Neustart auf derselben Datenbank ohne direkte SQL-Manipulation (`TestR5RealSubprocessWorkerRestart`).
+- **Verbleibende Review-Befunde (dokumentiert offen):**
+  - R6 (Dockerfile-Benutzerreihenfolge & Healthchecks im Compose-Stack für Deployment).
+  - R7 (Closed-Bar-Prüflogik im Bitget-Adapter, 8h-Funding, TP3, DSR-Evidenz).
 - **Test-Evidenz (Rohlogs unter `docs/evidence/v3_acceptance_20260917/`):**
+  - `pytest tests/test_v3_review_r1_to_r5_regressions.py -v`: 7 passed (100% grün).
   - `pytest tests/test_v3_e2e_playwright.py -v`: 11 passed (100% grün, Desktop + Mobile).
-  - `pytest tests/test_v3_*.py -ra`: 115 passed (100% grün).
-  - `pytest -ra`: 623 passed (100% grün, 0 Fehler).
+  - `pytest tests/test_v3_*.py -ra`: 122 passed (100% grün).
+  - `pytest -ra`: 630 passed (100% grün, 0 Fehler).
   - `node tests/test_*.js`: 98/98 passed (100% grün).
-- **Behobene Kernursachen:**
-  1. `test_cross_device_sync.js`: `SyncEngine.pull()` entpackt Top-Level v3- und gekapselte Legacy-Objekte defensiv.
-  2. `PaperTradingEngine`: Duplikation geschlossener Trades bei wiederholten API-Calls durch Reset vor dem Einlesen behoben.
-  3. Optimistisches Locking im Dashboard: Revision wird beim Öffnen der Konfigurationsbox fixiert; konkurrierende Edits lösen HTTP 409 aus.
-  4. Auth-Härtung: HttpOnly Same-Origin Session-Cookie, CSRF Origin/Referer-Check auf mutierenden Endpunkten, Brute-Force Rate-Limiting.
-- **Wesentliche Artefakte:**
-  - Abnahmebericht: `docs/V3_UI_INTEGRATION_ACCEPTANCE.md`
-  - Playwright E2E Suite: `tests/test_v3_e2e_playwright.py`
-  - 10 Bildbelege: `docs/evidence/v3_acceptance_20260917/screenshots/*.png`
+
 
 - `python3 -m pytest -ra` vor Fix: **593 passed, 2 failed, Exit 1**; Rohlog `docs/evidence/v3_acceptance_20260917/pytest_full.log`.
 - Accounting/Restart red-first behoben; gezielte Suite **13/13 PASS** und vollständige Python-Suite danach **595/595 PASS, Exit 0** (`accounting_fix.log`, `pytest_full_after_accounting_fix.log`).
