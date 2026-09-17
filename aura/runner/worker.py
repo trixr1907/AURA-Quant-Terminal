@@ -193,6 +193,9 @@ class AuraWorkerService:
             else:
                 self.sm.transition_to(SystemState.RUNNING, "Feeds initialisiert, bereit fuer Signal-Scanning & Execution")
 
+        # Initialen Worker-Zustand und Instanz-ID sofort nach dem Booten in die DB schreiben
+        self._update_runner_state(0)
+
         cycle = 0
         while self._running:
             cycle += 1
