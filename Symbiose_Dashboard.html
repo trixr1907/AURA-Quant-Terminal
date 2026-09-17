@@ -8047,10 +8047,17 @@ function renderFunnel24h(funnelData) {
 async function fetchReadyFunnel() {
   if (typeof fetch === 'undefined') return;
   try {
-    const res = await fetch('/ready', { cache: 'no-store' });
-    if (!res.ok) return;
+    // Öffentlicher Worker-Status aus DB – kein Auth nötig, kein Portfolio-Inhalt.
+    // Quelle: /status/worker (runner_state direkt aus DB).
+    const res = await fetch('/status/worker', { cache: 'no-store' });
+    if (!res.ok) {
+      App.publicWorkerStatus = null;
+      return;
+    }
     const data = await res.json();
-    App.serverBotActive = Boolean(data && (data.mode === 'server' || data.bot_enabled === true));
+    App.publicWorkerStatus = data;
+    // serverBotActive: nur true wenn RUNNING und nicht stale
+    App.serverBotActive = Boolean(data && !data.entries_locked && data.worker_known === true);
     if (typeof Autobot !== 'undefined') {
       Autobot.serverBotActive = App.serverBotActive;
       Autobot.render();
@@ -8058,7 +8065,9 @@ async function fetchReadyFunnel() {
     if (data && data.funnel24h) {
       renderFunnel24h(data.funnel24h);
     }
-  } catch (_) {}
+  } catch (_) {
+    App.publicWorkerStatus = null;
+  }
 }
 
 let _liveTradesRaf = null;
@@ -9680,6 +9689,14 @@ const SyncEngine = {
           }
         } else {
           this.setStatus('offline', 'HTTP ' + res.status);
+          // Backend antwortet mit Fehler (z.B. 502/503) - ehrlich als "nicht erreichbar"
+          // markieren statt den zuletzt bekannten Live-Zustand stehen zu lassen (kein
+          // stale "OPERATOR (Live)" Pill nach Server-Ausfall).
+          const authPillErr = $('auth-status-pill');
+          if (authPillErr && authPillErr.textContent !== '🔒 ANMELDUNG') {
+            authPillErr.textContent = '⚠️ Backend nicht erreichbar';
+            authPillErr.className = 'feed-status-pill offline';
+          }
         }
         this.isPulling = false;
         return;
@@ -9794,6 +9811,13 @@ const SyncEngine = {
       }
     } catch (_) {
       this.setStatus('offline', 'offline');
+      // Netzwerkfehler (Verbindungsabbruch, DNS, Backend down) - ehrlich anzeigen,
+      // niemals den zuletzt bekannten "Live"-Zustand einfrieren.
+      const authPillNet = $('auth-status-pill');
+      if (authPillNet && authPillNet.textContent !== '🔒 ANMELDUNG') {
+        authPillNet.textContent = '⚠️ Verbindung unterbrochen';
+        authPillNet.className = 'feed-status-pill offline';
+      }
     } finally {
       this.isPulling = false;
     }
@@ -11100,8 +11124,37 @@ const Autobot = {
           }
         }
       } else {
-        badge.textContent = `● ${this.worker ? this.worker.status : 'SERVER HALTED'}`;
-        badge.className = 'autobot-status-badge';
+        // Kein spezifischer Worker-Zustand aus /api/v3/state (anonym oder unbekannt).
+        // Zeige Zustand aus /status/worker (öffentlich, DB-autoritativ) oder ehrlich "unbekannt".
+        const pub = (typeof App !== 'undefined') ? App.publicWorkerStatus : null;
+        if (pub && pub.worker_known === true && !pub.stale) {
+          if (pub.is_halted) {
+            if (badge) {
+              badge.textContent = '⏹ NOT-HALT (Einstiege gesperrt)';
+              badge.className = 'autobot-status-badge';
+              if (badge.style) { badge.style.background = 'rgba(239,68,68,.2)'; badge.style.borderColor = '#ef4444'; badge.style.color = '#ef4444'; }
+            }
+          } else {
+            if (badge) {
+              badge.textContent = `● ${pub.fsm_state}`;
+              badge.className = pub.fsm_state === 'RUNNING' ? 'autobot-status-badge active' : 'autobot-status-badge';
+              if (badge.style) { badge.style.background = 'rgba(45,212,191,.15)'; badge.style.borderColor = '#2dd4bf'; badge.style.color = '#2dd4bf'; }
+            }
+          }
+        } else if (pub && pub.stale) {
+          if (badge) {
+            badge.textContent = '⚠️ WORKER STALE — Anmeldung für Details';
+            badge.className = 'autobot-status-badge';
+            if (badge.style) { badge.style.background = 'rgba(245,158,11,.15)'; badge.style.borderColor = '#f59e0b'; badge.style.color = '#f59e0b'; }
+          }
+        } else {
+          // Keine verifizierten Daten — ehrlich "nicht abrufbar" anzeigen
+          if (badge) {
+            badge.textContent = 'Anmeldung erforderlich / Worker-Zustand nicht abrufbar';
+            badge.className = 'autobot-status-badge';
+            if (badge.style) { badge.style.background = 'rgba(100,116,139,.1)'; badge.style.borderColor = '#64748b'; badge.style.color = '#94a3b8'; }
+          }
+        }
         if (btn) {
           btn.textContent = isAuth ? '⏹ Not-Halt anfordern' : '🔒 Operator-Anmeldung erforderlich';
           btn.disabled = !isAuth;
