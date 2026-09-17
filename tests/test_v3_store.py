@@ -137,16 +137,16 @@ class TestMigrations:
     def test_fresh_db_migrates_to_v3_wal(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
         info = store_db.info(conn, tmp_path / "aura.db")
-        assert info.schema_version == 4
+        assert info.schema_version == 5
         assert info.journal_mode == "wal"
         conn.close()
 
     def test_migrate_is_idempotent(self, tmp_path):
         conn = store_db.connect(tmp_path / "aura.db")
-        assert store_db.migrate(conn) == 4
-        assert store_db.migrate(conn) == 4
+        assert store_db.migrate(conn) == 5
+        assert store_db.migrate(conn) == 5
         rows = conn.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()
-        assert [row["version"] for row in rows] == [1, 2, 3, 4]
+        assert [row["version"] for row in rows] == [1, 2, 3, 4, 5]
         conn.close()
 
     def test_existing_v2_database_migrates_to_v3_without_trade_loss(self, tmp_path):
@@ -168,7 +168,7 @@ class TestMigrations:
         conn.close()
 
         migrated = store_db.connect(db_path)
-        assert store_db.current_version(migrated) == 4
+        assert store_db.current_version(migrated) == 5
         row = migrated.execute(
             "SELECT id, symbol, timeframe, entry_fee, remaining_qty FROM trades WHERE id = 'legacy-v2'"
         ).fetchone()

@@ -591,7 +591,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
             <span id="ab-market-status-badge" style="padding:1px 6px;border-radius:4px;font-weight:700;font-size:9.5px;background:rgba(148,163,184,.15);color:var(--dim)">lädt…</span>
             <span id="ab-market-source-info" style="color:var(--dim)">Quelle: bitget_rest_v2 · Policy: aura-liquidity-v1</span>
           </div>
-          <div id="ab-market-metrics-info" style="color:var(--dim)">Alter: —s · Kriterien: Spread &le; 10bps · Tiefe &ge; $5.000 · 24h &ge; $1M</div>
+          <div id="ab-market-metrics-info" style="color:var(--dim)">Alter: —s · Kriterien: Spread &le; 10bps · Tiefe (&plusmn;25bps) &ge; $5.000 · Pos &le; 5% · 24h &ge; $1M</div>
         </div>
         <div id="ab-cmd-alert" style="display:none;margin-bottom:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-weight:700"></div>
 
@@ -11090,7 +11090,7 @@ const Autobot = {
         const s0 = md.symbols[0];
         const ageText = (s0.data_age_seconds !== null && s0.data_age_seconds !== undefined) ? `${s0.data_age_seconds}s` : '—';
         const spText = s0.criteria && s0.criteria.spread_bps ? `${parseFloat(s0.criteria.spread_bps).toFixed(2)}bps` : '—';
-        marketMetrics.textContent = `${s0.symbol}: Alter ${ageText} · Spread ${spText} · Kriterien: Spread ≤ 10bps, Tiefe ≥ $5k, 24h ≥ $1M`;
+        marketMetrics.textContent = `${s0.symbol}: Alter ${ageText} · Spread ${spText} · Kriterien: Spread ≤ 10bps, Tiefe (±25bps) ≥ $5k, Pos ≤ 5%, 24h ≥ $1M`;
       }
     }
 
