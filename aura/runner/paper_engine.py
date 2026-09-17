@@ -17,12 +17,36 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP
 from typing import Any, Sequence
 
 from aura.core.risk import PositionSize, round_price_to_tick, size_position
 
 logger = logging.getLogger("aura.runner.paper_engine")
+
+
+@dataclass(frozen=True)
+class PaperExecutionPlan:
+    symbol: str
+    direction: int  # 1 = Long, -1 = Short
+    reference_price: Decimal
+    effective_fill: Decimal
+    sl_price: Decimal
+    tp1_price: Decimal
+    tp2_price: Decimal
+    stop_dist: Decimal
+    qty: Decimal
+    contracts: int
+    margin: Decimal
+    leverage: int
+    final_notional: Decimal
+    risk_budget: Decimal
+    nominal_stop_risk: Decimal
+    entry_fee: Decimal
+    cost_adjusted_stop_risk: Decimal
+    spec: dict[str, Any]
+    levels_valid: bool = True
+    error_reason: str | None = None
 
 
 @dataclass
@@ -198,6 +222,297 @@ class PaperTradingEngine:
             # Equity = Start minus alle Entry-Gebuehren plus bereits realisierte Netto-Exits.
             self.equity = self.starting_equity - entry_fees_paid + total_realized
 
+    def create_execution_plan(
+        self,
+        symbol: str,
+        direction: int,
+        reference_price: Decimal | float,
+        sl_price: Decimal | float,
+        tp1_price: Decimal | float,
+        tp2_price: Decimal | float,
+        spec: dict[str, Any] | None = None,
+        leverage: int = 10,
+        risk_budget: Decimal | float | None = None,
+    ) -> PaperExecutionPlan:
+        """Erzeugt einen kanonischen Ausfuehrungsplan auf dem effektiven Fill nach Slippage und Tick."""
+        try:
+            d_ref = Decimal(str(reference_price))
+            d_sl = Decimal(str(sl_price))
+            d_tp1 = Decimal(str(tp1_price))
+            d_tp2 = Decimal(str(tp2_price))
+        except (InvalidOperation, ValueError, TypeError) as ex:
+            return PaperExecutionPlan(
+                symbol=symbol,
+                direction=direction,
+                reference_price=Decimal("0"),
+                effective_fill=Decimal("0"),
+                sl_price=Decimal("0"),
+                tp1_price=Decimal("0"),
+                tp2_price=Decimal("0"),
+                stop_dist=Decimal("0"),
+                qty=Decimal("0"),
+                contracts=0,
+                margin=Decimal("0"),
+                leverage=leverage,
+                final_notional=Decimal("0"),
+                risk_budget=Decimal("0"),
+                nominal_stop_risk=Decimal("0"),
+                entry_fee=Decimal("0"),
+                cost_adjusted_stop_risk=Decimal("0"),
+                spec=spec or {},
+                levels_valid=False,
+                error_reason=f"Ungueltige Dezimalwerte: {ex}",
+            )
+
+        price_tick_str = str(spec.get("priceTick") or spec.get("price_tick") or "0.0001") if spec else "0.0001"
+        try:
+            price_tick = Decimal(price_tick_str)
+            if price_tick <= 0 or not price_tick.is_finite():
+                price_tick = Decimal("0.0001")
+        except (InvalidOperation, ValueError):
+            price_tick = Decimal("0.0001")
+
+        # Richtungs- und ordertypspezifische Quantisierung der Schutz- und Ziellevel
+        if direction == 1:
+            d_sl = round_price_to_tick(d_sl, price_tick, rounding=ROUND_DOWN)
+            d_tp1 = round_price_to_tick(d_tp1, price_tick, rounding=ROUND_UP)
+            d_tp2 = round_price_to_tick(d_tp2, price_tick, rounding=ROUND_UP)
+        else:
+            d_sl = round_price_to_tick(d_sl, price_tick, rounding=ROUND_UP)
+            d_tp1 = round_price_to_tick(d_tp1, price_tick, rounding=ROUND_DOWN)
+            d_tp2 = round_price_to_tick(d_tp2, price_tick, rounding=ROUND_DOWN)
+
+        # Effektiver Fill-Preis nach Slippage und Tick-Quantisierung
+        slip_bps = Decimal(str(self.config.slippage_bps))
+        slip_factor = Decimal("1.0") + (slip_bps / Decimal("10000.0")) * Decimal(str(direction))
+        raw_fill = d_ref * slip_factor
+        effective_fill = round_price_to_tick(raw_fill, price_tick, rounding=ROUND_HALF_UP)
+
+        # Strikte Pruefung der Level-Reihenfolge gegen den effektiven Fill
+        if direction == 1:
+            if not (d_sl < effective_fill < d_tp1 <= d_tp2):
+                return PaperExecutionPlan(
+                    symbol=symbol,
+                    direction=direction,
+                    reference_price=d_ref,
+                    effective_fill=effective_fill,
+                    sl_price=d_sl,
+                    tp1_price=d_tp1,
+                    tp2_price=d_tp2,
+                    stop_dist=Decimal("0"),
+                    qty=Decimal("0"),
+                    contracts=0,
+                    margin=Decimal("0"),
+                    leverage=leverage,
+                    final_notional=Decimal("0"),
+                    risk_budget=Decimal("0"),
+                    nominal_stop_risk=Decimal("0"),
+                    entry_fee=Decimal("0"),
+                    cost_adjusted_stop_risk=Decimal("0"),
+                    spec=spec or {},
+                    levels_valid=False,
+                    error_reason="Level-Reihenfolge nach effektivem Fill ungueltig (SL >= Entry oder Entry >= TP1)",
+                )
+            stop_dist = effective_fill - d_sl
+        else:
+            if not (d_sl > effective_fill > d_tp1 >= d_tp2):
+                return PaperExecutionPlan(
+                    symbol=symbol,
+                    direction=direction,
+                    reference_price=d_ref,
+                    effective_fill=effective_fill,
+                    sl_price=d_sl,
+                    tp1_price=d_tp1,
+                    tp2_price=d_tp2,
+                    stop_dist=Decimal("0"),
+                    qty=Decimal("0"),
+                    contracts=0,
+                    margin=Decimal("0"),
+                    leverage=leverage,
+                    final_notional=Decimal("0"),
+                    risk_budget=Decimal("0"),
+                    nominal_stop_risk=Decimal("0"),
+                    entry_fee=Decimal("0"),
+                    cost_adjusted_stop_risk=Decimal("0"),
+                    spec=spec or {},
+                    levels_valid=False,
+                    error_reason="Level-Reihenfolge nach effektivem Fill ungueltig (SL <= Entry oder Entry <= TP1)",
+                )
+            stop_dist = d_sl - effective_fill
+
+        if stop_dist <= 0:
+            return PaperExecutionPlan(
+                symbol=symbol,
+                direction=direction,
+                reference_price=d_ref,
+                effective_fill=effective_fill,
+                sl_price=d_sl,
+                tp1_price=d_tp1,
+                tp2_price=d_tp2,
+                stop_dist=Decimal("0"),
+                qty=Decimal("0"),
+                contracts=0,
+                margin=Decimal("0"),
+                leverage=leverage,
+                final_notional=Decimal("0"),
+                risk_budget=Decimal("0"),
+                nominal_stop_risk=Decimal("0"),
+                entry_fee=Decimal("0"),
+                cost_adjusted_stop_risk=Decimal("0"),
+                spec=spec or {},
+                levels_valid=False,
+                error_reason="Stop-Distanz nach effektivem Fill <= 0",
+            )
+
+        # Risikobudget bestimmen
+        if risk_budget is None:
+            budget = Decimal(str(self.equity)) * Decimal(str(self.config.risk_per_trade_pct)) / Decimal("100.0")
+        else:
+            budget = Decimal(str(risk_budget))
+
+        # Groessenberechnung strikt auf dem effektiven Fill und der effektiven Stop-Distanz
+        sized = size_position(budget, effective_fill, stop_dist, leverage=leverage, spec=spec)
+        if sized.qty <= 0 or sized.contracts <= 0:
+            return PaperExecutionPlan(
+                symbol=symbol,
+                direction=direction,
+                reference_price=d_ref,
+                effective_fill=effective_fill,
+                sl_price=d_sl,
+                tp1_price=d_tp1,
+                tp2_price=d_tp2,
+                stop_dist=stop_dist,
+                qty=Decimal("0"),
+                contracts=0,
+                margin=Decimal("0"),
+                leverage=leverage,
+                final_notional=Decimal("0"),
+                risk_budget=budget,
+                nominal_stop_risk=Decimal("0"),
+                entry_fee=Decimal("0"),
+                cost_adjusted_stop_risk=Decimal("0"),
+                spec=spec or {},
+                levels_valid=False,
+                error_reason="Groesse unter Mindestanforderung (contracts=0)",
+            )
+
+        d_qty = Decimal(str(sized.qty))
+        nominal_stop_risk = d_qty * stop_dist
+        if nominal_stop_risk > budget:
+            return PaperExecutionPlan(
+                symbol=symbol,
+                direction=direction,
+                reference_price=d_ref,
+                effective_fill=effective_fill,
+                sl_price=d_sl,
+                tp1_price=d_tp1,
+                tp2_price=d_tp2,
+                stop_dist=stop_dist,
+                qty=d_qty,
+                contracts=sized.contracts,
+                margin=Decimal(str(sized.margin)),
+                leverage=leverage,
+                final_notional=d_qty * effective_fill,
+                risk_budget=budget,
+                nominal_stop_risk=nominal_stop_risk,
+                entry_fee=Decimal("0"),
+                cost_adjusted_stop_risk=Decimal("0"),
+                spec=spec or {},
+                levels_valid=False,
+                error_reason=f"Nominales Stop-Risiko ({nominal_stop_risk}) ueberschreitet Budget ({budget})",
+            )
+
+        taker_fee_rate = Decimal(str(self.config.taker_fee))
+        entry_fee = d_qty * effective_fill * taker_fee_rate
+        exit_fee_sl = d_qty * d_sl * taker_fee_rate
+        cost_adjusted_stop_risk = nominal_stop_risk + entry_fee + exit_fee_sl
+        final_notional = d_qty * effective_fill
+
+        return PaperExecutionPlan(
+            symbol=symbol,
+            direction=direction,
+            reference_price=d_ref,
+            effective_fill=effective_fill,
+            sl_price=d_sl,
+            tp1_price=d_tp1,
+            tp2_price=d_tp2,
+            stop_dist=stop_dist,
+            qty=d_qty,
+            contracts=sized.contracts,
+            margin=Decimal(str(sized.margin)),
+            leverage=leverage,
+            final_notional=final_notional,
+            risk_budget=budget,
+            nominal_stop_risk=nominal_stop_risk,
+            entry_fee=entry_fee,
+            cost_adjusted_stop_risk=cost_adjusted_stop_risk,
+            spec=spec or {},
+            levels_valid=True,
+            error_reason=None,
+        )
+
+    def execute_plan(
+        self,
+        plan: PaperExecutionPlan,
+        timeframe: str = "1H",
+        score: float = 65.0,
+        current_time_ms: int | None = None,
+    ) -> PaperPosition | None:
+        """Bucht einen zuvor geprueften und freigegebenen Ausfuehrungsplan unveraendert."""
+        if not plan.levels_valid:
+            logger.warning("Trade abgelehnt: Ungueltiger Plan (%s)", plan.error_reason)
+            return None
+
+        if len(self.open_positions) >= self.config.max_open_positions:
+            logger.info("Trade abgelehnt: Max offene Positionen (%d) erreicht", self.config.max_open_positions)
+            return None
+
+        for p in self.open_positions.values():
+            if p.symbol == plan.symbol:
+                logger.info("Trade abgelehnt: Bereits offene Position fuer %s", plan.symbol)
+                return None
+
+        now_ms = current_time_ms or int(time.time() * 1000)
+        trade_id = f"trade_{uuid.uuid4().hex[:12]}"
+        pos = PaperPosition(
+            trade_id=trade_id,
+            symbol=plan.symbol,
+            timeframe=timeframe,
+            direction=plan.direction,
+            entry_price=float(plan.effective_fill),
+            sl_price=float(plan.sl_price),
+            initial_sl_price=float(plan.sl_price),
+            tp1_price=float(plan.tp1_price),
+            tp2_price=float(plan.tp2_price),
+            qty=float(plan.qty),
+            contracts=plan.contracts,
+            initial_qty=float(plan.qty),
+            margin=float(plan.margin),
+            leverage=plan.leverage,
+            entry_time_ms=now_ms,
+            status="open",
+            total_fees=float(plan.entry_fee),
+            max_price=float(plan.effective_fill),
+            min_price=float(plan.effective_fill),
+            setup_score=score,
+        )
+
+        self.open_positions[trade_id] = pos
+        # Entry-Gebuehr ist sofort realisiert und reduziert die Kontoequity.
+        self.equity -= float(plan.entry_fee)
+        self._persist_trade(pos)
+        logger.info(
+            "Paper Trade geoeffnet: %s %s @ %.4f (SL: %.4f, TP1: %.4f, Qty: %.4f, Notional: %.2f)",
+            "LONG" if plan.direction == 1 else "SHORT",
+            plan.symbol,
+            pos.entry_price,
+            pos.sl_price,
+            pos.tp1_price,
+            pos.qty,
+            float(plan.final_notional),
+        )
+        return pos
+
     def open_trade(
         self,
         symbol: str,
@@ -211,78 +526,23 @@ class PaperTradingEngine:
         leverage: int = 10,
         score: float = 65.0,
         current_time_ms: int | None = None,
+        plan: PaperExecutionPlan | None = None,
     ) -> PaperPosition | None:
         """Eröffnet eine neue Paper-Position mit Gebühren- und Slippage-Abzug."""
-        if len(self.open_positions) >= self.config.max_open_positions:
-            logger.info("Trade abgelehnt: Max offene Positionen (%d) erreicht", self.config.max_open_positions)
-            return None
+        if plan is not None:
+            return self.execute_plan(plan, timeframe=timeframe, score=score, current_time_ms=current_time_ms)
 
-        # Pruefe ob bereits eine Position fuer dieses Symbol offen ist
-        for p in self.open_positions.values():
-            if p.symbol == symbol:
-                logger.info("Trade abgelehnt: Bereits offene Position fuer %s", symbol)
-                return None
-
-        stop_dist = abs(entry_price - sl_price)
-        if stop_dist <= 0:
-            logger.warning("Trade abgelehnt: SL distanz <= 0")
-            return None
-
-        risk_amt = self.equity * (self.config.risk_per_trade_pct / 100.0)
-        sized = size_position(risk_amt, entry_price, stop_dist, leverage=leverage, spec=spec)
-        if sized.contracts <= 0 or sized.qty <= 0:
-            logger.info("Trade abgelehnt: Groesse unter Mindestanforderung (contracts=0)")
-            return None
-
-        # Slippage beim Einstieg (Taker)
-        slip_factor = (1.0 + (self.config.slippage_bps / 10000.0) * direction)
-        fill_price = entry_price * slip_factor
-        price_tick_val = Decimal(str(spec.get("priceTick") or "0")) if spec else Decimal("0")
-        if price_tick_val > 0:
-            fill_price = float(round_price_to_tick(Decimal(str(fill_price)), price_tick_val, rounding=ROUND_HALF_UP))
-
-        # Entry Fee (Taker)
-        entry_fee = sized.qty * fill_price * self.config.taker_fee
-
-        now_ms = current_time_ms or int(time.time() * 1000)
-        trade_id = f"trade_{uuid.uuid4().hex[:12]}"
-
-        pos = PaperPosition(
-            trade_id=trade_id,
+        plan = self.create_execution_plan(
             symbol=symbol,
-            timeframe=timeframe,
             direction=direction,
-            entry_price=fill_price,
+            reference_price=entry_price,
             sl_price=sl_price,
-            initial_sl_price=sl_price,
             tp1_price=tp1_price,
             tp2_price=tp2_price,
-            qty=sized.qty,
-            contracts=sized.contracts,
-            initial_qty=sized.qty,
-            margin=sized.margin,
+            spec=spec,
             leverage=leverage,
-            entry_time_ms=now_ms,
-            status="open",
-            total_fees=entry_fee,
-            max_price=fill_price,
-            min_price=fill_price,
-            setup_score=score,
         )
-
-        self.open_positions[trade_id] = pos
-        # Entry-Gebuehr ist sofort realisiert und reduziert die Kontoequity.
-        self.equity -= entry_fee
-        self._persist_trade(pos)
-        logger.info(
-            "Paper Trade geoeffnet: %s %s @ %.4f (SL: %.4f, TP1: %.4f)",
-            "LONG" if direction == 1 else "SHORT",
-            symbol,
-            fill_price,
-            sl_price,
-            tp1_price,
-        )
-        return pos
+        return self.execute_plan(plan, timeframe=timeframe, score=score, current_time_ms=current_time_ms)
 
     @staticmethod
     def _timeframe_ms(timeframe: str) -> int:
