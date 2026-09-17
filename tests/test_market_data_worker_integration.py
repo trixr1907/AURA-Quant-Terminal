@@ -57,8 +57,9 @@ def test_source_return_requires_actual_new_validation(tmp_path):
 def test_execution_notional_is_bounded_by_relevant_side_depth(tmp_path):
     worker = AuraWorkerService(db_path=str(tmp_path / "depth.db"), symbols=["BTCUSDT"], time_provider=lambda: 1000)
     _seed(worker, 1_000_000)
-    assert worker._liquidity_is_verified("BTCUSDT", 1_000_000, planned_notional="10000", direction=1) is True
-    assert worker._liquidity_is_verified("BTCUSDT", 1_000_000, planned_notional="10000.01", direction=1) is False
+    # ask_depth is 100,000 USDT -> 5% threshold is 5,000 USDT
+    assert worker._liquidity_is_verified("BTCUSDT", 1_000_000, planned_notional="5000", direction=1) is True
+    assert worker._liquidity_is_verified("BTCUSDT", 1_000_000, planned_notional="5000.01", direction=1) is False
 
 
 def test_api_exposes_explainable_liquidity_status(tmp_path, monkeypatch):
@@ -78,3 +79,164 @@ def test_api_exposes_explainable_liquidity_status(tmp_path, monkeypatch):
     assert market["status"] == "valid"
     assert market["symbols"][0]["criteria"]["spread_bps"] == "5"
     assert market["symbols"][0]["reasons"] == []
+
+
+def test_spec_delisting_or_inactivity_blocks_worker(tmp_path):
+    now_ms = 1_000_000
+    worker = AuraWorkerService(db_path=str(tmp_path / "delist.db"), symbols=["BTCUSDT"], time_provider=lambda: now_ms / 1000)
+    _seed(worker, now_ms)
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is True
+
+    # Mark spec delisted in db
+    worker.conn.execute("UPDATE instrument_specs SET symbol_status = 'delisted' WHERE symbol = 'BTCUSDT'")
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is False
+
+
+def test_independent_stale_timestamps_block_worker_gate(tmp_path):
+    now_ms = 1_000_000
+    worker = AuraWorkerService(db_path=str(tmp_path / "ts.db"), symbols=["BTCUSDT"], time_provider=lambda: now_ms / 1000)
+
+    # 1. Stale ticker
+    worker.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="100000",
+        ask_depth_notional="100000",
+        quote_volume_24h="100000000",
+        book_event_time_ms=now_ms - 1000,
+        book_fetched_at_ms=now_ms - 1000,
+        ticker_event_time_ms=now_ms - 125_000,  # >120s stale
+        ticker_fetched_at_ms=now_ms - 1000,
+    )
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is False
+
+    # 2. Stale book
+    worker.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="100000",
+        ask_depth_notional="100000",
+        quote_volume_24h="100000000",
+        book_event_time_ms=now_ms - 125_000,  # >120s stale
+        book_fetched_at_ms=now_ms - 1000,
+        ticker_event_time_ms=now_ms - 1000,
+        ticker_fetched_at_ms=now_ms - 1000,
+    )
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is False
+
+    # 3. Stale spec (>24h)
+    worker.persist_test_market_snapshot(
+        symbol="BTCUSDT",
+        now_ms=now_ms,
+        price_tick="0.1",
+        qty_step="0.0001",
+        min_qty="0.0001",
+        min_notional="5",
+        spread_bps="5",
+        bid_depth_notional="100000",
+        ask_depth_notional="100000",
+        quote_volume_24h="100000000",
+        book_event_time_ms=now_ms - 1000,
+        book_fetched_at_ms=now_ms - 1000,
+        ticker_event_time_ms=now_ms - 1000,
+        ticker_fetched_at_ms=now_ms - 1000,
+        spec_fetched_at_ms=now_ms - 86_405_000,  # >24h stale
+    )
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="100", direction=1) is False
+
+
+def test_end_to_end_adapter_updater_worker_pipeline(tmp_path):
+    from unittest.mock import MagicMock
+    from decimal import Decimal
+    from aura.data.market_updater import MarketDataUpdater
+    from aura.data.models import ContractSpec, Candle
+    from aura.data.liquidity import LiquidityPolicy
+
+    db_file = tmp_path / "pipeline.db"
+    now_ms = 1_000_000
+    mock_adapter = MagicMock()
+
+    spec = ContractSpec(
+        symbol="BTCUSDT",
+        product_type="USDT-FUTURES",
+        symbol_type="perpetual",
+        symbol_status="normal",
+        base_coin="BTC",
+        quote_coin="USDT",
+        settle_coin="USDT",
+        price_tick=Decimal("0.1"),
+        qty_step=Decimal("0.0001"),
+        min_qty=Decimal("0.0001"),
+        min_notional=Decimal("5"),
+        maker_fee_rate=Decimal("0.0002"),
+        taker_fee_rate=Decimal("0.0006"),
+        max_leverage=125,
+        event_time_ms=now_ms - 1000,
+        fetched_at_ms=now_ms - 1000,
+        raw_snapshot_sha256="sha_spec",
+    )
+
+    mock_adapter.fetch_contract_specs.return_value = [spec]
+    mock_adapter.fetch_all_tickers.return_value = (
+        {
+            "code": "00000",
+            "data": [{"symbol": "BTCUSDT", "usdtVolume": "50000000", "ts": str(now_ms - 1000)}],
+        },
+        now_ms - 1000,
+        "sha_tickers",
+    )
+    mock_adapter.fetch_orderbook_depth.return_value = (
+        {"code": "00000", "data": {"ts": str(now_ms - 1000)}},
+        now_ms - 1000,
+        "sha_depth",
+    )
+    mock_adapter.parse_depth_metrics.return_value = (
+        Decimal("0.5"),  # 0.5 bps spread
+        Decimal("50000"),  # 50k USDT bid depth (5% is 2.5k)
+        Decimal("50000"),  # 50k USDT ask depth
+        Decimal("70000.0"),
+        Decimal("70000.1"),
+        True,
+    )
+
+    worker = AuraWorkerService(
+        db_path=str(db_file),
+        symbols=["BTCUSDT"],
+        time_provider=lambda: now_ms / 1000,
+    )
+
+    updater = MarketDataUpdater(
+        conn=worker.conn,
+        adapter=mock_adapter,
+        policy=LiquidityPolicy(),
+        symbols=["BTCUSDT"],
+        time_provider=lambda: now_ms / 1000,
+    )
+
+    # Run updater cycle
+    update_res = updater.update_cycle(force=True, now_ms=now_ms)
+    assert update_res["updated"] is True
+    assert update_res["symbols"]["BTCUSDT"]["status"] == "valid"
+
+    # Worker gate check for sizing
+    # Sizing of 2500 USDT (<= 5% of 50k) is allowed
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="2500", direction=1) is True
+    # Sizing of 2501 USDT (> 5% of 50k) is rejected
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms, planned_notional="2501", direction=1) is False
+
+    # Simulate market source failure in subsequent cycle
+    mock_adapter.fetch_orderbook_depth.return_value = ({"code": "40001", "msg": "API error"}, now_ms + 35_000, "")
+    updater.update_cycle(force=True, now_ms=now_ms + 35_000)
+
+    # Worker gate must immediately reject
+    assert worker._liquidity_is_verified("BTCUSDT", now_ms + 35_000, planned_notional="2500", direction=1) is False

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 from aura.data.liquidity import POLICY_VERSION, LiquidityPolicy
 from aura.data.market_updater import MarketDataUpdater
+from aura.data.models import ContractSpec
 from aura.store.db import connect
 
 FIXTURE_PATH = Path("tests/fixtures/bitget_public_v2_20260917.json")
@@ -23,7 +24,7 @@ def test_market_data_updater_offline_fixture_sync(tmp_path):
 
     mock_adapter = MagicMock()
     mock_adapter.fetch_contract_specs.return_value = [
-        MagicMock(
+        ContractSpec(
             symbol="BTCUSDT",
             product_type="USDT-FUTURES",
             symbol_type="perpetual",
@@ -40,6 +41,7 @@ def test_market_data_updater_offline_fixture_sync(tmp_path):
             max_leverage=125,
             event_time_ms=1789654627000,
             fetched_at_ms=1789654627000,
+            raw_snapshot_sha256="sha_spec",
         )
     ]
     mock_adapter.fetch_all_tickers.return_value = (fixture["tickers"], 1789654627000, "sha_tickers")
@@ -110,3 +112,73 @@ def test_market_data_updater_offline_network_failure_marks_source_failed(tmp_pat
     row = conn.execute("SELECT status, liquidity_verified FROM universe WHERE symbol = 'BTCUSDT'").fetchone()
     assert row["status"] == "source_failed"
     assert row["liquidity_verified"] == 0
+
+
+def test_market_data_updater_invalidates_removed_contract_specs(tmp_path):
+    conn = connect(tmp_path / "delist.db")
+    mock_adapter = MagicMock()
+    now_ms = 1_000_000
+
+    spec_btc = ContractSpec(
+        symbol="BTCUSDT",
+        product_type="USDT-FUTURES",
+        symbol_type="perpetual",
+        symbol_status="normal",
+        base_coin="BTC",
+        quote_coin="USDT",
+        settle_coin="USDT",
+        price_tick=Decimal("0.1"),
+        qty_step=Decimal("0.0001"),
+        min_qty=Decimal("0.0001"),
+        min_notional=Decimal("5"),
+        maker_fee_rate=Decimal("0.0002"),
+        taker_fee_rate=Decimal("0.0006"),
+        max_leverage=125,
+        event_time_ms=now_ms,
+        fetched_at_ms=now_ms,
+        raw_snapshot_sha256="sha_spec",
+    )
+    spec_eth = ContractSpec(
+        symbol="ETHUSDT",
+        product_type="USDT-FUTURES",
+        symbol_type="perpetual",
+        symbol_status="normal",
+        base_coin="ETH",
+        quote_coin="USDT",
+        settle_coin="USDT",
+        price_tick=Decimal("0.01"),
+        qty_step=Decimal("0.01"),
+        min_qty=Decimal("0.01"),
+        min_notional=Decimal("5"),
+        maker_fee_rate=Decimal("0.0002"),
+        taker_fee_rate=Decimal("0.0006"),
+        max_leverage=100,
+        event_time_ms=now_ms,
+        fetched_at_ms=now_ms,
+        raw_snapshot_sha256="sha_spec",
+    )
+
+    updater = MarketDataUpdater(
+        conn=conn,
+        adapter=mock_adapter,
+        symbols=["BTCUSDT", "ETHUSDT"],
+        time_provider=lambda: now_ms / 1000,
+    )
+
+    # Initial cycle persists both
+    updater.persist_contract_specs([spec_btc, spec_eth])
+    rows = conn.execute("SELECT symbol, symbol_status FROM instrument_specs ORDER BY symbol").fetchall()
+    assert len(rows) == 2
+    assert rows[0]["symbol_status"] == "normal"
+    assert rows[1]["symbol_status"] == "normal"
+
+    # Subsequent specs fetch returns only BTCUSDT (ETHUSDT delisted / missing)
+    updater.persist_contract_specs([spec_btc])
+    rows = conn.execute("SELECT symbol, symbol_status FROM instrument_specs ORDER BY symbol").fetchall()
+    assert rows[0]["symbol"] == "BTCUSDT" and rows[0]["symbol_status"] == "normal"
+    assert rows[1]["symbol"] == "ETHUSDT" and rows[1]["symbol_status"] == "delisted"
+
+    eth_u = conn.execute("SELECT active, liquidity_verified, status FROM universe WHERE symbol = 'ETHUSDT'").fetchone()
+    assert eth_u["active"] == 0
+    assert eth_u["liquidity_verified"] == 0
+    assert eth_u["status"] == "insufficient"

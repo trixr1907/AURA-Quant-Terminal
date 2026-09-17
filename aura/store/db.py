@@ -18,7 +18,7 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 
 # Schema-Version, die dieser Code versteht. Hoehere Versionen in der DB
 # (z.B. nach Downgrade) sind fail-closed.
-SUPPORTED_SCHEMA_VERSION = 4
+SUPPORTED_SCHEMA_VERSION = 5
 
 
 class SchemaError(RuntimeError):

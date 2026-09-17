@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_UP
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_UP, ROUND_HALF_UP
 from typing import Any
 
 
@@ -168,6 +168,23 @@ def size_position(
         margin=float(margin.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)),
         actual_risk_amt=float(actual_risk.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)),
     )
+
+
+def round_price_to_tick(
+    price: Decimal | float,
+    tick: Decimal | float,
+    rounding: str = ROUND_HALF_UP,
+) -> Decimal:
+    """Rounds price to the nearest valid exchange price_tick increment."""
+    try:
+        d_price = Decimal(str(price))
+        d_tick = Decimal(str(tick))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(str(price))
+    if not d_price.is_finite() or not d_tick.is_finite() or d_tick <= 0:
+        return d_price
+    steps = (d_price / d_tick).quantize(Decimal("1"), rounding=rounding)
+    return steps * d_tick
 
 
 @dataclass(frozen=True)

@@ -68,6 +68,7 @@ class ContractSpec:
     max_leverage: int
     event_time_ms: int
     fetched_at_ms: int
+    raw_snapshot_sha256: str = "sha256_uncalculated"
     source: str = "bitget_rest_v2"
 
     def risk_spec(self) -> dict[str, Decimal]:

@@ -121,13 +121,16 @@ class BitgetMarketAdapter:
         if not raw_data:
             return []
         try:
-            return self.parse_contract_specs(raw_data, fetched_at_ms=int(time.time() * 1000))
+            raw_sha = hashlib.sha256(json.dumps(raw_data, sort_keys=True).encode("utf-8")).hexdigest()
+            return self.parse_contract_specs(raw_data, fetched_at_ms=int(time.time() * 1000), raw_sha256=raw_sha)
         except ValueError as ex:
             logger.error("Konnte Bitget-Kontrakte nicht validieren: %s", ex)
             return []
 
     @staticmethod
-    def parse_contract_specs(raw_data: dict[str, Any], *, fetched_at_ms: int) -> list[ContractSpec]:
+    def parse_contract_specs(
+        raw_data: dict[str, Any], *, fetched_at_ms: int, raw_sha256: str = "sha256_uncalculated"
+    ) -> list[ContractSpec]:
         if raw_data.get("code") != "00000" or not isinstance(raw_data.get("data"), list):
             raise ValueError("ungueltige Contract-Config-Antwort")
 
@@ -180,6 +183,7 @@ class BitgetMarketAdapter:
                     max_leverage=int(required_decimal(item, "maxLever")),
                     event_time_ms=int(raw_data.get("requestTime") or 0),
                     fetched_at_ms=int(fetched_at_ms),
+                    raw_snapshot_sha256=raw_sha256,
                 )
             )
         return specs
@@ -216,35 +220,75 @@ class BitgetMarketAdapter:
 
     @staticmethod
     def parse_depth_metrics(
-        raw_depth: dict[str, Any], max_depth_band_bps: Decimal = Decimal("100")
+        raw_depth: dict[str, Any], max_depth_band_bps: Decimal = Decimal("25")
     ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal, bool]:
-        """Extract spread and notional depth within ±max_depth_band_bps of mid."""
+        """Extract spread and notional depth within ±max_depth_band_bps of mid, strictly validating all levels."""
         data = raw_depth.get("data") if isinstance(raw_depth, dict) and "data" in raw_depth else raw_depth
         if not isinstance(data, dict):
             return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
-        asks = data.get("asks") or []
-        bids = data.get("bids") or []
-        if not asks or not bids:
+        raw_asks = data.get("asks")
+        raw_bids = data.get("bids")
+        if not isinstance(raw_asks, list) or not isinstance(raw_bids, list):
             return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+        if len(raw_asks) == 0 or len(raw_bids) == 0:
+            return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+
+        parsed_bids: list[tuple[Decimal, Decimal]] = []
+        parsed_asks: list[tuple[Decimal, Decimal]] = []
+
         try:
-            best_bid = Decimal(str(bids[0][0]))
-            best_ask = Decimal(str(asks[0][0]))
-            if best_bid <= 0 or best_ask <= 0 or best_ask <= best_bid:
+            # 1. Parse and strictly validate all bids (must be finite, >0, strictly descending)
+            prev_bid_price: Decimal | None = None
+            for item in raw_bids:
+                if not isinstance(item, (list, tuple)) or len(item) < 2:
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                p = Decimal(str(item[0]))
+                s = Decimal(str(item[1]))
+                if not p.is_finite() or not s.is_finite() or p <= 0 or s <= 0:
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                if prev_bid_price is not None and p >= prev_bid_price:
+                    # Violates strict descending sorting or has duplicate prices
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                prev_bid_price = p
+                parsed_bids.append((p, s))
+
+            # 2. Parse and strictly validate all asks (must be finite, >0, strictly ascending)
+            prev_ask_price: Decimal | None = None
+            for item in raw_asks:
+                if not isinstance(item, (list, tuple)) or len(item) < 2:
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                p = Decimal(str(item[0]))
+                s = Decimal(str(item[1]))
+                if not p.is_finite() or not s.is_finite() or p <= 0 or s <= 0:
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                if prev_ask_price is not None and p <= prev_ask_price:
+                    # Violates strict ascending sorting or has duplicate prices
+                    return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+                prev_ask_price = p
+                parsed_asks.append((p, s))
+
+            best_bid = parsed_bids[0][0]
+            best_ask = parsed_asks[0][0]
+
+            # 3. No crossed or locked book
+            if best_ask <= best_bid:
                 return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
+
             mid = (best_bid + best_ask) / Decimal("2")
             spread_bps = ((best_ask - best_bid) / mid) * Decimal("10000")
             min_bid = mid * (Decimal("1") - max_depth_band_bps / Decimal("10000"))
             max_ask = mid * (Decimal("1") + max_depth_band_bps / Decimal("10000"))
+
             bid_depth = sum(
-                (Decimal(str(p)) * Decimal(str(s)) for p, s in bids if Decimal(str(p)) >= min_bid),
+                (p * s for p, s in parsed_bids if p >= min_bid),
                 Decimal("0"),
             )
             ask_depth = sum(
-                (Decimal(str(p)) * Decimal(str(s)) for p, s in asks if Decimal(str(p)) <= max_ask),
+                (p * s for p, s in parsed_asks if p <= max_ask),
                 Decimal("0"),
             )
             return spread_bps, bid_depth, ask_depth, best_bid, best_ask, True
-        except (InvalidOperation, ValueError, IndexError):
+        except (InvalidOperation, ValueError, TypeError, IndexError):
             return Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0"), False
 
     def _http_get_json(self, url: str) -> dict[str, Any] | None:

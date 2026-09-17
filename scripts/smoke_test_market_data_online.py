@@ -114,7 +114,26 @@ def run_online_smoke(symbols: list[str] | None = None) -> dict:
                 ticker = tickers.get(s, {})
                 vol_str = str(ticker.get("usdtVolume") or ticker.get("quoteVolume") or "0")
                 quote_vol = Decimal(vol_str) if vol_str else Decimal("0")
-                event_ms = int(depth_raw.get("requestTime") or fetched_ms)
+                book_event_ms = fetched_ms
+                if isinstance(depth_raw, dict):
+                    data_obj = depth_raw.get("data")
+                    if isinstance(data_obj, dict) and data_obj.get("ts"):
+                        try:
+                            book_event_ms = int(data_obj["ts"])
+                        except (ValueError, TypeError):
+                            pass
+                    elif depth_raw.get("requestTime"):
+                        try:
+                            book_event_ms = int(depth_raw["requestTime"])
+                        except (ValueError, TypeError):
+                            pass
+
+                ticker_event_ms = fetched_ms
+                if isinstance(ticker, dict) and ticker.get("ts"):
+                    try:
+                        ticker_event_ms = int(ticker["ts"])
+                    except (ValueError, TypeError):
+                        pass
 
                 assessment = policy.evaluate_metrics(
                     active=True,
@@ -122,8 +141,11 @@ def run_online_smoke(symbols: list[str] | None = None) -> dict:
                     bid_depth_notional=bid_d,
                     ask_depth_notional=ask_d,
                     quote_volume_24h=quote_vol,
-                    event_time_ms=event_ms,
-                    fetched_at_ms=fetched_ms,
+                    book_event_time_ms=book_event_ms,
+                    book_fetched_at_ms=fetched_ms,
+                    ticker_event_time_ms=ticker_event_ms,
+                    ticker_fetched_at_ms=fetched_ms,
+                    spec_fetched_at_ms=fetched_ms,
                     decision_time_ms=int(time.time() * 1000),
                     book_complete=True,
                 )
@@ -135,8 +157,10 @@ def run_online_smoke(symbols: list[str] | None = None) -> dict:
                     bid_depth=bid_d,
                     ask_depth=ask_d,
                     quote_vol=quote_vol,
-                    event_ms=event_ms,
-                    fetched_ms=fetched_ms,
+                    book_event_ms=book_event_ms,
+                    book_fetched_ms=fetched_ms,
+                    ticker_event_ms=ticker_event_ms,
+                    ticker_fetched_ms=fetched_ms,
                     raw_sha=sha,
                 )
 

@@ -159,6 +159,9 @@ def test_depth_parser_handles_official_btc_and_eth_and_rejects_anomalies():
     crossed = {"data": {"asks": [["100", "1"]], "bids": [["105", "1"]]}}
     assert BitgetMarketAdapter.parse_depth_metrics(crossed)[5] is False
 
+    # Inverted orderbook where bid == ask
+    assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["100", "1"]], "bids": [["100", "1"]]}})[5] is False
+
     # Empty bids or asks
     assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [], "bids": [["100", "1"]]}})[5] is False
     assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["100", "1"]], "bids": []}})[5] is False
@@ -167,31 +170,145 @@ def test_depth_parser_handles_official_btc_and_eth_and_rejects_anomalies():
     assert BitgetMarketAdapter.parse_depth_metrics({"data": None})[5] is False
     assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["not_a_number", "1"]], "bids": [["100", "1"]]}})[5] is False
 
+    # Non-positive prices or quantities
+    assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["0", "1"]], "bids": [["100", "1"]]}})[5] is False
+    assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["105", "0"]], "bids": [["100", "1"]]}})[5] is False
+    assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["105", "-1"]], "bids": [["100", "1"]]}})[5] is False
+    assert BitgetMarketAdapter.parse_depth_metrics({"data": {"asks": [["-105", "1"]], "bids": [["100", "1"]]}})[5] is False
 
-@pytest.mark.parametrize(
-    ("event_time_ms", "fetched_at_ms", "book_complete", "reason"),
-    [
-        (879_999, 879_999, True, "STALE"),
-        (1_005_001, 1_000_000, True, "FUTURE"),
-        (1_000_000, 1_000_000, False, "BOOK_INCOMPLETE"),
-    ],
-)
-def test_liquidity_rejects_stale_future_and_incomplete_books(
-    event_time_ms: int, fetched_at_ms: int, book_complete: bool, reason: str
-):
-    result = LiquidityPolicy().evaluate_metrics(
+    # Out of order levels (asks not ascending, bids not descending)
+    unsorted_asks = {"data": {"asks": [["105", "1"], ["102", "1"]], "bids": [["100", "1"], ["99", "1"]]}}
+    assert BitgetMarketAdapter.parse_depth_metrics(unsorted_asks)[5] is False
+
+    unsorted_bids = {"data": {"asks": [["102", "1"], ["105", "1"]], "bids": [["99", "1"], ["100", "1"]]}}
+    assert BitgetMarketAdapter.parse_depth_metrics(unsorted_bids)[5] is False
+
+
+def test_depth_band_25bps_filtering():
+    # Mid is 10,000. 25 bps is 25 USDT -> Asks up to 10,025, Bids down to 9,975.
+    depth = {
+        "data": {
+            "asks": [
+                ["10005", "1"],  # In band: 10,005 USDT
+                ["10020", "2"],  # In band: 20,040 USDT
+                ["10030", "5"],  # Out of band (>10025): excluded
+            ],
+            "bids": [
+                ["9995", "1"],   # In band: 9,995 USDT
+                ["9980", "2"],   # In band: 19,960 USDT
+                ["9970", "5"],   # Out of band (<9975): excluded
+            ],
+        }
+    }
+    spread, bid_depth, ask_depth, best_bid, best_ask, ok = BitgetMarketAdapter.parse_depth_metrics(
+        depth, max_depth_band_bps=Decimal("25")
+    )
+    assert ok is True
+    assert best_bid == Decimal("9995")
+    assert best_ask == Decimal("10005")
+    assert ask_depth == Decimal("10005") + Decimal("20040")
+    assert bid_depth == Decimal("9995") + Decimal("19960")
+
+
+def test_round_price_to_tick():
+    from aura.core.risk import round_price_to_tick
+    assert round_price_to_tick(Decimal("81234.567"), Decimal("0.1")) == Decimal("81234.6")
+    assert round_price_to_tick(Decimal("2512.345"), Decimal("0.01")) == Decimal("2512.35")
+    assert round_price_to_tick(Decimal("0.123456"), Decimal("0.0001")) == Decimal("0.1235")
+
+
+def test_independent_timestamp_freshness_evaluation():
+    policy = LiquidityPolicy()
+    now_ms = 1_000_000_000
+
+    # All fresh -> valid
+    res = policy.evaluate_metrics(
         active=True,
         spread_bps=Decimal("5"),
-        bid_depth_notional=Decimal("5000"),
-        ask_depth_notional=Decimal("5000"),
-        quote_volume_24h=Decimal("1000000"),
-        event_time_ms=event_time_ms,
-        fetched_at_ms=fetched_at_ms,
-        decision_time_ms=1_000_000,
-        book_complete=book_complete,
+        bid_depth_notional=Decimal("10000"),
+        ask_depth_notional=Decimal("10000"),
+        quote_volume_24h=Decimal("2000000"),
+        book_event_time_ms=now_ms - 10_000,
+        book_fetched_at_ms=now_ms - 10_000,
+        ticker_event_time_ms=now_ms - 10_000,
+        ticker_fetched_at_ms=now_ms - 10_000,
+        spec_fetched_at_ms=now_ms - 10_000,
+        decision_time_ms=now_ms,
+        book_complete=True,
     )
-    assert result.verified is False
-    assert any(reason in actual for actual in result.reasons)
+    assert res.verified is True
+
+    # Stale orderbook (>120s) -> invalid
+    res_stale_book = policy.evaluate_metrics(
+        active=True,
+        spread_bps=Decimal("5"),
+        bid_depth_notional=Decimal("10000"),
+        ask_depth_notional=Decimal("10000"),
+        quote_volume_24h=Decimal("2000000"),
+        book_event_time_ms=now_ms - 121_000,
+        book_fetched_at_ms=now_ms - 10_000,
+        ticker_event_time_ms=now_ms - 10_000,
+        ticker_fetched_at_ms=now_ms - 10_000,
+        spec_fetched_at_ms=now_ms - 10_000,
+        decision_time_ms=now_ms,
+        book_complete=True,
+    )
+    assert res_stale_book.verified is False
+    assert "STALE_BOOK_EVENT_TIME" in res_stale_book.reasons
+
+    # Stale ticker (>120s) -> invalid
+    res_stale_ticker = policy.evaluate_metrics(
+        active=True,
+        spread_bps=Decimal("5"),
+        bid_depth_notional=Decimal("10000"),
+        ask_depth_notional=Decimal("10000"),
+        quote_volume_24h=Decimal("2000000"),
+        book_event_time_ms=now_ms - 10_000,
+        book_fetched_at_ms=now_ms - 10_000,
+        ticker_event_time_ms=now_ms - 121_000,
+        ticker_fetched_at_ms=now_ms - 10_000,
+        spec_fetched_at_ms=now_ms - 10_000,
+        decision_time_ms=now_ms,
+        book_complete=True,
+    )
+    assert res_stale_ticker.verified is False
+    assert "STALE_TICKER_EVENT_TIME" in res_stale_ticker.reasons
+
+    # Stale spec (>24h) -> invalid
+    res_stale_spec = policy.evaluate_metrics(
+        active=True,
+        spread_bps=Decimal("5"),
+        bid_depth_notional=Decimal("10000"),
+        ask_depth_notional=Decimal("10000"),
+        quote_volume_24h=Decimal("2000000"),
+        book_event_time_ms=now_ms - 10_000,
+        book_fetched_at_ms=now_ms - 10_000,
+        ticker_event_time_ms=now_ms - 10_000,
+        ticker_fetched_at_ms=now_ms - 10_000,
+        spec_fetched_at_ms=now_ms - 86_401_000,
+        decision_time_ms=now_ms,
+        book_complete=True,
+    )
+    assert res_stale_spec.verified is False
+    assert "STALE_SPECIFICATION" in res_stale_spec.reasons
+
+    # Future skew (>5s) -> invalid
+    res_future_book = policy.evaluate_metrics(
+        active=True,
+        spread_bps=Decimal("5"),
+        bid_depth_notional=Decimal("10000"),
+        ask_depth_notional=Decimal("10000"),
+        quote_volume_24h=Decimal("2000000"),
+        book_event_time_ms=now_ms + 5001,
+        book_fetched_at_ms=now_ms,
+        ticker_event_time_ms=now_ms,
+        ticker_fetched_at_ms=now_ms,
+        spec_fetched_at_ms=now_ms,
+        decision_time_ms=now_ms,
+        book_complete=True,
+    )
+    assert res_future_book.verified is False
+    assert "FUTURE_BOOK_EVENT_TIME" in res_future_book.reasons
 
 
 def test_decimal_sizing_uses_real_btc_and_eth_steps_without_exceeding_risk_budget():

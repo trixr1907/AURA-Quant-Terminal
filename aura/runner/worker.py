@@ -482,19 +482,35 @@ class AuraWorkerService:
         ask_depth_notional: str,
         quote_volume_24h: str,
         source: str = "bitget_rest_v2",
+        book_event_time_ms: int | None = None,
+        book_fetched_at_ms: int | None = None,
+        ticker_event_time_ms: int | None = None,
+        ticker_fetched_at_ms: int | None = None,
+        spec_fetched_at_ms: int | None = None,
     ) -> None:
         """Persist an explicitly synthetic, policy-evaluated fixture snapshot."""
+        b_evt = book_event_time_ms if book_event_time_ms is not None else now_ms
+        b_fetch = book_fetched_at_ms if book_fetched_at_ms is not None else now_ms
+        t_evt = ticker_event_time_ms if ticker_event_time_ms is not None else now_ms
+        t_fetch = ticker_fetched_at_ms if ticker_fetched_at_ms is not None else now_ms
+        s_fetch = spec_fetched_at_ms if spec_fetched_at_ms is not None else now_ms
+
         assessment = self.liquidity_policy.evaluate_metrics(
             active=True,
             spread_bps=Decimal(spread_bps),
             bid_depth_notional=Decimal(bid_depth_notional),
             ask_depth_notional=Decimal(ask_depth_notional),
             quote_volume_24h=Decimal(quote_volume_24h),
-            event_time_ms=now_ms,
-            fetched_at_ms=now_ms,
+            book_event_time_ms=b_evt,
+            book_fetched_at_ms=b_fetch,
+            ticker_event_time_ms=t_evt,
+            ticker_fetched_at_ms=t_fetch,
+            spec_fetched_at_ms=s_fetch,
             decision_time_ms=now_ms,
             book_complete=True,
         )
+        overall_event_ms = min(b_evt, t_evt)
+        overall_fetched_ms = min(b_fetch, t_fetch)
         with self.conn:
             self.conn.execute(
                 "INSERT INTO instrument_specs "
@@ -506,23 +522,27 @@ class AuraWorkerService:
                 "ON CONFLICT(symbol) DO UPDATE SET price_tick=excluded.price_tick, qty_step=excluded.qty_step, "
                 "min_qty=excluded.min_qty, min_notional=excluded.min_notional, event_time_ms=excluded.event_time_ms, "
                 "fetched_at_ms=excluded.fetched_at_ms, source=excluded.source",
-                (symbol, source, symbol.removesuffix("USDT"), price_tick, qty_step, min_qty, min_notional, now_ms, now_ms),
+                (symbol, source, symbol.removesuffix("USDT"), price_tick, qty_step, min_qty, min_notional, s_fetch, s_fetch),
             )
             self.conn.execute(
                 "INSERT INTO universe "
                 "(symbol, active, liquidity_verified, vol_24h, updated_at_ms, source, status, policy_version, "
-                "event_time_ms, fetched_at_ms, reasons_json, spread_bps, bid_depth_notional, ask_depth_notional, "
+                "event_time_ms, fetched_at_ms, book_event_time_ms, book_fetched_at_ms, ticker_event_time_ms, "
+                "ticker_fetched_at_ms, reasons_json, spread_bps, bid_depth_notional, ask_depth_notional, "
                 "quote_volume_24h, raw_snapshot_sha256) "
-                "VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synthetic_fixture') "
+                "VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synthetic_fixture') "
                 "ON CONFLICT(symbol) DO UPDATE SET active=excluded.active, liquidity_verified=excluded.liquidity_verified, "
                 "vol_24h=excluded.vol_24h, updated_at_ms=excluded.updated_at_ms, source=excluded.source, "
                 "status=excluded.status, policy_version=excluded.policy_version, event_time_ms=excluded.event_time_ms, "
-                "fetched_at_ms=excluded.fetched_at_ms, reasons_json=excluded.reasons_json, spread_bps=excluded.spread_bps, "
+                "fetched_at_ms=excluded.fetched_at_ms, book_event_time_ms=excluded.book_event_time_ms, "
+                "book_fetched_at_ms=excluded.book_fetched_at_ms, ticker_event_time_ms=excluded.ticker_event_time_ms, "
+                "ticker_fetched_at_ms=excluded.ticker_fetched_at_ms, reasons_json=excluded.reasons_json, spread_bps=excluded.spread_bps, "
                 "bid_depth_notional=excluded.bid_depth_notional, ask_depth_notional=excluded.ask_depth_notional, "
                 "quote_volume_24h=excluded.quote_volume_24h, raw_snapshot_sha256=excluded.raw_snapshot_sha256",
                 (
                     symbol, int(assessment.verified), float(Decimal(quote_volume_24h)), now_ms,
-                    source, assessment.status, POLICY_VERSION, now_ms, now_ms, json.dumps(list(assessment.reasons)),
+                    source, assessment.status, POLICY_VERSION, overall_event_ms, overall_fetched_ms,
+                    b_evt, b_fetch, t_evt, t_fetch, json.dumps(list(assessment.reasons)),
                     spread_bps, bid_depth_notional, ask_depth_notional, quote_volume_24h,
                 ),
             )
@@ -549,11 +569,12 @@ class AuraWorkerService:
     ) -> bool:
         row = self.conn.execute(
             "SELECT active, liquidity_verified, status, policy_version, event_time_ms, fetched_at_ms, "
+            "book_event_time_ms, book_fetched_at_ms, ticker_event_time_ms, ticker_fetched_at_ms, "
             "bid_depth_notional, ask_depth_notional FROM universe WHERE symbol = ?",
             (symbol,),
         ).fetchone()
         spec = self.conn.execute(
-            "SELECT qty_step, min_qty, min_notional, symbol_status, symbol_type, quote_coin, settle_coin "
+            "SELECT qty_step, min_qty, min_notional, symbol_status, symbol_type, quote_coin, settle_coin, fetched_at_ms "
             "FROM instrument_specs WHERE symbol = ?",
             (symbol,),
         ).fetchone()
@@ -563,18 +584,41 @@ class AuraWorkerService:
             return False
         if row["policy_version"] != POLICY_VERSION:
             return False
-        event_ms = row["event_time_ms"]
-        fetched_ms = row["fetched_at_ms"]
-        if event_ms is None or fetched_ms is None:
+
+        # Independent timestamp freshness checks
+        book_evt = row["book_event_time_ms"] or row["event_time_ms"]
+        book_fetch = row["book_fetched_at_ms"] or row["fetched_at_ms"]
+        ticker_evt = row["ticker_event_time_ms"] or row["event_time_ms"]
+        ticker_fetch = row["ticker_fetched_at_ms"] or row["fetched_at_ms"]
+        spec_fetch = spec["fetched_at_ms"]
+
+        if any(ts is None for ts in (book_evt, book_fetch, ticker_evt, ticker_fetch, spec_fetch)):
             return False
-        age_event = decision_time_ms - int(event_ms)
-        age_fetch = decision_time_ms - int(fetched_ms)
-        if age_event < -self.liquidity_policy.max_future_skew_ms or age_fetch < -self.liquidity_policy.max_future_skew_ms:
+
+        # Book freshness
+        book_evt_age = decision_time_ms - int(book_evt)
+        book_fetch_age = decision_time_ms - int(book_fetch)
+        if book_evt_age < -self.liquidity_policy.max_future_skew_ms or book_fetch_age < -self.liquidity_policy.max_future_skew_ms:
             return False
-        if age_event > self.liquidity_policy.max_age_ms or age_fetch > self.liquidity_policy.max_age_ms:
+        if book_evt_age > self.liquidity_policy.max_age_ms or book_fetch_age > self.liquidity_policy.max_age_ms:
+            return False
+
+        # Ticker freshness
+        ticker_evt_age = decision_time_ms - int(ticker_evt)
+        ticker_fetch_age = decision_time_ms - int(ticker_fetch)
+        if ticker_evt_age < -self.liquidity_policy.max_future_skew_ms or ticker_fetch_age < -self.liquidity_policy.max_future_skew_ms:
+            return False
+        if ticker_evt_age > self.liquidity_policy.max_age_ms or ticker_fetch_age > self.liquidity_policy.max_age_ms:
+            return False
+
+        # Spec freshness and validity
+        spec_age = decision_time_ms - int(spec_fetch)
+        if spec_age < -self.liquidity_policy.max_future_skew_ms or spec_age > self.liquidity_policy.spec_max_age_ms:
             return False
         if spec["symbol_status"] != "normal" or spec["symbol_type"] != "perpetual" or spec["quote_coin"] != "USDT" or spec["settle_coin"] != "USDT":
             return False
+
+        # Sizing and side depth
         if planned_notional is None or direction not in (-1, 1):
             return False
         try:
