@@ -1,0 +1,17 @@
+COMMAND=python3 -m pytest tests/test_v3_vertical_integration.py tests/test_v3_api_security.py tests/test_v3_store.py tests/test_v3_runner.py -ra
+UTC_START=2026-09-16T23:56:25Z
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collected 28 items
+
+tests/test_v3_vertical_integration.py ......                             [ 21%]
+tests/test_v3_api_security.py .......                                    [ 46%]
+tests/test_v3_store.py ........                                          [ 75%]
+tests/test_v3_runner.py .......                                          [100%]
+
+============================== 28 passed in 1.14s ==============================
+EXIT_CODE=0
+UTC_END=2026-09-16T23:56:27Z

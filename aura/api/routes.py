@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -54,6 +55,7 @@ def get_state_machine() -> RunnerStateMachine:
 def get_paper_engine() -> PaperTradingEngine:
     if _paper_engine is None:
         raise HTTPException(status_code=500, detail="Paper Engine nicht initialisiert")
+    _paper_engine._load_state_from_db_if_available()
     return _paper_engine
 
 
@@ -61,6 +63,16 @@ def get_db() -> sqlite3.Connection:
     if _db_conn is None:
         raise HTTPException(status_code=500, detail="Datenbank nicht initialisiert")
     return _db_conn
+
+
+def _enqueue_command(db: sqlite3.Connection, command_type: str, payload: dict[str, Any]) -> str:
+    command_id = f"cmd_{uuid.uuid4().hex}"
+    with db:
+        db.execute(
+            "INSERT INTO commands (id, type, payload, status, created_at_ms) VALUES (?, ?, ?, 'pending', ?)",
+            (command_id, command_type, json.dumps(payload), int(time.time() * 1000)),
+        )
+    return command_id
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -97,10 +109,15 @@ def get_status(sm: RunnerStateMachine = Depends(get_state_machine), pe: PaperTra
 def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Connection = Depends(get_db)):
     # Lade aktive Config-Revision
     cur = db.cursor()
-    cur.execute("SELECT payload, rev FROM config_revisions ORDER BY rev DESC LIMIT 1")
+    cur.execute("SELECT payload, rev, applied_at_ms FROM config_revisions ORDER BY rev DESC LIMIT 1")
     cfg_row = cur.fetchone()
     bot_cfg = json.loads(cfg_row["payload"]) if cfg_row else {}
-    rev = cfg_row["rev"] if cfg_row else 1
+    requested_rev = cfg_row["rev"] if cfg_row else None
+    cur.execute(
+        "SELECT rev FROM config_revisions WHERE applied_at_ms IS NOT NULL ORDER BY rev DESC LIMIT 1"
+    )
+    active_row = cur.fetchone()
+    active_rev = active_row["rev"] if active_row else None
 
     # Offene Positionen serialisieren
     open_list = [
@@ -127,12 +144,33 @@ def get_state(pe: PaperTradingEngine = Depends(get_paper_engine), db: sqlite3.Co
         for p in pe.open_positions.values()
     ]
 
+    # Geschlossene Positionen serialisieren
+    closed_list = [
+        {
+            "id": p.trade_id,
+            "symbol": p.symbol,
+            "dir": p.direction,
+            "entry_price": p.entry_price,
+            "exit_price": p.exit_price,
+            "exit_reason": p.exit_reason,
+            "realized_pnl": p.realized_pnl,
+            "fees": p.total_fees,
+            "opened_at_ms": p.entry_time_ms,
+            "closed_at_ms": p.exit_time_ms,
+            "status": p.status,
+        }
+        for p in pe.closed_positions
+    ]
+
     return {
         "equity": pe.equity,
         "starting_equity": pe.starting_equity,
         "open_positions": open_list,
+        "closed_trades": closed_list,
         "config": bot_cfg,
-        "config_rev": rev,
+        "config_rev": active_rev,
+        "requested_config_rev": requested_rev,
+        "active_config_rev": active_rev,
         "server_time_ms": int(time.time() * 1000),
     }
 
@@ -149,22 +187,30 @@ def update_config(
     cfg_json = json.dumps(cfg_dict)
     now_ms = int(time.time() * 1000)
 
+    # Requested revision remains pending until the worker acknowledges it.
     with db:
         cur = db.execute(
             "INSERT INTO config_revisions (payload, source, created_at_ms, applied_at_ms) "
-            "VALUES (?, ?, ?, ?)",
-            (cfg_json, "operator", now_ms, now_ms),
+            "VALUES (?, ?, ?, NULL)",
+            (cfg_json, "operator", now_ms),
         )
         next_rev = cur.lastrowid or 1
-
-    # Wende neue Parameter auf die Engine an
-    pe.config.risk_per_trade_pct = payload.risk_per_trade_pct
-    pe.config.max_open_positions = payload.max_open_positions
+        command_id = f"cmd_{uuid.uuid4().hex}"
+        db.execute(
+            "INSERT INTO commands (id, type, payload, status, created_at_ms) VALUES (?, 'set_config', ?, 'pending', ?)",
+            (command_id, json.dumps({"rev": next_rev, "config": cfg_dict}), now_ms),
+        )
 
     return GenericResponse(
         ok=True,
-        message=f"Konfiguration erfolgreich auf Revision {next_rev} aktualisiert",
-        data={"rev": next_rev, "config": cfg_dict},
+        message=f"Konfiguration als Revision {next_rev} angefordert",
+        data={
+            "requested_rev": next_rev,
+            "active_rev": None,
+            "command_id": command_id,
+            "status": "pending",
+            "config": cfg_dict,
+        },
     )
 
 
@@ -173,9 +219,15 @@ def trigger_emergency_halt(
     payload: HaltRequest,
     _token: str = Depends(verify_auth_token),
     sm: RunnerStateMachine = Depends(get_state_machine),
+    db: sqlite3.Connection = Depends(get_db),
 ):
+    command_id = _enqueue_command(db, "halt", payload.model_dump())
     sm.emergency_halt(reason=payload.reason)
-    return GenericResponse(ok=True, message=f"Not-Halt erfolgreich aktiviert: {payload.reason}")
+    return GenericResponse(
+        ok=True,
+        message=f"Not-Halt angefordert: {payload.reason}",
+        data={"command_id": command_id, "status": "pending"},
+    )
 
 
 @router.post("/resume", response_model=GenericResponse)
@@ -183,11 +235,22 @@ def resume_from_emergency_halt(
     payload: ResumeRequest,
     _token: str = Depends(verify_auth_token),
     sm: RunnerStateMachine = Depends(get_state_machine),
+    db: sqlite3.Connection = Depends(get_db),
 ):
+    command_id = _enqueue_command(db, "resume", payload.model_dump())
     ok = sm.resume_from_halt(reason=payload.reason)
     if not ok:
+        with db:
+            db.execute(
+                "UPDATE commands SET status = 'rejected', applied_at_ms = ?, result = ? WHERE id = ?",
+                (int(time.time() * 1000), "API state rejected resume", command_id),
+            )
         raise HTTPException(status_code=400, detail="Wiederaufnahme aus aktuellem Zustand nicht moeglich")
-    return GenericResponse(ok=True, message=f"System wiederaufgenommen: {payload.reason}")
+    return GenericResponse(
+        ok=True,
+        message=f"Wiederaufnahme angefordert: {payload.reason}",
+        data={"command_id": command_id, "status": "pending"},
+    )
 
 
 @router.post("/trades/close", response_model=GenericResponse)

@@ -97,7 +97,14 @@ class TestPaperEngineLifecycle:
         assert closed[0].realized_pnl < 0  # Verlust realisiert
         # Mandat Q-01: Equity ist gesunken
         assert engine.equity < 10000.0
-        assert math.isclose(engine.equity, 10000.0 + closed[0].realized_pnl, rel_tol=1e-6)
+        # Entry-Fee ist bereits in der Equity abgezogen; realized_pnl enthält nur
+        # die Netto-Ergebnisse der Exit-Tranchen.
+        entry_fee = closed[0].initial_qty * closed[0].entry_price * engine.config.taker_fee
+        assert math.isclose(
+            engine.equity,
+            10000.0 - entry_fee + closed[0].realized_pnl,
+            rel_tol=1e-6,
+        )
 
     def test_tp1_partial_close_and_breakeven_move(self):
         engine = PaperTradingEngine(EngineConfig(starting_equity=10000.0, risk_per_trade_pct=1.0))

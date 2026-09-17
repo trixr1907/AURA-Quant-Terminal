@@ -233,6 +233,7 @@ class BacktestSimulator:
 
                     if sized.qty > 0 and sized.contracts > 0:
                         entry_fee = sized.qty * entry_p * self.config.taker_fee
+                        equity -= entry_fee
                         init_risk = sized.qty * stop_dist
 
                         active_trade = {

@@ -59,6 +59,21 @@ python3 tests/pine_static_check.py        # OK, exit 0
 
 ## Nächste Schritte
 
-1. P1: Paket-Gerüst `aura/`, SQLite-Schema + Migrations-Runner, Legacy-Importer mit Dry-Run + Vollständigkeitsreport (gegen synthetische v2-State-Fixtures).
-2. P2: `aura.core` Indikatoren + Scoring mit Golden-Parität gegen JS-Engine (Orakel-Einfrierung zuerst).
-3. CI erweitern: neue Python-Suite in Gate-Discovery aufnehmen.
+1. Accounting- und Restart-Failures red-first beheben; danach v3- und vollständige Python-Suite erneut ausführen.
+2. Bestehende JS-Suiten dynamisch vollständig ausführen und Funktionsdrift inventarisieren.
+3. Worker/Risk-Gates/Persistenz/API/UI als einen deterministischen Replay-Durchstich integrieren.
+4. Browser-E2E, Container/Restore/Störungstests und anschließend Abnahmebericht durchführen.
+
+## Verifikation 2026-09-17 — aktueller Stand
+
+- Tatsächlicher HEAD und vorhandener Dirty Worktree wurden erfasst; keine Nutzeränderung wurde verworfen.
+- `python3 -m pytest tests/test_v3_*.py -ra`: **85 passed, 2 failed, Exit 1**.
+- `python3 -m pytest -ra` vor Fix: **593 passed, 2 failed, Exit 1**; Rohlog `docs/evidence/v3_acceptance_20260917/pytest_full.log`.
+- Accounting/Restart red-first behoben; gezielte Suite **13/13 PASS** und vollständige Python-Suite danach **595/595 PASS, Exit 0** (`accounting_fix.log`, `pytest_full_after_accounting_fix.log`).
+- Dynamische JS-Regression: **98/98 PASS, Exit 0**; Artefakte `docs/evidence/v3_acceptance_20260917/js_full.log` und `js_results.json`.
+- Vertikale Integration nach Ergänzung von Closed-Bar-Persistenz, Same-Bar-Dedupe, fail-closed Liquiditätsgate und DB-Refresh der API: **7/7 PASS**; vollständige Python-Suite danach **600/600 PASS** (`vertical_integration.log`, `pytest_full_after_vertical_fix.log`).
+- Der öffentliche Bitget-Test hat in dieser Runde real Daten empfangen und validiert; Nichterreichbarkeit wird nun als `NOT_RUN`/Skip statt als PASS ausgewiesen.
+- Verbleibende Blocking-Befunde: Dashboard ist nicht an die mutierende v3-Control-Plane angebunden; Compose bleibt lokal NOT_RUN.
+- Der zuvor nur prozesslokale Not-Halt wurde über die SQLite-Command-Tabelle an den separaten Worker gekoppelt; Cross-Process Halt+Resume ist mit getrennten DB-Verbindungen grün getestet.
+- Unabhängige Read-only-Reviews bestätigten weitere Blocker: fehlendes Funding/TP3, falsches R-Multiple nach TP1, Backtest-Entry-Fee, fehlender Holdout-Gate, unsicherer Default-Token und unkoordinierter Restore; der ebenfalls gefundene Same-Bar-Dedupe-Fehler ist inzwischen red-first behoben.
+- Daher derzeit ausdrücklich: **kein SOFTWARE GO, kein Deployment GO, MODEL_NO_EVIDENCE**.

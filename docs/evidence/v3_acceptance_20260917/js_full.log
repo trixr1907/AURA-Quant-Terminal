@@ -1,0 +1,693 @@
+COMMAND=dynamic node execution of 98 tests/test_*.js
+WORKDIR=/home/ivo/projects/AURA_v2
+UTC_START=2026-09-16T23:42:52Z
+=== tests/test_audit_integrity.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.846
+--- RUNNING AUDIT INTEGRITY TEST SUITE ---
+[1. End-to-End Pipeline Deterministic Trace]
+  PASS  E2E pipeline trace passed with zero anomalies
+[2. Golden Master Multi-Symbol Parity]
+  PASS  BTCUSDT_1h.csv: 13573 rows compared, max delta: 4.746425474877469e-12, soft-mismatches: 0 (0.0000%)
+  PASS  ETHUSDT_1h.csv: 13573 rows compared, max delta: 3.254285729781259e-12, soft-mismatches: 0 (0.0000%)
+  PASS  SOLUSDT_1h.csv: 13573 rows compared, max delta: 8, soft-mismatches: 10 (0.0737%)
+        first detail: ts=1776949200000 field=trend Pine=21 JS=29 (delta 8)
+  PASS  XRPUSDT_4h.csv: 9070 rows compared, max delta: 3, soft-mismatches: 2 (0.0221%)
+        first detail: ts=1658491200000 field=trend Pine=69 JS=66 (delta 3)
+  PASS  DOGEUSDT_4h.csv: 9070 rows compared, max delta: 5.950795411990839e-13, soft-mismatches: 0 (0.0000%)
+  PASS  Overall Golden Master Parity: 58859 bars compared, soft mismatch rate: 0.0204% (<0.1%)
+[3. Timeframe Units & Scaling Consistency]
+  PASS  Timeframe units & scaling invariants confirmed
+[4. Claims Integrity Verification]
+  PASS  Claims table valid: 29 claims audited, 0 unresolved KRITISCH/HOCH
+[5. Repo Hygiene Check]
+  PASS  Repo hygiene confirmed (.hermes excluded from git tracking)
+
+============================================================
+ERGEBNIS: AUDIT INTEGRITY SUITE ALL CHECKS PASSED
+============================================================
+=== tests/test_autobot_cycle_status_log.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.032
+PASS Autobot cycle status, funnel diagnostics, and event log render
+=== tests/test_autobot_entry_gate.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.026
+PASS Autobot only enters freshly revalidated Action Radar Hot Setups
+=== tests/test_autobot_entry_log_hygiene.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.027
+PASS Autobot entry log hygiene, adaptive price format, and time-stop display verified
+=== tests/test_autobot_profiles.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS Autobot profiles expose transparent adjustable activity gates
+=== tests/test_autobot_revalidation_object.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS evaluateAutobotCandidate accepts both radar rows and fresh revalidated candidate objects
+=== tests/test_autobot_scan_diagnostics.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.037
+PASS Autobot scan reports fail-closed rejection diagnostics
+=== tests/test_autobot_scan_reentrancy.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.078
+[Autobot] Live-Ticker-Fehler für ALCHUSDT: Bitget USDT-M Futures Ticker: AbortController is not defined — Fallback auf Kerzenschluss (100)
+[Autobot] Live-Ticker-Fehler für ALCHUSDT: Bitget USDT-M Futures Ticker: AbortController is not defined — Fallback auf Kerzenschluss (100)
+PASS Autobot scan reentrancy guard and duplicate race protection verified
+=== tests/test_autobot_selection.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS Autobot selects the strongest overall valid radar signal and applies liquidity settings
+=== tests/test_autobot_statistical_edge.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+PASS Autobot requires positive OOS edge on the selected fresh timeframe
+=== tests/test_autobot_timeframe_edge.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS Autobot selects strongest valid MTF edge and rejects score-only setups
+=== tests/test_autobot_timestop_behavior.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.06
+PASS Autobot in-trade monitoring and dynamic time-stop behavior verified across timeframes, PnL states, and fallbacks
+=== tests/test_autobot_universe_adjustment.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.066
+--- Testing Acceptance Criteria 1: Kein Doppelzählen ---
+PASS Acceptance Criteria 1: Kein Doppelzählen verified
+--- Testing Acceptance Criteria 2: Kein Survivor-Bias ---
+[Autobot] Live-Ticker-Fehler für COIN0USDT: Bitget USDT-M Futures Ticker: AbortController is not defined — Fallback auf Kerzenschluss (100)
+[Autobot] Live-Ticker-Fehler für COIN1USDT: Bitget USDT-M Futures Ticker: AbortController is not defined — Fallback auf Kerzenschluss (100)
+PASS Acceptance Criteria 2: Kein Survivor-Bias & dynamisches Universum verified
+--- Testing Acceptance Criteria 3: Provenance Lockbox ---
+PASS Acceptance Criteria 3: Provenance Lockbox verified
+--- Testing Acceptance Criteria 4: Option B (Default) vs Option A (Strict) ---
+PASS Acceptance Criteria 4: Option B vs Option A Gate verified
+
+ALL ACCEPTANCE CRITERIA 1-4 PASSED SUCCESSFULLY.
+=== tests/test_bitget_keepalive.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS Bitget Keepalive ping timer lifecycle and message handling verified
+=== tests/test_bitget_websocket_reconnect.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS Bitget WebSocket live candle, CVD semantics, and fallback reconnect
+=== tests/test_btc_regime_transparency.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS BTC regime transparency
+=== tests/test_chart_liveness_ticker.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.043
+PASS Bitget ticker channel subscription, live candle updates, and chart liveness verified
+=== tests/test_compare_pine_js_golden.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.064
+test_compare_pine_js_golden.js: ALL ASSERTIONS PASSED
+=== tests/test_cross_device_sync.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.092
+[Cross-Device Sync Engine Tests]
+  PASS  SyncEngine.pull: Queue overflow remains offline and not synchronizing
+  PASS  SyncEngine.pull: Permanently blocked pending mutation remains offline
+  PASS  SyncEngine.pull: Sendable pending mutation reports synchronizing
+  PASS  SyncEngine.bootstrapIfNeeded: Bootstraps local non-empty trades if remote key is undefined
+  PASS  SyncEngine.bootstrapIfNeeded: requeues every legacy value after a 409 with fresh revision
+  PASS  SyncEngine.bootstrapIfNeeded: queues autobot legacy value instead of losing it on 409
+  PASS  SyncEngine.pushDirect: Handles 409 conflict by refreshing rev and pulling latest state
+  PASS  SyncEngine queue: sends mutation batches sequentially with updated revisions
+  PASS  SyncEngine queue: 409 keeps pending mutation and retries after server reconcile
+  PASS  SyncEngine pull: pending local mutation prevents remote overwrite
+  PASS  SyncEngine.enqueueList: emits delete for an item removed after remote history pull
+  PASS  SyncEngine.enqueueList: emits delete before initial pull from previous local list
+  PASS  SyncEngine.saveTradeHistory: emits all local history deletes before initial pull
+  PASS  SyncEngine.pull: keeps a pending mutation visibly unsynchronized
+  PASS  SyncEngine queue: permanent 409 is bounded and preserves blocked pending mutation
+  PASS  SyncEngine bootstrap: applies legacy 409 state while pull is already active
+  PASS  SyncEngine UI: Reflects connected/synced/offline in status indicator
+  PASS  durable queue: offline delete survives browser reload and remote pull
+  PASS  durable queue: offline upsert survives reload and ACK
+  PASS  durable queue: close batch remains atomic across reload
+  PASS  durable queue: corrupt JSON is preserved byte-for-byte and ignored without sending
+  PASS  durable queue: permanent conflict stays persisted without busy loop
+  PASS  durable queue: queue persistence failure rejects projection and preserves existing pending work
+  PASS  durable queue: restore overflow blocks sending and preserves raw queue
+  PASS  SyncEngine.pull: stale GET after POST ACK cannot overwrite revision or local state
+
+============================================================
+ERGEBNIS:  25 PASSED  |  0 FAILED  |  25 TOTAL
+============================================================
+=== tests/test_cvd_feed_independence.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.035
+PASS CVD calculation is strictly feed-independent and invariant to taker-buy-volume
+=== tests/test_data_freshness_resume.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS data-age pill and stale-tab catch-up
+=== tests/test_design_system_gen2.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.03
+Design system Gen-2 comprehensive verification passed
+Contrast Summary:
+  - Text on Base: 18.19:1 (AAA)
+  - Text Muted on Surface: 12.74:1 (AAA)
+  - Text Dim on Surface: 7.38:1 (AAA)
+  - Accent on Surface: 8.83:1 (AAA)
+  - Success on Surface: 10.16:1 (AAA)
+  - Warning on Surface: 11.33:1 (AAA)
+  - Danger on Surface: 7.03:1 (AAA)
+=== tests/test_dirty_flag_rendering.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.051
+--- Testing RenderCache Dirty-Flag Mechanism ---
+ALL DIRTY-FLAG RENDERING TESTS PASSED
+=== tests/test_dsr_default_trials.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS calcDSR default trial count is pinned to 18
+=== tests/test_dsr_ledger.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+DSR_LEDGER_MONOTONIC PASS old_N=45 ledger_N=120 old_DSR=0.2692495647769471 new_DSR=0.17292439364937728
+=== tests/test_engine_full.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.109
+
+[1. Unit: clamp]
+  PASS  clamp: below lower bound
+  PASS  clamp: above upper bound
+  PASS  clamp: within range returns value
+  PASS  clamp: exactly at lower bound
+  PASS  clamp: exactly at upper bound
+  PASS  clamp: NaN stays NaN (no crash)
+
+[2. Unit: strengthOf — Pine ↔ JS Parität]
+  PASS  strengthOf(94, 1) === 'ULTRA'
+  PASS  strengthOf(87, 1) === 'STRONG'
+  PASS  strengthOf(80, 1) === 'MEDIUM'
+  PASS  strengthOf(79, 1) === 'WEAK'
+  PASS  strengthOf(75, 1) === 'WEAK'
+  PASS  strengthOf(100, 1) === 'ULTRA'
+  PASS  strengthOf(6, -1) === 'ULTRA'
+  PASS  strengthOf(13, -1) === 'STRONG'
+  PASS  strengthOf(20, -1) === 'MEDIUM'
+  PASS  strengthOf(21, -1) === 'WEAK'
+  PASS  strengthOf(25, -1) === 'WEAK'
+  PASS  strengthOf(0, -1) === 'ULTRA'
+  PASS  strengthOf(50, 0) === "—"
+
+[3. Unit: fgLabel — Pine ↔ JS Parität]
+  PASS  fgLabel(75) === 'Extreme Greed'
+  PASS  fgLabel(74) === 'Greed'
+  PASS  fgLabel(55) === 'Greed'
+  PASS  fgLabel(54) === 'Neutral'
+  PASS  fgLabel(46) === 'Neutral'
+  PASS  fgLabel(45) === 'Fear'
+  PASS  fgLabel(26) === 'Fear'
+  PASS  fgLabel(25) === 'Extreme Fear'
+  PASS  fgLabel(24) === 'Extreme Fear'
+  PASS  fgLabel(0) === 'Extreme Fear'
+
+[4. Unit: macroAdjust — Score-Parität und Makro-Gates]
+  PASS  SYM Konstanten übereinstimmend mit Pine
+  PASS  macroAdjust: keine Extrema → fgAdj max ±4
+  PASS  macroAdjust: extremes Funding Z>2.5 setzt fundingExtreme=true
+  PASS  macroAdjust: extremes Funding drückt Total unter longTh=75
+  PASS  macroAdjust: Veto=true wenn schwacher Tech + extremes Makro
+  PASS  macroAdjust: kein Veto bei starkem technischen Signal (Score>=85)
+  PASS  macroAdjust: OI-Spike aktiviert extended cap ±25
+  PASS  macroAdjust: macroAdj capped bei -25 (macroCap)
+  PASS  macroAdjust: basisAdj max ±3 (wBasis=0.03 * 100 = 3)
+  PASS  macroAdjust: mtfBonus wird korrekt addiert
+
+[5. Unit: calcDSR — degenerierte Daten bleiben ohne Evidenz]
+  PASS  DSR: konstante Returns liefern neutralen DSR und endliche Werte
+  PASS  DSR: NaN/Infinity und ungültige Trial-Zahl fail-closed
+
+[5. Unit: calcKelly — Kelly-Sizing Grenzwerte]
+  PASS  Kelly: P=0 → hasEdge=false, riskAmt=0
+  PASS  Kelly: P=1 → hasEdge=true, positive riskAmt
+  PASS  Kelly: finalFrac ≤ hardCap (riskPct/100)
+  PASS  Kelly: finalFrac ≤ 0.25 (max 25% Bankroll)
+  PASS  Kelly: b-Ratio aus avgWinR/avgLossR
+  PASS  Kelly: edge ist (p*b - (1-p)) * 100
+  PASS  Kelly: ungültige oder null Accountwerte ergeben kein Broker-Risiko
+  PASS  Kelly: ungültige Statistikwerte liefern nur endliche Null-Sizing-Werte
+  PASS  Kelly: OOS-Sample-Gate sperrt <5, rampt 5–14 und ist ab 15 voll
+
+[6. Unit: dynamicTp1At — dynTP1 Logik]
+  PASS  dynTP1: kein Level → Fallback 2R (long)
+  PASS  dynTP1: kein Level → Fallback -2R (short)
+  PASS  dynTP1: bearish FVG-Bot innerhalb [1R,2R) → wird genommen (long)
+  PASS  dynTP1: FVG außerhalb [1R,2R) [sub-1R] → ignoriert, Fallback 2R
+  PASS  dynTP1: EQH innerhalb [1R,2R) → wird genommen (long)
+  PASS  dynTP1: EQL innerhalb (short, [1R,2R) d.h. [80,90))
+  PASS  dynTP1: nimmt nächsten Kandidaten (kleinster rMultiple) bei Mehrfach-Kandid.
+  PASS  FVG lifecycle: bullish zone persists beyond three bars and ends on full mitigation
+  PASS  FVG lifecycle: nine active unmitigated zones are retained independently
+  PASS  FVG lifecycle: bearish zone persists beyond three bars and ends on full mitigation
+
+[7. Unit: calcFundingBias — Edge Cases]
+  PASS  Funding: leeres Array → bias=0, z=0
+  PASS  Funding: <5 Elemente → bias=0
+  PASS  Funding: alle gleich → z≈0 (kein numerischer Drift nach Fix)
+  PASS  Funding: stark positiv (Longs überfüllt) → negative bias (Short-Bias)
+
+[8. Unit: calcOIBias — OI-Quadrant]
+  PASS  OIBias: leeres Array → bias=0
+  PASS  OIBias: OI+5% mit Price-Pause → OI-Spike Topping (-50)
+  PASS  OIBias: OI+2% bei steigendem Preis → Long Build-Up
+
+[9. Integration: simulateRange + evaluateTrades]
+  PASS  simulateRange: Score < longTh=75 erzeugt keine Trades
+  PASS  simulateRange: Score >= longTh=75 erzeugt einen Trade
+  PASS  simulateRange: harte Exit-Grenze zensiert statt spätere Bars zu lesen
+  PASS  simulateRange: Trades überlappen nicht und warten auf den tatsächlichen Exit
+  PASS  runWalkForwardBacktest: zu wenig Daten liefert keine In-Sample-Trades als OOS
+  PASS  runWalkForwardBacktest: jeder echte Testfold hat mindestens 60 Bars
+  PASS  Time-Stop: feuert nach genau 15 Bars bei verlierendem Trade
+  PASS  Time-Stop: feuert NICHT bei profitablem Trade nach 15 Bars
+  PASS  evaluateTrades: wr, pf, exp korrekt berechnet
+  PASS  evaluateTrades: leere Liste → wr=0, pf=0, exp=0
+  PASS  evaluateTrades: nur Gewinne → pf=99 (kein Verlust)
+
+[10. Regression: 5 Signal-Gates]
+  PASS  Gate 1: Score 74.9 → kein Long-Signal (unter longTh=75)
+  PASS  Gate 1: Score 75.0 → Long-Signal (exactamente longTh)
+  PASS  Gate 1: Score 25.1 → kein Short-Signal (über shortTh=25)
+  PASS  Gate 1: Score 25.0 → Short-Signal (exactamente shortTh)
+  PASS  Gate 2: MacroVeto blockiert schwaches Long-Signal
+  PASS  Gate 2: kein Veto bei starkem Signal (core=90)
+  PASS  Gate 2: MacroVeto blockiert schwaches Short-Signal
+  PASS  Gate 3: Regime-Gate blockiert Long in BEAR-Regime
+  PASS  Gate 3: Regime-Gate blockiert Short in BULL-Regime
+  PASS  Gate 3: Regime-Gate deaktiviert → Long auch in Bear-Regime möglich
+  PASS  Gate 4: OI-Spike setzt oiSpike=true im Ergebnis
+  PASS  Gate 5: Cooldown=10 blockiert zweiten Trade in 5-Bar-Abstand
+
+[11. Pine ↔ JS Scorings Parität]
+  PASS  Parität: Core-Score-Formel (0.30*T + 0.25*M + 0.25*V + 0.20*S = 100)
+  PASS  Parität: Core-Score-Formel (alle Sub-Scores = 0 → core = 0)
+  PASS  Parität: Core-Score-Formel (Sub-Scores = 50 → core = 50)
+  PASS  Parität: Gewichtsumme = 1.0
+  PASS  Parität: mtfBonus-Logik 4 of 4 aligned → +2
+  PASS  Parität: mtfBonus-Logik 3 of 4 aligned → +1
+  PASS  Parität: Pine f_dynTP1 und JS dynamicTp1At wählen denselben FVG/EQH-Kandidaten
+
+[12. Edge Cases: Indikatoren bei Kurz-Arrays]
+  PASS  emaArr: Länge 0 → leeres Array, kein Crash
+  PASS  emaArr: Länge 1 → gibt src[0] zurück
+  PASS  rsiArr: Länge < period+1 → gibt 0 zurück (kein Crash)
+  PASS  atrArr: Länge < period+1 → kein Crash
+
+[13. Radar, Timeframe, Hebel und Gate-Erklärung]
+  PASS  Radar-TF: starkes Signal im passenden Bull-Regime ist READY
+  PASS  Radar-TF: hoher Score im Squeeze ist BLOCKED statt Top-Signal
+  PASS  Radar-Ranking priorisiert ausführbares Setup vor höherem ungegateten Score
+  PASS  Hebelvorschlag deckt Notional mit konservativem Margin-Budget
+  PASS  Hebelvorschlag ist 0 wenn kein aktiver Trade vorliegt
+  PASS  Sizing: floort auf Bitget-Schritt und überschreitet das Risikobudget nie
+  PASS  Sizing: Mindestnotional wird nicht künstlich hochgerundet
+  PASS  Sizing: nicht-endliche Eingaben ergeben strikt Null
+  PASS  Look-Ahead: Entry-Bar wird sofort und pessimistisch auf SL geprüft
+  PASS  Chronologie: neuer SuperTrend-Trail gilt erst ab der Folgebar
+  PASS  Gate-Erklärung nennt beim Squeeze konkrete Freigabe-Bedingungen
+  PASS  Gate-Erklärung deckt alle Reason-Codes ohne Crash ab
+
+[14. Deterministische Property-Sweeps]
+  PASS  Property(seed=0x51a2b3c4): 5000 Sizing-Fälle halten Broker-Invarianten
+  PASS  Property(seed=0xc0ffee): 5000 Kelly-Fälle bleiben innerhalb Hard-Cap
+  PASS  Accounting: realisierte und offene Netto-R reconciliieren exakt zur Equity
+  PASS  Accounting: explizite Brutto-P&L minus Gebühren wird nicht doppelt gezählt
+  PASS  Property(seed=0xa11ce): 2000 Trade-Sequenzen erfüllen die Accounting-Identität
+
+[11. Slice 1: exact t1 train contract]
+  PASS  runWalkForwardBacktest: t1 boundary reports only fully closed train events
+
+[11. Slice 1: OOS price boundary]
+  PASS  runWalkForwardBacktest: OOS signals require an entry inside testRange
+
+[12. Slice 2: effective trial accounting]
+  PASS  DSR and walk-forward use the effective selection-trial family
+
+============================================================
+ERGEBNIS:  121 PASSED  |  0 FAILED  |  121 TOTAL
+============================================================
+=== tests/test_fallback_liquidity.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS static fallback liquidity is unverified and Paper Autobot is fail-closed
+=== tests/test_feed_status_fallback_pill.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS Feed-Status-Pill displays LIVE, FALLBACK, and OFFLINE states honestly
+=== tests/test_funnel_glasbox.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+--- Running Auftrag E: Funnel-Glasbox Tests ---
+✓ Test 1: computeFunnel24h accurately aggregates recent cycles and respects 24h cutoff
+✓ Test 2: ServerBotState includes funnel24h summary in toServerPayload()
+✓ Test 3: Empty cycle list handles nominal zeros without crashing
+All Auftrag E tests passed successfully!
+=== tests/test_hero_paper_gate.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS cockpit paper trade is intentionally ungated; autobot gates remain fail-closed
+=== tests/test_kelly_oracle.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS calcKelly analytical oracle verification matches exact mathematical probability formulas
+=== tests/test_live_trade_current_price_render.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS trade row current price, delta %, and age indicator
+=== tests/test_live_trade_tracker.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.671
+PASS all Live Trade Tracker & BTC Trend contracts validated
+[Autobot] Live-Ticker-Fehler für EDGEUSDT: Bitget USDT-M Futures Ticker: AbortController is not defined — Fallback auf Kerzenschluss (100)
+PASS Autobot scan uses fresh WF evidence, blocks rejected evidence, and persists effective trials
+=== tests/test_lookahead_metamorphic.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.077
+  ok  analyze: historical score/ATR/SuperTrend unchanged by future bars
+  ok  simulateRange: completed trades identical under future extension
+  ok  runWalkForwardBacktest: train-fold params invariant to test-fold mutation
+
+LOOK-AHEAD METAMORPHIC: 3 PASSED
+=== tests/test_model_evidence_real.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.37
+--- Testing Model Evidence Real & Timestamp Normalization ---
+  PASS  normalizeTimestamp: seconds and milliseconds normalized identically to ms
+  PASS  BTCUSDT_1h baseline accounting and ledger-adjusted DSR match control measurement
+  PASS  All 5 golden symbols correctly report NO_EVIDENCE
+ALL MODEL EVIDENCE REAL TESTS PASSED
+=== tests/test_partial_close_winrate_stats.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS partial close win-rate semantics and legacy tolerance
+=== tests/test_pf29_trade_card.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS PF-29 shared trade card
+=== tests/test_pf30_chart_positions.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+PASS PF-30 chart position helpers and direct TradingView web link
+=== tests/test_pf31_zero_transient.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.031
+PASS PF-31 zero-transient reconciliation and atomic card rendering
+=== tests/test_pf32_focus_chart_retry.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS PF-32 focus-chart stale-while-revalidate retry contract
+=== tests/test_pf34_asset_logos.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+
+PF-34 CDN Asset Logo helpers
+  PASS  coinLogoUrl("BTCUSDT") → jsdelivr btc.svg
+  PASS  coinLogoUrl("ETHUSDT") strips USDT
+  PASS  coinLogoUrl("SOLPERP") strips PERP
+  PASS  isCdnLogoKnownBad("XRPUSDT") false initially
+  PASS  isCdnLogoKnownBad("XRPUSDT") true after mark
+  PASS  isCdnLogoKnownBad("XRPUSDT") still true (idempotent)
+  PASS  isCdnLogoKnownBad("BNBUSDT") still false
+  PASS  isCdnLogoKnownBad("DOTUSDT") true after mark with USDT suffix
+  PASS  coinLogoInitials("BTCUSDT") → "BTC"
+  PASS  coinLogoInitials("LINKUSDT") capped at 3 chars → "LIN"
+  PASS  coinLogoUrl("LINKUSDT") lowercases base
+
+════════════════════════════════════════════════════════════
+ERGEBNIS:  11 PASSED  |  0 FAILED  |  11 TOTAL
+════════════════════════════════════════════════════════════
+=== tests/test_pf35_logo_animation.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+
+PF-35 Logo Animation + prefers-reduced-motion
+  PASS  A non-toast @keyframes rule exists (logo animation)
+  PASS  @keyframes auraGlow does not animate layout properties
+  PASS  .logo .mark rule exists
+  PASS  .logo .mark has animation property
+  PASS  @media(prefers-reduced-motion:reduce) block exists
+  PASS  reduced-motion block disables animations
+  PASS  reduced-motion block does not set layout-only properties
+  PASS  @keyframes auraGlow: no width/height/margin/padding/top/left in body
+  PASS  Animation name "auraGlow" matches a defined @keyframes
+  PASS  reduced-motion block contains animation rule
+
+════════════════════════════════════════════════════════════
+ERGEBNIS:  10 PASSED  |  0 FAILED  |  10 TOTAL
+════════════════════════════════════════════════════════════
+=== tests/test_pf37_autobot_live_metrics.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.038
+PASS PF-37 Autobot live metrics: calculateTradeMetrics used, null path eliminated, Autobot synced to ticker tact
+=== tests/test_pf38_tooltips.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS PF-38 Tooltips: Regime-Detail and Hero-Level explanations verified with a11y attributes
+=== tests/test_pf39_chart_freshness.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.033
+PASS PF-39 Chart freshness & load-state: idle/loading/error states and badge tick verified
+=== tests/test_pf41_trade_card_keyboard.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.021
+PASS PF-41 keyboard activation for shared trade cards
+=== tests/test_pf41_trade_card_structure.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS PF-41 unified trade card DOM contract and a11y
+=== tests/test_pf42_chart_resize.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+PASS PF-42 chart resize, persistence, bounds, touch and timeline controls
+=== tests/test_pf42_resize_review_regressions.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS PF-42 review regressions: safe storage, one pointer path, throttled redraw
+=== tests/test_pf43_chart_drawings.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.028
+PASS PF-43 drawing create/move/delete persistence and price-time projection
+=== tests/test_pf43_drawing_review_regressions.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+PASS PF-43 review regressions: timestamp projection, segment hit, pointer input, safe storage
+=== tests/test_pf44_timestop_demotion.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS PF-44 manual panel demotion and automatic entry optimizer retained
+=== tests/test_pf45_focus_priority.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.03
+PASS PF-45 focus preempts next radar batch and retry retains priority
+=== tests/test_pf47_mtf_knob_honored.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.033
+PASS PF-47 Autobot honors configured MTF independently of radar executability
+=== tests/test_pf48_funnel_explanation.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.027
+PASS PF-48 funnel explains zero signals and exposes honest settings hints
+=== tests/test_pf50_trade_card_dom_stability.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.066
+=== PF-50: DOM-STABLE TRADE CARDS TEST SUITE ===
+[1. Live-Tracker: #trade-list Container]
+  PASS  (a) Identical data renders preserve DOM card nodes via isSameNode
+  PASS  (b) Price change updates text in-place without rebuilding card nodes
+  PASS  (c) Trade open/close inserts/removes cards while retaining unchanged nodes
+  PASS  (d) Interactive data-copy-val click works cleanly after 3 update cycles
+[2. Autobot: #ab-trades-container]
+  PASS  (a) Autobot identical renders preserve DOM card nodes via isSameNode
+  PASS  (b) Autobot price change updates text in-place without rebuilding card nodes
+  PASS  (c) Autobot open/close inserts/removes cards while retaining unchanged nodes
+  PASS  (d) Interactive copy works cleanly on autobot card after 3 cycles
+  PASS  (e) Both containers (#trade-list and #ab-trades-container) fully covered
+
+============================================================
+ERGEBNIS: PF-50 DOM STABILITY ALL CHECKS PASSED
+============================================================
+=== tests/test_pf53_pf57_card_and_link_improvements.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+=== TEST: PF-53 .. PF-57 CARDS, FALLBACKS, TV LINKS & AUTOBOT INTEL ===
+  PASS PF-55: TradingView URLs contain expected interval parameters
+  PASS PF-54: Setup validation records explicit fallback reason without silent replacement
+  PASS PF-53/PF-57: Full Intel assessment (SMC/BTC/Phases) and Multi-TP support in cards
+  PASS PF-56: Layout stability CSS and prefers-reduced-motion verified
+
+============================================================
+ERGEBNIS: PF-53..PF-57 VERIFICATION ALL CHECKS PASSED
+============================================================
+=== tests/test_pf59_signal_hub.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS PF-59 signal hub: queue, claim dedup, retry and priority matrix
+=== tests/test_pf60_settings_ui.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS PF-60 settings UI: accessible controls, persistence, sync and test path
+=== tests/test_pf61_trade_events.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.03
+PASS PF-61 trade events: once flags, reload, direction-aware SL and all open/close paths
+=== tests/test_pf66_headless_runner.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.051
+
+[PF-70.1: Funnel Parity Browser Engine ↔ Runner Engine]
+  PASS  Engine extracted identically (same exported symbols)
+  PASS  evaluate candidate: btcBlock → rejected (both paths identical)
+  PASS  evaluate candidate: tfScores path — strong signal accepted
+  PASS  evaluate candidate: score below minScore → rejected
+  PASS  evaluate candidate: mtfNeed not met → rejected
+  PASS  evaluateAutobotEdge: OOS required — no OOS evidence → rejected
+  PASS  evaluateAutobotEdge: positive OOS edge → accepted
+
+[PF-70.2: Event/Dedup — checkTpSlHits, applyAutoBreakeven, checkTimeStop]
+  PASS  checkTpSlHits: LONG above tp1 → tp1 event
+  PASS  checkTpSlHits: LONG below sl → sl_close event
+  PASS  checkTpSlHits: SHORT above sl → sl_close event
+  PASS  checkTpSlHits: no hit → empty array
+  PASS  checkTpSlHits: already marked tp1Hit → tp1 not re-emitted
+[AutoBE] undefined SL -> entry 100 at +1R
+  PASS  applyAutoBreakeven: LONG at +1R → SL moves to entry
+  PASS  applyAutoBreakeven: LONG at +0.5R → no BE yet
+  PASS  applyAutoBreakeven: beActive already → no double-apply
+  PASS  checkTimeStop: expired trade → true
+  PASS  checkTimeStop: fresh trade → false
+
+[PF-70.3: Mode-Switch contract]
+  PASS  ServerBotState: default equity from env or constructor default
+  PASS  ServerBotState.toServerPayload: mode is server
+  PASS  ServerBotState.loadFromServerState: restores equity from server
+  PASS  ServerBotState.loadFromServerState: restores valid runner cycle metadata
+  PASS  mode flag: KEY_STATE with mode=browser never pauses Server-Only Live
+  PASS  mode flag: KEY_STATE with mode=server remains unpaused
+
+[PF-70.4: Config passthrough]
+  PASS  readBotConfig: falls back to balanced defaults when no server config
+  PASS  readBotConfig: reads custom values from server state
+  PASS  readBotConfig: btcFilter defaults to true, can be disabled
+
+[PF-70.5: Fail-Close cases]
+  PASS  evaluateAutobotCandidate: incomplete=true → rejected
+  PASS  evaluateAutobotCandidate: missing tfScores and bestInfo → rejected
+  PASS  evaluateAutobotEdge: null wf → rejected
+  PASS  evaluateAutobotEdge: insufficient samples → rejected
+  PASS  buildEventBody: Open event body format correct
+  PASS  buildEventBody: TP1 event body includes R-multiple
+
+[PF-70.6: BTC Bias gate]
+  PASS  computeBtcBias: bull regime blocks short candidates
+  PASS  computeBtcBias: sideways regime → no block
+
+[v1.8.0: Relay timeout recovery]
+[Runner] Cannot read relay state: simulated timeout
+[Runner] Cannot read relay state: simulated timeout
+  PASS  10s timeout destroys request once and a following cycle can run
+
+============================================================
+PF-70 Headless Runner: 35 passed, 0 failed
+=== tests/test_pine_forecast_generation.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS 1:1 Standalone TradingView Position Tool generation verified
+=== tests/test_price_formatting.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS Adaptive price formatting fmtPx verified across all precision thresholds
+=== tests/test_r38_dsr_display.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.028
+PASS DSR panel follows the operative Setup/Universe gate
+=== tests/test_r38_quant_guards.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS R38 null-variance, regime epsilon, and score-profile guards
+=== tests/test_radar_continuous_cycle.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+PASS continuous Action Radar cycle maintains full universe and refreshes rolling in background
+=== tests/test_radar_focus_selection.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS Action Radar selection atomically updates the focused asset and timeframe
+=== tests/test_radar_persistence.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS fresh persisted radar snapshot survives a browser reload without restarting the full scan
+=== tests/test_radar_progressive.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.129
+PASS radar renders batches with separate counters and measured ETA
+PASS D1 errors are incomplete data_error rows, never executable
+PASS measured zero liquidity remains no_volume and skips lower TFs
+PASS RADAR_CONCURRENCY limits concurrent coin analyses
+PASS focused candle request settles before the next radar batch
+PASS incomplete rows never rank as executable
+=== tests/test_radar_refresh_cycle.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS dashboard refresh does not restart an active or completed Action Radar scan
+=== tests/test_radar_snapshot.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS Action Radar persists a fresh reload snapshot and rejects stale cache
+=== tests/test_radar_sorting.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.03
+PASS all Action Radar smart-sort modes
+=== tests/test_radar_top_candidates.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS Radar top candidates grouping and ranking
+=== tests/test_radar_volume_filter.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.024
+PASS radar display volume filter and live counters
+=== tests/test_relay_origin.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.028
+PASS relay origin selection
+=== tests/test_relay_retry.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.026
+PASS relayCall retries relay overload in a bounded, abort-aware way
+=== tests/test_release_notes_overlay.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.027
+PASS release notes overlay data-driven rendering and once-per-version lifecycle verified
+=== tests/test_reload_banner.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+--- Running Auftrag D: Reload-Banner Tests ---
+✓ Test 1: Mismatch triggers visible reload banner with correct version text
+✓ Test 2: Matching version keeps banner hidden
+✓ Test 3: Unreachable /serving fails silently without throwing
+✓ Test 4: Dismissed version does not re-open banner
+All Auftrag D tests passed successfully!
+=== tests/test_score_clamp_negative.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS confluence score aggregation clamps negative values to zero
+=== tests/test_server_only_live.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.036
+[Runner] Universe unavailable — skipping scan
+PASS Server-Only Live ignores legacy browser state and preserves quant guards
+=== tests/test_setup_validation_focus.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.022
+PASS Setup Validation cache follows the selected asset and displayed live fields
+=== tests/test_shadow_collector.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.046
+--- Slice C: Shadow Collector JS Tests ---
+  PASS  computeParamsSha256 produces deterministic hex hash
+  PASS  Record anatomy contains all mandatory Slice C fields
+  PASS  Rejection record stores exact reject_reason and decision REJECTED
+  PASS  Deterministic outcome: hit_sl on adverse move
+  PASS  Deterministic outcome: conservative SL first when SL & TP touched in same candle
+  PASS  Deterministic outcome: hit_tp1 with remainder time_stop
+  PASS  Deterministic outcome: hit_tp2 on full trend run
+  PASS  Deterministic outcome: time_stop after 24 completed candles without SL/TP hit
+  PASS  Deterministic outcome for SHORT direction
+  PASS  pruneShadowEntries enforces retention days and cap bytes
+  PASS  Collector atomic rewrite on prune
+[Runner] Cycle error: connect ECONNREFUSED 127.0.0.1:8787
+[Runner] Cycle error: connect ECONNREFUSED 127.0.0.1:8787
+  PASS  runScanCycle accepts injected collector and fails-soft without funnel disruption
+  PASS  AURA_SHADOW=0 disables recording
+
+Shadow Collector JS Tests: 13 passed, 0 failed.
+=== tests/test_slippage_not_zero.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.047
+SLIPPAGE_NOT_ZERO PASS gross_R=4.333333333333334 net_R=4.058
+=== tests/test_smc_sessions.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.026
+PASS SMC UTC sessions and timezone-independent UTC clock suite
+=== tests/test_state_migration_identity.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.029
+Schema v2 autobot result identity checks passed
+=== tests/test_timestop_timeframe_scaling.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS time-stop timeframe duration correctly scales across 15m, 1h, 4h, and 1d
+=== tests/test_trade_clickable_data.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.021
+PASS trade cards support clickable data copying and asset focus switching
+=== tests/test_trade_export.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+--- Running Auftrag C: Trade-Export Tests ---
+✓ Test 1: Trade export columns match exact schema
+✓ Test 2: Empty history yields valid header-only CSV with BOM
+✓ Test 3: Fixture normalization and CSV escaping accurate
+✓ Test 4: JSON export structure and loss-free roundtrip validated
+All Auftrag C tests passed successfully!
+=== tests/test_tradingview_basic_qol.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS TradingView Basic QoL helpers
+=== tests/test_tradingview_desktop_fallback.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS TradingView Desktop protocol removed; direct web URL used (PF-30)
+=== tests/test_tradingview_link.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS TradingView link generation and timeframe mapping
+=== tests/test_tradingview_position_bridge.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.028
+PASS 1:1 Standalone TradingView Position Tool generation verified
+=== tests/test_tradingview_return_link.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS TradingView return-link context
+=== tests/test_tradingview_url_and_fast_fallback.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.025
+PASS direct TradingView Bitget web link
+=== tests/test_v181_dashboard_event_hygiene.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.04
+--- Test 1: Auftrag D — Idempotent NtfySignals.bindUI() and Rate Limiting ---
+✓ Auftrag D PASS: Idempotent binding (20x bindUI -> 1 click = 1 push) & 10s rate-limit verified.
+--- Test 2: Auftrag E — Single TV-Open & Stable Trade-ID Addressing ---
+✓ Auftrag E PASS: Single TV open, uniform timeframe, and stable Trade-ID resolution verified.
+--- Test 3: Auftrag F — 5s Live Price Refresh for Autobot Trades ---
+✓ Auftrag F PASS: Bot trades refreshed on 5s cadence with updated mark price and R-Multiple.
+ALL v1.8.1 EVENT HYGIENE & LIVE TRACKING TESTS PASSED!
+=== tests/test_v182_execution_price_split.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+v1.8.2 browser execution split: ticker entry/risk, fallback warning, stale guard and signal transparency OK
+=== tests/test_v182_headless_execution_split.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.03
+v1.8.2 headless execution split: live ticker, risk basis, fallback, stale guard and push detail OK
+=== tests/test_websocket_generation.js ===
+STATUS=PASS EXIT_CODE=0 DURATION_SECONDS=0.023
+PASS WebSocket generation guard and market-state reset
+UTC_END=2026-09-16T23:42:57Z
+SUMMARY={"failed": 0, "passed": 98, "timed_out": 0, "total": 98}
+EXIT_CODE=0
