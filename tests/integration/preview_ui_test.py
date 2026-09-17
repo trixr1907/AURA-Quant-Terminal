@@ -1,7 +1,8 @@
 import asyncio
-from playwright.async_api import async_playwright, expect
-import urllib.parse
-import json
+import os
+from playwright.async_api import async_playwright
+
+FAIL_INTENTIONALLY = os.environ.get("FAIL_INTENTIONALLY", "0") == "1"
 
 async def run_tests():
     async with async_playwright() as p:
@@ -9,36 +10,36 @@ async def run_tests():
         context = await browser.new_context()
         page = await context.new_page()
         
-        network_calls = []
         js_errors = []
+        forbidden_writes = []
         
-        page.on("request", lambda request: network_calls.append({"method": request.method, "url": request.url}))
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
         
-        # Start without cookies
+        def handle_request(req):
+            if req.method in ["POST", "PUT", "DELETE"]:
+                if "api/v3/state" in req.url or "orders" in req.url:
+                    forbidden_writes.append(req.url)
+                    
+        page.on("request", handle_request)
+        
         await context.clear_cookies()
         await page.goto("http://127.0.0.1:8899/preview")
         await page.wait_for_timeout(1000)
         
-        assert len(js_errors) == 0, f"Unerwartete JS-Fehler: {js_errors}"
-        
-        # Test: Anon-Zustand + UI-Login 
         auth_txt = await page.locator("#pill-auth-txt").inner_text()
         assert auth_txt == "Anonym"
 
-        # Login per UI Form (I4)
-        # Use WRONG token first (Negativkontrolle)
-        # Assuming the UI element is correctly added to DOM via our previous injection
         await page.locator("#loginTokenInput").fill("wrong_token_123")
         await page.locator("#btnLoginSubmit").click()
         await page.wait_for_timeout(500)
         error_msg = await page.locator("#loginError").inner_text()
         assert error_msg == "Fehlerhafte Anmeldung", f"Falsche Token-Erwartung, Error war: {error_msg}"
-        auth_txt = await page.locator("#pill-auth-txt").inner_text()
-        assert auth_txt == "Anonym"
+        assert await page.locator("#pill-auth-txt").inner_text() == "Anonym"
 
-        # Use CORRECT token
-        correct_token = "TEST_INTEGRATION_TOKEN_XYZ"
+        if FAIL_INTENTIONALLY:
+            assert False, "BEWUSSTE NEGATIVKONTROLLE: Dieser Assert MUSS fehlschlagen und Exit != 0 provozieren."
+
+        correct_token = os.environ.get("AURA_RELAY_TOKEN", "TEST_INTEGRATION_TOKEN_XYZ")
         await page.locator("#loginTokenInput").fill(correct_token)
         await page.locator("#btnLoginSubmit").click()
         await page.wait_for_timeout(1000)
@@ -46,71 +47,85 @@ async def run_tests():
         auth_txt = await page.locator("#pill-auth-txt").inner_text()
         assert auth_txt == "Operator", f"Login fehlgeschlagen. Auth war: {auth_txt}"
         
-        # PnL Check (I2) & Bewertungsmarke
         await page.locator("#tab-paper-d").click()
         await page.wait_for_selector("#openPosTbody")
         await page.wait_for_timeout(500)
-        row = page.locator("#openPosTbody tr", has_text="SOLUSDT")
+        row = page.locator("#openPosTbody tr", has_text="ETHUSDT")
         
-        # Verify mark price "—"
         mark_price = await row.locator("td:nth-child(5)").inner_text()
-        assert mark_price == "—", f"Bewertungsmarke entsprach nicht '—', sondern {mark_price}"
+        assert mark_price == "—"
         
         gross_pnl = await row.locator("td:nth-child(6)").inner_text()
         net_pnl = await row.locator("td:nth-child(7)").inner_text()
-        assert "USDT" not in gross_pnl # PnL formatting check
-        assert net_pnl == "—", "Erfundenes NetPnl ohne Daten!"
+        assert "USDT" not in gross_pnl
+        assert net_pnl == "—"
 
-        # I3 / I1: Kerzen Map & Symbolnormalisierung & Race-Condition beim Wechsel
         await page.locator("#tab-market-d").click()
         await page.wait_for_timeout(500)
         
-        # Abort late fetch implicitly via playwright route race condition (Race-verwerfen)
-        wait_for_fetch = asyncio.Event()
+        btc_event = asyncio.Event()
+        eth_event = asyncio.Event()
+        
         async def delay_candles(route):
-            await wait_for_fetch.wait() # Blockiert Route
+            url = route.request.url
+            if "BTCUSDT" in url:
+                await btc_event.wait()
+            elif "ETHUSDT" in url:
+                await eth_event.wait()
             await route.continue_()
             
         await page.route("**/api/public", delay_candles)
         
-        # 1. Klicke ein Symbol -> Fetch 1 startet
         await page.locator("select#symbolSelect").select_option("BTCUSDT.P")
-        await page.wait_for_timeout(200)
-        # 2. Klicke ein ANDERES Symbol -> Fetch 2 startet
-        await page.locator("select#symbolSelect").select_option("ETHUSDT.P")
-        await page.wait_for_timeout(200)
+        await page.evaluate("renderMarket(); undefined;")
         
-        # Jetzt beide Routen freigeben
-        wait_for_fetch.set()
-        await page.wait_for_timeout(1500)
+        await page.locator("select#symbolSelect").select_option("ETHUSDT.P")
+        await page.evaluate("renderMarket(); undefined;")
+        
+        eth_event.set() 
+        await page.wait_for_timeout(500)
+        btc_event.set() 
+        await page.wait_for_timeout(1000)
+        
         await page.unroute("**/api/public")
         
-        # Wir erwarten, dass er bei ETHUSDT.P (zweiter) verblieben ist, auch wenn BTC (erster) langsamer eintrudelt.
         caption = await page.locator("#chartCaption").inner_text()
-        assert "ETHUSDT" in caption, "Chart Caption spiegelt nicht das zuletzt gewaehlte Symbol wider!"
-        assert "Bitget:ETHUSDT ·" in caption, f"Normalisierung fehlt in Chart Caption, ist: {caption}"
+        assert "ETHUSDT" in caption
+        assert "Bitget:ETHUSDT ·" in caption
+
+        state_held = asyncio.Event()
+        state_release = asyncio.Event()
         
-        # I4: Logout-Race
-        async def delay_state(route):
-            await asyncio.sleep(2.0)
+        async def hold_state(route):
+            state_held.set()
+            await state_release.wait()
             await route.continue_()
             
-        await page.route("**/api/v3/state**", delay_state)
-        await page.evaluate("refreshData()")
-        await page.locator("#btnLogout").click()
-        # Erneuter refresh feuert und ist instant wegen 401 unauth (loescht DOM)
-        await page.wait_for_timeout(200)
-        auth_now = await page.locator("#pill-auth-txt").inner_text()
-        assert auth_now == "Anonym"
+        await page.route("**/api/v3/state**", hold_state)
+        await page.evaluate("refreshData(); undefined;")
         
-        # Warten auf verzoegertes stateRes (altes request von vorher)
-        await page.wait_for_timeout(2500)
-        auth_later = await page.locator("#pill-auth-txt").inner_text()
-        assert auth_later == "Anonym", "Alter State-Call hat nach Logout den DOM ueberschrieben!"
+        await state_held.wait()
+        await page.locator("#btnLogout").click()
+        await page.wait_for_timeout(500)
+        assert await page.locator("#pill-auth-txt").inner_text() == "Anonym"
+        
+        state_release.set()
+        await page.wait_for_timeout(2000)
+        assert await page.locator("#pill-auth-txt").inner_text() == "Anonym"
         await page.unroute("**/api/v3/state**")
 
+        await page.set_viewport_size({"width": 390, "height": 844})
+        await page.wait_for_timeout(500)
+        
+        bb = await page.locator(".topbar").bounding_box()
+        assert bb["width"] <= 390, "Topbar erzeugt Overflow auf 390px Viewport!"
+        
         await context.close()
         await browser.close()
+        
+        assert len(js_errors) == 0, f"Unerwartete JS-Fehler im Renderpfad: {js_errors}"
+        assert len(forbidden_writes) == 0, f"Unerlaubte schreibende Requests: {forbidden_writes}"
+        
         print("Alle Integrationstests BESTANDEN.")
 
 if __name__ == "__main__":
