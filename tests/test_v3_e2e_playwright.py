@@ -59,7 +59,8 @@ def _generate_synthetic_bullish_candles(symbol: str = "BTCUSDT", n: int = 60, ba
     """Erzeugt synthetische Kerzen fuer deterministischen Signal-Test."""
     candles = []
     now_ms = int(time.time() * 1000)
-    start_ms = now_ms - (n * 3600 * 1000)
+    # Letzte Kerze muss vollstaendig abgeschlossen sein (Ende <= now_ms)
+    start_ms = now_ms - ((n + 1) * 3600 * 1000)
     cur = base_price
     for i in range(n):
         # Letzte 5 Kerzen erzeugen einen starken Breakout (hoher Score)
@@ -694,7 +695,7 @@ def test_scenario_k_deterministic_paper_trade_production_lifecycle_in_ui(e2e_env
     # Universe-Timestamp aktualisieren (muss <= bar_time_ms sein)
     conn.execute(
         "UPDATE universe SET updated_at_ms = ? WHERE symbol = 'BTCUSDT'",
-        (now_ms - 10000,)
+        (now_ms - 7200000,)
     )
     conn.commit()
     conn.close()

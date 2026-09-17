@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 9 items
+
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_concurrent_api_requests_no_transaction_collision PASSED [ 11%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_rollback_isolation_between_concurrent_threads PASSED [ 22%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g1_shared_connection_rejects_overlapping_transaction_with_informative_error PASSED [ 33%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_no_entry_alert_on_rolled_back_trade PASSED [ 44%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_entry_and_exit_alerts_delivered_after_successful_commit PASSED [ 55%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g2_notifier_failure_does_not_rollback_committed_trade PASSED [ 66%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_unfinished_hour_candle_rejected PASSED [ 77%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_clock_skew_and_boundary_tolerances PASSED [ 88%]
+tests/test_v3_review_g1_to_g3_regressions.py::test_g3_cli_test_feed_produces_only_strictly_closed_past_bars PASSED [100%]
+
+============================== 9 passed in 1.67s ===============================

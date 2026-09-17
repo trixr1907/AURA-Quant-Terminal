@@ -30,17 +30,17 @@ class SafeConnection(sqlite3.Connection):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._local = threading.local()
-
-    @property
-    def _tx_depth(self) -> int:
-        return getattr(self._local, "depth", 0)
-
-    @_tx_depth.setter
-    def _tx_depth(self, val: int) -> None:
-        self._local.depth = val
+        self._tx_depth = 0
+        self._tx_lock = threading.RLock()
+        self._tx_owner: int | None = None
 
     def __enter__(self):
+        tid = threading.get_ident()
+        if not self._tx_lock.acquire(timeout=1.0):
+            raise RuntimeError(
+                f"cannot start a transaction within a transaction: connection is already held by thread {self._tx_owner}"
+            )
+        self._tx_owner = tid
         if self._tx_depth == 0:
             self.execute("BEGIN")
         else:
@@ -49,28 +49,33 @@ class SafeConnection(sqlite3.Connection):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> Literal[False]:
-        self._tx_depth -= 1
-        if exc_type is not None:
-            if self._tx_depth == 0:
-                if self.in_transaction:
-                    self.execute("ROLLBACK")
+        try:
+            self._tx_depth -= 1
+            if exc_type is not None:
+                if self._tx_depth == 0:
+                    if self.in_transaction:
+                        self.execute("ROLLBACK")
+                else:
+                    try:
+                        self.execute(f"ROLLBACK TO SAVEPOINT sp_{self._tx_depth}")
+                    finally:
+                        try:
+                            self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
+                        except sqlite3.OperationalError:
+                            pass
             else:
-                try:
-                    self.execute(f"ROLLBACK TO SAVEPOINT sp_{self._tx_depth}")
-                finally:
+                if self._tx_depth == 0:
+                    if self.in_transaction:
+                        self.execute("COMMIT")
+                else:
                     try:
                         self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
                     except sqlite3.OperationalError:
                         pass
-        else:
+        finally:
             if self._tx_depth == 0:
-                if self.in_transaction:
-                    self.execute("COMMIT")
-            else:
-                try:
-                    self.execute(f"RELEASE SAVEPOINT sp_{self._tx_depth}")
-                except sqlite3.OperationalError:
-                    pass
+                self._tx_owner = None
+            self._tx_lock.release()
         return False
 
     def executescript(self, sql_script: str) -> sqlite3.Cursor:

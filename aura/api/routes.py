@@ -10,7 +10,7 @@ import secrets
 import sqlite3
 import time
 import uuid
-from typing import Any
+from typing import Any, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
@@ -45,18 +45,33 @@ router = APIRouter()
 _state_machine: RunnerStateMachine | None = None
 _paper_engine: PaperTradingEngine | None = None
 _db_conn: sqlite3.Connection | None = None
+_db_path: str | None = None
 _start_time = time.time()
 
 
 def set_api_state(
     state_machine: RunnerStateMachine,
     paper_engine: PaperTradingEngine,
-    db_conn: sqlite3.Connection,
+    db_conn: sqlite3.Connection | None = None,
+    db_path: str | None = None,
 ) -> None:
-    global _state_machine, _paper_engine, _db_conn
+    global _state_machine, _paper_engine, _db_conn, _db_path
     _state_machine = state_machine
     _paper_engine = paper_engine
     _db_conn = db_conn
+    if db_path is not None:
+        _db_path = str(db_path)
+    elif db_conn is not None:
+        try:
+            row = db_conn.execute("PRAGMA database_list").fetchone()
+            if row and len(row) > 2 and row[2]:
+                _db_path = str(row[2])
+            else:
+                _db_path = None
+        except Exception:
+            _db_path = None
+    else:
+        _db_path = None
 
 
 def get_state_machine() -> RunnerStateMachine:
@@ -72,10 +87,17 @@ def get_paper_engine() -> PaperTradingEngine:
     return _paper_engine
 
 
-def get_db() -> sqlite3.Connection:
-    if _db_conn is None:
+def get_db() -> Generator[sqlite3.Connection, None, None]:
+    if _db_path is not None:
+        conn = connect(_db_path)
+        try:
+            yield conn
+        finally:
+            conn.close()
+    elif _db_conn is not None:
+        yield _db_conn
+    else:
         raise HTTPException(status_code=500, detail="Datenbank nicht initialisiert")
-    return _db_conn
 
 
 def _enqueue_command(db: sqlite3.Connection, command_type: str, payload: dict[str, Any]) -> str:
