@@ -1,0 +1,57 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /mnt/c/Users/Ivo/Downloads
+plugins: anyio-4.13.0, mock-3.15.1
+collected 3 items
+
+../../../../mnt/c/Users/Ivo/Downloads/aura_review_44dfe8c_probes.py .FF  [100%]
+
+=================================== FAILURES ===================================
+_______________ test_entry_alert_escapes_rolled_back_transaction _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-135/test_entry_alert_escapes_rolle0')
+
+    def test_entry_alert_escapes_rolled_back_transaction(tmp_path):
+        ts=int(time.time()*1000)-3600000
+        w=AuraWorkerService(db_path=str(tmp_path/'alerts.db'),symbols=['BTCUSDT'],long_threshold=-1)
+        w.sm.transition_to(SystemState.WARMING_UP); w.sm.transition_to(SystemState.RUNNING)
+        w.conn.execute("INSERT INTO universe(symbol,active,liquidity_verified,updated_at_ms) VALUES('BTCUSDT',1,1,?)",(ts,))
+        sent=[]
+        w.notifier.send_alert=lambda **kw: sent.append(kw)
+        def crash(*a,**kw): raise RuntimeError('abort-before-bar-completion')
+        w._complete_closed_bar=crash
+        candles=make_bars(ts)
+        with pytest.raises(RuntimeError,match='abort-before-bar-completion'):
+            w._process_closed_bar('BTCUSDT',candles[-1],candles)
+        count=w.conn.execute('SELECT COUNT(*) FROM trades').fetchone()[0]
+        print('AFTER_ROLLBACK: trade_rows=',count,'notifier_calls=',len(sent),'events=',[x['event_type'] for x in sent])
+        assert count==0 and not w.engine.open_positions
+>       assert any(x['event_type']=='TRADE_OPEN' for x in sent)
+E       assert False
+E        +  where False = any(<generator object test_entry_alert_escapes_rolled_back_transaction.<locals>.<genexpr> at 0x72b82e43bc60>)
+
+/mnt/c/Users/Ivo/Downloads/aura_review_44dfe8c_probes.py:52: AssertionError
+----------------------------- Captured stdout call -----------------------------
+AFTER_ROLLBACK: trade_rows= 0 notifier_calls= 0 events= []
+_______________ test_current_unfinished_hour_accepted_as_closed ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-ivo/pytest-135/test_current_unfinished_hour_a0')
+
+    def test_current_unfinished_hour_accepted_as_closed(tmp_path):
+        now=1800001800.0 # controlled wall clock
+        hour=int(now)//3600*3600
+        w=AuraWorkerService(db_path=str(tmp_path/'clock.db'),symbols=['BTCUSDT'],time_provider=lambda:now)
+        candles=make_bars(hour*1000)
+        rep=ValidationReport(is_valid=True,total_checked=len(candles),errors=[])
+        healthy,reason=w._is_candle_feed_healthy(candles,rep,int(now*1000))
+        print('UNFINISHED_CLOSED_BAR_ACCEPTED:',healthy,'end_in_future_seconds=',hour+3600-now)
+>       assert hour+3600>now and healthy
+E       assert ((1800000000 + 3600) > 1800001800.0 and False)
+
+/mnt/c/Users/Ivo/Downloads/aura_review_44dfe8c_probes.py:64: AssertionError
+----------------------------- Captured stdout call -----------------------------
+UNFINISHED_CLOSED_BAR_ACCEPTED: False end_in_future_seconds= 1800.0
+=========================== short test summary info ============================
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_review_44dfe8c_probes.py::test_entry_alert_escapes_rolled_back_transaction
+FAILED ../../../../mnt/c/Users/Ivo/Downloads/aura_review_44dfe8c_probes.py::test_current_unfinished_hour_accepted_as_closed
+========================= 2 failed, 1 passed in 1.56s ==========================
