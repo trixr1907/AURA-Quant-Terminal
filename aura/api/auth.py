@@ -141,6 +141,21 @@ def verify_auth_token(
     return token_to_check
 
 
+def optional_auth_token(
+    request: Request,
+    x_aura_token: str | None = Header(default=None, alias="X-AURA-TOKEN"),
+    authorization: str | None = Header(default=None),
+) -> str | None:
+    """FastAPI Dependency: Prueft optional auf Operator-Session/Token. Gibt None bei anonym zurueck."""
+    try:
+        return verify_auth_token(request, x_aura_token, authorization)
+    except HTTPException:
+        return None
+
+
+optional_operator_session = optional_auth_token
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Fuegt allen HTTP-Antworten robuste Security-Header hinzu."""
 
