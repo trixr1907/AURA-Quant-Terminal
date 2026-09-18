@@ -57,6 +57,48 @@ async def run_tests():
             assert False, "BEWUSSTE NEGATIVKONTROLLE"
 
         # ---------------------------------------------------------
+        # NEW: Config Initial Load Regression
+        # ---------------------------------------------------------
+        print("Testing Config Initial Regression...")
+        await page.goto("http://127.0.0.1:8899/preview")
+        await page.wait_for_timeout(1000)
+        await page.locator("#tab-settings-d").click()
+        await page.wait_for_timeout(200)
+
+        assert not await page.locator("#btnCfgEdit").is_disabled(), "btnCfgEdit is unexpectedly blocked on initial page load."
+        await page.locator("#btnCfgEdit").click()
+        assert await page.locator("#cfgEditForm").is_visible(), "cfgEditForm did not open on btnCfgEdit click."
+
+        await page.locator("#cfgMaxLevInput").fill("15")
+        await page.locator("#cfgDryRunInput").check()
+        await page.locator("#btnCfgValidate").click()
+        await page.wait_for_timeout(200)
+        
+        async with page.expect_response("**/api/v3/config") as resp:
+            await page.locator("#btnCfgRequest").click()
+        res = await (await resp.value).json()
+        await page.wait_for_timeout(200)
+        
+        assert res["ok"] is True, "Config POST failed."
+        cmd_id = res["data"]["command_id"]
+        assert cmd_id is not None, "Did not get command_id from POST."
+
+        assert await page.locator("#btnCfgRequest").is_disabled() or await page.locator("#btnCfgRequest").is_hidden(), "btnCfgRequest is still active despite pending command!"
+        
+        # We MUST CLEAN UP the DB so the rest of the tests pass!
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM commands WHERE status = 'pending'")
+        # Also clean the config_revisions we inserted
+        conn.execute("DELETE FROM config_revisions WHERE applied_at_ms IS NULL")
+        conn.commit()
+        conn.close()
+        
+        await page.evaluate("state.cfg.pendingCmdId = null; state.cfg.status = 'active'; state.cfg.draft = null; state.cfg.lastRejectionReason = null;")
+        await page.evaluate("(async () => await refreshData())()")
+        await page.wait_for_timeout(400)
+
+        # ---------------------------------------------------------
         # Bedienfehler 1: Halt Banner on normal is_halted
         # ---------------------------------------------------------
         print("Testing Halt Banner via Server State...")
