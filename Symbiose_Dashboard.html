@@ -2336,7 +2336,12 @@ if (typeof window !== 'undefined') window.__SYM_TEST = {
 //  API-LAYER — kein API-Key nötig. Fallback-Kette: Binance → Binance Vision
 //  → Bybit → CoinGecko (reduziert), damit das Panel niemals leer bleibt.
 // ============================================================================
-const TFMS = { '15m': 900000, '1h': 3600000, '4h': 14400000, '1d': 86400000 };
+const TFMS = {
+        '15m': 900000, '15M': 900000,
+        '1h': 3600000, '1H': 3600000,
+        '4h': 14400000, '4H': 14400000,
+        '1d': 86400000, '1D': 86400000
+    };
 const COINS = {
   BTCUSDT: 'bitcoin', ETHUSDT: 'ethereum', SOLUSDT: 'solana', XRPUSDT: 'ripple',
   BNBUSDT: 'binancecoin', DOGEUSDT: 'dogecoin', ADAUSDT: 'cardano', AVAXUSDT: 'avalanche-2',
@@ -2368,7 +2373,12 @@ async function jfetch(url, ms) {
 
 // ---------------- Bitget V2 Public API (Futures, kein Key nötig) ----------------
 const BITGET_BASE = 'https://api.bitget.com';
-const BITGET_TF = { '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D' };
+const BITGET_TF = {
+        '15m': '15m', '15M': '15m',
+        '1h': '1H', '1H': '1H',
+        '4h': '4H', '4H': '4H',
+        '1d': '1D', '1D': '1D'
+    };
 
 // Use the same-origin relay whenever the dashboard is HTTP-served (localhost,
 // LAN IP, DNS, or reverse proxy). Standalone file mode retains direct public API
@@ -9774,6 +9784,7 @@ const SyncEngine = {
             unrealizedPnl: p.unrealized_pnl,
             score: p.setup_score,
             signalTf: p.timeframe || '1h',
+            notional: p.notional || (p.entry_price * p.qty) || ((p.entry_price || 0) * (p.qty || 0)) || 0,
             source: 'server'
           }));
         }
