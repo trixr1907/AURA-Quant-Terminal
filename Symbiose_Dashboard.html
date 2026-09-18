@@ -2436,7 +2436,8 @@ async function bgGet(path) {
 }
 
 async function bitgetKlines(symbol, tf, limit) {
-  const iv = BITGET_TF[tf];
+  const cleanTf = String(tf || '1h').toLowerCase();
+  const iv = BITGET_TF[cleanTf] || BITGET_TF[tf] || '1H';
   if (!iv) throw new Error('Bitget: TF nicht verfügbar');
   const j = await bgGet(`/api/v2/mix/market/candles?symbol=${symbol}&productType=USDT-FUTURES&granularity=${iv}&limit=${Math.min(limit, 1000)}`);
   if (!j || j.code !== '00000' || !Array.isArray(j.data)) throw new Error('Bitget Fehlercode ' + (j && j.code));
@@ -8799,7 +8800,9 @@ function buildTradeIntelAssessment(t, m, px, side, isAutobot) {
 
 function renderLiveTrades() {
   const el = $('trade-list');
-  const ts = loadTrades();
+  const manualTrades = loadTrades();
+  const serverTrades = (typeof Autobot !== 'undefined' && Array.isArray(Autobot.trades)) ? Autobot.trades : [];
+  const ts = serverTrades.length > 0 ? serverTrades : manualTrades;
   
   let totalOpen = ts.length;
   let totalMargin = 0;
@@ -11289,22 +11292,22 @@ const Autobot = {
     // 2. Metrics & Portfolio KPIs
     let unrealizedPnl = 0;
     let investedMargin = 0;
-    this.trades.forEach(t => {
-      const px = t.markPrice || tradePrices[t.coin] || t.entry;
-      const pnl = ((px - t.entry) / t.entry * t.dir) * t.notional;
-      unrealizedPnl += pnl;
-      investedMargin += t.margin;
-    });
+    if(this.trades && this.trades.length > 0){
+        this.trades.forEach(t => {
+            const notional = t.notional || (t.entry * (t.quantity || t.qty || 0)) || ((t.entry || 0) * (t.qty || 0)) || 0;
+            const px = t.markPrice || tradePrices[t.coin || t.symbol] || t.entry || 0;
+            const pnl = (t.entry > 0 && notional > 0) ? (((px - t.entry) / t.entry * t.dir) * notional) : (t.unrealizedPnl || 0);
+            if (Number.isFinite(pnl)) unrealizedPnl += pnl;
+            if (Number.isFinite(t.margin)) investedMargin += t.margin;
+        });
+    }
 
     const histStats = calculateHistoryStats(this.history);
     const realizedPnl = histStats.grossPnl;
     const baseEq = (this.startingEquity && this.startingEquity > 0) ? this.startingEquity : (this.initialEquity || 10000);
-    const totalEquity = (this.equity !== null && typeof this.equity === 'number')
-      ? (this.equity + investedMargin + unrealizedPnl)
-      : null;
-    const totalRoi = totalEquity !== null
-      ? (((totalEquity - baseEq) / baseEq) * 100)
-      : null;
+    const rawEq = (typeof this.equity === 'number' && Number.isFinite(this.equity)) ? this.equity : baseEq;
+    const totalEquity = rawEq + investedMargin + unrealizedPnl;
+    const totalRoi = baseEq > 0 ? (((totalEquity - baseEq) / baseEq) * 100) : 0;
     const wr = histStats.realizedWinRatePct;
     const pf = histStats.profitFactor > 0 ? histStats.profitFactor.toFixed(2) : (histStats.grossWin > 0 ? '∞' : '—');
 
