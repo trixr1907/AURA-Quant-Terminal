@@ -432,7 +432,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
             </div>
             <span class="na-tag" id="priceTag">—</span>
           </div>
-          <canvas id="mockChart" width="1100" height="320" role="img" aria-label="Beispielhafter Kerzenchart mit synthetischen Demodaten"></canvas>
+          <canvas id="mockChart" width="1100" height="320" role="img" aria-label="Bitget Live-Marktchart"></canvas>
           <div class="chart-foot">
             <span id="chartCaption">—</span>
             <span id="chartAgeTag">—</span>
@@ -441,7 +441,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
 
         <h2 class="section-title">Nachvollziehbare Analyse-Begründung </h2>
         <div class="card">
-          <h3>Setup-Score-Zerlegung <span class="na-tag">Beispiel, kein Handelssignal</span></h3>
+          <h3>Setup-Score-Zerlegung <span class="na-tag">Live-Modellbewertung</span></h3>
           <div class="reasoning" id="reasoningRows"></div>
           <div class="sub" style="margin-top:10px" id="reasoningNote"></div>
         </div>
@@ -503,7 +503,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
     <h2 class="section-title">Operator-Steuerung</h2>
     <div class="card">
       <h3>Not-Halt / Wiederaufnahme <span class="na-tag">Backend-Berechtigung erforderlich</span></h3>
-      <div class="sub">Diese Aktionen erfordern in Produktion eine authentifizierte Operator-Session und werden serverseitig geprüft. Hier lösen sie <b>keinen echten Schreibzugriff</b> aus — vollständig lokal simuliert.</div>
+      <div class="sub">Diese Aktionen erfordern in Produktion eine authentifizierte Operator-Session und werden serverseitig geprüft. Löst serverseitigen Not-Halt über /api/v3/halt aus und stoppt alle neuen Einstiege des Hintergrund-Workers.</div>
       <div class="op-controls">
         <button type="button" class="btn danger" id="btnHalt">⛔ Not-Halt anfordern</button>
         <button type="button" class="btn primary" id="btnResume">▶ Wiederaufnahme anfordern</button>
@@ -517,7 +517,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
         Wiederaufnahme <b>angefordert</b> (simuliert) — noch nicht angewendet. In Produktion wartet dies auf Bestätigung durch das Backend, bevor sich der Worker-Zustand ändert.
       </div>
       <div id="resumeRejectionNote" class="rejection-note" style="display:none; margin-top:8px;"></div>
-      <div class="mock-note">Klick löst nur eine lokale Anzeige aus — kein API-Call, kein Effekt auf einen echten Worker.</div>
+      <div class="mock-note">Sendet gesicherten Not-Halt-Befehl direkt an das Backend.</div>
     </div>
 
     <h2 class="section-title" style="margin-top:26px">Aktive Server-Konfiguration</h2>
@@ -590,27 +590,6 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
       <div class="rejection-note" id="cfgRejectionNote" style="display:none"></div>
       <div class="rejection-note" id="cfgUnknownNote" style="display:none; background-color: var(--card-bg); border-left-color: var(--text-muted);"></div>
       <div class="applied-note" id="cfgAppliedNote"></div>
-    </div>
-
-    <h2 class="section-title" style="margin-top:26px">Research- &amp; Backtest-Regler <span class="na-tag">reiner Bedienentwurf</span></h2>
-    <div class="research-box">
-      <div class="flag">
-        <span aria-hidden="true">🧪</span>
-        <div><b></b> </div>
-      </div>
-      <div class="field-row">
-        <label for="rngRisk">Risiko pro Trade (Simulationsvorschau)<span class="hint">Nur Anzeige — keine Wirkung auf Backtest/Chart</span></label>
-        <div class="field-ctl"><input type="range" min="0.1" max="5" step="0.05" value="1.25" id="rngRisk"><span class="slider-val" id="rngRiskVal">1,25 %</span></div>
-      </div>
-      <div class="field-row">
-        <label for="rngLong">Long-Score-Schwelle (Simulationsvorschau)</label>
-        <div class="field-ctl"><input type="range" min="50" max="95" step="1" value="62" id="rngLong"><span class="slider-val" id="rngLongVal">62</span></div>
-      </div>
-      <div class="field-row">
-        <label for="rngShort">Short-Score-Schwelle (Simulationsvorschau)</label>
-        <div class="field-ctl"><input type="range" min="5" max="50" step="1" value="38" id="rngShort"><span class="slider-val" id="rngShortVal">38</span></div>
-      </div>
-      <div class="mock-note">Werte werden nicht gespeichert und beim Neuladen der Seite verworfen.</div>
     </div>
 
     </section>
@@ -1013,7 +992,7 @@ function renderOverview(){
     const eq = document.getElementById('ovEquity');
     eq.textContent = fmtMoney(KPIS.equity, false) + " USDT";
     eq.className = "kpi";
-    document.getElementById('ovEquitySub').textContent = "Start: " + fmtMoney(KPIS.starting_equity,false) + " USDT · Demodaten";
+    document.getElementById('ovEquitySub').textContent = "Start: " + fmtMoney(KPIS.starting_equity,false) + " USDT";
 
     const pnl = document.getElementById('ovPnl');
     const totalNet = KPIS.realizedNet;

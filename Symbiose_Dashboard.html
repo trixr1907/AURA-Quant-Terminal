@@ -316,7 +316,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 </style>
 </head>
 <body>
-<div id="reload-banner" class="reload-banner" hidden style="display:none" aria-live="polite">
+<div id="reload-banner" hidden style="display:none" class="reload-banner" hidden style="display:none" aria-live="polite">
   <div class="reload-banner-content">
     <span class="reload-banner-icon">⚡</span>
     <span id="reload-banner-text">Neue Version verfügbar — bitte Seite neu laden</span>
@@ -745,7 +745,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
         </div>
 
         <div id="ab-trades-container" style="margin-bottom:12px">
-          <span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist seit v2.5.0 inaktiv.</span>
+          <span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist zugunsten der Desktop-Integration inaktiv.</span>
         </div>
 
         <details style="margin-top:8px">
@@ -1023,7 +1023,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
 <div id="release-notes-modal" hidden role="dialog" aria-modal="true" aria-labelledby="release-notes-title" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
   <section style="width:min(620px,100%);max-height:88vh;overflow:auto;background:#111827;border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.6);padding:24px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v2.5.0?</h2></div>
+      <div><div style="font-size:11px;color:var(--cyn);font-weight:800;letter-spacing:.12em;text-transform:uppercase">Versionshinweise</div><h2 id="release-notes-title" style="margin:6px 0 8px">Was ist neu in AURA v3.0?</h2></div>
       <button id="release-notes-close" type="button" aria-label="Versionshinweise schließen" style="border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);border-radius:9px;padding:7px 11px;cursor:pointer">×</button>
     </div>
     <div id="release-notes-body">
@@ -1117,7 +1117,7 @@ button.act{height:34px;border:0;border-radius:8px;background:#e2e8f0;color:#0911
   </section>
 </div>
 
-<footer><b>AURA Confluence Terminal v2.5.0</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
+<footer><b>AURA Quant Terminal v3.0 Enterprise</b> — Read-only Research Station. Öffentliche Marktdaten, Setup Discovery und reproduzierbare Modellvalidierung. Keine Order-Ausführung. Keine Anlageberatung.</footer>
 
 <script>
 "use strict";
@@ -7981,7 +7981,7 @@ function triggerTradeExportJson() {
 // ============================================================================
 //  Reload-Banner ↔ /serving Sync (Auftrag D)
 // ============================================================================
-const AURA_CLIENT_VERSION = '2.5.0';
+const AURA_CLIENT_VERSION = '3.0.4';
 let _dismissedReloadVersion = null;
 
 async function checkServingVersionForReload() {
@@ -11348,7 +11348,7 @@ const Autobot = {
     // 3. Active Positions Cards
     const container = $('ab-trades-container');
     if (container) {
-      const emptyHtml = '<span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist seit v2.5.0 inaktiv.</span>';
+      const emptyHtml = '<span style="display:block;padding:12px;color:var(--dim);text-align:center;font-size:10px">Keine offenen Server-Trades (live, Docker). Lokale Browser-Simulation ist zugunsten der Desktop-Integration inaktiv.</span>';
       const cardItems = this.trades.map((t, idx) => {
         const px = t.markPrice || tradePrices[t.coin] || t.entry;
         // PF-37: use calculateTradeMetrics for live price/PnL/R metrics,
@@ -11466,6 +11466,11 @@ const Autobot = {
 };
 
 const AURA_RELEASE_NOTES = {
+  "3.0.4": {
+    title: "AURA v3.0",
+    summary: "Dashboard Upgrade auf AURA Quant Terminal v3",
+    highlights: ["Full Enterprise Integration"]
+  },
   "2.5.0": {
     title: "Server-Only Live",
     summary: "Runde 39 (MINOR): Der Docker-Runner bleibt im Server-Modus durchgehend aktiv; das Dashboard ist ausschließlich Viewer und Control Plane für die Server-Konfiguration.",
@@ -11956,7 +11961,7 @@ function init() {
   const releaseClose = $('release-notes-close'); if (releaseClose) releaseClose.onclick = closeReleaseNotes;
   const releaseOk = $('release-notes-ok'); if (releaseOk) releaseOk.onclick = closeReleaseNotes;
   if (releaseModal) releaseModal.addEventListener('click', e => { if (e.target === releaseModal) closeReleaseNotes(); });
-  showReleaseNotesOnce('2.5.0');
+  // showReleaseNotesOnce deaktiviert
 
   // Trade Export CSV / JSON (Auftrag C)
   const bExpCsv = $('btn-export-csv'); if (bExpCsv) bExpCsv.onclick = triggerTradeExportCsv;
