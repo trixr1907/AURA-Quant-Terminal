@@ -6,7 +6,7 @@
   <strong>Quantitative Edge · Visual Precision · Pure Execution</strong>
 </p>
 
-# AURA v2.5.0 — Confluence Terminal
+# AURA v3.0.4 — Confluence Terminal
 
 <div align="center">
   <a href="VERSION"><img src="https://img.shields.io/badge/version-2.5.0-00F5A0?style=for-the-badge&labelColor=080B11" alt="Version 2.5.0"></a>
