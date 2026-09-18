@@ -13,7 +13,7 @@ services:
   # 1. API & Control Plane (WebUI + REST API)
   # ----------------------------------------------------------------------------
   aura-api:
-    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:2.5.0}
+    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:3.0.4}
     build:
       context: .
       dockerfile: Dockerfile
@@ -60,7 +60,7 @@ services:
   # 2. Worker Engine (Headless Runner)
   # ----------------------------------------------------------------------------
   aura-worker:
-    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:2.5.0}
+    image: ${AURA_IMAGE_TAG:-aura-quant-terminal:3.0.4}
     build:
       context: .
       dockerfile: Dockerfile
