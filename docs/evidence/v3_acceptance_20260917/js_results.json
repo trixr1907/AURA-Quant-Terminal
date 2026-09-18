@@ -1,0 +1,596 @@
+{
+  "total": 98,
+  "passed": 98,
+  "failed": 0,
+  "timed_out": 0,
+  "results": [
+    {
+      "file": "tests/test_audit_integrity.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.846
+    },
+    {
+      "file": "tests/test_autobot_cycle_status_log.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.032
+    },
+    {
+      "file": "tests/test_autobot_entry_gate.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.026
+    },
+    {
+      "file": "tests/test_autobot_entry_log_hygiene.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.027
+    },
+    {
+      "file": "tests/test_autobot_profiles.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_autobot_revalidation_object.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_autobot_scan_diagnostics.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.037
+    },
+    {
+      "file": "tests/test_autobot_scan_reentrancy.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.078
+    },
+    {
+      "file": "tests/test_autobot_selection.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_autobot_statistical_edge.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_autobot_timeframe_edge.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_autobot_timestop_behavior.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.06
+    },
+    {
+      "file": "tests/test_autobot_universe_adjustment.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.066
+    },
+    {
+      "file": "tests/test_bitget_keepalive.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_bitget_websocket_reconnect.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_btc_regime_transparency.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_chart_liveness_ticker.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.043
+    },
+    {
+      "file": "tests/test_compare_pine_js_golden.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.064
+    },
+    {
+      "file": "tests/test_cross_device_sync.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.092
+    },
+    {
+      "file": "tests/test_cvd_feed_independence.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.035
+    },
+    {
+      "file": "tests/test_data_freshness_resume.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_design_system_gen2.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    {
+      "file": "tests/test_dirty_flag_rendering.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.051
+    },
+    {
+      "file": "tests/test_dsr_default_trials.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_dsr_ledger.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_engine_full.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.109
+    },
+    {
+      "file": "tests/test_fallback_liquidity.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_feed_status_fallback_pill.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_funnel_glasbox.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_hero_paper_gate.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_kelly_oracle.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_live_trade_current_price_render.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_live_trade_tracker.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.671
+    },
+    {
+      "file": "tests/test_lookahead_metamorphic.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.077
+    },
+    {
+      "file": "tests/test_model_evidence_real.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.37
+    },
+    {
+      "file": "tests/test_partial_close_winrate_stats.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf29_trade_card.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf30_chart_positions.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_pf31_zero_transient.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.031
+    },
+    {
+      "file": "tests/test_pf32_focus_chart_retry.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_pf34_asset_logos.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_pf35_logo_animation.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_pf37_autobot_live_metrics.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.038
+    },
+    {
+      "file": "tests/test_pf38_tooltips.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf39_chart_freshness.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.033
+    },
+    {
+      "file": "tests/test_pf41_trade_card_keyboard.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.021
+    },
+    {
+      "file": "tests/test_pf41_trade_card_structure.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_pf42_chart_resize.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_pf42_resize_review_regressions.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf43_chart_drawings.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.028
+    },
+    {
+      "file": "tests/test_pf43_drawing_review_regressions.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_pf44_timestop_demotion.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_pf45_focus_priority.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    {
+      "file": "tests/test_pf47_mtf_knob_honored.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.033
+    },
+    {
+      "file": "tests/test_pf48_funnel_explanation.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.027
+    },
+    {
+      "file": "tests/test_pf50_trade_card_dom_stability.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.066
+    },
+    {
+      "file": "tests/test_pf53_pf57_card_and_link_improvements.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf59_signal_hub.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_pf60_settings_ui.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_pf61_trade_events.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    {
+      "file": "tests/test_pf66_headless_runner.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.051
+    },
+    {
+      "file": "tests/test_pine_forecast_generation.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_price_formatting.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_r38_dsr_display.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.028
+    },
+    {
+      "file": "tests/test_r38_quant_guards.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_radar_continuous_cycle.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_radar_focus_selection.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_radar_persistence.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_radar_progressive.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.129
+    },
+    {
+      "file": "tests/test_radar_refresh_cycle.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_radar_snapshot.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_radar_sorting.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    {
+      "file": "tests/test_radar_top_candidates.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_radar_volume_filter.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.024
+    },
+    {
+      "file": "tests/test_relay_origin.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.028
+    },
+    {
+      "file": "tests/test_relay_retry.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.026
+    },
+    {
+      "file": "tests/test_release_notes_overlay.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.027
+    },
+    {
+      "file": "tests/test_reload_banner.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_score_clamp_negative.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_server_only_live.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.036
+    },
+    {
+      "file": "tests/test_setup_validation_focus.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.022
+    },
+    {
+      "file": "tests/test_shadow_collector.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.046
+    },
+    {
+      "file": "tests/test_slippage_not_zero.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.047
+    },
+    {
+      "file": "tests/test_smc_sessions.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.026
+    },
+    {
+      "file": "tests/test_state_migration_identity.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.029
+    },
+    {
+      "file": "tests/test_timestop_timeframe_scaling.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_trade_clickable_data.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.021
+    },
+    {
+      "file": "tests/test_trade_export.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_tradingview_basic_qol.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_tradingview_desktop_fallback.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_tradingview_link.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_tradingview_position_bridge.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.028
+    },
+    {
+      "file": "tests/test_tradingview_return_link.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_tradingview_url_and_fast_fallback.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.025
+    },
+    {
+      "file": "tests/test_v181_dashboard_event_hygiene.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.04
+    },
+    {
+      "file": "tests/test_v182_execution_price_split.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    },
+    {
+      "file": "tests/test_v182_headless_execution_split.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    {
+      "file": "tests/test_websocket_generation.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.023
+    }
+  ]
+}

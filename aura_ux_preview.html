@@ -1,0 +1,1667 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AURA Live Preview</title>
+<style>
+:root{
+  --bg:#0b0f14; --surface:#111823; --surface2:#161f2c; --surface3:#1c2632; --line:#233040;
+  --txt:#eef3f9; --dim:#aebfd0; --mut:#7c8fa3;
+  --accent:#38bdf8; --accent2:#818cf8;
+  --grn:#22c55e; --grn2:#4ade80;
+  --red:#ef4444; --red2:#f8a4a4;
+  --amber:#f59e0b; --amber2:#fcd34d;
+  --mono:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  padding-bottom:70px;
+}
+a{color:inherit}
+.mono{font-family:var(--mono)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+button,input,select{font-family:inherit; color:inherit}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+
+/* ---------- Prototyp-Banner (single line, no overlap even narrow) ---------- */
+.proto-banner{
+  background:#2c1a4a; color:#e6d9ff; text-align:center; padding:8px 10px; font-size:12px; font-weight:700;
+  position:relative; z-index:70; border-bottom:1px solid #5b2a86;
+}
+.proto-banner b{color:#fff}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  background:var(--surface); border-bottom:1px solid var(--line);
+  padding:10px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:8px; font-weight:800; font-size:16px; margin-right:auto}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.status-row{display:flex; gap:8px; flex-wrap:wrap}
+.pill{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 10px; border-radius:8px; font-size:12px; font-weight:700;
+  border:1px solid var(--line); background:var(--surface2); color:var(--dim);
+  white-space:nowrap;
+}
+.pill .lbl{color:var(--mut); font-weight:600; font-size:10px}
+.pill .txt{font-weight:700}
+.pill.ok{color:var(--grn2)}
+.pill.warn{color:var(--amber2)}
+.pill.bad{color:var(--red2); background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.4)}
+.pill.unknown{color:var(--mut)}
+.pill .ic{font-size:12px}
+
+.halt-btn-top{
+  border:1px solid rgba(239,68,68,.5); background:rgba(239,68,68,.12); color:var(--red2);
+  padding:9px 14px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;
+  min-height:44px;
+}
+
+/* ---------- Not-Halt Leiste: statisch, kein Pulsieren ---------- */
+.halt-banner{
+  display:none; align-items:flex-start; gap:10px; flex-wrap:wrap;
+  background:rgba(239,68,68,.1); border-bottom:2px solid var(--red); color:var(--red2);
+  padding:12px 16px; font-weight:700; font-size:13.5px;
+}
+.halt-banner.show{display:flex}
+.halt-banner .ico{font-size:17px}
+.halt-banner .body{flex:1; min-width:200px}
+.halt-banner .sub{font-weight:500; color:var(--dim); font-size:12px; margin-top:2px}
+.halt-banner details{margin-top:4px}
+.halt-banner summary{cursor:pointer; color:var(--dim); font-size:11.5px; font-weight:600}
+
+/* ---------- Tabs (role=tablist) ---------- */
+.tabs-desktop{
+  display:flex; gap:4px; padding:0 16px; background:var(--surface);
+  border-bottom:1px solid var(--line); overflow-x:auto;
+}
+.tab-btn{
+  background:none; border:none; color:var(--mut); font-weight:700; font-size:13.5px;
+  padding:13px 16px; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; min-height:44px;
+}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent)}
+
+main{max-width:1240px; margin:0 auto; padding:20px 16px 40px}
+.view{display:none}
+.view.active{display:block}
+
+h2.section-title{font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:24px 0 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+h2.section-title:first-child{margin-top:0}
+.grid{display:grid; gap:14px}
+.grid.cols-2{grid-template-columns:1fr 1fr}
+.grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+.grid.cols-4{grid-template-columns:repeat(4,1fr)}
+.grid.market-layout{grid-template-columns:2fr 1fr}
+
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px;
+}
+.card h3{font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--mut); margin:0 0 10px; display:flex; justify-content:space-between; align-items:center; gap:8px}
+.kpi{font-size:26px; font-weight:800; font-family:var(--mono)}
+.kpi.pos{color:var(--grn2)} .kpi.neg{color:var(--red2)} .kpi.na{color:var(--mut); font-size:16px; font-weight:700}
+.sub{color:var(--mut); font-size:12px; margin-top:5px; line-height:1.4}
+
+.demo-tag{
+  display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:800;
+  color:#c9b8ff; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4);
+  padding:3px 7px; border-radius:5px;
+}
+.na-tag{
+  display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  color:var(--mut); background:var(--surface2); border:1px solid var(--line);
+  padding:3px 8px; border-radius:5px;
+}
+.warn-tag{
+  display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  color:var(--amber2); background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.35);
+  padding:3px 8px; border-radius:5px;
+}
+
+.action-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.action-item{
+  display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:9px;
+  background:var(--surface2); border:1px solid var(--line); font-size:13px;
+}
+.action-item.crit{border-color:rgba(239,68,68,.4); background:rgba(239,68,68,.07)}
+.action-item.warn{border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.06)}
+.action-item .ico{font-size:16px; flex:none}
+.action-item .txt b{display:block; margin-bottom:3px}
+.action-item .txt span{color:var(--mut); font-size:12px}
+.action-item details{margin-top:6px}
+.action-item summary{cursor:pointer; color:var(--accent); font-size:11.5px; font-weight:700}
+.action-item summary:focus-visible{outline-offset:3px}
+
+details.dtl{margin-top:8px}
+details.dtl summary{cursor:pointer; color:var(--accent); font-size:12px; font-weight:700; padding:4px 0; min-height:24px}
+details.dtl[open] summary{color:var(--dim)}
+.dtl-body{padding:10px 0 2px; font-size:12.5px; color:var(--dim); display:flex; flex-direction:column; gap:4px}
+.dtl-body .row{display:flex; justify-content:space-between; gap:10px}
+.dtl-body .row b{color:var(--txt); font-family:var(--mono)}
+
+table{width:100%; border-collapse:collapse; font-size:13px}
+caption{text-align:left; color:var(--mut); font-size:11px; padding-bottom:6px}
+th{
+  text-align:left; padding:9px 10px; color:var(--mut); font-weight:700;
+  font-size:10.5px; text-transform:uppercase; border-bottom:1px solid var(--line);
+}
+td{padding:9px 10px; border-bottom:1px solid rgba(148,163,184,.08); font-family:var(--mono)}
+tr:hover td{background:rgba(148,163,184,.04)}
+.tblwrap{overflow-x:auto; border-radius:9px; border:1px solid var(--line)}
+.badge{padding:3px 8px; border-radius:5px; font-size:10.5px; font-weight:700; display:inline-flex; align-items:center; gap:4px}
+.badge.win{background:rgba(34,197,94,.12); color:var(--grn2)}
+.badge.loss{background:rgba(239,68,68,.12); color:var(--red2)}
+.badge.be{background:rgba(148,163,184,.12); color:var(--mut)}
+.badge.open{background:rgba(56,189,248,.12); color:var(--accent)}
+
+.pos-cards{display:none; flex-direction:column; gap:10px}
+.pos-card{background:var(--surface2); border:1px solid var(--line); border-radius:9px; padding:12px}
+.pos-card .pc-head{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.pos-card .pc-head b{font-size:14px}
+.pos-card .pc-pnl{font-family:var(--mono); font-weight:800; font-size:15px}
+.pos-card .pc-meta{display:flex; gap:14px; margin-top:8px; font-size:12px; color:var(--mut); flex-wrap:wrap}
+.pos-card .pc-meta b{color:var(--txt); font-family:var(--mono); display:block; font-size:13px}
+
+/* Chart */
+.chart-wrap{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+.chart-head{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+.field-inline{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.field-inline label{font-size:11px; color:var(--mut); font-weight:700}
+select, .tf-btn, .btn{
+  background:var(--surface2); border:1px solid var(--line); color:var(--txt);
+  border-radius:7px; padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer;
+  min-height:38px;
+}
+.tf-group{display:flex; gap:4px}
+.tf-btn[aria-pressed="true"]{background:rgba(56,189,248,.15); border-color:var(--accent); color:var(--accent)}
+canvas#mockChart{width:100%; height:320px; display:block; border-radius:8px; background:#0a0f16}
+.chart-foot{display:flex; justify-content:space-between; color:var(--mut); font-size:12px; margin-top:8px; flex-wrap:wrap; gap:6px}
+
+.watchlist{display:flex; flex-direction:column; gap:6px}
+.wl-item{
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--surface2);
+  width:100%; text-align:left; cursor:pointer; min-height:44px;
+}
+.wl-item[aria-pressed="true"]{border-color:var(--accent); background:rgba(56,189,248,.08)}
+.wl-item b{font-size:13px}
+.wl-item .wl-px{font-family:var(--mono); font-size:13px}
+.wl-item .wl-chg{font-size:11px; font-family:var(--mono)}
+.wl-item .wl-chg.pos{color:var(--grn2)} .wl-item .wl-chg.neg{color:var(--red2)}
+
+.reasoning{margin-top:12px; display:flex; flex-direction:column; gap:7px}
+.reason-row{display:flex; gap:10px; align-items:center; font-size:12.5px}
+.reason-row .w{width:76px; flex:none; color:var(--mut); font-weight:700}
+.reason-row .bar{flex:1; height:7px; border-radius:4px; background:var(--surface2); border:1px solid var(--line); position:relative; overflow:hidden}
+.reason-row .bar i{position:absolute; inset:0 auto 0 0; background:var(--accent2); border-radius:4px; display:block}
+.reason-row .v{width:38px; text-align:right; font-family:var(--mono)}
+
+/* Settings */
+.settings-group{margin-bottom:20px}
+.settings-group .grp-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-bottom:7px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.settings-group .grp-head h4{margin:0; font-size:14px}
+.field-row{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 0; border-bottom:1px dashed rgba(148,163,184,.12); flex-wrap:wrap}
+.field-row:last-child{border-bottom:none}
+.field-row label{font-size:13px; font-weight:600}
+.field-row .hint{color:var(--mut); font-size:11px; display:block; margin-top:2px; font-weight:400}
+.field-row .field-ctl{display:flex; align-items:center; gap:10px}
+input[type=range]{width:150px; min-height:24px}
+.field-row input[type=text], .field-row select.cfg-input{width:130px; text-align:right; padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--surface2); color:var(--txt); min-height:38px}
+.field-row input[type=text]:disabled, select:disabled{opacity:.5; cursor:not-allowed}
+.slider-val{font-family:var(--mono); font-size:13px; min-width:52px; text-align:right; display:inline-block}
+
+/* Real checkbox-as-switch, accessible */
+label.switch{display:inline-flex; align-items:center; gap:8px; cursor:pointer; min-height:38px}
+label.switch input[type=checkbox]{
+  appearance:none; width:40px; height:23px; border-radius:999px; background:var(--surface2);
+  border:1px solid var(--line); position:relative; cursor:pointer; margin:0; flex:none;
+}
+label.switch input[type=checkbox]::after{
+  content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%; background:var(--mut);
+}
+label.switch input[type=checkbox]:checked{background:rgba(34,197,94,.22); border-color:var(--grn)}
+label.switch input[type=checkbox]:checked::after{left:20px; background:var(--grn2)}
+label.switch input[type=checkbox]:disabled{opacity:.5; cursor:not-allowed}
+
+fieldset.demo-scenarios{border:1px dashed rgba(124,58,237,.5); background:rgba(124,58,237,.05); border-radius:10px; padding:14px; margin-top:6px}
+fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; padding:0 4px}
+.scn-group{margin-bottom:14px}
+.scn-group:last-child{margin-bottom:0}
+.scn-group > .scn-label{font-size:11.5px; font-weight:700; color:var(--dim); margin-bottom:6px; display:block}
+.scn-options{display:flex; gap:8px; flex-wrap:wrap}
+.scn-options label{
+  display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; border:1px solid var(--line);
+  background:var(--surface2); font-size:12px; cursor:pointer; min-height:38px;
+}
+.scn-options input[type=radio]{width:15px; height:15px; margin:0}
+.scn-options label:has(input:checked){border-color:var(--accent2); background:rgba(129,140,248,.12); color:#c7cdff}
+
+.research-box{border:1px dashed rgba(124,58,237,.5); background:rgba(124,58,237,.05); border-radius:10px; padding:14px; margin-top:6px}
+.research-box .flag{display:flex; gap:8px; align-items:flex-start; font-size:12px; color:#d8c7ff; margin-bottom:12px}
+.research-box .flag b{color:#c4b5fd}
+
+.cfg-box{border:1px solid var(--line); background:var(--surface2); border-radius:10px; padding:14px; margin-top:6px}
+.cfg-status-row{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap}
+.cfg-status-badge{font-size:11px; font-weight:800; padding:4px 9px; border-radius:6px; text-transform:uppercase; letter-spacing:.03em}
+.cfg-status-badge.active{background:rgba(34,197,94,.12); color:var(--grn2)}
+.cfg-status-badge.editing{background:rgba(56,189,248,.12); color:var(--accent)}
+.cfg-status-badge.pending{background:rgba(245,158,11,.15); color:var(--amber2)}
+.cfg-status-badge.rejected{background:rgba(239,68,68,.12); color:var(--red2)}
+.diff-table{width:100%; font-size:12.5px; margin:10px 0}
+.diff-table td{font-family:var(--mono); padding:6px 8px; border-bottom:1px solid rgba(148,163,184,.08)}
+.diff-table td.field-name{font-family:inherit; color:var(--mut); font-weight:600}
+.diff-table .changed{color:var(--amber2); font-weight:800}
+.cfg-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.rejection-note{background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3); border-radius:8px; padding:10px 12px; font-size:12.5px; color:var(--red2); margin-top:10px}
+.pending-note{background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3); border-radius:8px; padding:10px 12px; font-size:12.5px; color:var(--amber2); margin-top:10px}
+.dirty-flag{font-size:11px; font-weight:700; color:var(--amber2); display:inline-flex; align-items:center; gap:4px}
+
+.op-controls{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+.btn{display:inline-flex; align-items:center; gap:8px}
+.btn.danger{border-color:rgba(239,68,68,.5); color:var(--red2); background:rgba(239,68,68,.1); min-height:44px}
+.btn.primary{border-color:rgba(56,189,248,.5); color:var(--accent); background:rgba(56,189,248,.08); min-height:44px}
+.btn.ghost{background:transparent; min-height:44px}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+.confirm-row{display:none; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; background:var(--surface3); border-radius:8px; flex-wrap:wrap}
+.confirm-row.show{display:flex}
+.confirm-row span{font-size:12.5px; color:var(--dim)}
+.mock-note{color:var(--mut); font-size:11.5px; margin-top:8px}
+.applied-note{background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.3); border-radius:8px; padding:9px 12px; font-size:12.5px; color:var(--grn2); margin-top:10px; display:none}
+.applied-note.show{display:block}
+
+.toast{
+  position:fixed; bottom:82px; left:50%; transform:translateX(-50%) translateY(12px);
+  background:#1a2432; border:1px solid var(--line); color:var(--txt); padding:11px 18px;
+  border-radius:9px; font-size:13px; opacity:0; pointer-events:none; transition:.2s; z-index:80;
+  max-width:min(90vw,420px); text-align:center;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+.calc-note{background:var(--surface2); border:1px solid var(--line); border-radius:9px; padding:12px 14px; font-size:12px; color:var(--dim); margin-top:8px}
+.calc-note b{color:var(--txt)}
+
+/* ---------- Mobile bottom nav ---------- */
+.tabs-mobile{
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:60;
+  background:var(--surface); border-top:1px solid var(--line);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  justify-content:space-around;
+}
+.tabs-mobile .tab-btn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px;
+  font-size:10.5px; border-bottom:none; min-height:52px;
+}
+.tabs-mobile .tab-btn .ic{font-size:18px}
+.tabs-mobile .tab-btn[aria-selected="true"]{color:var(--accent)}
+
+@media (max-width:640px){
+  .tabs-desktop{display:none}
+  .tabs-mobile{display:flex}
+  .grid.cols-2, .grid.cols-3, .grid.cols-4{grid-template-columns:1fr 1fr}
+  .grid.market-layout{grid-template-columns:1fr}
+  main{padding:16px 12px 30px}
+  .status-row{gap:6px}
+  .pill{font-size:11px; padding:5px 9px}
+  .brand{font-size:14px}
+  .chart-head{flex-direction:column; align-items:stretch}
+  canvas#mockChart{height:240px}
+  .field-row{flex-direction:column; align-items:flex-start; gap:8px}
+  .field-row .field-ctl{width:100%; justify-content:space-between}
+  .field-row input[type=text], select.cfg-input{width:140px}
+  table.desktop-table{display:none}
+  .pos-cards{display:flex}
+}
+@media (max-width:400px){
+  .grid.cols-2, .grid.cols-3, .grid.cols-4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+
+
+<div class="topbar">
+  <div class="brand"><span class="dot" aria-hidden="true"></span> AURA <span style="color:var(--mut);font-weight:600;font-size:12px">Mobile & Touch Terminal v3</span></div>
+  <div class="status-row" role="group" aria-label="Getrennte Systemstatus-Anzeigen">
+    <span class="pill" id="pill-auth"><span class="ic" aria-hidden="true">👤</span><span class="lbl">Anmeldung</span><span class="txt" id="pill-auth-txt">Operator</span></span>
+    <span class="pill" id="pill-conn"><span class="ic" aria-hidden="true">🔌</span><span class="lbl">API</span><span class="txt" id="pill-conn-txt">Verbunden</span></span>
+    <span class="pill" id="pill-feed"><span class="ic" aria-hidden="true">📡</span><span class="lbl">Feed</span><span class="txt" id="pill-feed-txt">frisch</span></span>
+    <span class="pill" id="pill-worker"><span class="ic" aria-hidden="true">⚙️</span><span class="lbl">Worker</span><span class="txt" id="pill-worker-txt">HALTED</span></span>
+  </div>
+  <button type="button" class="halt-btn-top" id="btnHaltTop">⛔ Not-Halt</button>
+      <button type="button" class="btn ghost" id="btnLogout" style="display:none; margin-left:10px; height:44px; padding:0 16px;">🚪 Logout</button>
+      <a href="/" class="btn ghost" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:12px; font-weight:700; text-decoration:none; color:var(--accent); border:1px solid var(--accent); border-radius:8px; margin-left:10px;" title="Zum großen Analyse-Terminal wechseln">🖥️ Großes Terminal</a>
+</div>
+
+<div class="halt-banner" id="haltBanner" role="status">
+  <span class="ico" aria-hidden="true">⛔</span>
+  <div class="body">
+    <div id="haltHeadline">NOT-HALT AKTIV — keine neuen Einstiege möglich</div>
+    <div class="sub" id="haltSub">Ein Operator oder das System hat dies bewusst ausgelöst. Der Worker-Prozess kann dabei technisch gesund laufen.</div>
+    <details>
+      <summary>Details / Code</summary>
+      <div class="dtl-body">
+        <div class="row"><span>Interner Code</span><b>OPERATOR_OR_SYSTEM_HALT</b></div>
+        <div class="row"><span>Bedeutung</span><span style="color:var(--dim)">Freitext-Begründung wird nicht öffentlich angezeigt (siehe U2)</span></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<nav class="tabs-desktop" role="tablist" aria-label="Hauptbereiche" id="tablistDesktop">
+  <button class="tab-btn" role="tab" aria-selected="true" id="tab-overview-d" aria-controls="view-overview" data-tab="overview">Übersicht</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-market-d" aria-controls="view-market" data-tab="market">Markt &amp; Analyse</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-paper-d" aria-controls="view-paper" data-tab="paper">Paper-Trading</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-settings-d" aria-controls="view-settings" data-tab="settings">Einstellungen &amp; Betrieb</button>
+</nav>
+
+<main>
+
+  <!-- ================= TAB 1: ÜBERSICHT ================= -->
+  <section class="view active" id="view-overview" role="tabpanel" aria-labelledby="tab-overview-d">
+
+    
+    <div id="loginFormCont" style="display:none; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:16px; margin-top:20px; flex-shrink:0;">
+        <h3 style="margin-top:0">Operator-Login</h3>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="loginTokenInput" placeholder="AURA_RELAY_TOKEN eingeben" style="flex:1; padding:8px; border-radius:4px; border:1px solid var(--line); background:var(--surface); color:var(--txt)">
+            <button class="btn primary" id="btnLoginSubmit">Anmelden</button>
+        </div>
+        <div id="loginError" style="color:var(--red2); margin-top:8px; font-size:12px"></div>
+    </div>
+    <h2 class="section-title">Konto </h2>
+    <div class="grid cols-4" id="accountKpis">
+      <div class="card"><h3>Equity</h3><div class="kpi" id="ovEquity">—</div><div class="sub" id="ovEquitySub">—</div></div>
+      <div class="card"><h3>Realisiertes Ergebnis (netto)</h3><div class="kpi" id="ovPnl">—</div><div class="sub">nach geschlossenen Trades & Gesamtkosten</div></div>
+      <div class="card"><h3>Offene Positionen</h3><div class="kpi" id="ovOpenCount">—</div><div class="sub" id="ovOpenLimitSub">—</div></div>
+      <div class="card"><h3>Anonymes Szenario</h3><div class="kpi na" id="ovAnonNote" style="display:none">Kontodaten ausgeblendet</div><div class="kpi na" id="ovFeesTeaser">Details unten</div><div class="sub">Details unter „Paper-Trading"</div></div>
+    </div>
+
+    <h2 class="section-title">Systemzustand</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Worker &amp; Einstiegsfähigkeit</h3>
+        <div id="ovWorkerState" style="font-size:15px; font-weight:700"></div>
+        <div class="sub" id="ovWorkerSub"></div>
+      </div>
+      <div class="card">
+        <h3>Verbindung &amp; Datenfrische</h3>
+        <div id="ovConnState" style="font-size:15px; font-weight:700"></div>
+        <div class="sub" id="ovConnSub"></div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Konkreter Handlungsbedarf</h2>
+    <ul class="action-list" id="actionList"></ul>
+
+  </section>
+
+  <!-- ================= TAB 2: MARKT & ANALYSE ================= -->
+  <section class="view" id="view-market" role="tabpanel" aria-labelledby="tab-market-d">
+
+    <div class="grid market-layout">
+      <div>
+        <h2 class="section-title" style="margin-top:0">Chart </h2>
+        <div class="chart-wrap">
+          <div class="chart-head">
+            <div class="field-inline">
+              <label for="symbolSelect">Symbol</label>
+              <select id="symbolSelect">
+                <option value="BTCUSDT.P">BTCUSDT.P</option>
+                <option value="ETHUSDT.P">ETHUSDT.P</option>
+                <option value="SOLUSDT.P">SOLUSDT.P</option>
+              </select>
+              <div class="tf-group" role="group" aria-label="Zeitrahmen">
+                <button type="button" class="tf-btn" aria-pressed="false" data-tf="15m">15m</button>
+                <button type="button" class="tf-btn" aria-pressed="true" data-tf="1h">1H</button>
+                <button type="button" class="tf-btn" aria-pressed="false" data-tf="4h">4H</button>
+                <button type="button" class="tf-btn" aria-pressed="false" data-tf="1d">1D</button>
+              </div>
+            </div>
+            <span class="na-tag" id="priceTag">—</span>
+          </div>
+          <canvas id="mockChart" width="1100" height="320" role="img" aria-label="Bitget Live-Marktchart"></canvas>
+          <div class="chart-foot">
+            <span id="chartCaption">—</span>
+            <span id="chartAgeTag">—</span>
+          </div>
+        </div>
+
+        <h2 class="section-title">Nachvollziehbare Analyse-Begründung </h2>
+        <div class="card">
+          <h3>Setup-Score-Zerlegung <span class="na-tag">Live-Modellbewertung</span></h3>
+          <div class="reasoning" id="reasoningRows"></div>
+          <div class="sub" style="margin-top:10px" id="reasoningNote"></div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="section-title" style="margin-top:0">Watchlist </h2>
+        <div class="watchlist" id="watchlist" role="listbox" aria-label="Watchlist Symbole"></div>
+
+        <h2 class="section-title">Liquidität </h2>
+        <div class="card" id="liqCard">
+          <div class="sub" id="liqRows" style="display:flex; flex-direction:column; gap:8px; margin-top:0"></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= TAB 3: PAPER-TRADING ================= -->
+  <section class="view" id="view-paper" role="tabpanel" aria-labelledby="tab-paper-d">
+
+    <h2 class="section-title">Offene Positionen </h2>
+    <div class="mock-note" id="paperAnonNotice" style="display:none">Kontodetails (Positionen, Historie, Kennzahlen) nicht verfügbar — Anmeldung erforderlich (Anonymer Zugriff).</div>
+    <div class="mock-note">Bewertungsmarke = synthetischer Referenz-Preis, Zeitrahmen fest 1H (unabhängig vom im Markt-Tab gewählten Chart-Zeitrahmen). Quelle in Produktion: /api/public Proxy.</div>
+    <div class="tblwrap">
+      <table class="desktop-table" id="openPosTable">
+        <caption>Realisiert/unrealisiert und brutto/netto sind getrennt ausgewiesen.</caption>
+        <thead><tr>
+          <th scope="col">Symbol</th><th scope="col">Richtung</th><th scope="col">Menge</th><th scope="col">Entry</th>
+          <th scope="col">Bewertungsmarke</th><th scope="col">Unreal. PnL (brutto)</th><th scope="col">Unreal. PnL (netto)</th><th scope="col">Angefallene Gebühr</th>
+        </tr></thead>
+        <tbody id="openPosTbody"></tbody>
+      </table>
+    </div>
+    <div class="pos-cards" id="openPosCards"></div>
+
+    <h2 class="section-title">Historie (geschlossene Trades) </h2>
+    <div class="tblwrap">
+      <table class="desktop-table" id="closedTable">
+        <caption>Gebühren umfassen Eröffnung und Schließung. „Netto" = brutto minus Gebühren.</caption>
+        <thead><tr>
+          <th scope="col">Symbol</th><th scope="col">Richtung</th><th scope="col">Entry</th><th scope="col">Exit</th>
+          <th scope="col">Ergebnis (brutto)</th><th scope="col">Gebühren</th><th scope="col">Ergebnis (netto)</th><th scope="col">R (netto)</th><th scope="col">Ergebnis</th>
+        </tr></thead>
+        <tbody id="closedTbody"></tbody>
+      </table>
+    </div>
+    <div class="pos-cards" id="closedCards"></div>
+
+    <h2 class="section-title">Kennzahlen </h2>
+    <div class="grid cols-4" id="kpiCards"></div>
+    <div class="calc-note" id="calcNote"></div>
+
+  </section>
+
+  <!-- ================= TAB 4: EINSTELLUNGEN & BETRIEB ================= -->
+  <section class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings-d">
+
+    <h2 class="section-title">Operator-Steuerung</h2>
+    <div class="card">
+      <h3>Not-Halt / Wiederaufnahme <span class="na-tag">Backend-Berechtigung erforderlich</span></h3>
+      <div class="sub">Diese Aktionen erfordern in Produktion eine authentifizierte Operator-Session und werden serverseitig geprüft. Löst serverseitigen Not-Halt über /api/v3/halt aus und stoppt alle neuen Einstiege des Hintergrund-Workers.</div>
+      <div class="op-controls">
+        <button type="button" class="btn danger" id="btnHalt">⛔ Not-Halt anfordern</button>
+        <button type="button" class="btn primary" id="btnResume">▶ Wiederaufnahme anfordern</button>
+      </div>
+      <div class="confirm-row" id="resumeConfirmRow">
+        <span>Sicher? Wiederaufnahme hebt die Einstiegssperre auf (simuliert).</span>
+        <button type="button" class="btn primary" id="btnResumeConfirm">Ja, fortfahren</button>
+        <button type="button" class="btn ghost" id="btnResumeCancel">Abbrechen</button>
+      </div>
+      <div class="pending-note" id="resumePendingNote" style="display:none">
+        Wiederaufnahme <b>angefordert</b> (simuliert) — noch nicht angewendet. In Produktion wartet dies auf Bestätigung durch das Backend, bevor sich der Worker-Zustand ändert.
+      </div>
+      <div id="resumeRejectionNote" class="rejection-note" style="display:none; margin-top:8px;"></div>
+      <div class="mock-note">Sendet gesicherten Not-Halt-Befehl direkt an das Backend.</div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:26px">Aktive Server-Konfiguration</h2>
+    <div class="cfg-box" id="cfgBox">
+      <div class="cfg-status-row">
+        <span class="cfg-status-badge active" id="cfgStatusBadge">Aktiv</span>
+        <span class="dirty-flag" id="cfgDirtyFlag" style="display:none">● Ungespeicherte Änderungen</span>
+        <span style="margin-left:auto"></span>
+        <button type="button" class="btn primary" id="btnCfgEdit">Bearbeiten</button>
+      </div>
+
+      <div class="mock-note" id="cfgAnonNotice" style="display:none">Geschützte Serverkonfiguration nicht verfügbar — Anmeldung als Operator erforderlich (Anonymer Zugriff).</div>
+
+      <div id="cfgActiveView">
+        <div class="field-row"><label>Config-Revision</label><span class="mono" id="cfgRevisionDisplay">—</span></div>
+        <div class="field-row"><label>Risiko pro Trade</label><span class="mono" id="cfgRiskDisplay">—</span></div>
+        <div class="field-row"><label>Max. offene Positionen</label><span class="mono" id="cfgMaxPosDisplay">—</span></div>
+        <div class="field-row"><label>Max. Hebel</label><span class="mono" id="cfgMaxLevDisplay">—</span></div>
+        <div class="field-row"><label>Paper-Modus (dry_run)</label><span class="mono" id="cfgDryRunDisplay">—</span></div>
+      </div>
+
+      <form id="cfgEditForm" style="display:none">
+        <div class="field-row">
+          <label for="cfgRiskInput">Risiko pro Trade (%)<span class="hint">Gültig: 0,1–5</span></label>
+          <div class="field-ctl"><input type="text" inputmode="decimal" id="cfgRiskInput"></div>
+        </div>
+        <div class="field-row">
+          <label for="cfgMaxPosInput">Max. offene Positionen<span class="hint">Gültig: 1–10</span></label>
+          <div class="field-ctl"><input type="text" inputmode="numeric" id="cfgMaxPosInput"></div>
+        </div>
+        <div class="field-row">
+          <label for="cfgMaxLevInput">Max. Hebel<span class="hint">Gültig: 1–20</span></label>
+          <div class="field-ctl"><input type="text" inputmode="numeric" id="cfgMaxLevInput"></div>
+        </div>
+        <div class="field-row">
+          <label for="cfgDryRunInput">Paper-Modus (dry_run)<span class="hint"></span></label>
+          <div class="field-ctl">
+            <label class="switch"><input type="checkbox" id="cfgDryRunInput" checked><span class="sr-only">Paper-Modus aktiv</span></label>
+          </div>
+        </div>
+        <div id="cfgValidationErrors" style="display:none" class="rejection-note"></div>
+        <div class="cfg-actions">
+          <button type="button" class="btn primary" id="btnCfgValidate">Validieren</button>
+          <button type="button" class="btn ghost" id="btnCfgCancel">Verwerfen</button>
+        </div>
+      </form>
+
+      <div id="cfgDiffView" style="display:none">
+        <h4 style="margin:4px 0 8px; font-size:13px">Änderungsübersicht (Entwurf vs. aktiv)</h4>
+        <table class="diff-table" id="cfgDiffTable"></table>
+        <div class="cfg-actions">
+          <button type="button" class="btn primary" id="btnCfgRequest">Änderung anfordern</button>
+          <button type="button" class="btn ghost" id="btnCfgBackToEdit">Zurück zur Bearbeitung</button>
+        </div>
+      </div>
+
+      <div id="cfgPendingView" style="display:none">
+        <div class="pending-note">
+          Änderung <b>angefordert</b> (simuliert) — noch nicht übernommen. Die aktive Konfiguration bleibt bis zur Entscheidung unverändert.
+        </div>
+        <table class="diff-table" id="cfgPendingDiffTable"></table>
+        <div class="cfg-actions">
+          <button type="button" class="btn primary" id="btnCfgSimApprove">Demo: als „übernommen" simulieren</button>
+          <button type="button" class="btn danger" id="btnCfgSimReject">Demo: als „abgelehnt" simulieren</button>
+          <button type="button" class="btn ghost" id="btnCfgWithdraw">Anfrage zurückziehen</button>
+        </div>
+        
+      </div>
+
+      <div class="rejection-note" id="cfgRejectionNote" style="display:none"></div>
+      <div class="rejection-note" id="cfgUnknownNote" style="display:none; background-color: var(--card-bg); border-left-color: var(--text-muted);"></div>
+      <div class="applied-note" id="cfgAppliedNote"></div>
+    </div>
+
+    </section>
+
+</main>
+
+<nav class="tabs-mobile" role="tablist" aria-label="Hauptbereiche (mobil)" id="tablistMobile">
+  <button class="tab-btn" role="tab" aria-selected="true" id="tab-overview-m" aria-controls="view-overview" data-tab="overview"><span class="ic" aria-hidden="true">🏠</span>Übersicht</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-market-m" aria-controls="view-market" data-tab="market"><span class="ic" aria-hidden="true">📈</span>Markt</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-paper-m" aria-controls="view-paper" data-tab="paper"><span class="ic" aria-hidden="true">💼</span>Paper</button>
+  <button class="tab-btn" role="tab" aria-selected="false" id="tab-settings-m" aria-controls="view-settings" data-tab="settings"><span class="ic" aria-hidden="true">⚙️</span>Betrieb</button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+let fetchGen = 0;
+let marketFetchGen = 0;
+/* =========================================================================
+   AURA UX-Prototyp v2 — vollstaendig lokal, keine externen Requests.
+   Ein einziges deterministisches Datenmodell (FACTS) speist alle Ansichten.
+   ========================================================================= */
+
+/* ---------- 1) API Fetching & State ---------- */
+const API_URL = "";
+const FEE_RATE = 0.0006;
+
+async function apiCall(endpoint, method="GET", body=null) {
+    const opts = { method, headers: {}, credentials: 'include' };
+    if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+    try {
+        const r = await fetch(API_URL + endpoint, opts);
+        if (!r.ok) {
+            let detail = null;
+            try { const d = await r.json(); detail = d.detail || d.message; } catch(err){}
+            return { _error: true, status: r.status, detail: detail };
+        }
+        return await r.json();
+    } catch (e) {
+        return { _error: true, message: e.message };
+    }
+}
+
+let sessionGen = 0;
+const UI_CMD_TIMEOUT = 10000;
+let OPEN_POSITIONS = [];
+let CLOSED_TRADES = [];
+let KPIS = {
+    equity: 0, starting_equity: 0, realizedNet: 0, unrealizedNet: 0,
+    winRate: null, winsCount: 0, lossesCount: 0, tiesCount: 0, decided: 0,
+    profitFactor: null, grossProfitSum: 0, grossLossSum: 0,
+    avgR: null, avgRValidCount: 0, avgRExcludedCount: 0,
+    totalFeesToDate: 0, totalFeesClosed: 0, totalFeesOpenIncurred: 0,
+    smallSample: false, closedCount: 0,
+    dataAgeSec: 0
+};
+let ACTIVE_SERVER_CONFIG = { revision: 0, riskPerTradePct: 0, maxOpenPositions: 0, maxLeverage: 0, dryRun: true };
+let SYMBOL_META = {};
+let MARKET_LIQ = {};
+
+const TF_META = { "15m":{label:"15m"}, "1h":{label:"1H"}, "4h":{label:"4H"}, "1d":{label:"1D"} };
+
+
+function fmtMoney(v, sign){
+  if (v === undefined || v === null || isNaN(v)) return "—";
+  let s = Math.abs(v).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2});
+  if (sign && v > 0) return "+" + s;
+  if (sign && v < 0) return "-" + s;
+  return s;
+}
+function fmtPct(v, digits){
+  if (v === undefined || v === null || isNaN(v)) return "—";
+  digits = digits===undefined?1:digits;
+  return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
+}
+async function refreshData() {
+    const myGen = ++fetchGen; console.log("START REFRESH:", myGen);
+    const authRes = await apiCall("/api/v3/auth/status");
+    if(myGen !== fetchGen) return;
+
+    if(authRes._error && (authRes.status===401||authRes.status===403)){
+        handleLogoutClean(); return;
+    }else if(authRes._error){
+        state.scenario.conn = "disconnected"; renderAll(); return;
+    }else if(!authRes.authenticated){
+        handleLogoutClean(); return;
+    }
+    state.scenario.auth = "operator"; state.scenario.conn = "connected";
+
+    console.log("Auth is", state.scenario.auth); if(state.scenario.auth==="anon") return;
+    const workerRes = await apiCall("/status/worker");
+    if(myGen !== fetchGen) return;
+    if(!workerRes._error){
+        if (workerRes.worker_known === false) {
+            state.scenario.worker = "UNBEKANNT";
+        } else if (workerRes.stale === true) {
+            const rawPhase = workerRes.is_halted ? "HALTED" : (workerRes.fsm_state || "UNBEKANNT");
+            state.scenario.worker = "VERALTET (" + rawPhase + ")";
+        } else {
+            state.scenario.worker = workerRes.is_halted ? "halted" : workerRes.fsm_state;
+        }
+        KPIS.dataAgeSec = workerRes.data_age_seconds;
+    }
+
+
+    const currentSessionGen = sessionGen; const stateRes = await apiCall("/api/v3/state");
+    if(myGen !== fetchGen) return;
+    if(stateRes._error && (stateRes.status===401||stateRes.status===403)){
+        handleLogoutClean(); return;
+    } else if(currentSessionGen !== sessionGen){
+        return;
+    } else if(stateRes._error){
+        state.scenario.conn = "disconnected"; renderAll(); return;
+    }
+
+    if(stateRes.market_data){
+        const ms = stateRes.market_data.status;
+        if(ms === "stale" || ms === "unverified" || ms === "source_failed"){
+            state.scenario.feed = "stale";
+            state.scenario.feedText = "veraltet (" + ms + ")";
+        } else {
+            state.scenario.feed = "fresh";
+            state.scenario.feedText = "frisch (" + ms + ")";
+        }
+    } else {
+        state.scenario.feed = "stale";
+        state.scenario.feedText = "fehlend";
+    }
+
+    if(stateRes.open_positions !== undefined){
+        OPEN_POSITIONS = stateRes.open_positions.map(p => ({
+            symbol: p.symbol, dir: p.dir, qty: p.qty, entry: p.entry_price,
+            mark: p.mark_price?p.mark_price:"—", sl: p.sl_price, tp1: p.tp1_price,
+            grossPnl: p.unrealized_pnl, feeOpen: p.fees,
+            netPnl: null
+        }));
+        CLOSED_TRADES = stateRes.closed_trades.map(t => ({
+            symbol: t.symbol, dir: t.dir, entry: t.entry_price, exit: t.exit_price,
+            grossPnl: t.realized_pnl + t.fees, fees: t.fees, netPnl: t.realized_pnl, rNet: t.r_multiple,
+            outcome: t.realized_pnl>0?"win":(t.realized_pnl<0?"loss":"breakeven")
+        }));
+        KPIS.equity = stateRes.equity; KPIS.starting_equity = stateRes.starting_equity;
+        KPIS.realizedNet = stateRes.realized_pnl; KPIS.unrealizedNet = stateRes.unrealized_pnl;
+        KPIS.winRate = (stateRes.win_rate_pct!=null)?(stateRes.win_rate_pct/100):null;
+        
+        let wins = CLOSED_TRADES.filter(t=>t.outcome==="win"), losses = CLOSED_TRADES.filter(t=>t.outcome==="loss");
+        let gp = wins.reduce((s,t)=>s+t.netPnl,0), gl = Math.abs(losses.reduce((s,t)=>s+t.netPnl,0));
+        KPIS.profitFactor = gl>0 ? (gp/gl) : null;
+        
+        let valR = CLOSED_TRADES.filter(t=>t.rNet!==null);
+        KPIS.avgRValidCount = valR.length; KPIS.avgRExcludedCount = CLOSED_TRADES.length - valR.length;
+        KPIS.avgR = KPIS.avgRValidCount>0 ? (valR.reduce((s,t)=>s+t.rNet,0)/KPIS.avgRValidCount) : null;
+
+        KPIS.totalFeesClosed = CLOSED_TRADES.reduce((s,t)=>s+t.fees, 0);
+        KPIS.totalFeesOpenIncurred = OPEN_POSITIONS.reduce((s,p)=>s+p.feeOpen, 0);
+        KPIS.totalFeesToDate = KPIS.totalFeesClosed + KPIS.totalFeesOpenIncurred;
+        KPIS.closedCount = CLOSED_TRADES.length; KPIS.smallSample = KPIS.closedCount < 30;
+        KPIS.winsCount = wins.length; KPIS.decided = wins.length+losses.length;
+        
+        if(stateRes.config){
+            ACTIVE_SERVER_CONFIG = {
+                revision: stateRes.active_config_rev||0, 
+                riskPerTradePct: stateRes.config.risk_per_trade_pct||1.0,
+                maxOpenPositions: stateRes.config.max_open_positions||5, 
+                maxLeverage: stateRes.config.max_leverage||10,
+                dryRun: stateRes.config.dry_run!==false,
+                longThreshold: stateRes.config.long_threshold||60.0,
+                shortThreshold: stateRes.config.short_threshold||10.0,
+                macroCap: stateRes.config.macro_cap||0.0,
+                ntfyEnabled: stateRes.config.ntfy_enabled!==false
+            };
+            
+                        // Check commands
+            console.log("Checking commands:", state.pendingHaltId, stateRes.pending_commands.length); let stillHalt = false;
+            let stillResume = false;
+            let stillCfg = false;
+            if (stateRes.pending_commands) {
+                for (let c of stateRes.pending_commands) {
+                    if (state.pendingHaltId && c.id === state.pendingHaltId) stillHalt = true;
+                    if (state.pendingResumeId && c.id === state.pendingResumeId) stillResume = true;
+                    if (state.cfg.pendingCmdId && c.id === state.cfg.pendingCmdId) stillCfg = true;
+                }
+            }
+            
+            // B1: Fetch outcome if it disappeared
+                        let now = Date.now();
+            
+            if (state.pendingHaltId) {
+                if (!stillHalt) {
+                    let reqId = state.pendingHaltId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.pendingHaltId) return;
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.lastHaltResult = "<br><b>Resultat:</b> ABGELEHNT (" + (cmdRes.data.result||'') + ")";
+                            state.pendingHaltId = null;
+                        } else if (cmdRes.data.status === "applied") {
+                            state.lastHaltResult = "<br><b>Resultat:</b> ERFOLGREICH ausgeführt.";
+                            state.pendingHaltId = null;
+                        } else {
+                            state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (" + cmdRes.data.status + ").";
+                        }
+                    } else {
+                        state.lastHaltResult = "<br><b>Resultat:</b> UNBEKANNT (Kein Nachweis gefunden).";
+                    }
+                } else if (now - state.pendingHaltAt > UI_CMD_TIMEOUT) {
+                    state.lastHaltResult = "<br><b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
+                }
+            }
+            
+            if (state.pendingResumeId) {
+                if (!stillResume) {
+                    let reqId = state.pendingResumeId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.pendingResumeId) return;
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.lastResumeResult = "Wiederaufnahme <b>ABGELEHNT</b>: " + (cmdRes.data.result||'');
+                            state.pendingResumeId = null;
+                        } else if (cmdRes.data.status === "applied") {
+                            state.lastResumeResult = "Wiederaufnahme: <b>Erfolgreich angewendet</b>.";
+                            state.pendingResumeId = null;
+                        } else {
+                            state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (" + cmdRes.data.status + ")";
+                        }
+                    } else {
+                        state.lastResumeResult = "Wiederaufnahme: <b>Ergebnis unbekannt</b> (Kein Nachweis gefunden).";
+                    }
+                } else if (now - state.pendingResumeAt > UI_CMD_TIMEOUT) {
+                    state.lastResumeResult = "Wiederaufnahme: <b>Wartet ungewöhnlich lange... (Ergebnis unbekannt)</b>";
+                }
+            }
+            
+            if (state.cfg.pendingCmdId) {
+                if (!stillCfg) {
+                    let reqId = state.cfg.pendingCmdId;
+                    let cmdRes = await apiCall("/api/v3/command/" + reqId);
+                    if (currentSessionGen !== sessionGen || myGen !== fetchGen || state.scenario.auth === "anon" || reqId !== state.cfg.pendingCmdId) return;
+                    if (cmdRes && !cmdRes._error && cmdRes.data) {
+                        if (cmdRes.data.status === "rejected") {
+                            state.cfg.status = "rejected";
+                            state.cfg.lastRejectionReason = "Vom Worker abgelehnt: " + (cmdRes.data.result||'');
+                            state.cfg.pendingCmdId = null;
+                        } else if (cmdRes.data.status === "applied") {
+                            state.cfg.status = "active";
+                            state.cfg.lastAppliedNote = "Übernommen. (Die aktive Revision hat sich womöglich durch parallele Eingaben bereits weiterentwickelt).";
+                            state.cfg.pendingCmdId = null;
+                        } else {
+                            state.cfg.status = "unknown";
+                            state.cfg.lastRejectionReason = "Ergebnis unbekannt (Status: " + cmdRes.data.status + ").";
+                        }
+                    } else {
+                        state.cfg.status = "unknown";
+                        state.cfg.lastRejectionReason = "Ergebnis unbekannt (Kein Nachweis gefunden).";
+                    }
+                } else if (now - state.pendingCfgAt > UI_CMD_TIMEOUT) {
+                    state.cfg.status = "pending";
+                    state.cfg.lastRejectionReason = "Command wartet ungewöhnlich lange... (Ergebnis unbekannt)";
+                }
+            }
+            
+            // Wenn serverseitig eine NEUERE Revision aktiv ist als wir kennen
+            // und wir nicht diffing, dann verwerfen wir alte entstuecke
+            if ((state.cfg.status==="diff" || state.cfg.status==="editing") && ACTIVE_SERVER_CONFIG.revision !== state.cfg.expected_rev) {
+                // Conflict pending show UI warning
+                // we leave it to explicit checks
+            }
+        }
+        if(stateRes.market_data && stateRes.market_data.symbols){
+            stateRes.market_data.symbols.forEach(s => {
+                const cleanSym = s.symbol.replace(/\.P$/, "");
+                SYMBOL_META[cleanSym] = { unit: "USDT" };
+                MARKET_LIQ[cleanSym] = s;
+            });
+        }
+    }
+    renderAll();
+}
+
+function fmtPct(v, digits){
+  digits = digits===undefined?1:digits;
+  return v.toLocaleString('de-DE', {minimumFractionDigits:digits, maximumFractionDigits:digits}) + " %";
+}
+
+function handleLogoutClean() {
+    sessionGen++;
+    state.scenario.auth = "anon";
+    OPEN_POSITIONS = []; CLOSED_TRADES = [];
+    document.getElementById('resumeConfirmRow').classList.remove('show');
+    document.getElementById('resumePendingNote').style.display = "none";
+    state.pendingResumeId = null; state.pendingResumeAt = null; state.lastResumeResult = null;
+    state.pendingHaltId = null; state.pendingHaltAt = null; state.lastHaltResult = null;
+    state.cfg.status = "active";
+    state.cfg.draft = null;
+    state.cfg.pendingCmdId = null; state.pendingCfgAt = null;
+    state.cfg.lastRejectionReason = null;
+    state.cfg.lastAppliedNote = null;
+    renderAll();
+}
+/* ---------- 3) Anwendungszustand (state-driven rendering) ---------- */
+const state = {
+  tab: "overview",
+  scenario: { auth:"operator", conn:"connected", feed:"fresh", worker:"halted" },
+  resume: { confirming:false, requested:false },
+  cfg: {
+    status: "active", // active | editing | diff | pending | rejected
+    draft: null,
+    pendingCmdId: null,
+    lastRejectionReason: null,
+    lastAppliedNote: null
+  },
+  chart: { symbol:"BTCUSDT.P", tf:"1h" },
+  watchlistSel: "BTCUSDT.P"
+};
+
+/* ---------- 4) Rendering ---------- */
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => el.classList.remove('show'), 3600);
+}
+
+function renderTopStatus(){
+  const s = state.scenario;
+
+  const pAuth = document.getElementById('pill-auth');
+  const pAuthTxt = document.getElementById('pill-auth-txt');
+  pAuth.className = "pill " + (s.auth==="operator" ? "ok" : "unknown");
+  pAuthTxt.textContent = s.auth==="operator" ? "Operator" : "Anonym";
+
+  const pConn = document.getElementById('pill-conn');
+  const pConnTxt = document.getElementById('pill-conn-txt');
+  pConn.className = "pill " + (s.conn==="connected" ? "ok" : "bad");
+  pConnTxt.textContent = s.conn==="connected" ? "Verbunden" : "Unterbrochen";
+
+  const pFeed = document.getElementById('pill-feed');
+  const pFeedTxt = document.getElementById('pill-feed-txt');
+  pFeed.className = "pill " + (s.feed==="fresh" ? "ok" : "warn");
+  pFeedTxt.textContent = s.feedText || (s.feed==="fresh" ? "frisch" : "veraltet");
+
+  const pWorker = document.getElementById('pill-worker');
+  const pWorkerTxt = document.getElementById('pill-worker-txt');
+  if (s.worker === "halted"){ pWorker.className = "pill bad"; pWorkerTxt.textContent = "HALTED"; }
+  else if (s.worker === "RUNNING"){ pWorker.className = "pill ok"; pWorkerTxt.textContent = "RUNNING"; }
+  else { pWorker.className = "pill unknown"; pWorkerTxt.textContent = s.worker || "UNBEKANNT"; }
+
+  // Not-Halt-Banner nur bei tatsaechlichem HALTED zeigen; bei "unknown" separater, vorsichtiger Text (siehe renderOverview)
+  const haltBanner = document.getElementById('haltBanner');
+  
+  let showHalt = state.scenario.worker.toUpperCase().includes("HALTED") || state.pendingHaltId != null || state.lastHaltResult != null;
+  haltBanner.classList.toggle('show', showHalt);
+  haltBanner.style.display = showHalt ? "flex" : "none";
+  
+  if (showHalt) {
+      const resultHtml = state.lastHaltResult ? `<div class="halt-result">${state.lastHaltResult}</div>` : "";
+      
+      if (!state.scenario.worker.toUpperCase().includes("HALTED")) {
+          haltBanner.innerHTML = `<div class="icon">⏳</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">Not-Halt-Anforderung verarbeitet...</h2>${resultHtml}</div>`;
+      } else {
+          haltBanner.innerHTML = `<div class="icon">⛔</div><div class="content"><h2 style="margin:0 0 5px; font-size:16px;">NOT-HALT AKTIV — keine neuen Einstiege möglich</h2><p style="margin:0 0 10px;">Ein Operator oder das System hat dies bewusst ausgelöst. Der Worker-Prozess kann dabei technisch gesund laufen.</p><details><summary>Details / Code</summary><ul><li><b>Interner Code</b> ${state.scenario.haltReason || "OPERATOR_OR_SYSTEM_HALT"}</li><li><b>Bedeutung</b> Freitext-Begründung wird nicht öffentlich angezeigt (siehe U2)</li></ul></details>${resultHtml}</div>`;
+      }
+  }
+}
+
+function renderOverview(){
+  const s = state.scenario;
+  const rrNote = document.getElementById('resumeRejectionNote');
+  if (state.lastResumeResult) {
+    rrNote.style.display = "block";
+    rrNote.innerHTML = state.lastResumeResult;
+  } else {
+    rrNote.style.display = "none";
+  }
+  const resNote = document.getElementById('resumeRejectionNote');
+  if (state.lastResumeResult) {
+    resNote.style.display = "block";
+    resNote.innerHTML = state.lastResumeResult;
+  } else {
+    resNote.style.display = "none";
+  }
+  const anon = s.auth === "anon";
+
+  document.getElementById('ovAnonNote').style.display = anon ? "block" : "none";
+  document.getElementById('loginFormCont').style.display = anon ? "block" : "none";
+  document.getElementById('btnLogout').style.display = !!anon ? "none" : "block";
+  document.getElementById('ovFeesTeaser').style.display = anon ? "none" : "block";
+
+  if (anon){
+    document.getElementById('ovEquity').textContent = "—";
+    document.getElementById('ovEquity').className = "kpi na";
+    document.getElementById('ovEquitySub').textContent = "Nicht verfügbar im anonymen Szenario";
+    document.getElementById('ovPnl').textContent = "—";
+    document.getElementById('ovPnl').className = "kpi na";
+    document.getElementById('ovOpenCount').textContent = "—";
+    document.getElementById('ovOpenLimitSub').textContent = "Kontodetails erfordern Anmeldung";
+  } else {
+    const eq = document.getElementById('ovEquity');
+    eq.textContent = fmtMoney(KPIS.equity, false) + " USDT";
+    eq.className = "kpi";
+    document.getElementById('ovEquitySub').textContent = "Start: " + fmtMoney(KPIS.starting_equity,false) + " USDT";
+
+    const pnl = document.getElementById('ovPnl');
+    const totalNet = KPIS.realizedNet;
+    pnl.textContent = fmtMoney(totalNet, true) + " USDT";
+    pnl.className = "kpi " + (totalNet >= 0 ? "pos" : "neg");
+
+    document.getElementById('ovOpenCount').textContent = String(OPEN_POSITIONS.length);
+    document.getElementById('ovOpenLimitSub').textContent = "Limit " + ACTIVE_SERVER_CONFIG.maxOpenPositions + " (aktive Server-Konfig, Rev. " + ACTIVE_SERVER_CONFIG.revision + ")";
+  }
+
+  // Worker & Einstiegsfaehigkeit
+  const wEl = document.getElementById('ovWorkerState');
+  const wSub = document.getElementById('ovWorkerSub');
+  if (s.worker === "halted"){
+    wEl.innerHTML = "⛔ Angehalten — Einstiege gesperrt";
+    wSub.textContent = "Bewusster Sicherheitszustand. Prozess kann dabei technisch gesund laufen (kein Absturz).";
+  } else if (s.worker === "RUNNING") {
+    wEl.innerHTML = "✅ RUNNING — Worker läuft";
+    wSub.textContent = "Worker-Zustand bestätigt. Eine Trade-Freigabe ist damit nicht bestätigt; Daten-, Risiko- und Ausführungsprüfungen erfolgen separat.";
+  } else {
+    wEl.innerHTML = "❔ Zustand nicht bestätigt (" + (s.worker || "unbekannt") + ")";
+    wSub.textContent = "Einstiegsfähigkeit kann nicht bestätigt werden — wird nicht als freigegeben angezeigt (fail-closed).";
+  }
+
+  const cEl = document.getElementById('ovConnState');
+  const cSub = document.getElementById('ovConnSub');
+  if (s.conn === "connected" && s.feed === "fresh"){
+    cEl.innerHTML = "✅ Verbunden, Daten aktuell";
+    cSub.textContent = "API erreichbar, " + (s.feedText || "auf echten Markttick basierend.");
+  } else if (s.conn !== "connected"){
+    cEl.innerHTML = "🔴 Verbindung unterbrochen";
+    cSub.textContent = "Keine Anzeige scheinbar gültiger Werte — Anzeigen werden als nicht verfügbar markiert.";
+  } else {
+    cEl.innerHTML = "🟡 Verbunden, Datenzustand: " + (s.feedText || "veraltet");
+    cSub.textContent = "Siehe Marktdaten-Status/Alter.";
+  }
+
+  // Handlungsbedarf
+  const items = [];
+  if (s.worker === "halted"){
+    items.push({cls:"crit", ico:"⛔", title:"Not-Halt aktiv", txt:"Entries gesperrt. Prüfen, ob Wiederaufnahme angemessen ist (siehe Betrieb-Tab).", details:"Code: OPERATOR_OR_SYSTEM_HALT · interner Freitext wird nicht öffentlich angezeigt."});
+  } else if (s.worker !== "RUNNING"){
+    items.push({cls:"warn", ico:"❔", title:"Worker-Zustand: " + (s.worker || "unbekannt"), txt:"Keine verlässliche Aussage zur Einstiegsfähigkeit möglich. Als gesperrt behandeln, bis Zustand bestätigt ist.", details:"Fail-closed-Prinzip: unbekannt ≠ freigegeben."});
+  }
+  if (s.conn !== "connected"){
+    items.push({cls:"crit", ico:"🔌", title:"API-Verbindung unterbrochen", txt:"Live-Daten und Steuerbefehle sind aktuell nicht verlässlich verfügbar.", details:"Betrifft Feed, Status und Operator-Aktionen gleichermaßen."});
+  } else if (s.feed !== "fresh"){
+    items.push({cls:"warn", ico:"📡", title:"Marktdaten veraltet", txt:"Angezeigte Kurse können vom tatsächlichen Markt abweichen.", details:"Siehe Marktdaten-Status/Alter."});
+  }
+  if (KPIS.smallSample){
+    items.push({cls:"warn", ico:"📉", title:"Kleine Stichprobe bei Kennzahlen", txt: KPIS.closedCount + " geschlossene Trades — Kennzahlen wie Profit-Faktor sind rechnerisch gültig, aber statistisch wenig aussagekräftig.", details:"Siehe Berechnungsdefinitionen im Paper-Trading-Tab."});
+  }
+  document.getElementById('actionList').innerHTML = items.map(it => `
+    <li class="action-item ${it.cls}">
+      <span class="ico" aria-hidden="true">${it.ico}</span>
+      <div class="txt">
+        <b>${it.title}</b><span>${it.txt}</span>
+        <details><summary>Details</summary><div style="margin-top:6px; color:var(--dim)">${it.details}</div></details>
+      </div>
+    </li>`).join('');
+}
+
+/* ---------- Chart / Markt ---------- */
+
+
+let currentCandles = [];
+
+function drawMockChart(){
+  const canvas = document.getElementById('mockChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return; // Tab noch unsichtbar
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = '#0a0f16';
+  ctx.fillRect(0,0,w,h);
+
+  const candles = currentCandles;
+  const min = Math.min(...candles.map(c=>c.low));
+  const max = Math.max(...candles.map(c=>c.high));
+  const pad = 20;
+  const n = candles.length;
+  const cw = (w - pad*2) / n;
+  function y(v){ return pad + (1 - (v - min)/(max - min)) * (h - pad*2); }
+
+  ctx.strokeStyle = 'rgba(148,163,184,.08)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const gy = pad + (h-pad*2) * i/4;
+    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke();
+  }
+
+  candles.forEach((c,i)=>{
+    const x = pad + i*cw + cw/2;
+    const up = c.close >= c.open;
+    ctx.strokeStyle = up ? '#4ade80' : '#f8a4a4';
+    ctx.fillStyle = up ? '#22c55e' : '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, y(c.high)); ctx.lineTo(x, y(c.low)); ctx.stroke();
+    const bodyTop = y(Math.max(c.open,c.close));
+    const bodyH = Math.max(1, Math.abs(y(c.open)-y(c.close)));
+    ctx.fillRect(x - cw*0.32, bodyTop, cw*0.64, bodyH);
+  });
+
+  ctx.fillStyle = 'rgba(148,163,184,.4)';
+  ctx.font = '11px -apple-system, sans-serif';
+  
+}
+
+
+async function renderMarket() {
+  const mGen = ++marketFetchGen;
+  const rawSymbol = state.chart.symbol;
+  let tf = state.chart.tf;
+  const bitgetTf = (tf === "1h") ? "1H" : (tf === "4h" ? "4H" : (tf === "1d" ? "1D" : "15m"));
+  
+  const apiSymbol = rawSymbol.replace(/\.P$/, "");
+  if (!SYMBOL_META[apiSymbol]) { SYMBOL_META[apiSymbol] = {unit: "USDT"}; }
+  const meta = SYMBOL_META[apiSymbol];
+
+  let d = state.cfg.draft; const payload = { "path": `/api/v2/mix/market/candles?symbol=${apiSymbol}&granularity=${bitgetTf}&productType=USDT-FUTURES&limit=60` };
+  const r = await apiCall("/api/public", "POST", payload);
+  if(mGen !== marketFetchGen) return;
+
+  let cList = [];
+  if (r && r.data && Array.isArray(r.data)) {
+      cList = r.data.filter(c => {
+          if (!c || c.length < 5) return false;
+          if (c.some(x => x === null || x === "" || x === undefined)) return false;
+          return true;
+      }).map(c => ({
+          ts: Number(c[0]), open: Number(c[1]), high: Number(c[2]), low: Number(c[3]), close: Number(c[4])
+      })).filter(c => {
+          if (!Number.isFinite(c.ts) || !Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) return false;
+          if (c.ts <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0) return false;
+          if (c.high < Math.max(c.open, c.close) || c.low > Math.min(c.open, c.close)) return false;
+          return true;
+      });
+      cList.sort((a,b) => a.ts - b.ts);
+      let dedupMap = new Map();
+      for (const c of cList) {
+          dedupMap.set(c.ts, c); // Ersetzt ggf. aeltere Duplikate derselben Zeit
+      }
+      cList = Array.from(dedupMap.values());
+      cList.sort((a,b) => a.ts - b.ts);
+  }
+  
+  if (cList.length === 0) {
+      document.getElementById('priceTag').textContent = "—";
+      document.getElementById('chartCaption').textContent = "Fehler: Kerzen nicht verfügbar";
+      currentCandles = [];
+  } else {
+      currentCandles = cList;
+      const last = cList[cList.length - 1];
+      document.getElementById('priceTag').textContent = fmtMoney(last.close, false) + " " + meta.unit;
+      const datum = new Date(last.ts).toLocaleTimeString("de-DE");
+      document.getElementById('chartCaption').textContent = "Bitget:" + apiSymbol + " · " + bitgetTf + " (Prod)";
+      document.getElementById('chartAgeTag').textContent = "Letzte Kerzenzeit: " + datum + " (Proxy)";
+  }
+  requestAnimationFrame(drawMockChart);
+
+  const wl = document.getElementById('watchlist');
+  const symbols = Object.keys(SYMBOL_META);
+  if(symbols.length > 0) {
+      wl.innerHTML = symbols.map(sym => {
+        const displaySym = sym.endsWith(".P") ? sym : sym + ".P";
+        const selected = (rawSymbol.replace(/\.P$/, "") === sym);
+        return `<button type="button" class="wl-item" role="option" aria-pressed="${selected}" data-sym="${displaySym}"><b>${displaySym}</b></button>`;
+      }).join('');
+      wl.querySelectorAll('.wl-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          document.getElementById('symbolSelect').value = btn.dataset.sym;
+          state.chart.symbol = btn.dataset.sym;
+          renderMarket();
+        });
+      });
+  }
+
+  const liq = MARKET_LIQ[apiSymbol];
+  if (liq && liq.criteria) {
+      document.getElementById('liqRows').innerHTML = `
+        <div class="row" style="display:flex;justify-content:space-between"><span>Spread</span><b class="mono">${liq.criteria.spread_bps || '--'} bps</b></div>
+        <div class="row" style="display:flex;justify-content:space-between"><span>Bid-Tiefe</span><b class="mono">${liq.criteria.bid_depth_notional ? fmtMoney(parseFloat(liq.criteria.bid_depth_notional), false) : '--'} ${meta.unit}</b></div>
+        <div class="row" style="display:flex;justify-content:space-between"><span>Ask-Tiefe</span><b class="mono">${liq.criteria.ask_depth_notional ? fmtMoney(parseFloat(liq.criteria.ask_depth_notional), false) : '--'} ${meta.unit}</b></div>
+        <div class="row" style="display:flex;justify-content:space-between"><span>Status</span><b class="mono" style="color:${liq.status==='valid'?'var(--grn2)':'var(--red2)'}">${liq.status}</b></div>
+      `;
+  } else {
+      document.getElementById('liqRows').innerHTML = `<div class="mock-note">Nicht verfügbar</div>`;
+  }
+}
+
+
+
+/* ---------- Paper-Trading ---------- */
+function renderPaper(){
+  const anon = state.scenario.auth === "anon";
+  const paperAnonNotice = document.getElementById('paperAnonNotice');
+  if (paperAnonNotice) paperAnonNotice.style.display = anon ? "block" : "none";
+
+  if (anon){
+    // Anonymes Szenario: Kontodaten in ALLEN Paper-Bereichen ausblenden
+    // (offene Positionen, Historie, Kennzahlen) — nicht nur in der Übersicht.
+    const naRow = (cols) => `<tr><td colspan="${cols}" class="mock-note" style="border:none">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</td></tr>`;
+    document.getElementById('openPosTbody').innerHTML = naRow(8);
+    document.getElementById('openPosCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</div>`;
+    document.getElementById('closedTbody').innerHTML = naRow(9);
+    document.getElementById('closedCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</div>`;
+    document.getElementById('kpiCards').innerHTML = `
+      <div class="card"><h3>Win-Rate</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
+      <div class="card"><h3>Profit-Faktor</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
+      <div class="card"><h3>Ø R-Multiple (netto)</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
+      <div class="card"><h3>Gesamt-Gebühren</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
+    `;
+    document.getElementById('calcNote').innerHTML = `<b>Berechnungsdefinitionen (Demo):</b> nur mit Anmeldung sichtbar, da sie sich auf reale Kontodaten beziehen.`;
+    return;
+  }
+
+  const openRows = OPEN_POSITIONS.map(p => `
+    <tr>
+      <td>${p.symbol}</td>
+      <td>${p.dir}</td>
+      <td>${p.qty}</td>
+      <td>${fmtMoney(p.entry,false)}</td>
+      <td>${fmtMoney(p.mark,false)}</td>
+      <td style="color:${p.grossPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.grossPnl,true)}</td>
+      <td style="color:${p.netPnl===null?'var(--mut)':(p.netPnl>=0?'var(--grn2)':'var(--red2)')}">${p.netPnl===null?'—':fmtMoney(p.netPnl,true)}</td>
+      <td style="color:var(--mut)">${fmtMoney(p.feeOpen,false)}</td>
+    </tr>`).join('');
+  document.getElementById('openPosTbody').innerHTML = openRows;
+
+  document.getElementById('openPosCards').innerHTML = OPEN_POSITIONS.map(p => `
+    <div class="pos-card">
+      <div class="pc-head"><b>${p.symbol} · ${p.dir}</b><span class="pc-pnl" style="color:${p.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.netPnl,true)} netto</span></div>
+      <div class="pc-meta">
+        <span>Menge<b>${p.qty}</b></span>
+        <span>Entry<b>${fmtMoney(p.entry,false)}</b></span>
+        <span>Marke<b>${fmtMoney(p.mark,false)}</b></span>
+      </div>
+      <details class="dtl">
+        <summary>Details (brutto/netto, Gebühren)</summary>
+        <div class="dtl-body">
+          <div class="row"><span>Unreal. PnL (brutto)</span><b style="color:${p.grossPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.grossPnl,true)}</b></div>
+          <div class="row"><span>Bisher angefallene Gebühren</span><b>${fmtMoney(p.feeOpen,false)}</b></div>
+          <div class="row"><span>Unreal. PnL (netto)</span><b style="color:${p.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(p.netPnl,true)}</b></div>
+          <div class="row"><span>SL / TP1</span><b>${fmtMoney(p.sl,false)} / ${fmtMoney(p.tp1,false)}</b></div>
+        </div>
+      </details>
+    </div>`).join('');
+
+  const closedRows = CLOSED_TRADES.map(t => {
+    let badge;
+    if (t.outcome === "win") badge = '<span class="badge win">Gewinn</span>';
+    else if (t.outcome === "loss") badge = '<span class="badge loss">Verlust</span>';
+    else badge = '<span class="badge be">Breakeven</span>';
+    const grossLabel = t.grossBreakeven ? fmtMoney(t.grossPnl,true) + " (brutto BE)" : fmtMoney(t.grossPnl,true);
+    return `<tr>
+      <td>${t.symbol}</td><td>${t.dir}</td><td>${fmtMoney(t.entry,false)}</td><td>${fmtMoney(t.exit,false)}</td>
+      <td style="color:${t.grossPnl>=0?'var(--grn2)':(t.grossBreakeven?'var(--mut)':'var(--red2)')}">${grossLabel}</td>
+      <td style="color:var(--mut)">${fmtMoney(t.fees,false)}</td>
+      <td style="color:${t.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(t.netPnl,true)}</td>
+      <td>${t.rNet!==null ? t.rNet.toFixed(2)+"R" : "n/v"}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('closedTbody').innerHTML = closedRows;
+
+  document.getElementById('closedCards').innerHTML = CLOSED_TRADES.map(t => {
+    let badge = t.outcome==="win" ? '<span class="badge win">Gewinn</span>' : (t.outcome==="loss" ? '<span class="badge loss">Verlust</span>' : '<span class="badge be">Breakeven</span>');
+    return `<div class="pos-card">
+      <div class="pc-head"><b>${t.symbol} · ${t.dir}</b>${badge}</div>
+      <div class="pc-meta">
+        <span>Entry<b>${fmtMoney(t.entry,false)}</b></span>
+        <span>Exit<b>${fmtMoney(t.exit,false)}</b></span>
+        <span>Netto<b style="color:${t.netPnl>=0?'var(--grn2)':'var(--red2)'}">${fmtMoney(t.netPnl,true)}</b></span>
+      </div>
+      <details class="dtl">
+        <summary>Details (brutto/netto, Gebühren, R)</summary>
+        <div class="dtl-body">
+          <div class="row"><span>Ergebnis (brutto)</span><b>${fmtMoney(t.grossPnl,true)}${t.grossBreakeven?' (BE)':''}</b></div>
+          <div class="row"><span>Gebühren gesamt</span><b>${fmtMoney(t.fees,false)}</b></div>
+          <div class="row"><span>Ergebnis (netto)</span><b>${fmtMoney(t.netPnl,true)}</b></div>
+          <div class="row"><span>R-Multiple (netto)</span><b>${t.rNet!==null ? t.rNet.toFixed(2)+"R" : "n/v"}</b></div>
+        </div>
+      </details>
+    </div>`;
+  }).join('');
+
+  const winRateTxt = KPIS.winRate!==null ? fmtPct(KPIS.winRate*100,1) : "nicht verfügbar";
+  const pfTxt = KPIS.profitFactor!==null ? KPIS.profitFactor.toFixed(2) : "nicht verfügbar (keine Verlust-Trades zur Division)";
+  // avgR: fehlendes/nulles Ausgangsrisiko (SL==Entry) wird NICHT als 0 gezaehlt.
+  // Ohne mind. einen gueltigen R-Wert: "nicht verfuegbar" mit Begruendung, sonst
+  // Mittelwert + explizite Angabe gueltig/ausgeschlossen.
+  const avgRTxt = KPIS.avgR!==null
+    ? KPIS.avgR.toFixed(2)+"R"
+    : "nicht verfügbar (kein Trade mit gültigem Ausgangsrisiko)";
+
+  document.getElementById('kpiCards').innerHTML = `
+    <div class="card"><h3>Win-Rate</h3><div class="kpi">${winRateTxt}</div><div class="sub">${KPIS.winsCount} Gewinne / ${KPIS.decided} entschiedene Trades (Breakeven-Trades: ${KPIS.tiesCount}, nicht mitgezählt)</div></div>
+    <div class="card"><h3>Profit-Faktor ${KPIS.smallSample?'<span class="warn-tag" style="font-size:9.5px">kleine Stichprobe</span>':''}</h3><div class="kpi ${KPIS.profitFactor===null?'na':''}">${pfTxt}</div><div class="sub">Summe Netto-Gewinne ÷ |Summe Netto-Verluste| — rechnerisch gültig ab dem ersten Verlust-Trade, unabhängig von Stichprobengröße</div></div>
+    <div class="card"><h3>Ø R-Multiple (netto)</h3><div class="kpi ${KPIS.avgR===null?'na':''}">${avgRTxt}</div><div class="sub">${KPIS.avgRValidCount} von ${KPIS.closedCount} Trades mit gültigem Ausgangsrisiko einbezogen${KPIS.avgRExcludedCount>0?' · '+KPIS.avgRExcludedCount+' ohne gültiges Ausgangsrisiko (SL==Entry) ausgeschlossen, nicht als 0 gezählt':''}</div></div>
+    <div class="card"><h3>Gesamt-Gebühren</h3><div class="kpi">${fmtMoney(KPIS.totalFeesToDate,false)} USDT</div><div class="sub">${fmtMoney(KPIS.totalFeesClosed,false)} geschlossen + ${fmtMoney(KPIS.totalFeesOpenIncurred,false)} offen (bisher angefallen)</div></div>
+  `;
+
+  document.getElementById('calcNote').innerHTML = `
+    <b>Berechnungsdefinitionen (Demo):</b><br>
+    Brutto-PnL = Menge × (Exit−Entry) × Richtungsvorzeichen. Netto-PnL = Brutto−Gebühren (Entry+Exit, je ${(FEE_RATE*100).toFixed(2)}%).
+    Win-Rate = Gewinne ÷ (Gewinne+Verluste); Breakeven-Trades (netto exakt 0) werden separat ausgewiesen und fließen nicht in den Nenner ein — in diesem Datensatz kommt ein Netto-Breakeven nicht vor, wohl aber ein <b>Brutto</b>-Breakeven-Trade (ETHUSDT), dessen Netto-Ergebnis durch Gebühren leicht negativ ist.
+    Profit-Faktor ist ab dem ersten Verlust-Trade rechnerisch definiert; die Kennzahl bleibt bei kleiner Stichprobe berechenbar, ihre <b>statistische Aussagekraft</b> ist getrennt zu bewerten — daher der Hinweis "kleine Stichprobe" statt einer festen Mindestanzahl.
+    R-Multiple (netto) = Netto-PnL ÷ (Menge × |Entry−SL|). Ist SL==Entry, ist das Ausgangsrisiko 0 und R rechnerisch nicht definierbar (Division durch 0) — dieser Trade wird von Ø R-Multiple <b>ausgeschlossen</b>, nicht als 0 gezählt (in diesem Datensatz: SOLUSDT-Trade Nr. 10).
+  `;
+}
+
+/* ---------- Settings: Config-Flow ---------- */
+function cfgCurrentActive(){ return ACTIVE_SERVER_CONFIG; }
+
+function renderCfg(){
+  const anon = state.scenario.auth === "anon";
+  const badge = document.getElementById('cfgStatusBadge');
+  const statusLabels = {active:"Aktiv", editing:"Wird bearbeitet", diff:"Wird bearbeitet", pending:"Ausstehend", rejected:"Aktiv", unknown:"Ergebnis unbekannt"};
+  const statusClass = {active:"active", editing:"editing", diff:"editing", pending:"pending", rejected:"active", unknown:"unknown"};
+  badge.textContent = statusLabels[state.cfg.status];
+  badge.className = "cfg-status-badge " + statusClass[state.cfg.status];
+
+  const cfgAnonNotice = document.getElementById('cfgAnonNotice');
+  cfgAnonNotice.style.display = anon ? "block" : "none";
+  document.getElementById('btnCfgEdit').disabled = anon || state.cfg.status==="editing" || state.cfg.status==="diff" || state.cfg.status==="pending" || state.cfg.pendingCmdId !== null;
+
+  if (anon){
+    // Geschützte Serverkonfiguration im anonymen Szenario: Werte ausblenden,
+    // laufenden Bearbeitungs-/Diff-/Pending-Zustand nicht anzeigen.
+    document.getElementById('cfgActiveView').style.display = "none";
+    document.getElementById('cfgEditForm').style.display = "none";
+    document.getElementById('cfgDiffView').style.display = "none";
+    document.getElementById('cfgPendingView').style.display = "none";
+    document.getElementById('cfgDirtyFlag').style.display = "none";
+    document.getElementById('cfgRejectionNote').style.display = "none";
+    document.getElementById('cfgUnknownNote').style.display = "none";
+    document.getElementById('cfgAppliedNote').classList.remove('show');
+    return;
+  }
+
+  document.getElementById('cfgRevisionDisplay').textContent = "#" + ACTIVE_SERVER_CONFIG.revision + " (aktiv)";
+  document.getElementById('cfgRiskDisplay').textContent = fmtPct(ACTIVE_SERVER_CONFIG.riskPerTradePct,2);
+  document.getElementById('cfgMaxPosDisplay').textContent = String(ACTIVE_SERVER_CONFIG.maxOpenPositions);
+  document.getElementById('cfgMaxLevDisplay').textContent = ACTIVE_SERVER_CONFIG.maxLeverage + "x";
+  document.getElementById('cfgDryRunDisplay').textContent = ACTIVE_SERVER_CONFIG.dryRun ? "true" : "false";
+
+  const dirty = state.cfg.draft !== null && (state.cfg.status === "editing" || state.cfg.status === "diff");
+  document.getElementById('cfgDirtyFlag').style.display = dirty ? "inline-flex" : "none";
+
+  document.getElementById('cfgActiveView').style.display = (state.cfg.status==="active"||state.cfg.status==="rejected"||state.cfg.status==="pending"||state.cfg.status==="unknown") ? "block" : "none";
+  document.getElementById('cfgEditForm').style.display = state.cfg.status==="editing" ? "block" : "none";
+  document.getElementById('cfgDiffView').style.display = state.cfg.status==="diff" ? "block" : "none";
+  document.getElementById('cfgPendingView').style.display = state.cfg.status==="pending" ? "block" : "none";
+
+  document.getElementById('cfgRejectionNote').style.display = (state.cfg.status==="rejected") ? "block" : "none";
+  document.getElementById('cfgUnknownNote').style.display = (state.cfg.status==="unknown" || (state.cfg.status==="pending" && state.cfg.lastRejectionReason)) ? "block" : "none";
+  if (state.cfg.status==="rejected"){
+    document.getElementById('cfgRejectionNote').innerHTML = "<b>Abgelehnt (oder Fehler):</b> " + state.cfg.lastRejectionReason + " Die aktive Konfiguration wurde nicht verändert.";
+  }
+  if (state.cfg.status === "unknown" || (state.cfg.status === "pending" && state.cfg.lastRejectionReason)) {
+    document.getElementById('cfgUnknownNote').innerHTML = "<b>Hinweis:</b> " + state.cfg.lastRejectionReason;
+  }
+  const appliedEl = document.getElementById('cfgAppliedNote');
+  if (state.cfg.lastAppliedNote){
+    appliedEl.classList.add('show');
+    appliedEl.innerHTML = state.cfg.lastAppliedNote;
+  } else {
+    appliedEl.classList.remove('show');
+  }
+
+  if (state.cfg.status === "diff" || state.cfg.status === "pending"){
+    const d = state.cfg.draft;
+    const rows = [
+      ["Risiko pro Trade", fmtPct(ACTIVE_SERVER_CONFIG.riskPerTradePct,2), fmtPct(d.riskPerTradePct,2), d.riskPerTradePct!==ACTIVE_SERVER_CONFIG.riskPerTradePct],
+      ["Max. offene Positionen", ACTIVE_SERVER_CONFIG.maxOpenPositions, d.maxOpenPositions, d.maxOpenPositions!==ACTIVE_SERVER_CONFIG.maxOpenPositions],
+      ["Max. Hebel", ACTIVE_SERVER_CONFIG.maxLeverage+"x", d.maxLeverage+"x", d.maxLeverage!==ACTIVE_SERVER_CONFIG.maxLeverage],
+      ["Paper-Modus (dry_run)", ACTIVE_SERVER_CONFIG.dryRun, d.dryRun, d.dryRun!==ACTIVE_SERVER_CONFIG.dryRun]
+    ];
+    const html = "<tr><th>Feld</th><th>Aktiv</th><th>Entwurf</th></tr>" + rows.map(r =>
+      `<tr><td class="field-name">${r[0]}</td><td>${r[1]}</td><td class="${r[3]?'changed':''}">${r[2]}${r[3]?' ●':''}</td></tr>`
+    ).join('');
+    document.getElementById('cfgDiffTable').innerHTML = html;
+    document.getElementById('cfgPendingDiffTable').innerHTML = html;
+  }
+}
+
+function startCfgEdit(){
+  // Verteidigung in der Tiefe: auch wenn der Button deaktiviert ist, keine
+  // Bearbeitung im anonymen Szenario starten (geschützte Konfiguration).
+  if (state.scenario.auth === "anon") return;
+  state.cfg.draft = Object.assign({}, ACTIVE_SERVER_CONFIG);
+  state.cfg.status = "editing";
+  state.cfg.lastAppliedNote = null;
+  document.getElementById('cfgRiskInput').value = state.cfg.draft.riskPerTradePct;
+  document.getElementById('cfgMaxPosInput').value = state.cfg.draft.maxOpenPositions;
+  document.getElementById('cfgMaxLevInput').value = state.cfg.draft.maxLeverage;
+  document.getElementById('cfgDryRunInput').checked = state.cfg.draft.dryRun;
+  document.getElementById('cfgValidationErrors').style.display = "none";
+  renderCfg();
+}
+
+function validateCfgDraft(){
+  const risk = parseFloat(document.getElementById('cfgRiskInput').value.replace(',','.'));
+  const maxPos = parseInt(document.getElementById('cfgMaxPosInput').value, 10);
+  const maxLev = parseInt(document.getElementById('cfgMaxLevInput').value, 10);
+  const dryRun = document.getElementById('cfgDryRunInput').checked;
+  const errors = [];
+  if (isNaN(risk) || risk < 0.1 || risk > 5) errors.push("Risiko pro Trade muss zwischen 0,1 und 5 % liegen.");
+  if (isNaN(maxPos) || maxPos < 1 || maxPos > 10) errors.push("Max. offene Positionen muss zwischen 1 und 10 liegen.");
+  if (isNaN(maxLev) || maxLev < 1 || maxLev > 20) errors.push("Max. Hebel muss zwischen 1 und 20 liegen.");
+  if (!dryRun) errors.push("Live-Modus (dry_run = false) ist in diesem Demo-Datensatz nicht zulässig.");
+
+  const errEl = document.getElementById('cfgValidationErrors');
+  if (errors.length){
+    errEl.style.display = "block";
+    errEl.innerHTML = "<b>Validierung fehlgeschlagen:</b><br>" + errors.map(e=>"• "+e).join("<br>");
+    return false;
+  }
+  errEl.style.display = "none";
+  state.cfg.draft = { riskPerTradePct:risk, maxOpenPositions:maxPos, maxLeverage:maxLev, dryRun:dryRun };
+  state.cfg.status = "diff";
+  renderCfg();
+  return true;
+}
+
+/* ---------- 5) Tab-Steuerung (mit Tastatur-Navigation) ---------- */
+function setTab(name){
+  state.tab = name;
+  if(name === 'market') renderMarket();
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  document.querySelectorAll('.tab-btn[role=tab]').forEach(b => {
+    const isActive = b.dataset.tab === name;
+    b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  window.scrollTo({top:0, behavior:'auto'});
+  if (name === 'market'){ requestAnimationFrame(drawMockChart); }
+}
+function wireTabs(container){
+  const btns = Array.from(container.querySelectorAll('.tab-btn[role=tab]'));
+  btns.forEach((btn, idx) => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const next = btns[(idx + dir + btns.length) % btns.length];
+        next.focus(); next.click();
+      }
+    });
+  });
+}
+
+/* ---------- 6) Event-Wiring ---------- */
+function wireEvents(){
+
+  document.getElementById('btnLoginSubmit').addEventListener('click', async () => {
+      const token = document.getElementById('loginTokenInput').value;
+      const r = await fetch('/api/v3/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({token})
+      });
+      if (!r.ok) {
+         document.getElementById('loginError').textContent = "Fehlerhafte Anmeldung";
+      } else {
+         document.getElementById('loginTokenInput').value = "";
+         document.getElementById('loginError').textContent = "";
+         refreshData();
+      }
+  });
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+      await fetch('/api/v3/auth/logout', { method: 'POST' });
+      refreshData();
+  });
+  wireTabs(document.getElementById('tablistDesktop'));
+  wireTabs(document.getElementById('tablistMobile'));
+
+  document.getElementById('symbolSelect').addEventListener('change', (e) => {
+    state.chart.symbol = e.target.value;
+    renderMarket();
+  });
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tf-btn').forEach(b => b.setAttribute('aria-pressed','false'));
+      btn.setAttribute('aria-pressed','true');
+      state.chart.tf = btn.dataset.tf;
+      renderMarket();
+    });
+  });
+
+  async function haltRequested(){
+    if (state.scenario.auth === "anon" || state.inflightHalt) return;
+    state.inflightHalt = true;
+    let myGen = sessionGen;
+    try {
+        let r = await apiCall('/api/v3/halt', 'POST', { reason: "Operator Not-Halt" });
+        if(myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if(r && !r._error && r.data){
+            state.pendingHaltId = r.data.command_id;
+            state.pendingHaltAt = Date.now();
+            showToast("Not-Halt angefordert (Cmd: "+r.data.command_id+").");
+        } else {
+            showToast("Not-Halt: Ergebnis unbekannt (" + (r && r.detail ? r.detail : "Serverfehler") + ")");
+        }
+    } catch(e) { showToast("Not-Halt: Ergebnis unbekannt (Netzwerkfehler)."); }
+    finally { state.inflightHalt = false; }
+}
+  document.getElementById('btnHalt').addEventListener('click', haltRequested);
+  document.getElementById('btnHaltTop').addEventListener('click', haltRequested);
+
+  document.getElementById('btnResume').addEventListener('click', () => {
+    if (state.scenario.auth === "anon") return;
+    if (state.scenario.worker === "UNBEKANNT" || state.scenario.worker.includes("VERALTET")) {
+        showToast("Keine Freigabe bei unbekanntem/veraltetem Worker.");
+        return;
+    }
+    document.getElementById('resumeConfirmRow').classList.add('show');
+  });
+  document.getElementById('btnResumeCancel').addEventListener('click', () => {
+    document.getElementById('resumeConfirmRow').classList.remove('show');
+  });
+  document.getElementById('btnResumeConfirm').addEventListener('click', async (e) => { console.log('BTN RESUME CONFIRM CLICKED!');
+    if (state.scenario.auth === "anon" || state.inflightResume) return;
+    state.inflightResume = true;
+    let myGen = sessionGen;
+    try {
+        let wRes = await apiCall('/status/worker');
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || wRes.stale || !wRes.worker_known) {
+            console.log('BLOCKED wRes:', wRes); showToast("Blockiert: Worker unbekannt, Verbindungsfehler oder veraltet.");
+            return;
+        }
+        document.getElementById('resumeConfirmRow').classList.remove('show');
+        document.getElementById('resumePendingNote').style.display = "block";
+        document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b>...";
+        let r = await apiCall('/api/v3/resume', 'POST', { reason: "Operator Freigabe" }); console.log('POST R=', JSON.stringify(r));
+        if(myGen !== sessionGen || state.scenario.auth === "anon") return;
+        console.log('IF CHECK:', !!(r && !r._error && r.data), 'myGen:', myGen, 'sess:', sessionGen); if (r && !r._error && r.data) {
+            state.pendingResumeId = r.data.command_id;
+            state.pendingResumeAt = Date.now();
+            state.lastResumeResult = "";
+            document.getElementById('resumePendingNote').innerHTML = "Wiederaufnahme <b>angefordert</b> (Cmd: " + r.data.command_id + ") — wartet...";
+        } else {
+            document.getElementById('resumePendingNote').style.display = "none";
+            showToast("Fehler bei Wiederaufnahme.");
+        }
+    } catch(e) {
+        document.getElementById('resumePendingNote').style.display = "none";
+        showToast("Wiederaufnahme: Ergebnis unbekannt (Netzwerkfehler).");
+    } finally {
+        state.inflightResume = false;
+    }
+});
+  
+  document.getElementById('btnCfgEdit').addEventListener('click', () => { 
+      if (state.scenario.auth === "anon") return;
+      state.cfg.draft = Object.assign({}, ACTIVE_SERVER_CONFIG);
+      state.cfg.expected_rev = ACTIVE_SERVER_CONFIG.revision;
+      state.cfg.status = "editing";
+      state.cfg.lastAppliedNote = null;
+      document.getElementById('cfgRiskInput').value = state.cfg.draft.riskPerTradePct;
+      document.getElementById('cfgMaxPosInput').value = state.cfg.draft.maxOpenPositions;
+      document.getElementById('cfgMaxLevInput').value = state.cfg.draft.maxLeverage;
+      document.getElementById('cfgDryRunInput').checked = state.cfg.draft.dryRun;
+      document.getElementById('cfgValidationErrors').style.display = "none";
+      renderCfg();
+  });
+  document.getElementById('btnCfgWithdraw').addEventListener('click', () => { state.cfg.status = "active"; renderCfg(); });
+  document.getElementById('btnCfgValidate').addEventListener('click', validateCfgDraft);
+  document.getElementById('btnCfgCancel').addEventListener('click', () => {
+    state.cfg.draft = null;
+    state.cfg.status = "active";
+    renderCfg();
+  });
+
+  document.getElementById('btnCfgCancel').addEventListener('click', () => {
+    state.cfg.draft = null;
+    state.cfg.status = "active";
+    renderCfg();
+  });
+
+  document.getElementById('btnCfgBackToEdit').addEventListener('click', () => { state.cfg.status = "editing"; renderCfg(); });
+  document.getElementById('btnCfgRequest').addEventListener('click', async (e) => {
+    if (state.scenario.auth === "anon" || state.inflightCfg || state.cfg.pendingCmdId !== null) return;
+    state.inflightCfg = true;
+    let myGen = sessionGen;
+    try {
+        let wRes = await apiCall('/status/worker');
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!wRes || wRes._error || wRes.fsm_state === "UNBEKANNT" || wRes.stale || !wRes.worker_known) {
+            console.log('BLOCKED wRes:', wRes); showToast("Blockiert: Worker unbekannt, Verbindungsfehler oder veraltet.");
+            return;
+        }
+        let d = state.cfg.draft;
+        const payload = {
+            risk_per_trade_pct: parseFloat(d.riskPerTradePct),
+            max_open_positions: parseInt(d.maxOpenPositions, 10),
+            max_leverage: parseInt(d.maxLeverage, 10),
+            long_threshold: ACTIVE_SERVER_CONFIG.longThreshold,
+            short_threshold: ACTIVE_SERVER_CONFIG.shortThreshold,
+            macro_cap: ACTIVE_SERVER_CONFIG.macroCap,
+            dry_run: !!d.dryRun,
+            ntfy_enabled: ACTIVE_SERVER_CONFIG.ntfyEnabled,
+            expected_rev: state.cfg.expected_rev
+        };
+        let r = await apiCall('/api/v3/config', 'POST', payload);
+        if (myGen !== sessionGen || state.scenario.auth === "anon") return;
+        if (!r._error && r.ok && r.data) {
+              state.cfg.status = "pending";
+              state.cfg.pendingCmdId = r.data.command_id;
+              state.cfg.requested_rev = r.data.requested_rev;
+              state.pendingCfgAt = Date.now();
+              document.getElementById('cfgValidationErrors').style.display = "none";
+              showToast("Konfiguration angefordert (Cmd: " + r.data.command_id + ")");
+              renderCfg();
+        } else if (r._error && r.status === 409) {
+              showToast("Konflikt: " + (r.detail || "Revision veraltet") + ".");
+              document.getElementById('cfgValidationErrors').style.display = "block";
+              document.getElementById('cfgValidationErrors').innerHTML = "<b>Konflikt (HTTP 409):</b> " + (r.detail||"Jemand anders hat die Konfiguration in der Zwischenzeit geändert.");
+        } else {
+              showToast("Konfiguration abgelehnt. " + (r?r.detail||"":""));
+        }
+    } finally {
+        state.inflightCfg = false;
+    }
+  });
+
+  document.getElementById('btnCfgSimApprove').style.display = "none";
+  document.getElementById('btnCfgSimReject').style.display = "none";
+
+
+  const rngRisk = document.getElementById('rngRisk');
+  const rngLong = document.getElementById('rngLong');
+  const rngShort = document.getElementById('rngShort');
+  rngRisk.addEventListener('input', () => { document.getElementById('rngRiskVal').textContent = fmtPct(parseFloat(rngRisk.value),2); });
+  rngLong.addEventListener('input', () => { document.getElementById('rngLongVal').textContent = rngLong.value; });
+  rngShort.addEventListener('input', () => { document.getElementById('rngShortVal').textContent = rngShort.value; });
+
+  document.querySelectorAll('input[name=scn-auth]').forEach(r => r.addEventListener('change', e => {
+    state.scenario.auth = e.target.value;
+    if (e.target.value === "anon") {
+      // Offene Bestaetigungsdialoge beim Wechsel zu Anonym bereinigen
+      document.getElementById('resumeConfirmRow').classList.remove('show');
+    }
+    renderAll();
+  }));
+  document.querySelectorAll('input[name=scn-conn]').forEach(r => r.addEventListener('change', e => { state.scenario.conn = e.target.value; renderAll(); }));
+  document.querySelectorAll('input[name=scn-feed]').forEach(r => r.addEventListener('change', e => { state.scenario.feed = e.target.value; renderAll(); }));
+  document.querySelectorAll('input[name=scn-worker]').forEach(r => r.addEventListener('change', e => { state.scenario.worker = e.target.value; renderAll(); }));
+
+  window.addEventListener('resize', () => { if (state.tab === 'market') drawMockChart(); });
+}
+
+function renderAll(){
+  renderTopStatus();
+  renderOverview();
+  renderCfg();
+  renderPaper();
+}
+
+/* ---------- 7) Start ---------- */
+wireEvents();
+setInterval(refreshData, 10000);
+refreshData();
+</script>
+</body>
+</html>

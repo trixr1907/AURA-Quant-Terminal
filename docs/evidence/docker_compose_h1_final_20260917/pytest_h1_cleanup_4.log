@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 4 items
+
+tests/test_docker_cleanup_harness.py::test_docker_info_timeout_named_resources PASSED [ 25%]
+tests/test_docker_cleanup_harness.py::test_compose_down_exit_code_1_reported_as_error PASSED [ 50%]
+tests/test_docker_cleanup_harness.py::test_primary_assertion_preserved_plus_cleanup_error_reported PASSED [ 75%]
+tests/test_docker_cleanup_harness.py::test_cleanup_failure_after_successful_run_raises_runtime_error PASSED [100%]
+
+============================== 4 passed in 0.02s ===============================

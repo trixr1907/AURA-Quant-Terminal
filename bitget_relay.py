@@ -10,7 +10,7 @@ API-Vertrag (für das Dashboard):
   GET  /                 -> Symbiose_Dashboard.html
   GET  /tutorial         -> SYMBIOSE_Tutorial.html
   GET  /status           -> Human Status Page (HTML)
-  GET  /serving          -> {"ok": true, "version": "2.5.0", "port": 8787, "mode": "quant_research"}
+  GET  /serving          -> {"ok": true, "version": "3.0.4", "port": 8787, "mode": "quant_research"}
   GET  /api/state        -> Liefert alle synchronisierten Zustände (Autobot, Trades, Historie)
   POST /api/state        -> Speichert & synchronisiert Zustand zentral auf dem Server
   POST /api/public       -> Bitget public REST (transparent, kein Auth)

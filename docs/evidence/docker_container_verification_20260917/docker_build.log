@@ -1,0 +1,72 @@
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  28.16MB
+Step 1/22 : FROM python:3.12.3-slim-bookworm AS base
+ ---> afc139a0a640
+Step 2/22 : LABEL maintainer="AURA Quant Team"
+ ---> Using cache
+ ---> 3d9f2324d3eb
+Step 3/22 : LABEL description="AURA Quant Terminal — Evidenzbasierte Quant-Engine & Paper-Runner"
+ ---> Using cache
+ ---> 45ce80c7d709
+Step 4/22 : LABEL version="2.5.0"
+ ---> Using cache
+ ---> 7527c608d0b6
+Step 5/22 : ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     PYTHONPATH=/app     AURA_DB_PATH=/data/aura_state.db     AURA_STATE_DIR=/var/lib/aura
+ ---> Using cache
+ ---> 16ded110b906
+Step 6/22 : WORKDIR /app
+ ---> Using cache
+ ---> f276aa872da2
+Step 7/22 : RUN groupadd -g 1000 aura &&     useradd -u 1000 -g aura -m -s /bin/bash aura
+ ---> Using cache
+ ---> 5205faca3cee
+Step 8/22 : RUN mkdir -p /var/lib/aura && chown -R aura:aura /var/lib/aura
+ ---> Using cache
+ ---> 1f9288eef741
+Step 9/22 : RUN mkdir -p /data /app && chown -R aura:aura /data /app
+ ---> Using cache
+ ---> aade88454730
+Step 10/22 : COPY requirements.txt /app/
+ ---> Using cache
+ ---> bbb93555cf2e
+Step 11/22 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Using cache
+ ---> e9327a9f2957
+Step 12/22 : COPY --chown=aura:aura VERSION .
+ ---> Using cache
+ ---> d1c05c1145ee
+Step 13/22 : COPY --chown=aura:aura aura/ /app/aura/
+ ---> Using cache
+ ---> 636dfb7d39df
+Step 14/22 : COPY --chown=aura:aura data/ /app/data/
+ ---> Using cache
+ ---> 5182f78c8b93
+Step 15/22 : COPY --chown=aura:aura scripts/ /app/scripts/
+ ---> Using cache
+ ---> bea319664fe2
+Step 16/22 : COPY --chown=aura:aura bitget_relay.py headless_autobot.js SYMBIOSE_Tutorial.html shadow_collector.js /app/
+ ---> Using cache
+ ---> e20ab140e414
+Step 17/22 : COPY --chown=aura:aura Symbiose_Dashboard.html /app/Symbiose_Dashboard.html
+ ---> Using cache
+ ---> 094c8ffae211
+Step 18/22 : USER aura
+ ---> Using cache
+ ---> ac98b43a0f7d
+Step 19/22 : VOLUME ["/data", "/var/lib/aura"]
+ ---> Using cache
+ ---> 816f86ae7c3b
+Step 20/22 : EXPOSE 8000
+ ---> Using cache
+ ---> aad356b9d8f1
+Step 21/22 : HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/ready', timeout=4) if False else urllib.request.urlopen('http://127.0.0.1:8000/api/v3/health', timeout=4)" || exit 1
+ ---> Using cache
+ ---> b3aa3580df74
+Step 22/22 : CMD ["uvicorn", "aura.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+ ---> Using cache
+ ---> e5beb5c9803d
+Successfully built e5beb5c9803d
+Successfully tagged aura-quant-terminal:2.5.0

@@ -1,0 +1,20 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ivo/projects/AURA_v2
+configfile: pytest.ini
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 10 items
+
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_halt_persists_across_worker_restarts PASSED [ 10%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestR1PersistentHaltAndConfig::test_active_config_restored_across_worker_restarts PASSED [ 20%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF1CrashResilientBarProcessingAndStateConsistency::test_bar_crash_before_complete_rolls_back_db_and_in_memory PASSED [ 30%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_stale_feed_from_2023_rejected_and_blocks_running PASSED [ 40%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_feed_with_insufficient_closed_candles_blocks_running PASSED [ 50%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF2FeedFreshnessAndGlobalGating::test_running_system_transitions_to_degraded_when_feed_drops PASSED [ 60%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF3WarmupRecovery::test_failed_warmup_transitions_to_degraded_and_recovers_to_running_when_feed_returns PASSED [ 70%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF4DatabaseTransactionAtomicityAndMigrationScripts::test_with_conn_rolls_back_on_exception PASSED [ 80%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF4DatabaseTransactionAtomicityAndMigrationScripts::test_executescript_rolls_back_atomically_on_error PASSED [ 90%]
+tests/test_v3_review_r1_to_r5_regressions.py::TestF5SubprocessWorkerRestartAndHeartbeatEvidence::test_real_worker_subprocess_lifecycle_and_restart PASSED [100%]
+
+============================== 10 passed in 4.52s ==============================
