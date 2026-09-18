@@ -470,11 +470,11 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():
-        """Liefert das vollumfängliche AURA Confluence Terminal (Symbiose) aus."""
+        """Liefert das vollumfängliche AURA Confluence Terminal aus."""
         dash_path = Path(__file__).parent.parent.parent / "Symbiose_Dashboard.html"
         if dash_path.exists():
             return HTMLResponse(content=dash_path.read_text(encoding="utf-8"))
-        return HTMLResponse(content="<h1>AURA v3 Running (Symbiose missing)</h1>")
+        return HTMLResponse(content="<h1>AURA v3 Running (Dashboard missing)</h1>")
 
     @app.get("/preview", response_class=HTMLResponse)
     def serve_preview():

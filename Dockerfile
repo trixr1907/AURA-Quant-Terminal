@@ -7,7 +7,7 @@ FROM python:3.12.3-slim-bookworm AS base
 # Build & Runtime Metadata
 LABEL maintainer="AURA Quant Team"
 LABEL description="AURA Quant Terminal — Evidenzbasierte Quant-Engine & Paper-Runner"
-LABEL version="2.5.0"
+LABEL version="3.0.4"
 
 # Python Flags fuer Produktion
 ENV PYTHONDONTWRITEBYTECODE=1 \
