@@ -470,19 +470,24 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():
-        """Liefert das reaktive AURA Dashboard aus."""
-        dash_path = Path(__file__).parent.parent.parent / "Symbiose_Dashboard.html"
+        """Liefert das moderne, responsive AURA Terminal aus."""
+        dash_path = Path(__file__).parent.parent.parent / "aura_ux_preview.html"
         if dash_path.exists():
             return HTMLResponse(content=dash_path.read_text(encoding="utf-8"))
         return HTMLResponse(content="<h1>AURA v3 Running</h1>")
 
     @app.get("/preview", response_class=HTMLResponse)
     def serve_preview():
-        """Liefert den neuen AURA UX-Entwurf (Read-Only Vorschau) aus."""
-        preview_path = Path(__file__).parent.parent.parent / "aura_ux_preview.html"
-        if preview_path.exists():
-            return HTMLResponse(content=preview_path.read_text(encoding="utf-8"))
-        return HTMLResponse(content="<h1>aura_ux_preview.html nicht gefunden</h1>", status_code=404)
+        """Transparenter Alias für das moderne Terminal."""
+        return serve_dashboard()
+
+    @app.get("/legacy", response_class=HTMLResponse)
+    def serve_legacy_dashboard():
+        """Liefert das alte Symbiose_Dashboard (Fallback) aus."""
+        dash_path = Path(__file__).parent.parent.parent / "Symbiose_Dashboard.html"
+        if dash_path.exists():
+            return HTMLResponse(content=dash_path.read_text(encoding="utf-8"))
+        return HTMLResponse(content="<h1>Symbiose_Dashboard.html nicht gefunden</h1>", status_code=404)
 
     return app
 
