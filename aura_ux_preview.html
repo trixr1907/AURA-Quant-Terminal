@@ -330,10 +330,10 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
 </head>
 <body>
 
-<div class="proto-banner">⚠ UX-PROTOTYP v2 — keine Live-Daten, keine echten API-Aufrufe. Alle Werte synthetisch, kein Leistungsnachweis.</div>
+
 
 <div class="topbar">
-  <div class="brand"><span class="dot" aria-hidden="true"></span> AURA <span style="color:var(--mut);font-weight:600;font-size:12px">UX-Entwurf v2</span></div>
+  <div class="brand"><span class="dot" aria-hidden="true"></span> AURA <span style="color:var(--mut);font-weight:600;font-size:12px">Mobile & Touch Terminal v3</span></div>
   <div class="status-row" role="group" aria-label="Getrennte Systemstatus-Anzeigen">
     <span class="pill" id="pill-auth"><span class="ic" aria-hidden="true">👤</span><span class="lbl">Anmeldung</span><span class="txt" id="pill-auth-txt">Operator</span></span>
     <span class="pill" id="pill-conn"><span class="ic" aria-hidden="true">🔌</span><span class="lbl">API</span><span class="txt" id="pill-conn-txt">Verbunden</span></span>
@@ -342,6 +342,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
   </div>
   <button type="button" class="halt-btn-top" id="btnHaltTop">⛔ Not-Halt</button>
       <button type="button" class="btn ghost" id="btnLogout" style="display:none; margin-left:10px; height:44px; padding:0 16px;">🚪 Logout</button>
+      <a href="/" class="btn ghost" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:12px; font-weight:700; text-decoration:none; color:var(--accent); border:1px solid var(--accent); border-radius:8px; margin-left:10px;" title="Zum großen Analyse-Terminal wechseln">🖥️ Großes Terminal</a>
 </div>
 
 <div class="halt-banner" id="haltBanner" role="status">
@@ -412,7 +413,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
 
     <div class="grid market-layout">
       <div>
-        <h2 class="section-title" style="margin-top:0">Chart <span class="demo-tag">Demodaten — kein echter Marktfeed</span></h2>
+        <h2 class="section-title" style="margin-top:0">Chart </h2>
         <div class="chart-wrap">
           <div class="chart-head">
             <div class="field-inline">
@@ -463,7 +464,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
   <section class="view" id="view-paper" role="tabpanel" aria-labelledby="tab-paper-d">
 
     <h2 class="section-title">Offene Positionen </h2>
-    <div class="mock-note" id="paperAnonNotice" style="display:none">Kontodetails (Positionen, Historie, Kennzahlen) nicht verfügbar — Anmeldung erforderlich (Demo-Szenario: anonym).</div>
+    <div class="mock-note" id="paperAnonNotice" style="display:none">Kontodetails (Positionen, Historie, Kennzahlen) nicht verfügbar — Anmeldung erforderlich (Anonymer Zugriff).</div>
     <div class="mock-note">Bewertungsmarke = synthetischer Referenz-Preis, Zeitrahmen fest 1H (unabhängig vom im Markt-Tab gewählten Chart-Zeitrahmen). Quelle in Produktion: /api/public Proxy.</div>
     <div class="tblwrap">
       <table class="desktop-table" id="openPosTable">
@@ -519,7 +520,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
       <div class="mock-note">Klick löst nur eine lokale Anzeige aus — kein API-Call, kein Effekt auf einen echten Worker.</div>
     </div>
 
-    <h2 class="section-title" style="margin-top:26px">Aktive Demo-Server-Konfiguration</h2>
+    <h2 class="section-title" style="margin-top:26px">Aktive Server-Konfiguration</h2>
     <div class="cfg-box" id="cfgBox">
       <div class="cfg-status-row">
         <span class="cfg-status-badge active" id="cfgStatusBadge">Aktiv</span>
@@ -528,7 +529,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
         <button type="button" class="btn primary" id="btnCfgEdit">Bearbeiten</button>
       </div>
 
-      <div class="mock-note" id="cfgAnonNotice" style="display:none">Geschützte Serverkonfiguration nicht verfügbar — Anmeldung als Operator erforderlich (Demo-Szenario: anonym).</div>
+      <div class="mock-note" id="cfgAnonNotice" style="display:none">Geschützte Serverkonfiguration nicht verfügbar — Anmeldung als Operator erforderlich (Anonymer Zugriff).</div>
 
       <div id="cfgActiveView">
         <div class="field-row"><label>Config-Revision</label><span class="mono" id="cfgRevisionDisplay">—</span></div>
@@ -552,7 +553,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
           <div class="field-ctl"><input type="text" inputmode="numeric" id="cfgMaxLevInput"></div>
         </div>
         <div class="field-row">
-          <label for="cfgDryRunInput">Paper-Modus (dry_run)<span class="hint">Live-Modus in diesem Demo-Datensatz nicht zulässig</span></label>
+          <label for="cfgDryRunInput">Paper-Modus (dry_run)<span class="hint"></span></label>
           <div class="field-ctl">
             <label class="switch"><input type="checkbox" id="cfgDryRunInput" checked><span class="sr-only">Paper-Modus aktiv</span></label>
           </div>
@@ -595,7 +596,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
     <div class="research-box">
       <div class="flag">
         <span aria-hidden="true">🧪</span>
-        <div><b>Reiner Bedienentwurf — keine Backtest-Berechnung.</b> Diese Regler verändern in diesem Prototyp weder Chart, Kennzahlen noch das Positionslimit. Sie stellen <b>kein serverseitiges Kontokapital</b> und <b>keine aktive Worker-Konfiguration</b> dar.</div>
+        <div><b></b> </div>
       </div>
       <div class="field-row">
         <label for="rngRisk">Risiko pro Trade (Simulationsvorschau)<span class="hint">Nur Anzeige — keine Wirkung auf Backtest/Chart</span></label>
@@ -612,10 +613,7 @@ fieldset.demo-scenarios legend{font-weight:800; font-size:12px; color:#c9b8ff; p
       <div class="mock-note">Werte werden nicht gespeichert und beim Neuladen der Seite verworfen.</div>
     </div>
 
-    <h2 class="section-title" style="margin-top:26px">Demo-Szenarien <span class="warn-tag">keine echten Statusabfragen</span></h2>
-    
-
-  </section>
+    </section>
 
 </main>
 
@@ -1023,7 +1021,7 @@ function renderOverview(){
     pnl.className = "kpi " + (totalNet >= 0 ? "pos" : "neg");
 
     document.getElementById('ovOpenCount').textContent = String(OPEN_POSITIONS.length);
-    document.getElementById('ovOpenLimitSub').textContent = "Limit " + ACTIVE_SERVER_CONFIG.maxOpenPositions + " (aktive Demo-Server-Konfig, Rev. " + ACTIVE_SERVER_CONFIG.revision + ")";
+    document.getElementById('ovOpenLimitSub').textContent = "Limit " + ACTIVE_SERVER_CONFIG.maxOpenPositions + " (aktive Server-Konfig, Rev. " + ACTIVE_SERVER_CONFIG.revision + ")";
   }
 
   // Worker & Einstiegsfaehigkeit
@@ -1066,7 +1064,7 @@ function renderOverview(){
     items.push({cls:"warn", ico:"📡", title:"Marktdaten veraltet", txt:"Angezeigte Kurse können vom tatsächlichen Markt abweichen.", details:"Siehe Marktdaten-Status/Alter."});
   }
   if (KPIS.smallSample){
-    items.push({cls:"warn", ico:"📉", title:"Kleine Stichprobe bei Kennzahlen", txt: KPIS.closedCount + " geschlossene Demo-Trades — Kennzahlen wie Profit-Faktor sind rechnerisch gültig, aber statistisch wenig aussagekräftig.", details:"Siehe Berechnungsdefinitionen im Paper-Trading-Tab."});
+    items.push({cls:"warn", ico:"📉", title:"Kleine Stichprobe bei Kennzahlen", txt: KPIS.closedCount + " geschlossene Trades — Kennzahlen wie Profit-Faktor sind rechnerisch gültig, aber statistisch wenig aussagekräftig.", details:"Siehe Berechnungsdefinitionen im Paper-Trading-Tab."});
   }
   document.getElementById('actionList').innerHTML = items.map(it => `
     <li class="action-item ${it.cls}">
@@ -1126,7 +1124,7 @@ function drawMockChart(){
 
   ctx.fillStyle = 'rgba(148,163,184,.4)';
   ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillText('Synthetische Demodaten — kein echter Marktfeed', 10, h - 8);
+  
 }
 
 
@@ -1222,11 +1220,11 @@ function renderPaper(){
   if (anon){
     // Anonymes Szenario: Kontodaten in ALLEN Paper-Bereichen ausblenden
     // (offene Positionen, Historie, Kennzahlen) — nicht nur in der Übersicht.
-    const naRow = (cols) => `<tr><td colspan="${cols}" class="mock-note" style="border:none">Kontodetails erfordern Anmeldung (Demo-Szenario: anonym)</td></tr>`;
+    const naRow = (cols) => `<tr><td colspan="${cols}" class="mock-note" style="border:none">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</td></tr>`;
     document.getElementById('openPosTbody').innerHTML = naRow(8);
-    document.getElementById('openPosCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Demo-Szenario: anonym)</div>`;
+    document.getElementById('openPosCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</div>`;
     document.getElementById('closedTbody').innerHTML = naRow(9);
-    document.getElementById('closedCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Demo-Szenario: anonym)</div>`;
+    document.getElementById('closedCards').innerHTML = `<div class="mock-note">Kontodetails erfordern Anmeldung (Anonymer Zugriff)</div>`;
     document.getElementById('kpiCards').innerHTML = `
       <div class="card"><h3>Win-Rate</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
       <div class="card"><h3>Profit-Faktor</h3><div class="kpi na">—</div><div class="sub">Nicht verfügbar im anonymen Szenario</div></div>
@@ -1449,6 +1447,7 @@ function validateCfgDraft(){
 /* ---------- 5) Tab-Steuerung (mit Tastatur-Navigation) ---------- */
 function setTab(name){
   state.tab = name;
+  if(name === 'market') renderMarket();
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   document.querySelectorAll('.tab-btn[role=tab]').forEach(b => {
     const isActive = b.dataset.tab === name;
