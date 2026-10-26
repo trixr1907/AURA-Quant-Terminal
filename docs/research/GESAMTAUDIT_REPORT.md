@@ -1,7 +1,7 @@
 # AURA Quant Terminal v1.0.8 — Gesamt-Korrekturaudit
 
 **Datum:** 10. September 2026  
-**Auditor:** Hermes (AI Quant & Research Integrity Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Auftraggeber:** Ivo  
 **Repository:** `https://github.com/trixr1907/AURA-Quant-Terminal`  
 **Geprüfter Release-Stand:** `v1.0.8` (Commit `d730cc3`)  
@@ -182,7 +182,7 @@ Die Gesamt-Mismatches liegen bei **0,0340%** und damit weit unter dem harten Tol
 
 | ID | Ebene/QS | Schweregrad | Status Vorher | Status Nachher | Beschreibung & Fix |
 |---|---|---|---|---|---|
-| **B1** (O2) | QS C | **MITTEL** | FALSCH | **WAHR** | **Repo-Hygiene (.hermes):** 34 interne Agent-Arbeitsdateien waren im Git-Tracking versioniert. `.gitignore` um `.hermes/` erweitert und `git rm -r --cached .hermes` ausgeführt. |
+| **B1** (O2) | QS C | **MITTEL** | FALSCH | **WAHR** | **Repo-Hygiene (.hermes):** 34 interne Arbeitsdateien waren im Git-Tracking versioniert. `.gitignore` um `.hermes/` erweitert und `git rm -r --cached .hermes` ausgeführt. |
 | **B2** (O1) | Ebene 3 | **NIEDRIG** | FALSCH | **WAHR** | **Provenance in PWF_FIX_REPORT.md:** Hash `8a05272a...` auf den finalen Release-Hash `0dea7c77ed4f571d8eb41f2c82354cbbcaeb9a34e52f37e46e55c1367c1cd98b` aktualisiert und Pre-Commit-Messhistorie transparent dokumentiert. |
 | **B3** (O6) | Ebene 3 | **NIEDRIG** | FALSCH | **WAHR** | **Doku in SYMBIOSE_Model_Validation.md:** Veraltete Testaufrufe (`test_symbiose.js`, 118 Tests) und offener Task-11-Status auf 121 Tests, Integrity Suite und verifizierte 5-Symbol-Golden-Master-Parität aktualisiert. |
 | **B4** (O4) | Ebene 2 | **INFO** | OFFEN | **WAHR** | **Audit Integrity Test Suite:** Neue Test-Suite `tests/test_audit_integrity.js` implementiert, die E2E-Trace, 5-Symbol Golden-Parität, Timeframe-Skalierung, Claims-Tabelle und Repo-Hygiene in einem Lauf prüft. |

@@ -1,4 +1,4 @@
-# OpenHands Task Brief — Runde 36 / AURA v2.2.0
+# Task-Brief — Runde 36 / AURA v2.2.0
 
 ## Ziel
 
@@ -16,7 +16,7 @@ Arbeite strikt in vertikalen RED→GREEN-Slices. Pro Slice zuerst Regressionstes
 - Sandbox-Repo: vor Edit selbst per `pwd`, Branch, `git rev-parse HEAD` und SHA-256 von `VERSION` verifizieren.
 - Branch: `feat/round36-v2.2.0-evidence-infra`
 - Start-Commit: `d62543fdf8bc49a1aa5a8ae8ac946c8304a01cf1` (`v2.1.0`)
-- Vorhandene uncommittete Datei dieses Briefs erhalten: `docs/research/OPENHANDS_TASK_BRIEF_ROUND36.md`.
+- Vorhandene uncommittete Datei dieses Briefs erhalten: `docs/research/TASK_BRIEF_ROUND36.md`.
 - Verboten: `git checkout`, `git restore`, `git reset`, `git clean`, pauschales `rm`, Reformatierung ganzer Dateien, Commit, Push, Tag, Release oder Deploy.
 - `docs/research/trials_ledger_chain.jsonl` und `ledger_checkpoint.json` nicht ändern.
 - Keine Lockbox auswerten. Keine Entry-/Exit-/Gate-/Score-/Sizing-Logik ändern. Nur Slippage-Kostenbug, Verdict-Priorität und DSR-Trial-Accounting.

@@ -42,7 +42,7 @@ docs/
     ├── GESAMTAUDIT_REPORT.md          # Vollständiger 5-Ebenen Auditbericht
     ├── PWF_FIX_REPORT.md              # Walk-Forward Purging & Leakage-Fixes
     ├── AUDIT_ABSCHLUSS.md             # Abschluss Gesamtaudit (Round 9/10)
-    ├── AUDIT_HERMES_20260912*.md      # Hermes-Audit Rev1–Rev3 (2026-09-12)
+    ├── AUDIT_20260912*.md      # Gesamtaudit Rev1–Rev3 (2026-09-12)
     ├── AUDIT_RUNDE9_ABSCHLUSS.md      # Round-9-Abschluss
     ├── AUDIT_RUNDE10_ABSCHLUSS.md     # Round-10-Abschluss
     ├── BASELINE_20260912.md           # Freeze-Baseline vor Audit

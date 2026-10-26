@@ -1,9 +1,9 @@
 # AURA Quant Terminal — Abschlussvermerk Gesamtaudit
 
 **Datum:** 2026-09-12
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor)
+**Auditor:** Senior Quant Systems Auditor
 **Version:** 1.2.6
-**Audit-Branch:** `audit/hermes-gesamtaudit-20260912`
+**Audit-Branch:** `audit/gesamtaudit-20260912`
 **Release-Verdict:** `SOFTWARE_GO / MODEL_NO_EVIDENCE` (Exit 0)
 
 ---

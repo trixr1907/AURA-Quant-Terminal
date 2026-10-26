@@ -1,7 +1,7 @@
 # AURA — Abschlussbericht Runde 13: Docker-VERSION-Hygiene & Fail-Fast (v1.2.13)
 
 **Datum:** 2026-09-12  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** `v1.2.12`  
 **Zielversion:** `v1.2.13`  
 **Themenbereich:** Infrastruktur-Hygiene, Container-Packaging & Fail-Closed Versioning

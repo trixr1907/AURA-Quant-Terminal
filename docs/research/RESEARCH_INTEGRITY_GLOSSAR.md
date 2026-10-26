@@ -2,7 +2,7 @@
 
 > Zweck: einheitliche, präzise Begriffe für Herleitung, Implementierung, Darstellung
 > und statistische Validierung der Quant-Pipeline. Für Doku, Briefings an Agents
-> (Hermes/OpenHands) und unabhängige Reviewer.
+> (automatisierte Prüf-Tools) und unabhängige Reviewer.
 >
 > Kernunterscheidung vorab:
 > **MRM garantiert keine Gewinne.** Es garantiert nur, dass die Pipeline einen echten
@@ -91,7 +91,7 @@ werden: ein Mess-Fix ist kein Strategie-Fix.
 > Darstellung, statistische Validierung — mit Oracle-Parität (JS↔Python↔Pine),
 > Evidence-Gating und DSR-Trial-Accounting."
 
-**Für Hermes / Agents (Auftragssprache):**
+**Für automatisierte Prüf-Agents (Auftragssprache):**
 > „Fix ist nur erlaubt, wenn er Ebene 1–4 konsistent lässt: Herleitung dokumentiert,
 > Engine- und Oracle-Ergebnis paritätsgleich, UI-Wert = Engine-Wert (Lineage),
 > und die statistische Aussage (DSR, evidenceStatus) aus den *effektiven* Trials."

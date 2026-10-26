@@ -1,4 +1,4 @@
-# OpenHands Task-Brief — AURA Runde 33 / v1.9.0
+# Task-Brief — AURA Runde 33 / v1.9.0
 
 ## Ziel
 

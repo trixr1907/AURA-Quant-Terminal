@@ -1,7 +1,7 @@
 # AURA — Abschlussbericht Runde 15: Feed-Rotation-Bug, Bitget-Keepalive & Sticky-Socket (v1.3.1)
 
 **Datum:** 2026-09-13  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** v1.3.0  
 **Zielversion:** v1.3.1 (PATCH Release gem. SemVer-Policy)  
 **Ledger-Status:** `EXP-031` (6 Einträge, Chain-Head `d9d270cdd62e247d045d7ed576e619800506f04f7f83335d348fec71cfb761d5`, 10 Modell-Experimente unverändert)  

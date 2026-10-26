@@ -1,7 +1,7 @@
 # AURA — Abschlussbericht Runde 11: Dashboard-Produkt-Fixes & Feed-Verlässlichkeit (v1.2.11)
 
 **Datum:** 2026-09-12  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** `1.2.10`  
 **Zielversion / Veröffentlichte Version:** `1.2.11`  
 **Kanonischer Release-Tag:** `v1.2.11` (Tag-Objekt: `4dda742a4fe835240f981f81000cc7023bf310bf`, peeled: `a0bb774a3d0d521db59347b5ad84fa55f6695b8f`)  

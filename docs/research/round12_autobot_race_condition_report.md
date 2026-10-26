@@ -1,7 +1,7 @@
 # AURA — Abschlussbericht Runde 12: Autobot-Scan Race-Condition & KPI-Klarheit (v1.2.12)
 
 **Datum:** 2026-09-12  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** `1.2.11`  
 **Zielversion / Veröffentlichte Version:** `1.2.12`  
 **Kanonischer Release-Tag:** `v1.2.12` (Tag-Objekt: `3c204d95b955440aea92390c99960dd3a44d5d2a`, peeled: `45f5f3cd1ab1a04f825b5f0007b08c127fba4db4`)  

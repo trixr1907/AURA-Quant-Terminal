@@ -1,7 +1,7 @@
 # AURA — Abschlussbericht Runde 14: Footer-Wahrheit, Release-Notes & Versionierungs-Policy (v1.3.0)
 
 **Datum:** 2026-09-12  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor & Coding Agent)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** v1.2.13  
 **Zielversion:** v1.3.0 (MINOR Release gem. neuer SemVer-Policy)  
 **Ledger-Status:** `EXP-030` (5 Einträge, Chain-Head `7a00e09a535da4327ab92ab1f69bb13814910d8128601812ab7f39d265f6a209`, 10 Modell-Experimente unverändert)  

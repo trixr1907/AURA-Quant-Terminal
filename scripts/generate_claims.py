@@ -322,7 +322,7 @@ CLAIMS = [
         "Ebene_Querschnitt": "Querschnitt C",
         "Status": "FALSCH",
         "Schweregrad": "MITTEL",
-        "Beleg_Repro": "git ls-files .hermes liefert 34 Dateien. Zwar keine Secrets und aus symbiose.zip exkludiert, aber interne Agent-Dateien gehören nicht in das öffentliche Git-Tracking.",
+        "Beleg_Repro": "git ls-files .hermes liefert 34 Dateien. Zwar keine Secrets und aus symbiose.zip exkludiert, aber interne Arbeitsdateien gehören nicht in das öffentliche Git-Tracking.",
         "Empfehlung_Fix": ".gitignore um '.hermes/' ergänzen und 'git rm -r --cached .hermes' ausführen."
     },
 

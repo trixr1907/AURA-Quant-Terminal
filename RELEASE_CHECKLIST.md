@@ -33,7 +33,7 @@ Jede künftige Session und jeder Release-Vorgang muss die folgenden 9 Regeln aus
   - **Regel:** Vor jedem Push zum Remote müssen ausgeführt werden:
     1. `python3 scripts/release_check.py` (alle 16 Gates grün, Exit 0)
     2. `git diff --check` (keine Whitespace- oder Konflikt-Reste)
-    3. `git ls-files | grep -c "^\.hermes/"` == 0 (keine Agent-internen Verzeichnisse im Git-Index)
+    3. `git ls-files | grep -c "^\.hermes/"` == 0 (keine internen Arbeitsverzeichnisse im Git-Index)
   - **Historische Begründung:** Verhindert versehentliche Commits von internen Session-Dateien und unvollständigen Arbeitsständen.
 
 - [ ] **7. Maschinenlesbares, ungeschöntes Berichts-Format:**

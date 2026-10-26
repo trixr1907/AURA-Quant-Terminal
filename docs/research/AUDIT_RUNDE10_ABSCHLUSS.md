@@ -1,7 +1,7 @@
 # AURA-Audit — Abschlussbericht Runde 10: Ledger-Checkpoint (F-06-Schluss) und CVD-Parität via Unabhängige Referenz (F-16-Schluss)
 
 **Datum:** 2026-09-12  
-**Auditor:** Hermes Agent (Senior Quant Systems Auditor)  
+**Auditor:** Senior Quant Systems Auditor  
 **Ausgangsversion:** `1.2.9`  
 **Zielversion / Veröffentlichte Version:** `1.2.10`  
 **Kanonischer Release-Tag:** `v1.2.10` (Tag-Objekt `c617533495fca468e0ae006a73f53d5a7d0b34ff`, peeled: `adb62350d92bfa8ea78194f6cf80bba7c9c3ded8`)  
